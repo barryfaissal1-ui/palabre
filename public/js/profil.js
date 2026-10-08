@@ -1,6 +1,6 @@
 // Page profil public : palabre.dev/identifiant
 (function () {
-  const { api, el, avatar, signaler } = window.Palabre;
+  const { api, el, avatar, signaler, partager, carteProjet, etoiles, dateRelative } = window.Palabre;
 
   const identifiant = decodeURIComponent(window.location.pathname.slice(1)).toLowerCase();
 
@@ -10,25 +10,6 @@
     return `https://wa.me/${chiffres}?text=${encodeURIComponent(message)}`;
   }
 
-  async function partager(profil, bouton) {
-    const url = `${window.location.origin}/${profil.identifiant}`;
-    const titre = `${profil.nom} sur Palabre`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: titre, url });
-        return;
-      } catch {
-        return; // partage annulé par la personne
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      bouton.textContent = 'Lien copié';
-      setTimeout(() => { bouton.textContent = 'Partager le profil'; }, 2000);
-    } catch {
-      window.prompt('Copie ce lien :', url);
-    }
-  }
 
   // Boutons d'amitié selon le lien actuel : aucune, demande envoyée, demande reçue, déjà amis.
   function boutonsAmitie(profil) {
@@ -84,7 +65,7 @@
     }
     zone.append(...boutonsAmitie(profil));
     const boutonPartage = el('button', { classe: 'bouton bouton-contour', type: 'button', texte: 'Partager le profil' });
-    boutonPartage.addEventListener('click', () => partager(profil, boutonPartage));
+    boutonPartage.addEventListener('click', () => partager(`${window.location.origin}/${profil.identifiant}`, `${profil.nom} sur Palabre`, boutonPartage));
     zone.append(boutonPartage);
     // « amitie » n'est renseigné que pour un membre connecté qui regarde le profil de quelqu'un d'autre.
     if (profil.amitie) {
@@ -111,6 +92,7 @@
         ]),
       ]),
       statut,
+      profil.nbAvis ? el('p', { classe: 'note-moyenne' }, [etoiles(profil.noteMoyenne), ` ${String(profil.noteMoyenne).replace('.', ',')} sur 5 (${profil.nbAvis} avis)`]) : null,
       profil.amitie === 'amis' ? el('span', { classe: 'pastille pastille-ami', texte: 'Vous êtes amis' }) : null,
       profil.bio ? el('p', { classe: 'profil-bio', texte: profil.bio }) : null,
       actions(profil),
@@ -125,16 +107,47 @@
   }
 
   function sectionRealisations(profil) {
-    return el('section', { classe: 'section-profil' }, [
-      el('h2', { texte: 'Réalisations' }),
-      el('div', { classe: 'vide' }, [
+    const gerer = profil.estMoi
+      ? el('a', { classe: 'bouton bouton-contour', href: '/projets', texte: profil.projets.length ? 'Gérer mes projets' : 'Ajouter mon premier projet' })
+      : null;
+    const contenu = profil.projets.length
+      ? el('div', { classe: 'grille-projets' }, profil.projets.map((p) => carteProjet(p, { avecDev: false })))
+      : el('div', { classe: 'vide' }, [
         el('p', {
           texte: profil.estMoi
-            ? 'Tes projets réalisés apparaîtront ici, avec un badge « Lien vérifié ». Cette partie arrive très bientôt.'
+            ? 'Ajoute tes projets réalisés : ceux dont le lien répond reçoivent le badge « Lien vérifié ».'
             : 'Aucun projet publié pour l\'instant.',
         }),
-      ]),
+        gerer,
+      ]);
+    return el('section', { classe: 'section-profil' }, [
+      el('h2', { texte: profil.projets.length ? `Réalisations (${profil.projets.length})` : 'Réalisations' }),
+      contenu,
+      profil.projets.length ? gerer : null,
     ]);
+  }
+
+  // Avis laissés par de vrais clients : chacun correspond à une demande terminée et attribuée à ce dev.
+  function sectionAvis(profil) {
+    const section = el('section', { classe: 'section-profil' }, [
+      el('h2', { texte: profil.nbAvis ? `Avis des clients (${profil.nbAvis})` : 'Avis des clients' }),
+    ]);
+    if (!profil.nbAvis) {
+      section.append(el('p', { classe: 'texte-discret', texte: 'Pas encore d\'avis. Seuls les clients qui ont travaillé avec ce développeur sur Palabre peuvent en laisser un.' }));
+      return section;
+    }
+    section.append(
+      el('p', { classe: 'note-moyenne' }, [etoiles(profil.noteMoyenne), ` ${String(profil.noteMoyenne).replace('.', ',')} sur 5`]),
+      el('ul', { classe: 'liste-avis' }, profil.avis.map((a) => el('li', { classe: 'avis' }, [
+        el('p', { classe: 'avis-entete' }, [
+          etoiles(a.note),
+          el('span', { classe: 'texte-discret' }, [' · ', el('a', { href: `/${a.client.identifiant}`, texte: a.client.nom }), ` · ${dateRelative(a.creeLe)}`]),
+        ]),
+        a.commentaire ? el('p', { classe: 'avis-texte', texte: a.commentaire }) : null,
+        el('p', { classe: 'texte-discret avis-demande', texte: `Demande : ${a.titreDemande}` }),
+      ]))),
+    );
+    return section;
   }
 
   async function afficher() {
@@ -143,7 +156,7 @@
       const { profil } = await api(`/profils/${encodeURIComponent(identifiant)}`);
       document.title = `${profil.nom} – Palabre`;
       zone.replaceChildren(carteProfil(profil));
-      if (profil.type === 'dev') zone.append(sectionCompetences(profil), sectionRealisations(profil));
+      if (profil.type === 'dev') zone.append(sectionCompetences(profil), sectionRealisations(profil), sectionAvis(profil));
     } catch (erreur) {
       document.title = 'Profil introuvable – Palabre';
       zone.replaceChildren(el('div', { classe: 'vide' }, [

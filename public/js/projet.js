@@ -1,0 +1,69 @@
+// Page publique d'un projet réalisé : palabre.dev/projets/12
+(function () {
+  const { api, el, avatar, utilisateurConnecte, partager, signaler } = window.Palabre;
+
+  const id = window.location.pathname.split('/')[2];
+
+  function page(projet, moi) {
+    const lieu = [projet.dev.ville, projet.dev.pays].filter(Boolean).join(', ');
+    const boutonPartage = el('button', { classe: 'bouton bouton-contour', type: 'button', texte: 'Partager' });
+    boutonPartage.addEventListener('click', () => partager(window.location.href, `${projet.titre} – Palabre`, boutonPartage));
+
+    const actions = el('div', { classe: 'profil-actions' }, [
+      projet.lien
+        // nofollow / noopener : le site visité ne reçoit ni recommandation ni accès à la page Palabre.
+        ? el('a', { classe: 'bouton bouton-principal', href: projet.lien, target: '_blank', rel: 'noopener nofollow', texte: 'Voir le projet en ligne' })
+        : null,
+      boutonPartage,
+    ]);
+    if (projet.estMoi) {
+      actions.append(el('a', { classe: 'bouton bouton-lien', href: '/projets', texte: 'Gérer mes projets' }));
+    } else if (moi) {
+      const boutonSignaler = el('button', { classe: 'bouton bouton-lien', type: 'button', texte: 'Signaler' });
+      boutonSignaler.addEventListener('click', () => signaler('projet', projet.id));
+      actions.append(boutonSignaler);
+    }
+
+    return [
+      el('article', { classe: 'carte-profil' }, [
+        projet.image ? el('img', { classe: 'projet-grande-image', src: projet.image, alt: `Capture d'écran du projet ${projet.titre}` }) : null,
+        el('p', { classe: 'projet-meta' }, [
+          el('span', { classe: 'texte-discret', texte: projet.nomSecteur }),
+          projet.lienVerifie ? el('span', { classe: 'badge-verifie', texte: 'Lien vérifié' }) : null,
+        ]),
+        el('h1', { classe: 'titre-demande', texte: projet.titre }),
+        projet.description ? el('p', { classe: 'profil-bio', texte: projet.description }) : null,
+        projet.lienVerifie
+          ? el('p', { classe: 'texte-discret note-verification', texte: 'Palabre a visité ce lien : le projet est bien en ligne.' })
+          : null,
+        actions,
+      ]),
+      el('section', { classe: 'section-profil' }, [
+        el('h2', { texte: 'Réalisé par' }),
+        el('div', { classe: 'ligne-membre' }, [
+          el('a', { classe: 'lien-avatar', href: `/${projet.dev.identifiant}`, 'aria-label': `Profil de ${projet.dev.nom}` }, [avatar(projet.dev, 'moyen')]),
+          el('div', { classe: 'ligne-membre-infos' }, [
+            el('a', { classe: 'nom-auteur', href: `/${projet.dev.identifiant}`, texte: projet.dev.nom }),
+            el('p', { classe: 'texte-discret', texte: lieu }),
+          ]),
+          el('div', { classe: 'ligne-membre-actions' }, [
+            el('a', { classe: 'bouton bouton-contour', href: `/${projet.dev.identifiant}`, texte: 'Voir le profil' }),
+          ]),
+        ]),
+      ]),
+    ];
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const zone = document.querySelector('[data-projet]');
+    try {
+      const [{ projet }, moi] = await Promise.all([api(`/projets/${encodeURIComponent(id)}`), utilisateurConnecte()]);
+      zone.replaceChildren(...page(projet, moi));
+    } catch (erreur) {
+      zone.replaceChildren(el('div', { classe: 'vide' }, [
+        el('p', { texte: erreur.message }),
+        el('a', { classe: 'bouton bouton-principal', href: '/', texte: 'Retour à l\'accueil' }),
+      ]));
+    }
+  });
+})();

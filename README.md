@@ -71,7 +71,7 @@ tests/                 tests automatiques
 - [x] Profils, compétences, photo de profil, liens courts palabre.dev/identifiant
 - [x] Fil d'actualité (idée, question, projet, image), j'aime, commentaires, amis, signalement
 - [x] Demandes des clients, propositions en solo, équipes éclair, choix du client, notifications (cloche)
-- [ ] Profil prouvé, vitrine, partage, avis
+- [x] Profil prouvé (projets avec badge « Lien vérifié », avis protégés), recherche de devs, vitrine par secteur, cartes de partage Open Graph
 - [ ] Tableau de bord administrateur, calculateur de prix, publication Facebook, défi de la semaine
 
 ## Comprendre le code

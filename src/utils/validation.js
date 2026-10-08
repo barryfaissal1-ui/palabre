@@ -87,6 +87,20 @@ const CATEGORIES_DEMANDE = {
   autre: 'Autre',
 };
 
+// Secteurs des projets réalisés : ils classent la vitrine de la page d'accueil.
+const SECTEURS_PROJET = {
+  commerce: 'Commerce et boutiques',
+  restauration: 'Restauration et hôtellerie',
+  sante: 'Santé',
+  education: 'Éducation',
+  agriculture: 'Agriculture',
+  finance: 'Finance et Mobile Money',
+  transport: 'Transport et livraison',
+  services: 'Associations et services publics',
+  culture: 'Culture et médias',
+  autre: 'Autre',
+};
+
 // Nombre entier (montant en FCFA…). Les espaces de « 150 000 » sont acceptés.
 function entier(valeur, champ, { min = 0, max = 2000000000, optionnel = false } = {}) {
   if (valeur === null || valeur === undefined || valeur === '') {
@@ -117,7 +131,7 @@ const IDENTIFIANTS_RESERVES = new Set([
   'a-propos', 'admin', 'aide', 'amis', 'api', 'chercher', 'conditions', 'confidentialite', 'connexion',
   'css', 'defis', 'demande', 'demandes', 'equipes', 'fichiers', 'fil', 'fonts', 'icons', 'index', 'inscription',
   'js', 'manifest', 'modifier-profil', 'moi', 'mot-de-passe-oublie', 'notifications', 'palabre', 'parametres',
-  'profil', 'projets', 'reinitialiser', 'sw', 'vitrine',
+  'profil', 'projet', 'projets', 'reinitialiser', 'sw', 'vitrine',
 ]);
 
 function identifiant(valeur) {
@@ -147,6 +161,7 @@ module.exports = {
   ErreurValidation,
   ErreurHttp,
   CATEGORIES_DEMANDE,
+  SECTEURS_PROJET,
   entier,
   texte,
   email,

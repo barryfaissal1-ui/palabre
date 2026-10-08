@@ -6,6 +6,8 @@ const v = require('../utils/validation');
 const { exigerConnexion } = require('../middleware/auth');
 const { lireImageDataUrl } = require('../utils/images');
 const { etatAmitie } = require('../utils/membres');
+const { projetsDe } = require('./projets');
+const { avisDe } = require('./avis');
 
 const router = express.Router();
 const MAX_COMPETENCES = 15;
@@ -67,7 +69,13 @@ router.get('/:identifiant', async (req, res) => {
   const competences = await competencesDe(rows[0].id);
   const visiteur = req.utilisateur;
   const amitie = visiteur && visiteur.id !== rows[0].id ? await etatAmitie(visiteur.id, rows[0].id) : null;
-  res.json({ profil: profilVisible(rows[0], competences, visiteur, amitie) });
+  const profil = profilVisible(rows[0], competences, visiteur, amitie);
+  // Le « profil prouvé » d'un dev : ses projets réalisés et les avis de ses vrais clients.
+  if (rows[0].type === 'dev') {
+    profil.projets = await projetsDe(rows[0].id, visiteur);
+    Object.assign(profil, await avisDe(rows[0].id));
+  }
+  res.json({ profil });
 });
 
 // Modifier son profil : PUT /api/profils/moi

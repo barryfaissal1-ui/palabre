@@ -230,6 +230,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_propositions_solo ON propositions (demande
 CREATE UNIQUE INDEX IF NOT EXISTS idx_propositions_equipe ON propositions (equipe_id) WHERE equipe_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_propositions_demande ON propositions (demande_id);
 CREATE INDEX IF NOT EXISTS idx_equipe_membres_dev ON equipe_membres (dev_id, statut);
+CREATE INDEX IF NOT EXISTS idx_projets_dev ON projets (dev_id);
+CREATE INDEX IF NOT EXISTS idx_avis_dev ON avis (dev_id);
 
 -- ============ Données de base ============
 INSERT INTO competences (nom) VALUES

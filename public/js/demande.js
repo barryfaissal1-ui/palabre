@@ -95,6 +95,55 @@
     ]);
   }
 
+  // ---------- Avis du client, une fois la demande terminée ----------
+  function formulaireAvis(demande, dev) {
+    const radios = [1, 2, 3, 4, 5].flatMap((n) => [
+      el('input', { type: 'radio', name: `note-${dev.identifiant}`, id: `note-${dev.identifiant}-${n}`, value: String(n), checked: n === 5 }),
+      el('label', { for: `note-${dev.identifiant}-${n}`, 'aria-label': `${n} sur 5`, texte: `${n} ★` }),
+    ]);
+    const commentaire = el('textarea', { rows: '3', maxlength: '1000', placeholder: 'Qualité du travail, respect des délais, communication… (facultatif)', 'aria-label': `Ton avis sur ${dev.nom}` });
+    const zoneErreur = el('p', { classe: 'erreur-champ', role: 'alert' });
+    const envoyer = el('button', { classe: 'bouton bouton-principal', type: 'submit', texte: 'Envoyer mon avis' });
+    const formulaire = el('form', { classe: 'bloc-formulaire' }, [
+      el('h3', {}, ['Ton avis sur ', el('a', { href: `/${dev.identifiant}`, texte: dev.nom })]),
+      el('fieldset', { classe: 'choix-puces' }, [el('legend', { classe: 'visuellement-cache', texte: `Note pour ${dev.nom}` }), ...radios]),
+      commentaire,
+      zoneErreur,
+      envoyer,
+    ]);
+    formulaire.addEventListener('submit', async (evenement) => {
+      evenement.preventDefault();
+      zoneErreur.textContent = '';
+      envoyer.disabled = true;
+      try {
+        await api('/avis', {
+          methode: 'POST',
+          donnees: { demandeId: demande.id, identifiant: dev.identifiant, note: Number(formulaire.elements[`note-${dev.identifiant}`].value), commentaire: commentaire.value },
+        });
+        await afficher();
+        message(`Merci, ton avis est publié sur le profil ${deNom(dev.nom)}.`, 'succes');
+      } catch (erreur) {
+        zoneErreur.textContent = erreur.message;
+        envoyer.disabled = false;
+      }
+    });
+    return formulaire;
+  }
+
+  function sectionAvis(demande, propositions, avisDonnes) {
+    const choisie = propositions.find((p) => p.statut === 'acceptee');
+    if (demande.statut !== 'terminee' || !choisie) return null;
+    const devs = choisie.equipe ? choisie.equipe.membres : [choisie.auteur];
+    const aNoter = devs.filter((d) => !avisDonnes.includes(d.identifiant));
+    return el('section', { classe: 'section-profil' }, [
+      el('h2', { texte: 'Ton avis' }),
+      aNoter.length
+        ? el('p', { classe: 'texte-discret', texte: 'Ton avis apparaîtra sur le profil du développeur. Tu ne peux le donner qu\'une fois.' })
+        : el('p', { classe: 'message succes', texte: 'Merci, tu as donné ton avis.' }),
+      ...aNoter.map((dev) => formulaireAvis(demande, dev)),
+    ]);
+  }
+
   // ---------- Vue du client propriétaire ----------
   function sectionClient(demande, propositions) {
     const section = el('section', { classe: 'section-profil' }, [
@@ -265,12 +314,12 @@
   async function afficher() {
     const zone = document.querySelector('[data-demande]');
     try {
-      const { demande, propositions } = await api(`/demandes/${encodeURIComponent(id)}`);
+      const { demande, propositions, avisDonnes } = await api(`/demandes/${encodeURIComponent(id)}`);
       document.title = `${demande.titre} – Palabre`;
       const blocs = [enteteDemande(demande)];
-      if (demande.estMoi) blocs.push(sectionClient(demande, propositions));
+      if (demande.estMoi) blocs.push(sectionAvis(demande, propositions, avisDonnes || []), sectionClient(demande, propositions));
       else if (moi.type === 'dev') blocs.push(await sectionDev(demande, propositions));
-      zone.replaceChildren(...blocs);
+      zone.replaceChildren(...blocs.filter(Boolean));
     } catch (erreur) {
       zone.replaceChildren(el('div', { classe: 'vide' }, [
         el('p', { texte: erreur.message }),

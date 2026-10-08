@@ -5,7 +5,6 @@ const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const config = require('./config');
 const { chargerUtilisateur } = require('./middleware/auth');
-const { IDENTIFIANTS_RESERVES } = require('./utils/validation');
 
 const DOSSIER_PUBLIC = path.join(__dirname, '..', 'public');
 
@@ -33,6 +32,7 @@ function creerApp() {
   // toutes les autres requêtes restent limitées à 200 Ko.
   app.use('/api/profils/moi/avatar', express.json({ limit: '750kb' }));
   app.post('/api/publications', express.json({ limit: '750kb' }));
+  app.post('/api/projets', express.json({ limit: '750kb' }));
   app.use(express.json({ limit: '200kb' }));
   app.use(cookieParser());
 
@@ -53,6 +53,9 @@ function creerApp() {
   app.use('/api/demandes', require('./routes/demandes'));
   app.use('/api/equipes', require('./routes/equipes'));
   app.use('/api/notifications', require('./routes/notifications'));
+  app.use('/api/projets', require('./routes/projets'));
+  app.use('/api/avis', require('./routes/avis'));
+  app.use('/api/devs', require('./routes/devs'));
   app.use('/api', require('./routes/references'));
 
   app.get('/api/sante', (req, res) => res.json({ ok: true }));
@@ -60,20 +63,17 @@ function creerApp() {
 
   app.use('/fichiers', require('./routes/fichiers'));
 
+  // Accueil, liens courts de profil (palabre.dev/barry-faissal) et pages de projet :
+  // le serveur y ajoute les balises de partage Facebook / WhatsApp (voir routes/pages.js).
+  // Placé avant les fichiers statiques, sinon l'accueil serait servi sans passer par là.
+  app.use(require('./routes/pages'));
+
   app.use(express.static(DOSSIER_PUBLIC, {
     extensions: ['html'],
     setHeaders(res, fichier) {
       if (fichier.endsWith('sw.js')) res.setHeader('Cache-Control', 'no-cache');
     },
   }));
-
-  // Liens courts de profil : palabre.dev/barry-faissal affiche la page profil.
-  // La page lit l'identifiant dans l'adresse et demande le profil à l'API.
-  app.get('/:identifiant', (req, res, next) => {
-    const id = req.params.identifiant.toLowerCase();
-    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(id) || IDENTIFIANTS_RESERVES.has(id)) return next();
-    res.sendFile(path.join(DOSSIER_PUBLIC, 'profil.html'));
-  });
 
   // Gestion centralisée des erreurs.
   // eslint-disable-next-line no-unused-vars

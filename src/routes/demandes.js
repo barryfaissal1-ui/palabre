@@ -188,7 +188,16 @@ router.post('/', exigerClient, limiteDemandes, async (req, res) => {
 router.get('/:id', async (req, res) => {
   const moi = req.utilisateur;
   const { ligne, demande } = await lireDemande(req.params.id, moi);
-  res.json({ demande, propositions: await propositionsVisibles(ligne, moi) });
+  const reponse = { demande, propositions: await propositionsVisibles(ligne, moi) };
+  if (demande.estMoi) {
+    // Devs que le client a déjà notés pour cette demande : la page ne leur repropose pas le formulaire d'avis.
+    const { rows } = await db.query(
+      'SELECT u.identifiant FROM avis a JOIN utilisateurs u ON u.id = a.dev_id WHERE a.demande_id = $1',
+      [ligne.id],
+    );
+    reponse.avisDonnes = rows.map((l) => l.identifiant);
+  }
+  res.json(reponse);
 });
 
 // Le client change le statut de sa demande :

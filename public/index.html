@@ -14,11 +14,8 @@
   <link rel="preload" href="/fonts/bricolage-grotesque-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/css/style.css">
   <title>Palabre – le réseau des développeurs africains</title>
-  <meta name="description" content="Palabre réunit les développeurs africains : partage tes projets, forme des équipes, et trouve des clients qui ont besoin de toi.">
-  <meta property="og:title" content="Palabre – le réseau des développeurs africains">
-  <meta property="og:description" content="Partage tes projets, forme des équipes, trouve des clients.">
-  <meta property="og:image" content="/icons/icon-512.png">
   <script src="/js/app.js" defer></script>
+  <script src="/js/vitrine.js" defer></script>
 </head>
 <body>
   <div class="bande"></div>
@@ -67,10 +64,14 @@
     <section class="section conteneur">
       <h2>La vitrine des réalisations</h2>
       <p class="intro">Sites, applis et outils créés par les développeurs de Palabre, classés par secteur.</p>
-      <div class="vide">
-        <p>La vitrine attend ses premiers projets. Inscris-toi et publie ce que tu as déjà construit.</p>
+      <div class="onglets onglets-defilants" role="group" aria-label="Filtrer par secteur" data-secteurs></div>
+      <div class="grille-projets" data-vitrine aria-live="polite"></div>
+      <div class="vide" data-vitrine-vide hidden>
+        <p data-vitrine-texte>La vitrine attend ses premiers projets. Inscris-toi et publie ce que tu as déjà construit.</p>
         <a class="bouton bouton-principal" href="/inscription?type=dev">Publier mon premier projet</a>
       </div>
+      <button class="bouton bouton-contour bouton-plein" type="button" data-vitrine-plus hidden>Voir plus de réalisations</button>
+      <p class="suite-vitrine"><a class="bouton bouton-or" href="/chercher">Trouver un développeur</a></p>
     </section>
   </main>
 

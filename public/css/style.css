@@ -710,6 +710,75 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
 .choix-ami input:not([type="checkbox"]) { grid-column: 2; }
 .choix-ami input:disabled { display: none; }
 
+/* ---------- Projets, vitrine et avis ---------- */
+.grille-projets { display: grid; gap: 16px; }
+@media (min-width: 600px) { .grille-projets { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 900px) { .section > .grille-projets { grid-template-columns: repeat(3, 1fr); } }
+.grille-projets:empty { display: none; }
+
+.carte-projet {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--ligne);
+  border-radius: var(--rayon);
+  color: var(--encre);
+}
+.projet-visuel { display: block; aspect-ratio: 16 / 10; background: var(--ligne); }
+.projet-visuel img { width: 100%; height: 100%; object-fit: cover; }
+.projet-corps { display: grid; gap: 6px; padding: 14px 16px 16px; }
+.projet-corps h3 { margin: 0; font: 800 1.15rem/1.2 var(--titre); overflow-wrap: anywhere; }
+.projet-corps h3 a { display: inline-flex; align-items: center; min-height: 44px; color: var(--encre); text-decoration: none; }
+.projet-corps h3 a:hover { text-decoration: underline; }
+.projet-corps p { margin: 0; font-size: 0.9rem; }
+.projet-corps .profil-actions { margin-top: 6px; }
+.projet-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0; font-size: 0.9rem; }
+
+/* Le badge « Lien vérifié » : la preuve que le projet est en ligne */
+.badge-verifie {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--feuille-vive) 16%, transparent);
+  color: var(--feuille);
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.badge-verifie::before { content: "✓"; }
+@media (prefers-color-scheme: dark) { .badge-verifie { color: #5FD08A; } }
+
+.projet-grande-image { width: 100%; max-height: 420px; object-fit: contain; border-radius: var(--rayon-petit); background: var(--ligne); }
+.note-verification { font-size: 0.9rem; }
+.intro-page { margin: -8px 0 20px; }
+.suite-vitrine { margin: 24px 0 0; }
+.section > .bouton-plein { margin-top: 16px; }
+
+/* Onglets qui défilent sur le côté quand ils sont nombreux (secteurs de la vitrine) */
+.onglets-defilants { overflow-x: auto; margin: 0 calc(-1 * var(--gouttiere)) 20px; padding: 4px var(--gouttiere); scrollbar-width: none; }
+.onglets-defilants::-webkit-scrollbar { display: none; }
+.onglets-defilants .onglet { flex: none; }
+.onglets-defilants:empty { display: none; }
+
+.case-a-cocher { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; padding-block: 8px; cursor: pointer; }
+.case-a-cocher input { flex: none; width: 22px; height: 22px; min-height: 0; margin: 1px 0 0; padding: 0; accent-color: var(--feuille); }
+
+.etoiles { color: var(--terre-logo); letter-spacing: 1px; white-space: nowrap; }
+.note-moyenne { margin: 0; font-weight: 700; }
+.liste-avis { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 12px; }
+.avis { display: grid; gap: 6px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--ligne); border-radius: var(--rayon); }
+.avis p { margin: 0; }
+.avis-texte { white-space: pre-line; overflow-wrap: anywhere; }
+.avis-demande { font-size: 0.85rem; }
+.bloc-formulaire h3 { margin: 0; font: 800 1.1rem/1.2 var(--titre); }
+
+.carte-dev h2 { margin: 0; font-size: 1.05rem; }
+.carte-dev .bouton { justify-self: start; min-height: 44px; }
+.preuves { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0; font-size: 0.9rem; }
+
 /* ---------- Notifications ---------- */
 .titre-avec-action { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 12px; }
 .liste-notifications { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }

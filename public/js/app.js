@@ -83,6 +83,46 @@
     return `${montant.toLocaleString('fr-FR')} FCFA`;
   }
 
+  // Note sur 5 en étoiles, lisible aussi par un lecteur d'écran.
+  function etoiles(note) {
+    const pleines = Math.round(note);
+    return el('span', { classe: 'etoiles', role: 'img', 'aria-label': `${String(note).replace('.', ',')} sur 5`, texte: '★'.repeat(pleines) + '☆'.repeat(5 - pleines) });
+  }
+
+  // Carte d'un projet réalisé : utilisée par la vitrine, les profils et « Mes projets ».
+  function carteProjet(projet, { avecDev = true } = {}) {
+    const adresse = `/projets/${projet.id}`;
+    return el('article', { classe: 'carte-projet' }, [
+      projet.image
+        ? el('a', { classe: 'projet-visuel', href: adresse, tabindex: '-1', 'aria-hidden': 'true' }, [el('img', { src: projet.image, alt: '', loading: 'lazy' })])
+        : null,
+      el('div', { classe: 'projet-corps' }, [
+        el('p', { classe: 'projet-meta' }, [
+          el('span', { classe: 'texte-discret', texte: projet.nomSecteur }),
+          projet.lienVerifie ? el('span', { classe: 'badge-verifie', texte: 'Lien vérifié' }) : null,
+        ]),
+        el('h3', {}, [el('a', { href: adresse, texte: projet.titre })]),
+        avecDev ? el('p', { classe: 'texte-discret' }, ['Par ', el('a', { href: `/${projet.dev.identifiant}`, texte: projet.dev.nom })]) : null,
+      ]),
+    ]);
+  }
+
+  // Partage d'une page : menu de partage du téléphone s'il existe, sinon copie du lien.
+  async function partager(url, titre, bouton) {
+    if (navigator.share) {
+      try { await navigator.share({ title: titre, url }); } catch { /* partage annulé par la personne */ }
+      return;
+    }
+    const texteInitial = bouton.textContent;
+    try {
+      await navigator.clipboard.writeText(url);
+      bouton.textContent = 'Lien copié';
+      setTimeout(() => { bouton.textContent = texteInitial; }, 2000);
+    } catch {
+      window.prompt('Copie ce lien :', url);
+    }
+  }
+
   // Réduit une image dans le navigateur avant l'envoi (côté le plus long : 1080 px, JPEG) :
   // une photo de plusieurs Mo devient une centaine de Ko, ce qui économise les données mobiles.
   async function reduireImage(fichier, coteMax = 1080) {
@@ -180,6 +220,7 @@
         el('div', { classe: 'nav-liens' }, [
           lien('/fil', 'Fil'),
           lien('/demandes', 'Demandes'),
+          lien('/chercher', 'Devs'),
           lien('/amis', [
             'Amis',
             demandes ? el('span', { classe: 'compteur', texte: String(demandes), 'aria-label': `${demandes} demande${demandes > 1 ? 's' : ''} en attente` }) : null,
@@ -195,7 +236,10 @@
         el('a', { classe: 'nav-profil', href: `/${moi.identifiant}`, 'aria-label': 'Mon profil' }, [avatar(moi, 'mini')]),
       );
     } else {
-      nav.append(el('a', { classe: 'bouton bouton-lien', href: '/connexion', texte: 'Se connecter' }));
+      nav.append(
+        el('a', { classe: 'bouton bouton-lien', href: '/chercher', texte: 'Devs' }),
+        el('a', { classe: 'bouton bouton-lien', href: '/connexion', texte: 'Se connecter' }),
+      );
     }
   }
 
@@ -207,5 +251,5 @@
 
   document.addEventListener('DOMContentLoaded', remplirNavigation);
 
-  window.Palabre = { api, utilisateurConnecte, el, avatar, initiales, dateRelative, deNom, fcfa, reduireImage, signaler };
+  window.Palabre = { api, utilisateurConnecte, el, avatar, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, reduireImage, signaler };
 })();

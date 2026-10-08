@@ -34,6 +34,8 @@ Le navigateur ne parle jamais directement à la base : tout passe par le serveur
 | Découvrir qui est inscrit | Même message que l'email existe ou non (connexion, mot de passe oublié), même temps de réponse | `src/routes/auth.js` |
 | Injection de code dans les pages (XSS) | Le texte des membres est toujours inséré avec `textContent`, jamais interprété comme du HTML ; politique de sécurité du contenu (CSP) stricte via **Helmet** | `public/js/app.js`, `src/app.js` |
 | Injection SQL | Toutes les requêtes utilisent des paramètres (`$1`, `$2`…), jamais de texte collé dans le SQL | partout dans `src/routes` |
+| Faire visiter une adresse interne par le serveur (SSRF) | Liens des projets contrôlés à la saisie, après le DNS et à chaque redirection | `src/utils/liens.js` |
+| Faux avis | Avis réservé au client d'une demande terminée, pour le dev retenu, une seule fois | `src/routes/avis.js` |
 | Faux fichiers images | Vérification du vrai format par les premiers octets du fichier, taille limitée à 500 Ko | `src/utils/images.js` |
 | Collecte de numéros de téléphone | Le numéro WhatsApp n'est montré qu'aux membres connectés ; l'email n'est jamais public | `src/routes/profils.js` |
 
@@ -171,12 +173,57 @@ La **cloche** du menu affiche le nombre de notifications non lues (compté dans 
 
 Avec « Fil », « Demandes », « Amis », la cloche et la photo, le menu ne tient plus sur 390 px. Sur téléphone, les trois liens principaux forment donc une **barre fixe en bas de l'écran**, à portée de pouce comme dans une application ; sur grand écran ils restent en haut. C'est le même HTML : seule la feuille de style change (`.nav-liens` dans `public/css/style.css`).
 
-## 9. L'application installable (PWA)
+## 9. Le profil prouvé, la vitrine et le partage
+
+L'idée : sur Palabre, un développeur ne se contente pas de dire qu'il est bon. Il le **prouve** avec des projets dont le lien fonctionne et des avis laissés par de vrais clients.
+
+### Les projets réalisés (`src/routes/projets.js`, page `/projets`)
+
+Un dev ajoute un projet : titre, description, secteur (liste fixe), lien et capture d'écran facultatifs, et son accord éventuel pour une publication sur la page Facebook. Chaque projet a sa page publique `/projets/12`, visible sans compte. 20 projets au plus par développeur.
+
+### Le badge « Lien vérifié » (`src/utils/liens.js`)
+
+À l'ajout d'un projet, **le serveur visite lui-même le lien**. Si le site répond (code 2xx), il note la date dans `lien_verifie_le` et le badge apparaît partout : profil, vitrine, recherche. Sinon le projet est gardé, sans badge, et le dev peut relancer la vérification.
+
+Ce que le badge prouve : le lien existe et fonctionne. Il ne prouve pas à lui seul que le dev en est l'auteur ; c'est pour cela qu'il y a aussi les avis et le bouton « Signaler » sur chaque projet.
+
+**Le piège à éviter (attaque « SSRF »).** Comme c'est le serveur qui visite, un membre malveillant pourrait lui donner une adresse **interne** (`http://localhost:5432`, `http://192.168.1.1`, l'adresse de la console de l'hébergeur…) pour sonder un réseau auquel il n'a pas accès. Quatre protections, toutes testées :
+
+| Protection | Ce qu'elle bloque |
+| --- | --- |
+| Contrôle à la saisie (`normaliserLien`) | `localhost`, les IP privées, tout ce qui n'est pas `http`/`https`, les ports, les identifiants dans l'adresse. Les écritures déguisées (`http://2130706433/`, `http://0x7f.0.0.1/`) sont ramenées à leur vraie forme `127.0.0.1`, puis refusées |
+| Contrôle après le DNS | un nom d'apparence normale qui mène en réalité à une adresse interne ; une seule adresse interne suffit à refuser |
+| Connexion à l'adresse contrôlée | le DNS qui répondrait une adresse publique au contrôle puis une adresse interne à la connexion (« DNS rebinding ») : on se connecte à l'adresse déjà vérifiée, sans redemander |
+| Redirections suivies à la main | un site public qui redirige vers une adresse interne : chaque redirection (3 au plus) repasse tous les contrôles |
+
+La liste des plages interdites (10.x, 127.x, 169.254.x, 172.16-31.x, 192.168.x, IPv6 locales…) est tenue par `net.BlockList`, un outil fourni avec Node.js. La visite est limitée à 5 secondes et ne télécharge pas la page : seul le code de réponse est lu.
+
+### Les avis protégés (`src/routes/avis.js`)
+
+`POST /api/avis` : une note de 1 à 5 et un commentaire facultatif. Une seule requête SQL vérifie les trois conditions : la demande appartient au client connecté, elle est **terminée**, et le dev noté est celui de la proposition **acceptée** (ou un membre, ayant accepté, de l'équipe choisie). Une contrainte `UNIQUE (demande, dev)` en base interdit un second avis. Pour une équipe, le client note chaque membre séparément. Le formulaire apparaît sur la page de la demande une fois celle-ci terminée ; le dev reçoit une notification.
+
+Résultat : il est impossible de s'écrire un avis à soi-même, de noter un dev avec qui on n'a pas travaillé, ou de noter deux fois.
+
+### La recherche de devs (`src/routes/devs.js`, page `/chercher`)
+
+Par compétence, pays, ville (une partie du nom suffit, sans tenir compte des majuscules) et disponibilité. Ouverte aux visiteurs, mais sans email ni numéro de téléphone. Les devs disponibles viennent d'abord, puis les mieux notés, puis ceux qui ont le plus de projets vérifiés. Dans la recherche par ville, les caractères `%` et `_` (jokers en SQL) sont neutralisés.
+
+### La vitrine de l'accueil (`public/js/vitrine.js`)
+
+La page d'accueil affiche les projets, par 9, avec un filtre par secteur. Elle est visible sans compte : c'est ce que voit un client qui découvre Palabre.
+
+### Les cartes de partage Facebook / WhatsApp (`src/routes/pages.js`)
+
+Quand on colle un lien dans WhatsApp ou Facebook, leur robot lit la page **sans exécuter le JavaScript**. Il lui faut des balises « Open Graph » (`og:title`, `og:description`, `og:image`, `og:url`) déjà écrites dans le HTML. Pour l'accueil, les profils (`/barry-faissal`) et les projets (`/projets/12`), le serveur remplace donc le `<title>` de la page par un titre et des balises propres au contenu : nom, ville et présentation du dev avec sa photo ; titre et capture d'écran du projet.
+
+Deux précautions : le texte des membres est **échappé** (`<` devient `&lt;`…) avant d'entrer dans le HTML, sinon un nom piégé deviendrait du code ; et l'adresse de l'image est complète (avec `URL_PUBLIQUE`), comme l'exigent Facebook et WhatsApp. Un profil ou un projet inconnu renvoie un vrai code 404.
+
+## 10. L'application installable (PWA)
 
 - `public/manifest.json` : nom, couleurs et icônes de l'appli quand on l'ajoute à l'écran d'accueil.
 - `public/sw.js` : le « service worker » garde une copie des fichiers de l'interface. Les pages s'ouvrent vite, même avec une connexion faible. Les données (`/api`) ne sont jamais mises en cache, pour toujours être à jour. À chaque modification de l'interface, on augmente `VERSION` pour forcer la mise à jour chez tout le monde.
 
-## 10. Les tests automatiques
+## 11. Les tests automatiques
 
 `npm test` lance des tests qui démarrent un vrai serveur et vérifient, entre autres : inscription, refus d'un mauvais mot de passe, protection CSRF, modification de profil, identifiants réservés, confidentialité du numéro WhatsApp, envoi et remplacement de photo, refus d'un faux fichier image.
 
@@ -184,9 +231,14 @@ Pour le réseau social (`tests/social.test.js`) : fil réservé aux membres, cha
 
 Pour les demandes (`tests/demandes.test.js`) : publication réservée aux clients, chargement par 10, proposition en solo invisible pour les autres développeurs, invitation limitée aux amis développeurs, envoi de la proposition d'équipe seulement quand tous ont répondu, cas où tous refusent, choix du client (une seule fois, par le bon client), notifications de chaque événement et impossibilité de lire celles d'un autre.
 
+Pour le profil prouvé (`tests/preuves.test.js`) : une vingtaine de liens piégés refusés (localhost, IP privées, écritures déguisées, autres protocoles), un faux DNS qui mène à une adresse interne, une redirection vers une adresse interne, un vrai petit site local qui répond ; avis refusés dans tous les cas interdits (demande non terminée, autre client, dev non retenu, invité qui avait refusé, deuxième avis) ; recherche de devs ; balises de partage avec un nom piégé qui ne doit pas devenir du code.
+
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
 
-## 11. Questions probables du jury
+## 12. Questions probables du jury
+
+- **Votre serveur visite des liens fournis par les membres : n'est-ce pas dangereux ?** Si, sans précaution : c'est l'attaque SSRF. Palabre refuse les adresses internes à la saisie, après la résolution DNS et à chaque redirection, et se connecte à l'adresse qu'il vient de contrôler (voir le chapitre 9).
+- **Pourquoi le serveur écrit-il des balises dans la page, alors que le reste est fait en JavaScript ?** Parce que les robots de Facebook et WhatsApp n'exécutent pas le JavaScript. Sans ces balises, un lien partagé s'afficherait sans titre ni image.
 
 - **Qu'est-ce qui empêche un développeur de copier l'offre d'un concurrent ?** Le serveur ne lui envoie que ses propres propositions. Même en appelant l'API à la main, il ne reçoit rien d'autre.
 - **Pourquoi la proposition d'équipe attend-elle toutes les réponses ?** Pour que le client reçoive une équipe réelle, avec des membres qui se sont engagés, et non une liste de noms que le chef a écrite seul.
