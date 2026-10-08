@@ -178,15 +178,16 @@ a { color: var(--indigo-clair); text-underline-offset: 3px; }
 .heros .bouton-contour { color: #fff; }
 
 .heros-arbre {
-  justify-self: end;
-  width: min(320px, 62vw);
-  margin-bottom: -56px;
+  justify-self: center;
+  width: min(300px, 72vw);
+  height: auto;
+  filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.35));
 }
 
 @media (min-width: 800px) {
-  .heros-interieur { grid-template-columns: 1.3fr 1fr; align-items: end; padding-block: 72px 0; }
-  .heros-texte { gap: 24px; padding-bottom: 72px; }
-  .heros-arbre { margin-bottom: 0; }
+  .heros-interieur { grid-template-columns: 1.3fr 1fr; align-items: center; padding-block: 72px; }
+  .heros-texte { gap: 24px; }
+  .heros-arbre { justify-self: end; width: 360px; }
 }
 
 .section { padding-block: 56px; }
