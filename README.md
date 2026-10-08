@@ -69,7 +69,7 @@ tests/                 tests automatiques
 - [x] Inscription, connexion, déconnexion, mot de passe oublié
 - [x] PWA installable (manifeste, icônes, service worker)
 - [x] Profils, compétences, photo de profil, liens courts palabre.dev/identifiant
-- [ ] Fil d'actualité, j'aime, commentaires, amis, signalement
+- [x] Fil d'actualité (idée, question, projet, image), j'aime, commentaires, amis, signalement
 - [ ] Demandes, propositions, équipes éclair, notifications
 - [ ] Profil prouvé, vitrine, partage, avis
 - [ ] Tableau de bord administrateur, calculateur de prix, publication Facebook, défi de la semaine

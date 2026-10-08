@@ -43,9 +43,9 @@ server.js              démarrage (migration automatique puis écoute)
 src/app.js             application Express : sécurité, routes, lien court /:identifiant
 src/config.js          variables d'environnement (.env)
 src/db/schema.sql      toutes les tables (idempotent, relancé à chaque démarrage)
-src/routes/            auth.js, profils.js, fichiers.js, references.js
+src/routes/            auth.js, profils.js, fichiers.js, references.js, publications.js, amis.js, signalements.js
 src/middleware/auth.js session (cookie httpOnly + JWT), exigerConnexion, exigerAdmin
-src/utils/             validation.js (dont IDENTIFIANTS_RESERVES), images.js, mailer.js
+src/utils/             validation.js (dont IDENTIFIANTS_RESERVES), images.js, mailer.js, membres.js (aperçu d'un membre, état d'amitié, limites par membre)
 public/                pages HTML, css/style.css, js/ (app.js = outils communs), sw.js, manifest.json
 tests/                 tests node:test qui démarrent un vrai serveur
 docs/COMPRENDRE-LE-CODE.md  guide pédagogique pour l'équipe et le jury
@@ -88,10 +88,10 @@ Fait :
 - [x] Inscription, connexion, déconnexion, mot de passe oublié par email
 - [x] PWA installable, logo de l'équipe, couleurs du site alignées sur le logo
 - [x] Profils : page publique `/:identifiant`, modification, 15 compétences max, photo, disponibilité, WhatsApp protégé
+- [x] Réseau social : fil `/fil` (idée / question / projet, image facultative, chargé par 10, filtre « Mes amis »), j'aime, commentaires, amis (`/amis`, bouton sur les profils), bouton « Signaler » (fenêtre commune `signaler()` dans `public/js/app.js`)
 
 À faire, dans cet ordre :
-1. **Réseau social** : fil d'actualité (publications idée / question / projet, chargées par 10), j'aime, commentaires, demandes d'amis (accepter / refuser), bouton « Signaler ».
-2. **Demandes et équipes éclair** : publier une demande (client), propositions solo, création d'équipe, invitations avec rôle, proposition d'équipe, choix du client, **notifications** dans l'appli (cloche avec compteur).
-3. **Profil prouvé, vitrine et partage** : projets avec vérification automatique du lien, avis protégés, recherche de devs (compétence, pays, ville, disponibilité), vitrine par secteur sur l'accueil, cartes de partage Open Graph.
-4. **Finitions** : tableau de bord administrateur (valider ou bloquer les projets avant Facebook, signalements, statistiques), calculateur de prix, publication automatique Facebook (ou plan B), défi de la semaine en dernier.
-5. **Mise en ligne Systalink** vers le 20 octobre (premier essai), version finale le 22-23, contenu de démo, tests sur plusieurs téléphones et en 3G, comptes de démo pour le jury.
+1. **Demandes et équipes éclair** : publier une demande (client), propositions solo, création d'équipe, invitations avec rôle, proposition d'équipe, choix du client, **notifications** dans l'appli (cloche avec compteur).
+2. **Profil prouvé, vitrine et partage** : projets avec vérification automatique du lien, avis protégés, recherche de devs (compétence, pays, ville, disponibilité), vitrine par secteur sur l'accueil, cartes de partage Open Graph.
+3. **Finitions** : tableau de bord administrateur (valider ou bloquer les projets avant Facebook, signalements, statistiques), calculateur de prix, publication automatique Facebook (ou plan B), défi de la semaine en dernier.
+4. **Mise en ligne Systalink** vers le 20 octobre (premier essai), version finale le 22-23, contenu de démo, tests sur plusieurs téléphones et en 3G, comptes de démo pour le jury.

@@ -220,6 +220,11 @@ CREATE INDEX IF NOT EXISTS idx_demandes_statut ON demandes (statut, cree_le DESC
 CREATE INDEX IF NOT EXISTS idx_projets_secteur ON projets (secteur, cree_le DESC);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (utilisateur_id, lue, cree_le DESC);
 CREATE INDEX IF NOT EXISTS idx_utilisateurs_ville ON utilisateurs (pays, ville);
+CREATE INDEX IF NOT EXISTS idx_publications_auteur ON publications (auteur_id);
+CREATE INDEX IF NOT EXISTS idx_amities_receveur ON amities (receveur_id, statut);
+-- Une seule ligne par paire de membres : A→B interdit B→A (pas de demandes en double dans les deux sens).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_amities_paire
+  ON amities (LEAST(demandeur_id, receveur_id), GREATEST(demandeur_id, receveur_id));
 
 -- ============ Données de base ============
 INSERT INTO competences (nom) VALUES

@@ -328,15 +328,21 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--er
 .liens-formulaire { margin: 20px 0 0; text-align: center; font-size: 0.95rem; }
 .liens-formulaire p { margin: 6px 0; }
 
-/* ---------- Fil (provisoire) ---------- */
-.bienvenue {
-  padding-block: 32px;
-}
-.bienvenue h1 { margin: 0 0 6px; font: 800 2rem/1.1 var(--titre); }
-.bienvenue p { margin: 0 0 4px; color: var(--gris); }
-
 /* ---------- Navigation membre ---------- */
-.nav-profil { display: inline-flex; border-radius: 50%; }
+.nav-profil { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; border-radius: 50%; }
+.entete nav .bouton-lien { min-height: 44px; }
+.compteur {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--terre-logo);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
 
 /* ---------- Avatars ---------- */
 .avatar {
@@ -502,7 +508,142 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
 }
 .zone-deconnexion { margin-top: 24px; text-align: center; }
 
-.actions-bienvenue { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+/* ---------- Fil d'actualité ---------- */
+.page-fil { max-width: 640px; padding-bottom: 56px; }
+
+/* Type de publication : des puces à choix unique */
+.choix-puces { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.choix-puces input { position: absolute; opacity: 0; width: 1px; height: 1px; min-height: 0; }
+.choix-puces label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1.5px solid var(--ligne);
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+  user-select: none;
+}
+.choix-puces input:checked + label { border-color: var(--feuille); background: var(--feuille); color: #fff; }
+.choix-puces input:focus-visible + label { outline: 3px solid var(--terre-logo); outline-offset: 2px; }
+
+.actions-publier { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; }
+.actions-publier label { cursor: pointer; }
+.actions-publier label:focus-within { outline: 3px solid var(--terre-logo); outline-offset: 2px; }
+.apercu-image { display: grid; gap: 4px; justify-items: start; }
+.apercu-image img { max-height: 220px; border-radius: var(--rayon-petit); }
+
+.onglets { display: flex; gap: 8px; margin: 24px 0 16px; }
+.onglet {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1.5px solid var(--ligne);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--encre);
+  font: 600 0.95rem/1 var(--texte);
+  cursor: pointer;
+}
+.onglet[aria-pressed="true"] { border-color: var(--encre); background: var(--encre); color: var(--papier); }
+
+.liste-publications { display: grid; gap: 16px; }
+.etat-fil { margin: 24px 0; text-align: center; }
+
+.carte-publication {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--ligne);
+  border-radius: var(--rayon);
+}
+.publication-entete { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.publication-entete > div { min-width: 0; }
+.lien-avatar { display: inline-flex; flex: none; border-radius: 50%; }
+.lien-avatar, .nav-profil { text-decoration: none; }
+.nom-auteur { color: var(--encre); font-weight: 700; text-decoration: none; overflow-wrap: anywhere; }
+.nom-auteur:hover { text-decoration: underline; }
+.publication-meta { margin: 2px 0 0; font-size: 0.9rem; }
+.type-publication { font-weight: 700; }
+.type-idee { color: var(--lien); }
+.type-question { color: var(--feuille); }
+.type-projet { color: var(--encre); }
+@media (prefers-color-scheme: dark) { .type-question { color: #5FD08A; } }
+
+.publication-texte { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+.publication-image { width: 100%; max-height: 480px; object-fit: contain; border-radius: var(--rayon-petit); background: var(--ligne); }
+
+.publication-actions { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 4px; border-top: 1px solid var(--ligne); }
+.bouton-action {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--gris);
+  font: 600 0.95rem/1 var(--texte);
+  cursor: pointer;
+}
+.bouton-action:hover { background: color-mix(in srgb, var(--gris) 12%, transparent); }
+.bouton-action[aria-pressed="true"] { color: var(--lien); }
+.bouton-action[aria-pressed="true"]::before { content: "♥ "; }
+.bouton-action-fin { margin-left: auto; font-weight: 400; }
+
+.commentaires { display: grid; gap: 12px; }
+.commentaires > .texte-discret { margin: 0; }
+.liste-commentaires { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.liste-commentaires:empty { display: none; }
+.commentaire { display: flex; align-items: flex-start; gap: 10px; }
+.commentaire-corps { min-width: 0; flex: 1; padding: 8px 12px; border-radius: var(--rayon-petit); background: var(--papier); }
+.commentaire-entete { margin: 0; font-size: 0.9rem; }
+.commentaire-texte { margin: 2px 0 0; white-space: pre-line; overflow-wrap: anywhere; }
+.bouton-discret {
+  min-height: 44px;
+  margin-bottom: -8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--gris);
+  font: 400 0.85rem/1 var(--texte);
+  cursor: pointer;
+}
+.bouton-discret:hover { text-decoration: underline; }
+.form-commentaire { display: flex; gap: 8px; }
+.form-commentaire input { min-width: 0; flex: 1; }
+.form-commentaire .bouton { flex: none; padding: 0 16px; }
+
+/* ---------- Fenêtre de dialogue (signalement) ---------- */
+.dialogue {
+  width: min(440px, calc(100vw - 32px));
+  padding: 20px;
+  border: 1px solid var(--ligne);
+  border-radius: var(--rayon);
+  background: var(--surface);
+  color: var(--encre);
+}
+.dialogue::backdrop { background: rgba(0, 0, 0, 0.55); }
+.dialogue h2 { margin: 0; font: 800 1.35rem/1.2 var(--titre); }
+.dialogue p { margin: 0; }
+.dialogue-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ---------- Mes amis ---------- */
+.liste-membres { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.ligne-membre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--ligne);
+  border-radius: var(--rayon);
+}
+.ligne-membre-infos { flex: 1; min-width: 140px; }
+.ligne-membre-infos p { margin: 0; font-size: 0.9rem; }
+.ligne-membre-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ligne-membre-actions .bouton { min-height: 44px; padding: 0 16px; }
+.pastille-ami { background: color-mix(in srgb, var(--terre-logo) 14%, transparent); color: var(--lien); }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }

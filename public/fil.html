@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <link rel="preload" href="/fonts/bricolage-grotesque-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/css/style.css">
-  <title>Mon fil – Palabre</title>
+  <title>Fil d'actualité – Palabre</title>
   <script src="/js/app.js" defer></script>
   <script src="/js/fil.js" defer></script>
 </head>
@@ -23,18 +23,46 @@
     <a class="marque" href="/"><img src="/icons/logo-256.png" alt="" width="36" height="36">Palabre</a>
     <nav data-nav></nav>
   </header>
-  <main class="conteneur">
-    <section class="bienvenue" aria-live="polite">
-      <h1 data-salutation>Chargement…</h1>
-      <p data-lien-profil></p>
-      <div class="actions-bienvenue">
-        <a class="bouton bouton-principal" href="/modifier-profil">Compléter mon profil</a>
-        <a class="bouton bouton-contour" href="/" data-voir-profil>Voir mon profil</a>
+  <main class="conteneur page-fil">
+    <h1 class="titre-page">Fil d'actualité</h1>
+
+    <form class="bloc-formulaire" data-publier novalidate>
+      <fieldset class="choix-puces">
+        <legend class="visuellement-cache">Type de publication</legend>
+        <input type="radio" name="type" id="type-idee" value="idee" checked>
+        <label for="type-idee">Idée</label>
+        <input type="radio" name="type" id="type-question" value="question">
+        <label for="type-question">Question</label>
+        <input type="radio" name="type" id="type-projet" value="projet">
+        <label for="type-projet">Projet</label>
+      </fieldset>
+      <div class="champ">
+        <label class="visuellement-cache" for="texte">Ta publication</label>
+        <textarea id="texte" name="texte" rows="3" maxlength="3000" placeholder="Partage une idée, pose une question ou montre un projet…"></textarea>
+        <p class="erreur-champ" data-erreur="texte"></p>
       </div>
-    </section>
-    <div class="vide">
-      <p>Ton fil d'actualité arrive bientôt : les publications de tes amis, leurs projets et leurs questions apparaîtront ici.</p>
+      <div class="apercu-image" data-apercu hidden>
+        <img alt="Aperçu de l'image choisie" data-apercu-image>
+        <button class="bouton bouton-lien" type="button" data-retirer-image>Retirer l'image</button>
+      </div>
+      <div class="actions-publier">
+        <label class="bouton bouton-contour">
+          Ajouter une image
+          <input type="file" accept="image/*" data-choisir-image class="visuellement-cache">
+        </label>
+        <button class="bouton bouton-principal" type="submit">Publier</button>
+      </div>
+      <p class="message" role="status" data-message></p>
+    </form>
+
+    <div class="onglets" role="group" aria-label="Filtrer le fil">
+      <button class="onglet" type="button" data-filtre="tout" aria-pressed="true">Tout le monde</button>
+      <button class="onglet" type="button" data-filtre="amis" aria-pressed="false">Mes amis</button>
     </div>
+
+    <div class="liste-publications" data-fil></div>
+    <p class="texte-discret etat-fil" role="status" data-etat-fil>Chargement…</p>
+    <button class="bouton bouton-contour bouton-plein" type="button" data-charger-plus hidden>Voir plus de publications</button>
   </main>
 </body>
 </html>

@@ -5,6 +5,7 @@ const db = require('../db/pool');
 const v = require('../utils/validation');
 const { exigerConnexion } = require('../middleware/auth');
 const { lireImageDataUrl } = require('../utils/images');
+const { etatAmitie } = require('../utils/membres');
 
 const router = express.Router();
 const MAX_COMPETENCES = 15;
@@ -23,7 +24,7 @@ function urlFichier(id) {
 
 // Ce que tout le monde peut voir d'un profil. L'email n'en fait jamais partie.
 // Le numéro WhatsApp n'est montré qu'aux membres connectés, pour limiter la collecte automatique de numéros.
-function profilVisible(u, competences, visiteur) {
+function profilVisible(u, competences, visiteur, amitie = null) {
   return {
     nom: u.nom,
     identifiant: u.identifiant,
@@ -38,6 +39,8 @@ function profilVisible(u, competences, visiteur) {
     whatsappMasque: !visiteur && Boolean(u.whatsapp),
     membreDepuis: u.cree_le,
     estMoi: Boolean(visiteur && visiteur.id === u.id),
+    // Lien d'amitié avec le visiteur connecté ('aucune', 'envoyee', 'recue', 'amis') ; null sinon.
+    amitie,
   };
 }
 
@@ -62,7 +65,9 @@ router.get('/:identifiant', async (req, res) => {
   if (!rows[0]) return res.status(404).json({ erreur: 'Ce profil n\'existe pas.' });
 
   const competences = await competencesDe(rows[0].id);
-  res.json({ profil: profilVisible(rows[0], competences, req.utilisateur) });
+  const visiteur = req.utilisateur;
+  const amitie = visiteur && visiteur.id !== rows[0].id ? await etatAmitie(visiteur.id, rows[0].id) : null;
+  res.json({ profil: profilVisible(rows[0], competences, visiteur, amitie) });
 });
 
 // Modifier son profil : PUT /api/profils/moi

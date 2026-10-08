@@ -68,6 +68,18 @@ function typeCompte(valeur) {
   return valeur;
 }
 
+// Valeur à choisir dans une liste fixe (type de publication, type de cible signalée…).
+function parmi(valeur, liste, champ) {
+  if (!liste.includes(valeur)) throw new ErreurValidation('Choix non reconnu.', champ);
+  return valeur;
+}
+
+// Numéro de ligne venant d'une adresse ou d'un formulaire : entier positif, sinon null.
+function idPositif(valeur) {
+  const n = Number(valeur);
+  return Number.isInteger(n) && n > 0 && n <= 2147483647 ? n : null;
+}
+
 // Mots réservés : ils servent d'adresses de pages (palabre.dev/connexion…) et ne peuvent pas être des identifiants.
 const IDENTIFIANTS_RESERVES = new Set([
   'a-propos', 'admin', 'aide', 'amis', 'api', 'chercher', 'conditions', 'confidentialite', 'connexion',
@@ -107,6 +119,8 @@ module.exports = {
   pays,
   whatsapp,
   typeCompte,
+  parmi,
+  idPositif,
   versIdentifiant,
   identifiant,
   IDENTIFIANTS_RESERVES,

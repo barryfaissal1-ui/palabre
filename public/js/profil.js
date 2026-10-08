@@ -1,6 +1,6 @@
 // Page profil public : palabre.dev/identifiant
 (function () {
-  const { api, el, avatar } = window.Palabre;
+  const { api, el, avatar, signaler } = window.Palabre;
 
   const identifiant = decodeURIComponent(window.location.pathname.slice(1)).toLowerCase();
 
@@ -30,6 +30,39 @@
     }
   }
 
+  // Boutons d'amitié selon le lien actuel : aucune, demande envoyée, demande reçue, déjà amis.
+  function boutonsAmitie(profil) {
+    const cible = encodeURIComponent(profil.identifiant);
+    function bouton(texte, classe, appel) {
+      const b = el('button', { classe: `bouton ${classe}`, type: 'button', texte });
+      b.addEventListener('click', async () => {
+        b.disabled = true;
+        try {
+          await appel();
+          await afficher(); // relit le profil pour montrer le nouvel état
+        } catch (erreur) {
+          window.alert(erreur.message);
+          b.disabled = false;
+        }
+      });
+      return b;
+    }
+
+    if (profil.amitie === 'aucune') {
+      return [bouton('Ajouter en ami', 'bouton-or', () => api('/amis/demandes', { methode: 'POST', donnees: { identifiant: profil.identifiant } }))];
+    }
+    if (profil.amitie === 'envoyee') {
+      return [el('button', { classe: 'bouton bouton-contour', type: 'button', disabled: true, texte: 'Demande envoyée' })];
+    }
+    if (profil.amitie === 'recue') {
+      return [
+        bouton('Accepter la demande d\'ami', 'bouton-or', () => api(`/amis/demandes/${cible}/accepter`, { methode: 'POST', donnees: {} })),
+        bouton('Refuser', 'bouton-contour', () => api(`/amis/demandes/${cible}/refuser`, { methode: 'POST', donnees: {} })),
+      ];
+    }
+    return [];
+  }
+
   function actions(profil) {
     const zone = el('div', { classe: 'profil-actions' });
     if (profil.estMoi) {
@@ -49,9 +82,16 @@
         texte: 'Se connecter pour contacter',
       }));
     }
+    zone.append(...boutonsAmitie(profil));
     const boutonPartage = el('button', { classe: 'bouton bouton-contour', type: 'button', texte: 'Partager le profil' });
     boutonPartage.addEventListener('click', () => partager(profil, boutonPartage));
     zone.append(boutonPartage);
+    // « amitie » n'est renseigné que pour un membre connecté qui regarde le profil de quelqu'un d'autre.
+    if (profil.amitie) {
+      const boutonSignaler = el('button', { classe: 'bouton bouton-lien', type: 'button', texte: 'Signaler' });
+      boutonSignaler.addEventListener('click', () => signaler('profil', profil.identifiant));
+      zone.append(boutonSignaler);
+    }
     return zone;
   }
 
@@ -71,6 +111,7 @@
         ]),
       ]),
       statut,
+      profil.amitie === 'amis' ? el('span', { classe: 'pastille pastille-ami', texte: 'Vous êtes amis' }) : null,
       profil.bio ? el('p', { classe: 'profil-bio', texte: profil.bio }) : null,
       actions(profil),
     ]);
@@ -96,7 +137,7 @@
     ]);
   }
 
-  document.addEventListener('DOMContentLoaded', async () => {
+  async function afficher() {
     const zone = document.querySelector('[data-profil]');
     try {
       const { profil } = await api(`/profils/${encodeURIComponent(identifiant)}`);
@@ -110,5 +151,7 @@
         el('a', { classe: 'bouton bouton-principal', href: '/', texte: 'Retour à l\'accueil' }),
       ]));
     }
-  });
+  }
+
+  document.addEventListener('DOMContentLoaded', afficher);
 })();

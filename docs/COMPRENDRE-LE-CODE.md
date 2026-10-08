@@ -70,16 +70,65 @@ Le navigateur ne parle jamais directement à la base : tout passe par le serveur
 3. **Stockage** : l'image est rangée dans la table `fichiers` de la base. Avantage : elle survit aux redéploiements du serveur, sans payer un service de stockage en plus. L'ancienne photo est supprimée quand on en met une nouvelle.
 4. **Affichage** : `GET /fichiers/<identifiant>` renvoie l'image avec un cache d'un an. Chaque nouvelle photo reçoit un nouvel identifiant, donc le navigateur ne retélécharge jamais une photo déjà vue : encore des données mobiles économisées.
 
-## 7. L'application installable (PWA)
+## 7. Le réseau social
+
+Tout ce chapitre est réservé aux membres connectés : sans session, le serveur répond 401 et la page renvoie vers la connexion.
+
+### Le fil d'actualité (`src/routes/publications.js`, `public/js/fil.js`)
+
+- **Publier** (`POST /api/publications`) : un type (`idee`, `question` ou `projet`), un texte de 3000 caractères au plus, et une image facultative. L'image est réduite dans le navigateur (1080 px de côté au plus, JPEG) par `reduireImage()` de `public/js/app.js`, puis vérifiée et rangée dans la table `fichiers` comme les photos de profil. L'image et la publication sont enregistrées dans une même **transaction**.
+- **Chargement par 10** (`GET /api/publications?avant=<numéro>`) : le serveur renvoie les 10 publications les plus récentes, puis la page envoie le numéro de la dernière affichée pour avoir les 10 d'avant (bouton « Voir plus de publications »). Cette méthode reste rapide même avec des milliers de publications, et ne crée pas de doublon si quelqu'un publie pendant qu'on lit. Pour savoir s'il en reste, le serveur en demande 11 et n'en renvoie que 10.
+- **Filtre « Mes amis »** (`?amis=1`) : seulement ses propres publications et celles de ses amis.
+- **Suppression** : seul l'auteur (ou un administrateur) peut supprimer une publication ; ses j'aime, ses commentaires et son image partent avec.
+- Les publications masquées par un administrateur et celles des comptes bloqués n'apparaissent jamais.
+
+### J'aime et commentaires
+
+- **J'aime** (`POST` et `DELETE /api/publications/:id/jaime`) : la table `jaime` a pour clé primaire le couple (publication, membre). La base elle-même empêche donc d'aimer deux fois : un double clic ne compte pas double.
+- **Commentaires** (`GET` et `POST /api/publications/:id/commentaires`) : 1000 caractères au plus, chargés seulement quand on ouvre la zone de commentaires (moins de données en 3G). Chacun peut supprimer les siens.
+
+### Les amis (`src/routes/amis.js`, `public/js/amis.js`)
+
+Une seule ligne de la table `amities` relie deux membres, avec un statut : `en_attente`, `acceptee` ou `refusee`. Un index unique sur la paire empêche d'avoir une demande dans chaque sens.
+
+| Action | Adresse | Règle vérifiée par le serveur |
+| --- | --- | --- |
+| Envoyer une demande | `POST /api/amis/demandes` | pas à soi-même, pas deux fois, pas si on est déjà amis |
+| Accepter / refuser | `POST /api/amis/demandes/:identifiant/accepter` ou `/refuser` | seul celui qui a **reçu** la demande peut répondre |
+| Retirer un ami, annuler sa demande | `DELETE /api/amis/:identifiant` | |
+| Voir ses amis et ses demandes | `GET /api/amis` | |
+
+Cas particuliers : si deux membres se demandent en même temps, ils deviennent amis tout de suite. Après un refus, celui qui a demandé voit toujours « Demande envoyée » (le refus n'est pas révélé) et ne peut pas insister ; celui qui a refusé peut changer d'avis et demander à son tour. L'envoi d'une demande se fait dans une transaction avec verrou (`FOR UPDATE`).
+
+Sur un profil, le serveur indique le lien avec le visiteur (`amitie` : `aucune`, `envoyee`, `recue`, `amis`) et la page affiche le bon bouton. Le menu montre une pastille avec le nombre de demandes à traiter.
+
+### Les signalements (`src/routes/signalements.js`)
+
+Le bouton « Signaler » (publications, commentaires, profils) ouvre une fenêtre commune, `signaler()` dans `public/js/app.js` : un motif à choisir et une précision facultative. Le serveur vérifie que la cible existe, refuse qu'on signale son propre contenu, et n'enregistre qu'un signalement par membre et par cible. Les signalements seront traités dans le tableau de bord administrateur.
+
+### Protection contre les abus
+
+Les envois sont limités **par membre** et non par adresse IP, car sur les réseaux mobiles beaucoup de personnes partagent la même adresse : 30 publications et 60 commentaires par quart d'heure, 40 demandes d'amis et 20 signalements par heure (`limiteParMembre` dans `src/utils/membres.js`).
+
+Le texte des publications et des commentaires est affiché avec `textContent` : si quelqu'un écrit `<script>` dans un commentaire, on voit ces caractères à l'écran, rien ne s'exécute.
+
+## 8. L'application installable (PWA)
 
 - `public/manifest.json` : nom, couleurs et icônes de l'appli quand on l'ajoute à l'écran d'accueil.
 - `public/sw.js` : le « service worker » garde une copie des fichiers de l'interface. Les pages s'ouvrent vite, même avec une connexion faible. Les données (`/api`) ne sont jamais mises en cache, pour toujours être à jour. À chaque modification de l'interface, on augmente `VERSION` pour forcer la mise à jour chez tout le monde.
 
-## 8. Les tests automatiques
+## 9. Les tests automatiques
 
 `npm test` lance des tests qui démarrent un vrai serveur et vérifient, entre autres : inscription, refus d'un mauvais mot de passe, protection CSRF, modification de profil, identifiants réservés, confidentialité du numéro WhatsApp, envoi et remplacement de photo, refus d'un faux fichier image.
 
-## 9. Questions probables du jury
+Pour le réseau social (`tests/social.test.js`) : fil réservé aux membres, chargement par 10 sans doublon, j'aime compté une seule fois, commentaires, suppression réservée à l'auteur, demandes d'amis (envoyer, accepter, refuser, demandes croisées, tricher en acceptant sa propre demande), filtre « Mes amis », signalements (en double, de son propre contenu, d'une cible inconnue).
+
+Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
+
+## 10. Questions probables du jury
+
+- **Pourquoi le fil est-il chargé avec « avant tel numéro » plutôt qu'avec « page 2, page 3 » ?** Avec des numéros de page, une nouvelle publication décale tout et on revoit une publication déjà lue. Avec « avant le numéro X », la suite est toujours la bonne, et la base répond vite grâce à la clé primaire.
+- **Comment empêchez-vous le spam et le harcèlement ?** Limites d'envoi par membre, une seule demande d'ami possible (pas de relance après un refus), bouton « Signaler » partout, et possibilité pour un administrateur de masquer un contenu ou de bloquer un compte.
 
 - **Pourquoi pas de framework (React…) côté interface ?** Pour des pages très légères, rapides sur les téléphones modestes et en 3G, sans étape de compilation.
 - **Pourquoi PostgreSQL ?** Les données de Palabre sont très reliées entre elles (membres, amis, demandes, équipes, avis) : une base relationnelle garantit leur cohérence.

@@ -3,6 +3,7 @@ const path = require('node:path');
 const express = require('express');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
+const config = require('./config');
 const { chargerUtilisateur } = require('./middleware/auth');
 const { IDENTIFIANTS_RESERVES } = require('./utils/validation');
 
@@ -21,6 +22,9 @@ function creerApp() {
         fontSrc: ["'self'"],
         scriptSrc: ["'self'"],
         connectSrc: ["'self'"],
+        // En local il n'y a pas de HTTPS : sans cela, un téléphone du même Wi-Fi
+        // ne peut charger ni le style ni les scripts.
+        ...(config.production ? {} : { upgradeInsecureRequests: null }),
       },
     },
   }));
@@ -28,6 +32,7 @@ function creerApp() {
   // Les envois d'images ont droit à un corps plus gros (image compressée en base64) ;
   // toutes les autres requêtes restent limitées à 200 Ko.
   app.use('/api/profils/moi/avatar', express.json({ limit: '750kb' }));
+  app.post('/api/publications', express.json({ limit: '750kb' }));
   app.use(express.json({ limit: '200kb' }));
   app.use(cookieParser());
 
@@ -42,6 +47,9 @@ function creerApp() {
   app.use('/api', chargerUtilisateur);
   app.use('/api/auth', require('./routes/auth'));
   app.use('/api/profils', require('./routes/profils'));
+  app.use('/api/publications', require('./routes/publications'));
+  app.use('/api/amis', require('./routes/amis'));
+  app.use('/api/signalements', require('./routes/signalements'));
   app.use('/api', require('./routes/references'));
 
   app.get('/api/sante', (req, res) => res.json({ ok: true }));
