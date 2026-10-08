@@ -24,7 +24,8 @@ const limiteSensible = rateLimit({
   message: { erreur: 'Trop de tentatives. Réessaie dans quelques minutes.' },
 });
 
-function profilPublic(u) {
+// Profil complet du membre connecté (avec son email) : n'est envoyé qu'à lui-même.
+function profilPrive(u) {
   return {
     id: u.id,
     type: u.type,
@@ -36,13 +37,14 @@ function profilPublic(u) {
     ville: u.ville,
     whatsapp: u.whatsapp,
     bio: u.bio,
-    avatar: u.avatar,
+    avatar: u.avatar ? `/fichiers/${u.avatar}` : null,
     disponible: u.disponible,
   };
 }
 
 async function identifiantLibre(nom) {
-  const base = v.versIdentifiant(nom).padEnd(3, '0');
+  let base = v.versIdentifiant(nom).padEnd(3, '0');
+  if (v.IDENTIFIANTS_RESERVES.has(base)) base = `${base}-dev`;
   for (let i = 0; i < 50; i += 1) {
     const candidat = i === 0 ? base : `${base}-${i + 1}`;
     const { rowCount } = await db.query('SELECT 1 FROM utilisateurs WHERE identifiant = $1', [candidat]);
@@ -78,7 +80,7 @@ router.post('/inscription', limiteSensible, async (req, res) => {
   );
 
   ouvrirSession(res, rows[0]);
-  res.status(201).json({ utilisateur: profilPublic(rows[0]) });
+  res.status(201).json({ utilisateur: profilPrive(rows[0]) });
 });
 
 router.post('/connexion', limiteSensible, async (req, res) => {
@@ -98,7 +100,7 @@ router.post('/connexion', limiteSensible, async (req, res) => {
   }
 
   ouvrirSession(res, utilisateur);
-  res.json({ utilisateur: profilPublic(utilisateur) });
+  res.json({ utilisateur: profilPrive(utilisateur) });
 });
 
 router.post('/deconnexion', (req, res) => {
@@ -108,7 +110,7 @@ router.post('/deconnexion', (req, res) => {
 
 // Renvoie le membre connecté, ou null pour un visiteur (pas d'erreur : c'est un cas normal).
 router.get('/moi', (req, res) => {
-  res.json({ utilisateur: req.utilisateur ? profilPublic(req.utilisateur) : null });
+  res.json({ utilisateur: req.utilisateur ? profilPrive(req.utilisateur) : null });
 });
 
 // Toujours la même réponse, que l'email existe ou non (on ne révèle pas qui est inscrit).
@@ -167,4 +169,4 @@ router.post('/reinitialiser', limiteSensible, async (req, res) => {
 });
 
 module.exports = router;
-module.exports.profilPublic = profilPublic;
+module.exports.profilPrive = profilPrive;

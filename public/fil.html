@@ -21,14 +21,16 @@
   <div class="bande"></div>
   <header class="conteneur entete">
     <a class="marque" href="/"><img src="/icons/logo-256.png" alt="" width="36" height="36">Palabre</a>
-    <nav>
-      <button class="bouton bouton-lien" type="button" data-deconnexion>Se déconnecter</button>
-    </nav>
+    <nav data-nav></nav>
   </header>
   <main class="conteneur">
     <section class="bienvenue" aria-live="polite">
       <h1 data-salutation>Chargement…</h1>
       <p data-lien-profil></p>
+      <div class="actions-bienvenue">
+        <a class="bouton bouton-principal" href="/modifier-profil">Compléter mon profil</a>
+        <a class="bouton bouton-contour" href="/" data-voir-profil>Voir mon profil</a>
+      </div>
     </section>
     <div class="vide">
       <p>Ton fil d'actualité arrive bientôt : les publications de tes amis, leurs projets et leurs questions apparaîtront ici.</p>

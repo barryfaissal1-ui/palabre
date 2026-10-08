@@ -335,6 +335,175 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--er
 .bienvenue h1 { margin: 0 0 6px; font: 800 2rem/1.1 var(--titre); }
 .bienvenue p { margin: 0 0 4px; color: var(--gris); }
 
+/* ---------- Navigation membre ---------- */
+.nav-profil { display: inline-flex; border-radius: 50%; }
+
+/* ---------- Avatars ---------- */
+.avatar {
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--ligne);
+}
+.avatar-mini { width: 36px; height: 36px; }
+.avatar-moyen { width: 56px; height: 56px; }
+.avatar-grand { width: 96px; height: 96px; }
+.avatar-initiales {
+  display: inline-grid;
+  place-items: center;
+  background: var(--terre-logo);
+  color: #fff;
+  font: 800 1rem/1 var(--titre);
+}
+.avatar-moyen.avatar-initiales { font-size: 1.3rem; }
+.avatar-grand.avatar-initiales { font-size: 2.2rem; }
+
+/* ---------- Page profil ---------- */
+.page-profil { max-width: 720px; padding-bottom: 56px; }
+.titre-page { margin: 16px 0 20px; font: 800 1.9rem/1.1 var(--titre); letter-spacing: -0.02em; }
+.texte-discret { color: var(--gris); }
+
+.carte-profil {
+  display: grid;
+  gap: 16px;
+  margin-top: 8px;
+  padding: 24px 20px;
+  background: var(--surface);
+  border: 1px solid var(--ligne);
+  border-radius: var(--rayon);
+}
+.profil-entete { display: flex; align-items: center; gap: 16px; }
+.profil-entete h1 { margin: 0; font: 800 clamp(1.5rem, 6vw, 2rem)/1.1 var(--titre); letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.profil-role { margin: 4px 0 0; font-weight: 700; color: var(--terre); }
+.profil-lieu { margin: 2px 0 0; color: var(--gris); }
+.profil-bio { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+.profil-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.pastille {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.pastille::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.pastille-dispo { background: color-mix(in srgb, var(--feuille-vive) 14%, transparent); color: var(--feuille); }
+.pastille-occupe { background: color-mix(in srgb, var(--gris) 14%, transparent); color: var(--gris); }
+@media (prefers-color-scheme: dark) { .pastille-dispo { color: #5FD08A; } }
+
+.section-profil { margin-top: 32px; }
+.section-profil h2 { margin: 0 0 12px; font: 800 1.35rem/1.2 var(--titre); }
+
+.puces { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.puces li {
+  padding: 6px 12px;
+  border: 1.5px solid var(--ligne);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.95rem;
+}
+
+/* ---------- Modifier mon profil ---------- */
+.bloc-formulaire {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--ligne);
+  border-radius: var(--rayon);
+}
+.bloc-formulaire h2 { margin: 0; font: 800 1.2rem/1.2 var(--titre); }
+.titre-avec-compteur { display: flex; justify-content: space-between; align-items: baseline; }
+
+.zone-photo { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.boutons-photo { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.boutons-photo label { cursor: pointer; }
+.visuellement-cache {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+.boutons-photo label:focus-within { outline: 3px solid var(--terre-logo); outline-offset: 2px; }
+
+.champ-prefixe {
+  display: flex;
+  align-items: stretch;
+  border: 1.5px solid var(--ligne);
+  border-radius: var(--rayon-petit);
+  background: var(--papier);
+  overflow: hidden;
+}
+.champ-prefixe span {
+  display: flex;
+  align-items: center;
+  padding-left: 14px;
+  color: var(--gris);
+  white-space: nowrap;
+}
+.champ-prefixe input { border: 0; padding-left: 2px; min-width: 0; background: transparent; }
+.champ-prefixe:focus-within { border-color: var(--feuille-vive); box-shadow: 0 0 0 3px color-mix(in srgb, var(--feuille-vive) 25%, transparent); }
+.champ-prefixe input:focus { box-shadow: none; }
+
+textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
+
+/* Interrupteur Disponible / Occupé */
+.interrupteur { display: flex; align-items: center; gap: 12px; cursor: pointer; font-weight: 600; }
+.interrupteur input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.interrupteur-piste {
+  flex: none;
+  width: 48px; height: 28px;
+  border-radius: 999px;
+  background: var(--ligne);
+  position: relative;
+  transition: background-color 0.2s ease;
+}
+.interrupteur-piste::after {
+  content: "";
+  position: absolute; top: 3px; left: 3px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease;
+}
+.interrupteur input:checked + .interrupteur-piste { background: var(--feuille-vive); }
+.interrupteur input:checked + .interrupteur-piste::after { transform: translateX(20px); }
+.interrupteur input:focus-visible + .interrupteur-piste { outline: 3px solid var(--terre-logo); outline-offset: 2px; }
+
+/* Choix des compétences : des puces qu'on coche */
+.choix-competences { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.choix-competences input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.choix-competences label {
+  display: inline-block;
+  padding: 8px 14px;
+  border: 1.5px solid var(--ligne);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  user-select: none;
+}
+.choix-competences input:checked + label {
+  border-color: var(--feuille);
+  background: var(--feuille);
+  color: #fff;
+}
+.choix-competences input:focus-visible + label { outline: 3px solid var(--terre-logo); outline-offset: 2px; }
+
+.barre-enregistrer {
+  position: sticky;
+  bottom: 0;
+  display: grid;
+  gap: 8px;
+  padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, var(--papier) 75%, transparent);
+}
+.zone-deconnexion { margin-top: 24px; text-align: center; }
+
+.actions-bienvenue { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }

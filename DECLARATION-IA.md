@@ -13,8 +13,10 @@ Déclaration exigée par l'article 6 du règlement CADEV 2026. À compléter par
 | Plan du projet, choix techniques | Proposés par l'IA, discutés et validés par l'équipe |
 | Schéma de la base de données (`src/db/schema.sql`) | Généré par l'IA à partir du plan de l'équipe |
 | Authentification (`src/routes/auth.js`, `src/middleware/auth.js`) | Générée par l'IA, relue par l'équipe |
+| Profils et photos (`src/routes/profils.js`, `src/utils/images.js`, `public/js/profil.js`, `public/js/modifier-profil.js`) | Générés par l'IA, relus par l'équipe |
+| Guide `docs/COMPRENDRE-LE-CODE.md` | Rédigé par l'IA pour l'équipe |
 | Interface (`public/`) | Générée par l'IA, adaptée par l'équipe |
-| Logo et icônes | Première version générée par l'IA |
+| Logo | Créé par l'équipe avec Claude Code ; icônes dérivées générées automatiquement |
 
 ## Maîtrise par l'équipe
 

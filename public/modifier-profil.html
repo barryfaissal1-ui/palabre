@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#171512">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Palabre">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="preload" href="/fonts/bricolage-grotesque-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/style.css">
+  <title>Modifier mon profil – Palabre</title>
+  <script src="/js/app.js" defer></script>
+  <script src="/js/modifier-profil.js" defer></script>
+</head>
+<body>
+  <div class="bande"></div>
+  <header class="conteneur entete">
+    <a class="marque" href="/"><img src="/icons/logo-256.png" alt="" width="36" height="36">Palabre</a>
+    <nav data-nav></nav>
+  </header>
+  <main class="conteneur page-profil">
+    <h1 class="titre-page">Modifier mon profil</h1>
+    <p class="texte-discret" data-chargement>Chargement…</p>
+
+    <form data-profil novalidate hidden>
+      <section class="bloc-formulaire">
+        <h2>Photo</h2>
+        <div class="zone-photo">
+          <div data-photo></div>
+          <div class="boutons-photo">
+            <label class="bouton bouton-contour">
+              Changer la photo
+              <input type="file" accept="image/*" data-choisir-photo class="visuellement-cache">
+            </label>
+            <button class="bouton bouton-lien" type="button" data-retirer-photo hidden>Retirer</button>
+          </div>
+        </div>
+        <p class="message" role="status" data-message-photo></p>
+      </section>
+
+      <section class="bloc-formulaire">
+        <h2>Informations</h2>
+        <div class="champ">
+          <label for="nom">Nom complet</label>
+          <input id="nom" name="nom" autocomplete="name" required maxlength="80">
+          <p class="erreur-champ" data-erreur="nom"></p>
+        </div>
+        <div class="champ">
+          <label for="identifiant">Lien de ton profil</label>
+          <div class="champ-prefixe">
+            <span data-prefixe>palabre.dev/</span>
+            <input id="identifiant" name="identifiant" required minlength="3" maxlength="30" autocapitalize="none" spellcheck="false">
+          </div>
+          <span class="aide">Lettres minuscules, chiffres et tirets. C'est le lien que tu partageras.</span>
+          <p class="erreur-champ" data-erreur="identifiant"></p>
+        </div>
+        <div class="champ">
+          <label for="pays">Pays</label>
+          <select id="pays" name="pays"></select>
+          <p class="erreur-champ" data-erreur="pays"></p>
+        </div>
+        <div class="champ">
+          <label for="ville">Ville</label>
+          <input id="ville" name="ville" autocomplete="address-level2" required>
+          <p class="erreur-champ" data-erreur="ville"></p>
+        </div>
+        <div class="champ">
+          <label for="whatsapp">Numéro WhatsApp</label>
+          <input id="whatsapp" name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="+226 70 00 00 00">
+          <span class="aide">Visible uniquement par les membres connectés.</span>
+          <p class="erreur-champ" data-erreur="whatsapp"></p>
+        </div>
+        <div class="champ">
+          <label for="bio">Présentation</label>
+          <textarea id="bio" name="bio" rows="4" maxlength="500" placeholder="Ce que tu fais, ce que tu aimes construire, ton expérience…"></textarea>
+          <span class="aide" data-compteur-bio>0 / 500</span>
+          <p class="erreur-champ" data-erreur="bio"></p>
+        </div>
+        <label class="interrupteur" data-seulement-dev>
+          <input type="checkbox" name="disponible">
+          <span class="interrupteur-piste" aria-hidden="true"></span>
+          <span>Disponible pour de nouveaux projets</span>
+        </label>
+      </section>
+
+      <section class="bloc-formulaire" data-seulement-dev>
+        <div class="titre-avec-compteur">
+          <h2>Compétences</h2>
+          <span class="aide" data-compteur-competences>0 / 15</span>
+        </div>
+        <input type="search" placeholder="Rechercher une compétence" data-filtre-competences aria-label="Rechercher une compétence">
+        <ul class="choix-competences" data-liste-competences></ul>
+        <p class="erreur-champ" data-erreur="competences"></p>
+      </section>
+
+      <div class="barre-enregistrer">
+        <p class="message" role="status" data-message></p>
+        <button class="bouton bouton-principal bouton-plein" type="submit">Enregistrer</button>
+      </div>
+    </form>
+
+    <div class="zone-deconnexion">
+      <button class="bouton bouton-lien" type="button" data-deconnexion>Se déconnecter</button>
+    </div>
+  </main>
+</body>
+</html>

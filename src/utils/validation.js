@@ -68,11 +68,30 @@ function typeCompte(valeur) {
   return valeur;
 }
 
+// Mots réservés : ils servent d'adresses de pages (palabre.dev/connexion…) et ne peuvent pas être des identifiants.
+const IDENTIFIANTS_RESERVES = new Set([
+  'a-propos', 'admin', 'aide', 'amis', 'api', 'chercher', 'conditions', 'confidentialite', 'connexion',
+  'css', 'defis', 'demandes', 'equipes', 'fichiers', 'fil', 'fonts', 'icons', 'index', 'inscription',
+  'js', 'manifest', 'modifier-profil', 'moi', 'mot-de-passe-oublie', 'notifications', 'palabre', 'parametres',
+  'profil', 'projets', 'reinitialiser', 'sw', 'vitrine',
+]);
+
+function identifiant(valeur) {
+  const v = texte(valeur, 'identifiant', { min: 3, max: 30 }).toLowerCase();
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(v)) {
+    throw new ErreurValidation('Lettres minuscules, chiffres et tirets uniquement (ex. awa-dev).', 'identifiant');
+  }
+  if (IDENTIFIANTS_RESERVES.has(v)) {
+    throw new ErreurValidation('Cet identifiant est réservé. Choisis-en un autre.', 'identifiant');
+  }
+  return v;
+}
+
 // Transforme « Barry Faïssal » en « barry-faissal » pour les liens de profil.
 function versIdentifiant(nom) {
   return nom
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
@@ -89,4 +108,6 @@ module.exports = {
   whatsapp,
   typeCompte,
   versIdentifiant,
+  identifiant,
+  IDENTIFIANTS_RESERVES,
 };

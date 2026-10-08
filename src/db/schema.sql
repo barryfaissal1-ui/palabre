@@ -201,6 +201,18 @@ CREATE TABLE IF NOT EXISTS signalements (
   UNIQUE (auteur_id, cible_type, cible_id)
 );
 
+-- ============ Fichiers (photos de profil, images de projets) ============
+-- Les images, déjà compressées par le navigateur (quelques dizaines de Ko), sont gardées dans la base :
+-- elles survivent ainsi aux redéploiements du serveur, sans service de stockage supplémentaire.
+CREATE TABLE IF NOT EXISTS fichiers (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  proprietaire_id INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  type_mime      TEXT NOT NULL CHECK (type_mime IN ('image/jpeg', 'image/png', 'image/webp')),
+  taille         INTEGER NOT NULL CHECK (taille > 0 AND taille <= 512000),
+  donnees        BYTEA NOT NULL,
+  cree_le        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ============ Index ============
 CREATE INDEX IF NOT EXISTS idx_publications_date ON publications (cree_le DESC);
 CREATE INDEX IF NOT EXISTS idx_commentaires_pub ON commentaires (publication_id);
