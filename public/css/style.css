@@ -1,5 +1,5 @@
 /* Palabre — feuille de style principale
-   Couleurs inspirées du Faso Dan Fani : indigo, or de savane, vert, blanc. */
+   Couleurs du logo : terre cuite, vert feuillage, noir du tronc, crème. */
 
 @font-face {
   font-family: "Bricolage";
@@ -15,15 +15,20 @@
 }
 
 :root {
-  --indigo: #1F2A5C;
-  --indigo-clair: #2E3D7F;
-  --or: #F2B530;
-  --vert: #3FA06A;
-  --papier: #F7F7F2;
-  --surface: #FFFFFF;
-  --encre: #15172B;
-  --gris: #5B6078;
-  --ligne: #DEDFE6;
+  /* Couleurs tirées du logo : terre d'Afrique, feuillage, tronc, crème */
+  --terre: #B9552F;
+  --terre-logo: #C8623F;
+  --feuille: #187A3B;
+  --feuille-vive: #22A04B;
+  --nuit: #171512;
+  --creme: #F7F1E6;
+  --lien: var(--terre);
+
+  --papier: var(--creme);
+  --surface: #FFFDF8;
+  --encre: #171512;
+  --gris: #6A6156;
+  --ligne: #E3D9CA;
   --erreur: #B3261E;
   --succes: #1E7A45;
 
@@ -38,23 +43,23 @@
   /* La bande tissée : signature visuelle de Palabre */
   --bande: repeating-linear-gradient(
     90deg,
-    var(--indigo) 0 18px,
-    var(--or) 18px 24px,
-    var(--indigo) 24px 30px,
-    var(--papier) 30px 33px,
-    var(--vert) 33px 45px,
-    var(--papier) 45px 48px
+    var(--nuit) 0 18px,
+    var(--terre-logo) 18px 24px,
+    var(--nuit) 24px 30px,
+    var(--creme) 30px 33px,
+    var(--feuille-vive) 33px 45px,
+    var(--creme) 45px 48px
   );
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --papier: #12142A;
-    --surface: #1B1E3A;
-    --encre: #EDEEF5;
-    --gris: #A6AAC2;
-    --ligne: #2E3256;
-    --indigo-clair: #8C9BE8;
+    --papier: #14120F;
+    --surface: #1F1C18;
+    --encre: #F3EDE2;
+    --gris: #B4AA9B;
+    --ligne: #36312A;
+    --lien: #E58A64;
   }
 }
 
@@ -77,10 +82,10 @@ img { max-width: 100%; display: block; }
 
 [hidden] { display: none !important; }
 
-a { color: var(--indigo-clair); text-underline-offset: 3px; }
+a { color: var(--lien); text-underline-offset: 3px; }
 
 :focus-visible {
-  outline: 3px solid var(--or);
+  outline: 3px solid var(--terre-logo);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -137,14 +142,14 @@ a { color: var(--indigo-clair); text-underline-offset: 3px; }
 .bouton:active { transform: scale(0.98); }
 .bouton[disabled] { opacity: 0.6; cursor: wait; }
 
-.bouton-principal { background: var(--indigo); color: #fff; }
-.bouton-principal:hover { background: var(--indigo-clair); }
+.bouton-principal { background: var(--feuille); color: #fff; }
+.bouton-principal:hover { background: #1E8F45; }
 @media (prefers-color-scheme: dark) {
-  .bouton-principal { background: var(--or); color: #15172B; }
-  .bouton-principal:hover { background: #F7C658; }
+  .bouton-principal { background: #2DB45A; color: #0E0D0B; }
+  .bouton-principal:hover { background: #3FC56B; }
 }
-.bouton-or { background: var(--or); color: #15172B; }
-.bouton-or:hover { background: #F7C658; }
+.bouton-or { background: var(--terre-logo); color: #fff; }
+.bouton-or:hover { background: var(--terre); }
 .bouton-contour { border-color: currentColor; color: var(--encre); background: transparent; }
 .bouton-lien { min-height: 40px; padding: 0 12px; color: var(--encre); background: transparent; }
 .bouton-lien:hover { text-decoration: underline; }
@@ -152,7 +157,7 @@ a { color: var(--indigo-clair); text-underline-offset: 3px; }
 
 /* ---------- Accueil ---------- */
 .heros {
-  background: var(--indigo);
+  background: var(--nuit);
   color: #fff;
   overflow: hidden;
 }
@@ -171,7 +176,7 @@ a { color: var(--indigo-clair); text-underline-offset: 3px; }
   margin: 0;
   max-width: 46ch;
   font-size: 1.125rem;
-  color: #D9DCF0;
+  color: #E9E1D3;
 }
 .heros-texte { display: grid; gap: 20px; }
 .heros .actions { display: flex; flex-wrap: wrap; gap: 12px; padding-top: 4px; }
@@ -210,12 +215,12 @@ a { color: var(--indigo-clair); text-underline-offset: 3px; }
 .etapes li {
   counter-increment: etape;
   padding-top: 16px;
-  border-top: 4px solid var(--or);
+  border-top: 4px solid var(--feuille-vive);
 }
 .etapes li::before {
   content: counter(etape);
   font: 800 2.4rem/1 var(--titre);
-  color: var(--indigo-clair);
+  color: var(--terre-logo);
 }
 .etapes h3 { margin: 10px 0 6px; font: 700 1.2rem/1.25 var(--titre); }
 .etapes p { margin: 0; color: var(--gris); }
@@ -274,8 +279,8 @@ input, select, textarea {
 }
 input:focus, select:focus, textarea:focus {
   outline: none;
-  border-color: var(--indigo-clair);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--indigo-clair) 25%, transparent);
+  border-color: var(--feuille-vive);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--feuille-vive) 25%, transparent);
 }
 input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--erreur); }
 
@@ -304,8 +309,8 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--er
 }
 .choix-type label strong { font: 700 1.05rem/1.2 var(--titre); }
 .choix-type label span { font-size: 0.85rem; color: var(--gris); }
-.choix-type input:checked + label { border-color: var(--indigo-clair); background: color-mix(in srgb, var(--indigo-clair) 10%, transparent); }
-.choix-type input:focus-visible + label { outline: 3px solid var(--or); outline-offset: 2px; }
+.choix-type input:checked + label { border-color: var(--feuille-vive); background: color-mix(in srgb, var(--feuille-vive) 10%, transparent); }
+.choix-type input:focus-visible + label { outline: 3px solid var(--terre-logo); outline-offset: 2px; }
 
 .message {
   padding: 12px 14px;
