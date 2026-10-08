@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1F2A5C">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Palabre">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+  <link rel="icon" href="/icons/logo.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="preload" href="/fonts/bricolage-grotesque-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/style.css">
+  <title>Palabre – le réseau des développeurs africains</title>
+  <meta name="description" content="Palabre réunit les développeurs africains : partage tes projets, forme des équipes, et trouve des clients qui ont besoin de toi.">
+  <meta property="og:title" content="Palabre – le réseau des développeurs africains">
+  <meta property="og:description" content="Partage tes projets, forme des équipes, trouve des clients.">
+  <meta property="og:image" content="/icons/icon-512.png">
+  <script src="/js/app.js" defer></script>
+</head>
+<body>
+  <div class="bande"></div>
+  <header class="conteneur entete">
+    <a class="marque" href="/"><img src="/icons/logo.svg" alt="" width="36" height="36">Palabre</a>
+    <nav data-nav-visiteur>
+      <a class="bouton bouton-lien" href="/connexion">Se connecter</a>
+    </nav>
+    <nav data-nav-membre hidden>
+      <a class="bouton bouton-lien" href="/fil">Mon fil</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="heros">
+      <div class="conteneur heros-interieur">
+        <div class="heros-texte">
+          <h1>L'arbre à palabres des développeurs africains.</h1>
+          <p>Montre tes réalisations, échange avec d'autres devs, forme une équipe en quelques minutes, et laisse les clients venir à toi.</p>
+          <div class="actions">
+            <a class="bouton bouton-or" href="/inscription?type=dev">Je suis développeur</a>
+            <a class="bouton bouton-contour" href="/inscription?type=client">J'ai un projet</a>
+          </div>
+        </div>
+        <img class="heros-arbre" src="/icons/arbre.svg" alt="" width="320" height="272">
+      </div>
+    </section>
+    <div class="bande"></div>
+
+    <section class="section conteneur">
+      <h2>Comment ça marche</h2>
+      <p class="intro">Les clients publient leurs besoins, les devs répondent seuls ou en équipe.</p>
+      <ol class="etapes">
+        <li>
+          <h3>Le client publie sa demande</h3>
+          <p>Un site, une appli, un outil : il décrit son besoin, son budget en FCFA et son délai.</p>
+        </li>
+        <li>
+          <h3>Les devs proposent</h3>
+          <p>Seul, ou en équipe éclair avec des amis de la plateforme quand le projet est gros.</p>
+        </li>
+        <li>
+          <h3>Le client choisit en confiance</h3>
+          <p>Il consulte les projets vérifiés et les avis de vrais clients, puis contacte l'équipe sur WhatsApp.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="section conteneur">
+      <h2>La vitrine des réalisations</h2>
+      <p class="intro">Sites, applis et outils créés par les développeurs de Palabre, classés par secteur.</p>
+      <div class="vide">
+        <p>La vitrine attend ses premiers projets. Inscris-toi et publie ce que tu as déjà construit.</p>
+        <a class="bouton bouton-principal" href="/inscription?type=dev">Publier mon premier projet</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="conteneur pied">
+    Palabre, fait au Burkina Faso pour la Coupe d'Afrique des Développeurs 2026.
+  </footer>
+</body>
+</html>
