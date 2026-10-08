@@ -78,7 +78,13 @@ Sans SMTP configuré, les emails (mot de passe oublié) s'affichent dans la cons
 - Nouvelle table ou colonne : l'ajouter dans `src/db/schema.sql` de façon idempotente (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE … ADD COLUMN IF NOT EXISTS`).
 - Toute nouvelle page ou nouveau script de l'interface : l'ajouter à la liste de `public/sw.js` et **augmenter `VERSION`** (sinon les téléphones gardent l'ancienne version).
 - Nouvelles adresses de pages : ajouter le mot à `IDENTIFIANTS_RESERVES` pour qu'aucun membre ne puisse le prendre comme identifiant.
-- Style : utiliser les variables de couleur de `public/css/style.css` (couleurs du logo : terre cuite, vert feuillage, noir du tronc, crème) et la police Bricolage pour les titres. Mobile d'abord, zones tactiles de 44 px minimum, focus clavier visible, mode sombre.
+- Style : utiliser les variables de `public/css/style.css` (couleurs du logo : terre cuite, vert feuillage, noir du tronc, crème ; ombres `--ombre-1` à `--ombre-3` ; coins `--rayon-petit`, `--rayon`, `--rayon-grand`) et la police Bricolage pour les titres. Mobile d'abord, zones tactiles de 44 px minimum, focus clavier visible, mode sombre, animations coupées par `prefers-reduced-motion`.
+- Système de design (fonctions de `public/js/app.js`, à réutiliser plutôt que réinventer) :
+  - icônes : `icone('nom')` (Lucide, sprite `public/icons/icones.svg` ; pour en ajouter une, reprendre son tracé chez Lucide et noter son nom en commentaire). Un bouton sans texte porte un `aria-label` ;
+  - **jamais** `alert()`, `confirm()` ni `prompt()` : utiliser `toast(texte, 'succes' | 'erreur')` et `await confirmer('Question ? Explication.', { bouton, danger })` ;
+  - liste vide : `etatVide(illustration, titre, texte, bouton)` (illustrations dans `public/icons/illustrations.svg`) ;
+  - chargement : `const fini = chargement(zone, 3)` puis `fini()` (squelettes), jamais un simple texte « Chargement… » ;
+  - `append()` écrit le mot « null » pour une valeur vide : passer par `el()` ou filtrer avec `.filter(Boolean)`.
 - Chaque fonctionnalité : **tests** dans `tests/`, vérification réelle dans le navigateur (téléphone 390 px de large), puis mise à jour de `docs/COMPRENDRE-LE-CODE.md`, du README (Avancement), de `LICENCES.md` et de `DECLARATION-IA.md` si besoin.
 - Toujours `git pull` avant de commencer, commits clairs en français, puis `git push`.
 
@@ -94,6 +100,7 @@ Fait :
 - [x] Profil prouvé, vitrine et partage : projets (`/projets` pour gérer, `/projets/:id` page publique) avec badge « Lien vérifié » (`src/utils/liens.js`, protégé contre les adresses internes), avis protégés (`src/routes/avis.js`), recherche de devs `/chercher`, vitrine par secteur sur l'accueil, balises Open Graph ajoutées par le serveur (`src/routes/pages.js`). L'accord du dev pour Facebook est déjà enregistré (`projets.publier_facebook`, `statut_facebook = 'en_attente'`).
 - [x] Tableau de bord administrateur `/admin` (`src/routes/admin.js`) : statistiques, signalements regroupés par contenu (masquer / bloquer / classer), projets proposés pour Facebook (`statut_facebook` : `en_attente` → `valide` ou `refuse`), membres bloqués. Rôle admin : `npm run admin -- email` (jamais depuis le site). Les projets ont maintenant une colonne `masque`.
 - [x] Calculateur « Combien coûte mon projet ? » `/calculateur`, ouvert à tous : grille dans `public/js/grille-prix.js` (seul fichier à modifier pour un prix), calcul dans `public/js/calcul-prix.js` (dans le navigateur, testé par `tests/calculateur.test.js`), bouton vers `/demandes?publier=1&categorie=…&budget=…` qui pré-remplit le formulaire. L'inscription et la connexion suivent le paramètre `suite` (adresse interne seulement).
+- [x] Refonte du design, étape A : système de design appliqué à toutes les pages (icônes Lucide, menu du bas avec icônes, badges de type et cœur animé dans le fil, zone « Publier » compacte, bannière et chiffres sur le profil, ombres, animations, squelettes, toasts, fenêtre de confirmation, états vides illustrés).
 
 À faire, dans cet ordre :
 1. **Finitions (suite)** : publication automatique sur Facebook des projets `valide` (ou plan B : bouton « publier » dans `/admin`), défi de la semaine en dernier.

@@ -197,6 +197,9 @@ test('demande d\'ami : envoyer, voir, accepter', async () => {
   assert.equal(accord.corps.amitie, 'amis');
   assert.equal(await amitieVuePar('awa', 'bintou'), 'amis');
   assert.deepEqual((await appel('/api/amis', { qui: 'awa' })).corps.amis.map((m) => m.identifiant), [membres.bintou.identifiant]);
+  // Le nombre d'amis, affiché parmi les chiffres du profil, est visible même sans compte.
+  assert.equal((await appel(`/api/profils/${membres.awa.identifiant}`)).corps.profil.nbAmis, 1);
+  assert.equal((await appel(`/api/profils/${membres.cheick.identifiant}`)).corps.profil.nbAmis, 0);
 });
 
 test('le filtre « mes amis » ne montre que mes publications et celles de mes amis', async () => {

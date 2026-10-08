@@ -1,6 +1,6 @@
 // Vitrine de la page d'accueil : les projets réalisés, filtrés par secteur. Visible sans compte.
 (function () {
-  const { api, el, carteProjet } = window.Palabre;
+  const { api, el, carteProjet, chargement } = window.Palabre;
 
   let secteur = '';
   let suivant = null;
@@ -17,8 +17,11 @@
     if (suivant) parametres.set('avant', suivant);
     if (secteur) parametres.set('secteur', secteur);
     const secteurDemande = secteur;
+    vide.hidden = true;
+    const fini = chargement(grille, depuisLeDebut ? 2 : 1);
     try {
       const reponse = await api(`/projets?${parametres}`);
+      fini();
       if (secteurDemande !== secteur) return; // le secteur a changé pendant le chargement
       grille.append(...reponse.projets.map((p) => carteProjet(p)));
       suivant = reponse.suivant;
@@ -28,6 +31,7 @@
         ? 'Pas encore de projet dans ce secteur. Le tien sera peut-être le premier.'
         : 'La vitrine attend ses premiers projets. Inscris-toi et publie ce que tu as déjà construit.';
     } catch {
+      fini();
       vide.hidden = grille.children.length > 0; // hors connexion : on garde ce qui est déjà affiché
     }
   }

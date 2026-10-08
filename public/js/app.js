@@ -49,6 +49,94 @@
     return noeud;
   }
 
+  // ---------- Icônes et illustrations ----------
+  // Les icônes (Lucide) sont rangées dans un seul fichier, /icons/icones.svg : le navigateur le télécharge
+  // une fois, puis chaque icône n'est qu'une référence. Une balise SVG se crée avec createElementNS.
+  const SVG = 'http://www.w3.org/2000/svg';
+  function dessin(fichier, nom, classe) {
+    const svg = document.createElementNS(SVG, 'svg');
+    svg.setAttribute('class', classe);
+    svg.setAttribute('aria-hidden', 'true'); // décoratif : le texte ou l'aria-label voisin dit déjà l'essentiel
+    svg.setAttribute('focusable', 'false');
+    const use = document.createElementNS(SVG, 'use');
+    use.setAttribute('href', `/icons/${fichier}.svg#${nom}`);
+    svg.append(use);
+    return svg;
+  }
+  const icone = (nom, classe = '') => dessin('icones', nom, `icone ${classe}`.trim());
+  const illustration = (nom) => dessin('illustrations', nom, 'illustration');
+
+  // État vide : une petite illustration, un titre encourageant, un texte, et éventuellement un bouton.
+  function etatVide(nomIllustration, titre, texte, action = null) {
+    return el('div', { classe: 'vide' }, [
+      illustration(nomIllustration),
+      el('p', { classe: 'vide-titre', texte: titre }),
+      texte ? el('p', { texte }) : null,
+      action,
+    ]);
+  }
+
+  // Squelettes : des formes grises animées à la place du contenu pendant qu'il charge.
+  // Affiche « nombre » squelettes dans la zone et renvoie la fonction qui les retire.
+  function chargement(zone, nombre = 3) {
+    const squelettes = Array.from({ length: nombre }, () => el('div', { classe: 'squelette', 'aria-hidden': 'true' }, [
+      el('div', { classe: 'squelette-entete' }, [el('span', { classe: 'os os-rond' }), el('span', { classe: 'os os-court' })]),
+      el('span', { classe: 'os' }),
+      el('span', { classe: 'os os-moyen' }),
+    ]));
+    zone.setAttribute('aria-busy', 'true');
+    zone.append(...squelettes);
+    return () => {
+      squelettes.forEach((s) => s.remove());
+      zone.removeAttribute('aria-busy');
+    };
+  }
+
+  // ---------- Petits messages (« toasts ») et fenêtre de confirmation ----------
+  // Ils remplacent alert() et confirm() du navigateur, qui bloquent la page et ne suivent pas le style du site.
+  function toast(texte, type = 'succes') {
+    let zone = document.querySelector('.toasts');
+    if (!zone) {
+      zone = el('div', { classe: 'toasts', role: 'status', 'aria-live': 'polite' });
+      document.body.append(zone);
+    }
+    const message = el('div', { classe: `toast toast-${type}` }, [icone(type === 'erreur' ? 'alerte' : 'valide'), el('span', { texte })]);
+    zone.append(message);
+    // Une erreur reste plus longtemps à l'écran qu'une simple confirmation.
+    setTimeout(() => {
+      message.classList.add('toast-sortie');
+      setTimeout(() => message.remove(), 300);
+    }, type === 'erreur' ? 6000 : 3500);
+  }
+
+  // Pose une question et renvoie une promesse : true si la personne confirme, false sinon (Annuler ou Échap).
+  //   if (await confirmer('Supprimer cette publication ?', { bouton: 'Supprimer', danger: true })) { … }
+  // La première phrase (jusqu'au « ? ») devient le titre, la suite l'explication.
+  function confirmer(question, { bouton = 'Confirmer', danger = false } = {}) {
+    const coupe = question.indexOf('?') + 1;
+    // espace insécable avant « ? » : le point d'interrogation ne se retrouve jamais seul à la ligne
+    const titre = (coupe > 0 ? question.slice(0, coupe) : question).replace(/ \?/g, ' ?');
+    const suite = coupe > 0 ? question.slice(coupe).trim() : '';
+    return new Promise((resolve) => {
+      const annuler = el('button', { classe: 'bouton bouton-lien', type: 'button', texte: 'Annuler' });
+      const valider = el('button', { classe: `bouton ${danger ? 'bouton-danger' : 'bouton-principal'}`, type: 'button', 'data-confirmer': true, texte: bouton });
+      const dialogue = el('dialog', {
+        classe: 'dialogue dialogue-confirmation', role: 'alertdialog',
+        'aria-labelledby': 'confirmation-titre', 'aria-describedby': suite ? 'confirmation-texte' : null,
+      }, [
+        el('h2', { id: 'confirmation-titre', texte: titre }),
+        suite ? el('p', { id: 'confirmation-texte', texte: suite }) : null,
+        el('div', { classe: 'dialogue-actions' }, [annuler, valider]),
+      ]);
+      let reponse = false;
+      annuler.addEventListener('click', () => dialogue.close());
+      valider.addEventListener('click', () => { reponse = true; dialogue.close(); });
+      dialogue.addEventListener('close', () => { dialogue.remove(); resolve(reponse); });
+      document.body.append(dialogue);
+      dialogue.showModal(); // le focus va sur « Annuler » : la touche Entrée ne confirme pas par accident
+    });
+  }
+
   function initiales(nom) {
     return nom.split(/\s+/).filter(Boolean).slice(0, 2).map((m) => m[0].toUpperCase()).join('');
   }
@@ -99,7 +187,7 @@
       el('div', { classe: 'projet-corps' }, [
         el('p', { classe: 'projet-meta' }, [
           el('span', { classe: 'texte-discret', texte: projet.nomSecteur }),
-          projet.lienVerifie ? el('span', { classe: 'badge-verifie', texte: 'Lien vérifié' }) : null,
+          projet.lienVerifie ? el('span', { classe: 'badge-verifie' }, [icone('verifie'), 'Lien vérifié']) : null,
         ]),
         el('h3', {}, [el('a', { href: adresse, texte: projet.titre })]),
         avecDev ? el('p', { classe: 'texte-discret' }, ['Par ', el('a', { href: `/${projet.dev.identifiant}`, texte: projet.dev.nom })]) : null,
@@ -113,13 +201,21 @@
       try { await navigator.share({ title: titre, url }); } catch { /* partage annulé par la personne */ }
       return;
     }
-    const texteInitial = bouton.textContent;
     try {
       await navigator.clipboard.writeText(url);
-      bouton.textContent = 'Lien copié';
-      setTimeout(() => { bouton.textContent = texteInitial; }, 2000);
+      toast('Lien copié. Colle-le où tu veux.');
     } catch {
-      window.prompt('Copie ce lien :', url);
+      // Copie refusée par le navigateur : on montre le lien pour qu'il soit copié à la main.
+      const champ = el('input', { type: 'text', readonly: true, value: url, 'aria-label': 'Lien à copier' });
+      const fermer = el('button', { classe: 'bouton bouton-principal', type: 'button', texte: 'Fermer' });
+      const dialogue = el('dialog', { classe: 'dialogue', 'aria-labelledby': 'lien-titre' }, [
+        el('h2', { id: 'lien-titre', texte: 'Copie ce lien' }), champ, el('div', { classe: 'dialogue-actions' }, [fermer]),
+      ]);
+      fermer.addEventListener('click', () => dialogue.close());
+      dialogue.addEventListener('close', () => dialogue.remove());
+      document.body.append(dialogue);
+      dialogue.showModal();
+      champ.select();
     }
   }
 
@@ -211,28 +307,27 @@
     if (moi) {
       const demandes = moi.demandesAmis || 0;
       const nonLues = moi.notifications || 0;
-      const lien = (href, contenu) => el('a', {
-        classe: 'bouton bouton-lien', href, 'aria-current': window.location.pathname === href ? 'page' : null,
-      }, contenu);
+      // Un onglet du menu : une icône, un texte, et aria-current sur la page où l'on se trouve.
+      const lien = (href, nomIcone, texte, pastille = null) => el('a', {
+        classe: 'onglet-nav', href, 'aria-current': window.location.pathname === href ? 'page' : null,
+      }, [el('span', { classe: 'onglet-icone' }, [icone(nomIcone), pastille]), el('span', { classe: 'onglet-texte', texte })]);
       // Sur téléphone, ces liens forment une barre fixe en bas de l'écran (voir .nav-liens dans le CSS).
       document.body.classList.add('avec-barre');
-      // filter(Boolean) : sans lui, l'élément absent (pas de lien « Admin ») s'afficherait comme le mot « null ».
+      // filter(Boolean) : append() écrirait le mot « null » à la place d'un élément absent (pas de lien « Admin »).
       nav.append(...[
         el('div', { classe: 'nav-liens' }, [
-          lien('/fil', 'Fil'),
-          lien('/demandes', 'Demandes'),
-          lien('/chercher', 'Devs'),
-          lien('/amis', [
-            'Amis',
-            demandes ? el('span', { classe: 'compteur', texte: String(demandes), 'aria-label': `${demandes} demande${demandes > 1 ? 's' : ''} en attente` }) : null,
-          ]),
+          lien('/fil', 'fil', 'Fil'),
+          lien('/demandes', 'demandes', 'Demandes'),
+          lien('/chercher', 'devs', 'Devs'),
+          lien('/amis', 'amis', 'Amis',
+            demandes ? el('span', { classe: 'compteur', texte: String(demandes), 'aria-label': `${demandes} demande${demandes > 1 ? 's' : ''} en attente` }) : null),
         ]),
-        moi.estAdmin ? el('a', { classe: 'bouton bouton-lien', href: '/admin', texte: 'Admin' }) : null,
+        moi.estAdmin ? el('a', { classe: 'nav-cloche', href: '/admin', 'aria-label': 'Administration', title: 'Administration' }, [icone('admin')]) : null,
         el('a', {
           classe: 'nav-cloche', href: '/notifications',
           'aria-label': nonLues ? `Notifications : ${nonLues} non lue${nonLues > 1 ? 's' : ''}` : 'Notifications',
         }, [
-          el('span', { classe: 'icone-cloche', 'aria-hidden': 'true' }),
+          icone('cloche'),
           nonLues ? el('span', { classe: 'compteur compteur-cloche', 'aria-hidden': 'true', texte: nonLues > 99 ? '99+' : String(nonLues) }) : null,
         ]),
         el('a', { classe: 'nav-profil', href: `/${moi.identifiant}`, 'aria-label': 'Mon profil' }, [avatar(moi, 'mini')]),
@@ -253,5 +348,5 @@
 
   document.addEventListener('DOMContentLoaded', remplirNavigation);
 
-  window.Palabre = { api, utilisateurConnecte, el, avatar, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, reduireImage, signaler };
+  window.Palabre = { api, utilisateurConnecte, el, avatar, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
 })();

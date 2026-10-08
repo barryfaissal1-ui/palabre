@@ -1,19 +1,37 @@
 // Fil d'actualité : publier, lire par 10, aimer, commenter, signaler, supprimer.
 (function () {
-  const { api, el, avatar, utilisateurConnecte, dateRelative, reduireImage, signaler } = window.Palabre;
+  const { api, el, avatar, utilisateurConnecte, dateRelative, reduireImage, signaler, icone, etatVide, chargement, toast, confirmer } = window.Palabre;
 
-  const NOMS_TYPES = { idee: 'Idée', question: 'Question', projet: 'Projet' };
+  // Chaque type a son nom et son icône ; sa couleur est dans le CSS (.badge-idee, .badge-question, .badge-projet).
+  const TYPES = {
+    idee: { nom: 'Idée', icone: 'idee' },
+    question: { nom: 'Question', icone: 'question' },
+    projet: { nom: 'Projet', icone: 'projet' },
+  };
 
   let filtre = 'tout';   // 'tout' ou 'amis'
   let suivant = null;    // numéro à partir duquel charger la page suivante
   let imageChoisie = null; // image réduite, prête à être envoyée (data URL)
 
-  function pluriel(nombre, mot) {
-    return `${nombre} ${mot}${nombre > 1 ? 's' : ''}`;
-  }
-
   function lienAuteur(auteur, taille) {
     return el('a', { classe: 'lien-avatar', href: `/${auteur.identifiant}`, 'aria-label': `Profil de ${auteur.nom}` }, [avatar(auteur, taille)]);
+  }
+
+  // Bouton d'action d'une publication : une icône, un compteur éventuel, et un nom pour les lecteurs d'écran.
+  function boutonAction(nomIcone, nom, classe = '') {
+    const compteur = el('span', { classe: 'compteur-action' });
+    const bouton = el('button', { classe: `bouton-action ${classe}`.trim(), type: 'button', 'aria-label': nom, title: nom }, [icone(nomIcone), compteur]);
+    // Affiche le nombre (rien pour zéro) ; « anime » le fait glisser quand il change.
+    bouton.compter = (nombre, anime = false) => {
+      compteur.textContent = nombre ? String(nombre) : '';
+      bouton.setAttribute('aria-label', nombre ? `${nom} (${nombre})` : nom);
+      if (anime) {
+        compteur.classList.remove('change');
+        void compteur.offsetWidth; // force le navigateur à rejouer l'animation
+        compteur.classList.add('change');
+      }
+    };
+    return bouton;
   }
 
   // ---------- Commentaires ----------
@@ -32,13 +50,14 @@
     ]);
     action.addEventListener('click', async () => {
       if (!commentaire.estMoi) return signaler('commentaire', commentaire.id);
-      if (!window.confirm('Supprimer ce commentaire ?')) return;
+      if (!(await confirmer('Supprimer ce commentaire ?', { bouton: 'Supprimer', danger: true }))) return;
       try {
         await api(`/publications/${publication.id}/commentaires/${commentaire.id}`, { methode: 'DELETE', donnees: {} });
         element.remove();
         apresSuppression();
+        toast('Commentaire supprimé.');
       } catch (erreur) {
-        window.alert(erreur.message);
+        toast(erreur.message, 'erreur');
       }
     });
     return element;
@@ -46,30 +65,32 @@
 
   function zoneCommentaires(publication, boutonCommenter) {
     const liste = el('ul', { classe: 'liste-commentaires' });
-    const etat = el('p', { classe: 'texte-discret', texte: 'Chargement des commentaires…' });
     const champ = el('input', { type: 'text', maxlength: '1000', placeholder: 'Écrire un commentaire…', 'aria-label': 'Écrire un commentaire', required: true });
-    const envoyer = el('button', { classe: 'bouton bouton-principal', type: 'submit', texte: 'Envoyer' });
+    const envoyer = el('button', { classe: 'bouton bouton-principal', type: 'submit', 'aria-label': 'Envoyer le commentaire', title: 'Envoyer' }, [icone('envoyer')]);
     const zoneErreur = el('p', { classe: 'erreur-champ', role: 'alert' });
     const formulaire = el('form', { classe: 'form-commentaire' }, [champ, envoyer]);
-    const zone = el('div', { classe: 'commentaires', hidden: true }, [etat, liste, formulaire, zoneErreur]);
+    const zone = el('div', { classe: 'commentaires', hidden: true }, [liste, formulaire, zoneErreur]);
     let charge = false;
 
     function compter(variation) {
       publication.nbCommentaires += variation;
-      boutonCommenter.textContent = publication.nbCommentaires ? pluriel(publication.nbCommentaires, 'commentaire') : 'Commenter';
+      boutonCommenter.compter(publication.nbCommentaires, true);
     }
 
     async function ouvrir() {
       zone.hidden = !zone.hidden;
       boutonCommenter.setAttribute('aria-expanded', String(!zone.hidden));
       if (zone.hidden || charge) return;
+      const fini = chargement(liste, Math.min(publication.nbCommentaires, 2));
       try {
         const { commentaires } = await api(`/publications/${publication.id}/commentaires`);
+        fini();
         liste.replaceChildren(...commentaires.map((c) => elementCommentaire(c, publication, () => compter(-1))));
-        etat.hidden = true;
         charge = true;
+        champ.focus();
       } catch (erreur) {
-        etat.textContent = erreur.message;
+        fini();
+        zoneErreur.textContent = erreur.message;
       }
     }
 
@@ -95,30 +116,30 @@
 
   // ---------- Une publication ----------
   function cartePublication(publication) {
-    const boutonJaime = el('button', { classe: 'bouton-action', type: 'button' });
-    const boutonCommenter = el('button', {
-      classe: 'bouton-action', type: 'button', 'aria-expanded': 'false',
-      texte: publication.nbCommentaires ? pluriel(publication.nbCommentaires, 'commentaire') : 'Commenter',
-    });
-    const boutonAutre = el('button', { classe: 'bouton-action bouton-action-fin', type: 'button', texte: publication.estMoi ? 'Supprimer' : 'Signaler' });
+    const type = TYPES[publication.type];
+    const boutonJaime = boutonAction('coeur', 'J\'aime', 'bouton-jaime');
+    const boutonCommenter = boutonAction('commentaire', 'Commenter');
+    boutonCommenter.setAttribute('aria-expanded', 'false');
+    const boutonAutre = publication.estMoi
+      ? boutonAction('supprimer', 'Supprimer', 'bouton-action-fin')
+      : boutonAction('signaler', 'Signaler', 'bouton-action-fin');
     const commentaires = zoneCommentaires(publication, boutonCommenter);
 
-    function afficherJaime() {
-      boutonJaime.textContent = publication.nbJaime ? `J'aime · ${publication.nbJaime}` : 'J\'aime';
+    function afficherJaime(anime = false) {
+      boutonJaime.compter(publication.nbJaime, anime);
       boutonJaime.setAttribute('aria-pressed', String(publication.jaimeParMoi));
     }
     afficherJaime();
+    boutonCommenter.compter(publication.nbCommentaires);
 
-    const carte = el('article', { classe: 'carte-publication' }, [
+    const carte = el('article', { classe: `carte-publication publication-${publication.type}` }, [
       el('header', { classe: 'publication-entete' }, [
         lienAuteur(publication.auteur, 'moyen'),
         el('div', {}, [
           el('a', { classe: 'nom-auteur', href: `/${publication.auteur.identifiant}`, texte: publication.auteur.nom }),
-          el('p', { classe: 'publication-meta' }, [
-            el('span', { classe: `type-publication type-${publication.type}`, texte: NOMS_TYPES[publication.type] }),
-            el('span', { classe: 'texte-discret', texte: ` · ${dateRelative(publication.creeLe)}` }),
-          ]),
+          el('p', { classe: 'publication-meta texte-discret', texte: dateRelative(publication.creeLe) }),
         ]),
+        el('span', { classe: `badge-type badge-${publication.type}` }, [icone(type.icone), type.nom]),
       ]),
       el('p', { classe: 'publication-texte', texte: publication.texte }),
       publication.image ? el('img', { classe: 'publication-image', src: publication.image, alt: 'Image jointe à la publication', loading: 'lazy' }) : null,
@@ -127,14 +148,23 @@
     ]);
 
     boutonJaime.addEventListener('click', async () => {
+      // L'affichage change tout de suite (le cœur se remplit et fait son « pop »), sans attendre le serveur :
+      // sur une connexion lente, l'appli paraît quand même instantanée. En cas d'échec, on revient en arrière.
+      const avant = { nbJaime: publication.nbJaime, jaimeParMoi: publication.jaimeParMoi };
+      publication.jaimeParMoi = !avant.jaimeParMoi;
+      publication.nbJaime = avant.nbJaime + (publication.jaimeParMoi ? 1 : -1);
+      boutonJaime.classList.toggle('vient-d-aimer', publication.jaimeParMoi);
+      afficherJaime(true);
       boutonJaime.disabled = true;
       try {
-        const reponse = await api(`/publications/${publication.id}/jaime`, { methode: publication.jaimeParMoi ? 'DELETE' : 'POST', donnees: {} });
-        publication.nbJaime = reponse.nbJaime;
-        publication.jaimeParMoi = reponse.jaimeParMoi;
+        const reponse = await api(`/publications/${publication.id}/jaime`, { methode: publication.jaimeParMoi ? 'POST' : 'DELETE', donnees: {} });
+        Object.assign(publication, reponse); // le vrai compteur, au cas où d'autres ont aimé entre-temps
         afficherJaime();
       } catch (erreur) {
-        window.alert(erreur.message);
+        Object.assign(publication, avant);
+        boutonJaime.classList.remove('vient-d-aimer');
+        afficherJaime();
+        toast(erreur.message, 'erreur');
       } finally {
         boutonJaime.disabled = false;
       }
@@ -144,12 +174,13 @@
 
     boutonAutre.addEventListener('click', async () => {
       if (!publication.estMoi) return signaler('publication', publication.id);
-      if (!window.confirm('Supprimer cette publication ?')) return;
+      if (!(await confirmer('Supprimer cette publication ? Ses commentaires et ses j\'aime partiront avec.', { bouton: 'Supprimer', danger: true }))) return;
       try {
         await api(`/publications/${publication.id}`, { methode: 'DELETE', donnees: {} });
         carte.remove();
+        toast('Publication supprimée.');
       } catch (erreur) {
-        window.alert(erreur.message);
+        toast(erreur.message, 'erreur');
       }
     });
 
@@ -166,8 +197,8 @@
       fil.replaceChildren();
     }
     boutonPlus.hidden = true;
-    etat.hidden = false;
-    etat.textContent = 'Chargement…';
+    etat.hidden = true;
+    const fini = chargement(fil, depuisLeDebut ? 3 : 1); // squelettes à la place du vide
 
     const parametres = new URLSearchParams();
     if (suivant) parametres.set('avant', suivant);
@@ -175,31 +206,42 @@
     const filtreDemande = filtre;
     try {
       const reponse = await api(`/publications?${parametres}`);
+      fini();
       if (filtreDemande !== filtre) return; // la personne a changé d'onglet pendant le chargement
       fil.append(...reponse.publications.map(cartePublication));
       suivant = reponse.suivant;
       boutonPlus.hidden = !suivant;
       if (fil.children.length === 0) {
-        etat.textContent = filtre === 'amis'
-          ? 'Aucune publication de tes amis pour l\'instant. Ajoute des amis depuis leur profil.'
-          : 'Aucune publication pour l\'instant. Lance la palabre : publie la première !';
-      } else {
-        etat.hidden = true;
+        etat.replaceChildren(filtre === 'amis'
+          ? etatVide('amis', 'Tes amis n\'ont encore rien publié', 'Ajoute des amis depuis leur profil pour retrouver leurs publications ici.',
+            el('a', { classe: 'bouton bouton-principal', href: '/chercher', texte: 'Trouver des développeurs' }))
+          : etatVide('palabre', 'Lance la palabre !', 'Personne n\'a encore publié. Partage une idée, pose une question ou montre un projet.'));
+        etat.hidden = false;
       }
     } catch (erreur) {
-      etat.textContent = erreur.message;
+      fini();
+      etat.replaceChildren(etatVide('calme', 'Le fil ne charge pas', erreur.message));
+      etat.hidden = fil.children.length > 0;
+      if (fil.children.length > 0) toast(erreur.message, 'erreur');
       boutonPlus.hidden = !suivant;
     }
   }
 
-  // ---------- Formulaire « Publier » ----------
-  function brancherPublier() {
+  // ---------- Zone « Publier » ----------
+  function brancherPublier(moi) {
     const formulaire = document.querySelector('[data-publier]');
     const zoneMessage = formulaire.querySelector('[data-message]');
     const zoneErreur = formulaire.querySelector('[data-erreur="texte"]');
     const apercu = formulaire.querySelector('[data-apercu]');
     const choisir = formulaire.querySelector('[data-choisir-image]');
     const bouton = formulaire.querySelector('button[type="submit"]');
+    formulaire.querySelector('[data-mon-avatar]').replaceChildren(avatar(moi, 'moyen'));
+    formulaire.elements.texte.placeholder = `Quoi de neuf, ${moi.nom.split(' ')[0]} ?`;
+
+    // Le champ compact s'agrandit dès qu'on touche dedans, qu'on y arrive au clavier ou qu'on y écrit.
+    ['focusin', 'click', 'input'].forEach((evenement) => {
+      formulaire.addEventListener(evenement, () => formulaire.classList.add('ouvert'));
+    });
 
     function message(texte, type) {
       zoneMessage.textContent = texte;
@@ -216,6 +258,7 @@
       const fichier = choisir.files[0];
       choisir.value = '';
       if (!fichier) return;
+      formulaire.classList.add('ouvert');
       message('Préparation de l\'image…', '');
       try {
         imageChoisie = await reduireImage(fichier);
@@ -248,7 +291,10 @@
         retirerImage();
         document.querySelector('[data-fil]').prepend(cartePublication(publication));
         document.querySelector('[data-etat-fil]').hidden = true;
-        message('Publié.', 'succes');
+        // La zone se replie, prête pour la prochaine publication.
+        document.activeElement.blur();
+        formulaire.classList.remove('ouvert');
+        toast('Publié !');
       } catch (erreur) {
         if (erreur.champ === 'texte') zoneErreur.textContent = erreur.message;
         else message(erreur.message, 'erreur');
@@ -276,7 +322,7 @@
       window.location.href = '/connexion?suite=/fil';
       return;
     }
-    brancherPublier();
+    brancherPublier(moi);
     brancherFiltres();
     document.querySelector('[data-charger-plus]').addEventListener('click', () => chargerPage());
     chargerPage({ depuisLeDebut: true });

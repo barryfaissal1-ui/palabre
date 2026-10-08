@@ -25,7 +25,13 @@
   </header>
   <main class="conteneur page-profil">
     <h1 class="titre-page">Modifier mon profil</h1>
-    <p class="texte-discret" data-chargement>Chargement…</p>
+    <div data-chargement>
+    <div class="squelettes" aria-hidden="true">
+      <div class="squelette"><div class="squelette-entete"><span class="os os-rond"></span><span class="os os-court"></span></div><span class="os"></span><span class="os os-moyen"></span></div>
+      <div class="squelette"><span class="os os-moyen"></span><span class="os"></span><span class="os os-court"></span></div>
+    </div>
+    <p class="visuellement-cache">Chargement…</p>
+    </div>
 
     <form data-profil novalidate hidden>
       <section class="bloc-formulaire">

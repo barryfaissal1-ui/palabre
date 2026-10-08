@@ -1,6 +1,6 @@
 // Page « Notifications » : les 30 dernières, les non lues mises en avant.
 (function () {
-  const { api, el, utilisateurConnecte, dateRelative } = window.Palabre;
+  const { api, el, utilisateurConnecte, dateRelative, etatVide, chargement } = window.Palabre;
 
   // La cloche du menu suit le nombre de notifications non lues.
   function majCloche(nonLues) {
@@ -32,15 +32,20 @@
 
   async function charger() {
     const etat = document.querySelector('[data-etat]');
+    const liste = document.querySelector('[data-notifications]');
+    etat.hidden = true;
+    const fini = liste.children.length ? () => {} : chargement(liste, 3); // squelettes au premier chargement seulement
     try {
       const { notifications, nonLues } = await api('/notifications');
-      document.querySelector('[data-notifications]').replaceChildren(...notifications.map(ligne));
+      fini();
+      liste.replaceChildren(...notifications.map(ligne));
       majCloche(nonLues);
       etat.hidden = notifications.length > 0;
-      etat.textContent = 'Aucune notification pour l\'instant.';
+      etat.replaceChildren(etatVide('calme', 'Tout est calme', 'Tu seras prévenu ici d\'une demande d\'ami, d\'une invitation en équipe ou d\'une proposition.'));
     } catch (erreur) {
+      fini();
       etat.hidden = false;
-      etat.textContent = erreur.message;
+      etat.replaceChildren(etatVide('calme', 'Les notifications ne chargent pas', erreur.message));
     }
   }
 

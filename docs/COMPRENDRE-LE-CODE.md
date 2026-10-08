@@ -293,12 +293,62 @@ Deux précautions de sécurité :
 
 Le bouton « Partager sur WhatsApp » prépare un message avec la fourchette et le lien du calculateur. La page a ses balises de partage, écrites par le serveur comme pour les profils.
 
-## 12. L'application installable (PWA)
+## 12. Le système de design
+
+Un « système de design », c'est un petit nombre de règles visuelles appliquées partout, pour que le site ait l'air d'une seule et même application. Tout est écrit à la main : aucune bibliothèque d'interface, aucun framework, donc des pages qui restent légères en 3G (les icônes pèsent 8 Ko en tout, les illustrations 4 Ko).
+
+### Les réglages communs (`public/css/style.css`, bloc `:root`)
+
+| Réglage | Variables | Rôle |
+| --- | --- | --- |
+| Couleurs du logo | `--terre-logo`, `--feuille`, `--tronc`, `--creme` | les mêmes partout ; redéfinies dans le bloc du mode sombre |
+| Surfaces | `--papier`, `--surface`, `--surface-2` | le fond crème, les cartes un peu plus blanches, les zones en retrait |
+| Ombres | `--ombre-1`, `--ombre-2`, `--ombre-3` | trois niveaux : carte posée, carte survolée, fenêtre au-dessus de la page |
+| Coins arrondis | `--rayon-petit`, `--rayon`, `--rayon-grand` | trois tailles seulement |
+
+Changer une valeur ici change tout le site. Le mode sombre n'est pas une seconde feuille de style : il redéfinit ces mêmes variables.
+
+### Les icônes (`public/icons/icones.svg`)
+
+Les icônes viennent de **Lucide** (licence ISC, notée dans `LICENCES.md`). Elles sont rangées dans un seul fichier, un « sprite » : le navigateur le télécharge une fois, puis chaque icône n'est qu'une référence, `<svg class="icone"><use href="/icons/icones.svg#coeur"></use></svg>`. Dans le JavaScript, la fonction `icone('coeur')` de `public/js/app.js` crée cette balise. Les icônes sont dessinées au trait avec `currentColor` : elles prennent toujours la couleur du texte voisin, en clair comme en sombre.
+
+Une icône seule ne suffit pas pour un lecteur d'écran : les boutons sans texte (cœur, bulle, corbeille) portent un `aria-label`.
+
+### Les composants communs (`public/js/app.js`)
+
+| Fonction | Ce qu'elle fait |
+| --- | --- |
+| `toast(texte, type)` | petit message qui apparaît en bas de l'écran puis disparaît (« Publié ! », ou une erreur) |
+| `confirmer(question, options)` | fenêtre de confirmation ; renvoie une promesse, donc on écrit `if (await confirmer('Supprimer ?'))` |
+| `etatVide(illustration, titre, texte, bouton)` | quand une liste est vide : une illustration et un mot d'encouragement |
+| `chargement(zone, nombre)` | affiche des « squelettes » gris animés pendant un chargement, et renvoie la fonction qui les retire |
+
+**Il n'y a plus aucun `alert()` ni `confirm()` du navigateur dans le site** : ils bloquent la page, ne suivent pas le style, et certains navigateurs les masquent. La fenêtre de confirmation utilise la balise `<dialog>` : le navigateur gère lui-même le fond assombri, la touche Échap et le maintien du focus dans la fenêtre. Le focus va d'abord sur « Annuler », pour qu'une touche Entrée trop rapide ne supprime rien.
+
+### Le fil
+
+- Chaque type de publication a sa couleur et son badge : idée (vert, ampoule), question (terre cuite, point d'interrogation), projet (noir du tronc, fusée). La couleur est une variable `--type` posée sur la carte.
+- **J'aime** : le cœur se remplit et fait un petit « pop » **tout de suite**, sans attendre la réponse du serveur ; si le serveur refuse, l'affichage revient en arrière et un message s'affiche. Sur une connexion lente, l'application paraît quand même instantanée.
+- La zone « Publier » est un champ compact qui s'agrandit quand on touche dedans.
+
+### Le profil
+
+Une bannière au motif tissé (`public/icons/motif-banniere.svg`, dessiné par l'équipe), la photo qui la chevauche avec un contour crème, les chiffres du profil (projets, amis, avis) et les compétences en pastilles colorées.
+
+### Le mouvement, sans gêner personne
+
+Les cartes apparaissent en glissant légèrement, les boutons s'enfoncent sous le doigt, les squelettes brillent pendant le chargement. Mais certaines personnes sont gênées par les animations (vertiges, migraines) et le demandent dans les réglages de leur téléphone. La dernière règle de la feuille de style, `@media (prefers-reduced-motion: reduce)`, coupe alors **toutes** les animations et transitions du site.
+
+### Ce qui n'a pas changé
+
+Les règles de sécurité restent les mêmes : aucun style ni script en ligne (la CSP les bloque toujours), le texte des membres passe toujours par `textContent` ou `el()`, les zones tactiles font au moins 44 px et le focus au clavier reste visible.
+
+## 13. L'application installable (PWA)
 
 - `public/manifest.json` : nom, couleurs et icônes de l'appli quand on l'ajoute à l'écran d'accueil.
 - `public/sw.js` : le « service worker » garde une copie des fichiers de l'interface. Les pages s'ouvrent vite, même avec une connexion faible. Les données (`/api`) ne sont jamais mises en cache, pour toujours être à jour. À chaque modification de l'interface, on augmente `VERSION` pour forcer la mise à jour chez tout le monde.
 
-## 13. Les tests automatiques
+## 14. Les tests automatiques
 
 `npm test` lance des tests qui démarrent un vrai serveur et vérifient, entre autres : inscription, refus d'un mauvais mot de passe, protection CSRF, modification de profil, identifiants réservés, confidentialité du numéro WhatsApp, envoi et remplacement de photo, refus d'un faux fichier image.
 
@@ -314,7 +364,10 @@ Pour le calculateur (`tests/calculateur.test.js`) : cohérence de la grille (cha
 
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
 
-## 14. Questions probables du jury
+## 15. Questions probables du jury
+
+- **Avez-vous utilisé une bibliothèque d'interface (Bootstrap, Tailwind…) ?** Non. Le style est écrit à la main avec des variables CSS ; seules les icônes viennent d'un projet libre (Lucide, licence ISC), sous la forme d'un simple fichier SVG.
+- **Que se passe-t-il pour quelqu'un que les animations gênent ?** S'il a activé « réduire les animations » sur son appareil, le site n'en joue aucune.
 
 - **D'où viennent les prix du calculateur ?** D'une grille établie par l'équipe à partir des prix pratiqués, rangée dans un seul fichier (`public/js/grille-prix.js`). Le résultat est une fourchette, présentée comme une estimation.
 - **Pourquoi le calcul n'est-il pas fait par le serveur ?** Il n'y a rien de secret ni rien à protéger : le faire dans le navigateur donne une réponse immédiate, même avec une mauvaise connexion.

@@ -26,31 +26,37 @@
   <main class="conteneur page-fil">
     <h1 class="titre-page">Fil d'actualité</h1>
 
-    <form class="bloc-formulaire" data-publier novalidate>
-      <fieldset class="choix-puces">
-        <legend class="visuellement-cache">Type de publication</legend>
-        <input type="radio" name="type" id="type-idee" value="idee" checked>
-        <label for="type-idee">Idée</label>
-        <input type="radio" name="type" id="type-question" value="question">
-        <label for="type-question">Question</label>
-        <input type="radio" name="type" id="type-projet" value="projet">
-        <label for="type-projet">Projet</label>
-      </fieldset>
-      <div class="champ">
-        <label class="visuellement-cache" for="texte">Ta publication</label>
-        <textarea id="texte" name="texte" rows="3" maxlength="3000" placeholder="Partage une idée, pose une question ou montre un projet…"></textarea>
-        <p class="erreur-champ" data-erreur="texte"></p>
+    <!-- Zone « Publier » : un champ compact ; le reste (.composer-suite) apparaît quand on touche le champ. -->
+    <form class="bloc-formulaire composer" data-publier novalidate>
+      <div class="composer-champ">
+        <span data-mon-avatar></span>
+        <div class="champ">
+          <label class="visuellement-cache" for="texte">Ta publication</label>
+          <textarea id="texte" name="texte" rows="1" maxlength="3000" placeholder="Quoi de neuf ?"></textarea>
+          <p class="erreur-champ" data-erreur="texte"></p>
+        </div>
       </div>
-      <div class="apercu-image" data-apercu hidden>
-        <img alt="Aperçu de l'image choisie" data-apercu-image>
-        <button class="bouton bouton-lien" type="button" data-retirer-image>Retirer l'image</button>
-      </div>
-      <div class="actions-publier">
-        <label class="bouton bouton-contour">
-          Ajouter une image
-          <input type="file" accept="image/*" data-choisir-image class="visuellement-cache">
-        </label>
-        <button class="bouton bouton-principal" type="submit">Publier</button>
+      <div class="composer-suite">
+        <fieldset class="choix-puces">
+          <legend class="visuellement-cache">Type de publication</legend>
+          <input type="radio" name="type" id="type-idee" value="idee" checked>
+          <label for="type-idee"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#idee"></use></svg>Idée</label>
+          <input type="radio" name="type" id="type-question" value="question">
+          <label for="type-question"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#question"></use></svg>Question</label>
+          <input type="radio" name="type" id="type-projet" value="projet">
+          <label for="type-projet"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#projet"></use></svg>Projet</label>
+        </fieldset>
+        <div class="apercu-image" data-apercu hidden>
+          <img alt="Aperçu de l'image choisie" data-apercu-image>
+          <button class="bouton bouton-lien" type="button" data-retirer-image>Retirer l'image</button>
+        </div>
+        <div class="actions-publier">
+          <label class="bouton bouton-contour">
+            <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#image"></use></svg>Image
+            <input type="file" accept="image/*" data-choisir-image class="visuellement-cache">
+          </label>
+          <button class="bouton bouton-principal" type="submit"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#envoyer"></use></svg>Publier</button>
+        </div>
       </div>
       <p class="message" role="status" data-message></p>
     </form>
@@ -61,7 +67,7 @@
     </div>
 
     <div class="liste-publications" data-fil></div>
-    <p class="texte-discret etat-fil" role="status" data-etat-fil>Chargement…</p>
+    <div role="status" data-etat-fil hidden></div>
     <button class="bouton bouton-contour bouton-plein" type="button" data-charger-plus hidden>Voir plus de publications</button>
   </main>
 </body>

@@ -70,6 +70,14 @@ router.get('/:identifiant', async (req, res) => {
   const visiteur = req.utilisateur;
   const amitie = visiteur && visiteur.id !== rows[0].id ? await etatAmitie(visiteur.id, rows[0].id) : null;
   const profil = profilVisible(rows[0], competences, visiteur, amitie);
+  // Nombre d'amis (amitiés acceptées avec des comptes non bloqués) : affiché parmi les chiffres du profil.
+  const { rows: [amis] } = await db.query(
+    `SELECT count(*)::int AS nb FROM amities a
+       JOIN utilisateurs u ON u.id = CASE WHEN a.demandeur_id = $1 THEN a.receveur_id ELSE a.demandeur_id END
+      WHERE a.statut = 'acceptee' AND $1 IN (a.demandeur_id, a.receveur_id) AND u.bloque = FALSE`,
+    [rows[0].id],
+  );
+  profil.nbAmis = amis.nb;
   // Le « profil prouvé » d'un dev : ses projets réalisés et les avis de ses vrais clients.
   if (rows[0].type === 'dev') {
     profil.projets = await projetsDe(rows[0].id, visiteur);

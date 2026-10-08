@@ -22,6 +22,16 @@ Toutes les dépendances indirectes sont sous licences permissives (MIT, ISC, BSD
 npx license-checker-rseidelsohn --production --onlyAllow "MIT;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;MIT-0;0BSD;BlueOak-1.0.0" --excludePackages palabre@0.1.0
 ```
 
+## Icônes
+
+| Composant | Version | Licence |
+| --- | --- | --- |
+| Lucide (38 icônes, rangées dans `public/icons/icones.svg`) | 1.53.0 | ISC (`public/icons/LICENSE-LUCIDE.txt`) |
+
+Les tracés des icônes sont repris tels quels du paquet `lucide-static` ; le nom d'origine de chaque icône est noté en commentaire dans le fichier. Ce n'est pas une dépendance npm : seul le fichier SVG est dans le projet.
+
+Les illustrations des états vides (`public/icons/illustrations.svg`) et le motif de la bannière des profils (`public/icons/motif-banniere.svg`) ont été dessinés par l'équipe pour le concours.
+
 ## Police
 
 | Composant | Licence |

@@ -27,7 +27,11 @@
     <p class="retour"><a href="/demandes">← Toutes les demandes</a></p>
     <p class="message" role="status" data-message></p>
     <div data-demande aria-live="polite">
-      <p class="texte-discret">Chargement de la demande…</p>
+      <div class="squelettes" aria-hidden="true">
+      <div class="squelette"><div class="squelette-entete"><span class="os os-rond"></span><span class="os os-court"></span></div><span class="os"></span><span class="os os-moyen"></span></div>
+      <div class="squelette"><span class="os os-moyen"></span><span class="os"></span><span class="os os-court"></span></div>
+    </div>
+    <p class="visuellement-cache">Chargement de la demande…</p>
     </div>
   </main>
 </body>

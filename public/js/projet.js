@@ -1,18 +1,18 @@
 // Page publique d'un projet réalisé : palabre.dev/projets/12
 (function () {
-  const { api, el, avatar, utilisateurConnecte, partager, signaler } = window.Palabre;
+  const { api, el, avatar, utilisateurConnecte, partager, signaler, icone, etatVide } = window.Palabre;
 
   const id = window.location.pathname.split('/')[2];
 
   function page(projet, moi) {
     const lieu = [projet.dev.ville, projet.dev.pays].filter(Boolean).join(', ');
-    const boutonPartage = el('button', { classe: 'bouton bouton-contour', type: 'button', texte: 'Partager' });
+    const boutonPartage = el('button', { classe: 'bouton bouton-contour', type: 'button' }, [icone('partager'), 'Partager']);
     boutonPartage.addEventListener('click', () => partager(window.location.href, `${projet.titre} – Palabre`, boutonPartage));
 
     const actions = el('div', { classe: 'profil-actions' }, [
       projet.lien
         // nofollow / noopener : le site visité ne reçoit ni recommandation ni accès à la page Palabre.
-        ? el('a', { classe: 'bouton bouton-principal', href: projet.lien, target: '_blank', rel: 'noopener nofollow', texte: 'Voir le projet en ligne' })
+        ? el('a', { classe: 'bouton bouton-principal', href: projet.lien, target: '_blank', rel: 'noopener nofollow' }, [icone('lien-externe'), 'Voir le projet en ligne'])
         : null,
       boutonPartage,
     ]);
@@ -29,7 +29,7 @@
         projet.image ? el('img', { classe: 'projet-grande-image', src: projet.image, alt: `Capture d'écran du projet ${projet.titre}` }) : null,
         el('p', { classe: 'projet-meta' }, [
           el('span', { classe: 'texte-discret', texte: projet.nomSecteur }),
-          projet.lienVerifie ? el('span', { classe: 'badge-verifie', texte: 'Lien vérifié' }) : null,
+          projet.lienVerifie ? el('span', { classe: 'badge-verifie' }, [icone('verifie'), 'Lien vérifié']) : null,
         ]),
         el('h1', { classe: 'titre-demande', texte: projet.titre }),
         projet.description ? el('p', { classe: 'profil-bio', texte: projet.description }) : null,
@@ -60,10 +60,8 @@
       const [{ projet }, moi] = await Promise.all([api(`/projets/${encodeURIComponent(id)}`), utilisateurConnecte()]);
       zone.replaceChildren(...page(projet, moi));
     } catch (erreur) {
-      zone.replaceChildren(el('div', { classe: 'vide' }, [
-        el('p', { texte: erreur.message }),
-        el('a', { classe: 'bouton bouton-principal', href: '/', texte: 'Retour à l\'accueil' }),
-      ]));
+      zone.replaceChildren(etatVide('projets', 'Projet introuvable', erreur.message,
+        el('a', { classe: 'bouton bouton-principal', href: '/', texte: 'Voir la vitrine' })));
     }
   });
 })();

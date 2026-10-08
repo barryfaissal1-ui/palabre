@@ -1,7 +1,7 @@
 // Tableau de bord administrateur : statistiques, signalements, projets pour Facebook, membres bloqués.
 // La page n'est qu'un affichage : c'est le serveur qui refuse tout à un membre qui n'est pas administrateur.
 (function () {
-  const { api, el, avatar, utilisateurConnecte, dateRelative, carteProjet } = window.Palabre;
+  const { api, el, avatar, utilisateurConnecte, dateRelative, carteProjet, etatVide, confirmer } = window.Palabre;
 
   const NOMS_CIBLES = { publication: 'Publication', commentaire: 'Commentaire', profil: 'Profil', projet: 'Projet', demande: 'Demande' };
 
@@ -13,10 +13,10 @@
   }
 
   // Bouton qui appelle l'API puis recharge tout le tableau de bord.
-  function boutonAction(texte, classe, action, { confirmation, succes }) {
+  function boutonAction(texte, classe, action, { confirmation, succes, danger = false }) {
     const bouton = el('button', { classe: `bouton ${classe}`, type: 'button', texte });
     bouton.addEventListener('click', async () => {
-      if (confirmation && !window.confirm(confirmation)) return;
+      if (confirmation && !(await confirmer(confirmation, { bouton: texte, danger }))) return;
       bouton.disabled = true;
       try {
         await action();
@@ -65,7 +65,7 @@
     if (cible && !cible.membreEstAdmin && !cible.membreBloque) {
       boutons.push(boutonAction('Bloquer le membre', 'bouton-or', traiter('bloquer'), {
         confirmation: `Bloquer ${cible.membre.nom} ? Ce membre ne pourra plus se connecter et tout ce qu'il a publié disparaîtra.`,
-        succes: `${cible.membre.nom} est bloqué.`,
+        succes: `${cible.membre.nom} est bloqué.`, danger: true,
       }));
     }
     boutons.push(boutonAction('Classer sans suite', 'bouton-contour', traiter('classer'), { succes: 'Signalement classé sans suite.' }));
@@ -175,10 +175,8 @@
     }
     const zone = document.querySelector('[data-admin]');
     if (!moi.estAdmin) {
-      zone.replaceChildren(el('div', { classe: 'vide' }, [
-        el('p', { texte: 'Cette page est réservée aux administrateurs de Palabre.' }),
-        el('a', { classe: 'bouton bouton-principal', href: '/fil', texte: 'Retour au fil' }),
-      ]));
+      zone.replaceChildren(etatVide('calme', 'Page réservée', 'Cette page est réservée aux administrateurs de Palabre.',
+        el('a', { classe: 'bouton bouton-principal', href: '/fil', texte: 'Retour au fil' })));
       return;
     }
     try {

@@ -1,6 +1,6 @@
 // Page « Demandes » : liste par 10, filtres, et formulaire de publication pour les clients.
 (function () {
-  const { api, el, utilisateurConnecte, dateRelative, fcfa } = window.Palabre;
+  const { api, el, utilisateurConnecte, dateRelative, fcfa, icone, etatVide, chargement } = window.Palabre;
 
   const NOMS_STATUTS = { ouverte: 'Ouverte', attribuee: 'Attribuée', terminee: 'Terminée', annulee: 'Annulée' };
 
@@ -20,8 +20,8 @@
       el('h2', {}, [el('a', { href: `/demande?id=${demande.id}`, texte: demande.titre })]),
       el('p', { classe: 'publication-texte', texte: demande.description }),
       el('dl', { classe: 'faits' }, [
-        el('div', {}, [el('dt', { texte: 'Budget' }), el('dd', { texte: fcfa(demande.budgetFcfa) })]),
-        el('div', {}, [el('dt', { texte: 'Délai' }), el('dd', { texte: demande.delai || 'À discuter' })]),
+        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('argent'), 'Budget']), el('dd', { texte: fcfa(demande.budgetFcfa) })]),
+        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('horloge'), 'Délai']), el('dd', { texte: demande.delai || 'À discuter' })]),
       ]),
       el('p', { classe: 'texte-discret pied-demande', texte: `${demande.estMoi ? 'Ta demande' : `Par ${demande.client.nom}`} · ${propositions}` }),
       el('a', { classe: 'bouton bouton-contour', href: `/demande?id=${demande.id}`, texte: 'Voir la demande' }),
@@ -37,8 +37,8 @@
       liste.replaceChildren();
     }
     boutonPlus.hidden = true;
-    etat.hidden = false;
-    etat.textContent = 'Chargement…';
+    etat.hidden = true;
+    const fini = chargement(liste, depuisLeDebut ? 3 : 1); // squelettes à la place du vide
 
     const parametres = new URLSearchParams();
     if (suivant) parametres.set('avant', suivant);
@@ -47,17 +47,21 @@
     const demandeEnCours = `${filtre}|${categorie}`;
     try {
       const reponse = await api(`/demandes?${parametres}`);
+      fini();
       if (demandeEnCours !== `${filtre}|${categorie}`) return; // le filtre a changé pendant le chargement
       liste.append(...reponse.demandes.map(carteDemande));
       suivant = reponse.suivant;
       boutonPlus.hidden = !suivant;
       if (liste.children.length === 0) {
-        etat.textContent = filtre === 'miennes' ? 'Rien ici pour l\'instant.' : 'Aucune demande ouverte pour l\'instant.';
-      } else {
-        etat.hidden = true;
+        etat.replaceChildren(filtre === 'miennes'
+          ? etatVide('demandes', 'Rien ici pour l\'instant', 'Les demandes où tu es concerné apparaîtront dans cet onglet.')
+          : etatVide('demandes', 'Aucune demande ouverte', 'Les demandes des clients arriveront ici. Reviens bientôt, ou change de catégorie.'));
+        etat.hidden = false;
       }
     } catch (erreur) {
-      etat.textContent = erreur.message;
+      fini();
+      etat.replaceChildren(etatVide('calme', 'Les demandes ne chargent pas', erreur.message));
+      etat.hidden = false;
       boutonPlus.hidden = !suivant;
     }
   }

@@ -83,6 +83,7 @@ tests/                 tests automatiques
 - [x] Profil prouvé (projets avec badge « Lien vérifié », avis protégés), recherche de devs, vitrine par secteur, cartes de partage Open Graph
 - [x] Tableau de bord administrateur `/admin` : statistiques, signalements, projets proposés pour Facebook
 - [x] Calculateur « Combien coûte mon projet ? » `/calculateur` (grille de prix : `public/js/grille-prix.js`)
+- [x] Refonte du design, étape A : système de design (icônes Lucide, ombres, animations, toasts, états vides illustrés, squelettes de chargement, mode sombre)
 - [ ] Publication Facebook, défi de la semaine
 
 ## Comprendre le code

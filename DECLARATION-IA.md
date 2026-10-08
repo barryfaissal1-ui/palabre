@@ -21,6 +21,9 @@ Déclaration exigée par l'article 6 du règlement CADEV 2026. À compléter par
 | Calculateur de prix (`public/js/calcul-prix.js`, `public/js/calculateur.js`, `tests/calculateur.test.js`) | Généré par l'IA ; la grille de prix (`public/js/grille-prix.js`) a été fournie par l'équipe |
 | Guide `docs/COMPRENDRE-LE-CODE.md` | Rédigé par l'IA pour l'équipe |
 | Interface (`public/`) | Générée par l'IA, adaptée par l'équipe |
+| Système de design (`public/css/style.css`, fonctions `icone`, `toast`, `confirmer`, `etatVide`, `chargement` de `public/js/app.js`) | Généré par l'IA à partir des demandes de l'équipe, relu par l'équipe |
+| Illustrations des états vides et motif de la bannière (`public/icons/illustrations.svg`, `public/icons/motif-banniere.svg`) | Dessinés avec l'IA (Claude Code) pour le concours, sans source externe |
+| Icônes (`public/icons/icones.svg`) | Icônes Lucide (licence ISC), assemblées en un fichier avec l'IA |
 | Logo | Créé par l'équipe avec Claude Code ; icônes dérivées générées automatiquement |
 
 ## Maîtrise par l'équipe

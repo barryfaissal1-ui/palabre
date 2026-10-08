@@ -1,6 +1,6 @@
 // Page « Mes amis » : demandes reçues, amis, demandes envoyées.
 (function () {
-  const { api, el, avatar, utilisateurConnecte } = window.Palabre;
+  const { api, el, avatar, utilisateurConnecte, icone, etatVide, confirmer } = window.Palabre;
 
   function message(texte, type) {
     const zone = document.querySelector('[data-message]');
@@ -41,10 +41,10 @@
     ]);
   }
 
-  function section(titre, membres, boutonsPour, texteVide) {
+  function section(titre, membres, boutonsPour, siVide) {
     const contenu = membres.length
       ? el('ul', { classe: 'liste-membres' }, membres.map((m) => ligneMembre(m, boutonsPour(m))))
-      : el('p', { classe: 'texte-discret', texte: texteVide });
+      : siVide;
     return el('section', { classe: 'section-profil' }, [
       el('h2', { texte: membres.length ? `${titre} (${membres.length})` : titre }),
       contenu,
@@ -71,11 +71,12 @@
     }
     sections.push(section('Amis', amis, (m) => [
       boutonAction('Retirer', 'bouton-lien', async () => {
-        if (!window.confirm(`Retirer ${m.nom} de tes amis ?`)) return null;
+        if (!(await confirmer(`Retirer ${m.nom} de tes amis ?`, { bouton: 'Retirer', danger: true }))) return null;
         await api(`/amis/${cible(m)}`, { methode: 'DELETE', donnees: {} });
         return `${m.nom} ne fait plus partie de tes amis.`;
       }),
-    ], 'Tu n\'as pas encore d\'amis sur Palabre. Ouvre le profil d\'un membre depuis le fil et clique sur « Ajouter en ami ».'));
+    ], etatVide('amis', 'Ton cercle commence ici', 'Ouvre le profil d\'un membre et touche « Ajouter en ami ». Entre amis, vous pourrez former des équipes éclair.',
+      el('a', { classe: 'bouton bouton-principal', href: '/chercher' }, [icone('recherche'), 'Trouver des développeurs']))));
     if (envoyees.length) {
       sections.push(section('Demandes envoyées', envoyees, (m) => [
         boutonAction('Annuler', 'bouton-lien', async () => {

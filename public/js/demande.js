@@ -1,6 +1,6 @@
 // Page d'une demande : le client compare et choisit ; le dev propose seul ou forme une équipe éclair.
 (function () {
-  const { api, el, avatar, utilisateurConnecte, dateRelative, deNom, fcfa, signaler } = window.Palabre;
+  const { api, el, avatar, utilisateurConnecte, dateRelative, deNom, fcfa, signaler, etatVide, confirmer, icone } = window.Palabre;
 
   const id = new URLSearchParams(window.location.search).get('id');
   const NOMS_STATUTS = { ouverte: 'Ouverte', attribuee: 'Attribuée', terminee: 'Terminée', annulee: 'Annulée' };
@@ -21,10 +21,10 @@
   }
 
   // Bouton qui appelle l'API puis réaffiche la page. « confirmation » : question posée avant d'agir.
-  function boutonAction(texte, classe, action, { confirmation, succes } = {}) {
+  function boutonAction(texte, classe, action, { confirmation, succes, danger = false } = {}) {
     const bouton = el('button', { classe: `bouton ${classe}`, type: 'button', texte });
     bouton.addEventListener('click', async () => {
-      if (confirmation && !window.confirm(confirmation)) return;
+      if (confirmation && !(await confirmer(confirmation, { danger }))) return;
       bouton.disabled = true;
       try {
         await action();
@@ -88,8 +88,8 @@
         demande.estMoi ? null : el('a', { href: `/${demande.client.identifiant}`, texte: demande.client.nom }),
       ]),
       el('dl', { classe: 'faits' }, [
-        el('div', {}, [el('dt', { texte: 'Budget' }), el('dd', { texte: fcfa(demande.budgetFcfa) })]),
-        el('div', {}, [el('dt', { texte: 'Délai' }), el('dd', { texte: demande.delai || 'À discuter' })]),
+        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('argent'), 'Budget']), el('dd', { texte: fcfa(demande.budgetFcfa) })]),
+        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('horloge'), 'Délai']), el('dd', { texte: demande.delai || 'À discuter' })]),
       ]),
       el('p', { classe: 'profil-bio', texte: demande.description }),
       demande.estMoi ? null : boutonSignaler(demande),
@@ -157,7 +157,7 @@
       el('h2', { texte: propositions.length ? `Propositions reçues (${propositions.length})` : 'Propositions reçues' }),
     ]);
     if (propositions.length === 0) {
-      section.append(el('p', { classe: 'texte-discret', texte: 'Aucune proposition pour l\'instant. Tu recevras une notification dès qu\'un développeur ou une équipe répondra.' }));
+      section.append(etatVide('demandes', 'Ta demande est en ligne', 'Aucune proposition pour l\'instant. Tu recevras une notification dès qu\'un développeur ou une équipe répondra.'));
     }
     // La proposition choisie en premier.
     const triees = [...propositions].sort((a, b) => Number(b.statut === 'acceptee') - Number(a.statut === 'acceptee'));
@@ -328,10 +328,8 @@
       else if (moi.type === 'dev') blocs.push(await sectionDev(demande, propositions));
       zone.replaceChildren(...blocs.filter(Boolean));
     } catch (erreur) {
-      zone.replaceChildren(el('div', { classe: 'vide' }, [
-        el('p', { texte: erreur.message }),
-        el('a', { classe: 'bouton bouton-principal', href: '/demandes', texte: 'Voir les demandes' }),
-      ]));
+      zone.replaceChildren(etatVide('demandes', 'Demande introuvable', erreur.message,
+        el('a', { classe: 'bouton bouton-principal', href: '/demandes', texte: 'Voir les demandes' })));
     }
   }
 

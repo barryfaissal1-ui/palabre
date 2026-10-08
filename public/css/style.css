@@ -25,18 +25,30 @@
   --lien: var(--terre);
 
   --papier: var(--creme);
-  --surface: #FFFDF8;
+  --surface: #FFFFFF;      /* les cartes : un peu plus blanches que le fond crème */
+  --surface-2: #FBF6EC;    /* zones en retrait dans une carte (commentaires, champs) */
   --encre: #171512;
+  --tronc: #171512;        /* le noir du tronc ; devient crème en mode sombre pour rester lisible */
+  --sur-tronc: #F7F1E6;
   --gris: #6A6156;
-  --ligne: #E3D9CA;
+  --ligne: #E8DFD0;
   --erreur: #B3261E;
   --succes: #1E7A45;
 
   --titre: "Bricolage", "Segoe UI", system-ui, sans-serif;
   --texte: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
-  --rayon: 14px;
-  --rayon-petit: 10px;
+  /* Coins arrondis : trois tailles, utilisées partout */
+  --rayon: 18px;
+  --rayon-petit: 12px;
+  --rayon-grand: 26px;
+
+  /* Ombres douces sur trois niveaux : carte posée, carte survolée, fenêtre au-dessus de la page */
+  --ombre-1: 0 1px 2px rgba(70, 45, 20, 0.05), 0 2px 8px rgba(70, 45, 20, 0.06);
+  --ombre-2: 0 2px 6px rgba(70, 45, 20, 0.07), 0 10px 24px rgba(70, 45, 20, 0.10);
+  --ombre-3: 0 10px 30px rgba(40, 25, 10, 0.20), 0 30px 60px rgba(40, 25, 10, 0.18);
+
+  --ressort: cubic-bezier(0.34, 1.56, 0.64, 1); /* léger rebond pour les petites animations */
   --gouttiere: 16px;
   --largeur: 1080px;
 
@@ -55,11 +67,17 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --papier: #14120F;
-    --surface: #1F1C18;
+    --surface: #211E19;
+    --surface-2: #1A1714;
     --encre: #F3EDE2;
+    --tronc: #F3EDE2;
+    --sur-tronc: #171512;
     --gris: #B4AA9B;
-    --ligne: #36312A;
+    --ligne: #38322A;
     --lien: #E58A64;
+    --ombre-1: 0 1px 2px rgba(0, 0, 0, 0.30), 0 2px 8px rgba(0, 0, 0, 0.25);
+    --ombre-2: 0 2px 6px rgba(0, 0, 0, 0.35), 0 10px 24px rgba(0, 0, 0, 0.35);
+    --ombre-3: 0 10px 30px rgba(0, 0, 0, 0.55), 0 30px 60px rgba(0, 0, 0, 0.45);
   }
 }
 
@@ -137,19 +155,24 @@ a { color: var(--lien); text-underline-offset: 3px; }
   font: 700 1rem/1 var(--texte);
   text-decoration: none;
   cursor: pointer;
-  transition: transform 0.15s ease, background-color 0.15s ease;
+  transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
-.bouton:active { transform: scale(0.98); }
+.bouton .icone { width: 20px; height: 20px; }
+/* Effet d'appui : le bouton s'enfonce un peu sous le doigt */
+.bouton:active { transform: scale(0.96); box-shadow: none; }
 .bouton[disabled] { opacity: 0.6; cursor: wait; }
 
-.bouton-principal { background: var(--feuille); color: #fff; }
-.bouton-principal:hover { background: #1E8F45; }
+.bouton-principal { background: var(--feuille); color: #fff; box-shadow: var(--ombre-1); }
+.bouton-principal:hover { background: #1E8F45; box-shadow: var(--ombre-2); }
 @media (prefers-color-scheme: dark) {
   .bouton-principal { background: #2DB45A; color: #0E0D0B; }
   .bouton-principal:hover { background: #3FC56B; }
 }
-.bouton-or { background: var(--terre-logo); color: #fff; }
-.bouton-or:hover { background: var(--terre); }
+.bouton-or { background: var(--terre-logo); color: #fff; box-shadow: var(--ombre-1); }
+.bouton-or:hover { background: var(--terre); box-shadow: var(--ombre-2); }
+.bouton-danger { background: var(--erreur); color: #fff; box-shadow: var(--ombre-1); }
+.bouton-danger:hover { background: #991F18; }
+.bouton-contour:hover { background: color-mix(in srgb, var(--encre) 6%, transparent); }
 .bouton-contour { border-color: currentColor; color: var(--encre); background: transparent; }
 .bouton-lien { min-height: 44px; padding: 0 12px; color: var(--encre); background: transparent; }
 .bouton-lien:hover { text-decoration: underline; }
@@ -225,13 +248,19 @@ a { color: var(--lien); text-underline-offset: 3px; }
 .etapes h3 { margin: 10px 0 6px; font: 700 1.2rem/1.25 var(--titre); }
 .etapes p { margin: 0; color: var(--gris); }
 
+/* État vide : une illustration et un mot d'encouragement, plutôt qu'un cadre vide */
 .vide {
-  border: 2px dashed var(--ligne);
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 28px 20px 32px;
   border-radius: var(--rayon);
-  padding: 32px 20px;
   text-align: center;
 }
-.vide p { margin: 0 auto 18px; max-width: 46ch; color: var(--gris); }
+.vide p { margin: 0 auto; max-width: 42ch; color: var(--gris); }
+.vide .vide-titre { color: var(--encre); font: 800 1.2rem/1.25 var(--titre); }
+.vide .bouton { margin-top: 10px; }
+.illustration { width: 150px; height: 112px; color: var(--encre); }
 
 .pied {
   padding-block: 28px 40px;
@@ -297,7 +326,8 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--er
   gap: 10px;
 }
 .choix-type legend { margin-bottom: 8px; }
-.choix-type input { position: absolute; opacity: 0; pointer-events: none; }
+/* width et height : sans eux, ce champ invisible garde la largeur d'un champ normal et fait déborder la page */
+.choix-type input { position: absolute; opacity: 0; width: 1px; height: 1px; min-height: 0; pointer-events: none; }
 .choix-type label {
   display: grid;
   gap: 2px;
@@ -331,10 +361,41 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--er
 /* ---------- Navigation membre ---------- */
 .nav-profil { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; border-radius: 50%; }
 .entete nav .bouton-lien { min-height: 44px; }
-.nav-liens { display: flex; gap: 8px; align-items: center; }
-.nav-liens [aria-current="page"] { color: var(--lien); }
 
-/* La cloche des notifications */
+/* Icônes (Lucide) : dessinées au trait, elles prennent la couleur du texte qui les entoure */
+.icone {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Onglets du menu : icône + texte */
+.nav-liens { display: flex; gap: 4px; align-items: center; }
+.onglet-nav {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: var(--gris);
+  font: 700 0.95rem/1 var(--texte);
+  text-decoration: none;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.onglet-nav:hover { color: var(--encre); background: color-mix(in srgb, var(--encre) 6%, transparent); }
+.onglet-nav[aria-current="page"] { color: var(--terre); }
+.onglet-icone { position: relative; display: inline-flex; }
+.onglet-icone .compteur { position: absolute; top: -8px; right: -12px; min-width: 18px; height: 18px; padding: 0 5px; font-size: 0.7rem; }
+@media (prefers-color-scheme: dark) { .onglet-nav[aria-current="page"] { color: var(--lien); } }
+
+/* La cloche des notifications (et le bouclier d'administration) */
 .nav-cloche {
   position: relative;
   display: inline-grid;
@@ -343,17 +404,14 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--er
   height: 44px;
   border-radius: 50%;
   color: var(--encre);
+  transition: background-color 0.15s ease;
 }
-.icone-cloche {
-  width: 24px;
-  height: 24px;
-  background: currentColor;
-  -webkit-mask: url("/icons/cloche.svg") center / contain no-repeat;
-  mask: url("/icons/cloche.svg") center / contain no-repeat;
-}
-.compteur-cloche { position: absolute; top: 0; right: -2px; min-width: 20px; height: 20px; padding: 0 5px; font-size: 0.75rem; }
+.nav-cloche:hover { background: color-mix(in srgb, var(--encre) 8%, transparent); }
+.nav-cloche .icone { width: 24px; height: 24px; }
+.compteur-cloche { position: absolute; top: 0; right: -2px; min-width: 20px; height: 20px; padding: 0 5px; font-size: 0.75rem; box-shadow: 0 0 0 2px var(--papier); }
 
-/* Sur téléphone, les liens principaux forment une barre fixe en bas de l'écran, sous le pouce. */
+/* Sur téléphone, les onglets forment une barre fixe en bas de l'écran, sous le pouce :
+   icône au-dessus du texte, et un petit trait terre cuite au-dessus de l'onglet actif. */
 @media (max-width: 719px) {
   .nav-liens {
     position: fixed;
@@ -362,13 +420,43 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--er
     right: 0;
     bottom: 0;
     gap: 0;
-    padding: 4px 8px calc(4px + env(safe-area-inset-bottom, 0px));
-    background: var(--surface);
+    padding: 0 6px env(safe-area-inset-bottom, 0px);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border-top: 1px solid var(--ligne);
+    box-shadow: 0 -4px 20px rgba(40, 25, 10, 0.08);
   }
-  .nav-liens .bouton-lien { flex: 1; min-height: 52px; border-radius: var(--rayon-petit); }
-  body.avec-barre { padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px)); }
+  .onglet-nav {
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    min-height: 58px;
+    padding: 0 4px;
+    border-radius: 0;
+    font-size: 0.72rem;
+    letter-spacing: 0.01em;
+  }
+  .onglet-nav:hover { background: transparent; }
+  .onglet-nav .icone { width: 24px; height: 24px; transition: transform 0.25s var(--ressort); }
+  .onglet-nav[aria-current="page"] .icone { transform: translateY(-1px) scale(1.08); }
+  .onglet-nav::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 28px;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+    background: var(--terre-logo);
+    transform: translateX(-50%) scaleX(0);
+    transition: transform 0.25s var(--ressort);
+  }
+  .onglet-nav[aria-current="page"]::before { transform: translateX(-50%) scaleX(1); }
+  body.avec-barre { padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
   body.avec-barre .barre-enregistrer { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+  body.avec-barre .toasts { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
 }
 .compteur {
   display: inline-grid;
@@ -417,10 +505,31 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--er
   border: 1px solid var(--ligne);
   border-radius: var(--rayon);
 }
-.profil-entete { display: flex; align-items: center; gap: 16px; }
+
+/* Profil d'un membre : une bannière au motif tissé, et la photo qui la chevauche avec un contour crème */
+.profil-membre { overflow: hidden; padding-top: 0; }
+.profil-banniere {
+  height: 112px;
+  margin: 0 -20px;
+  /* le voile sombre rend le motif discret ; le motif est dans public/icons/motif-banniere.svg */
+  background:
+    linear-gradient(rgba(23, 21, 18, 0.55), rgba(23, 21, 18, 0.78)),
+    url("/icons/motif-banniere.svg") center / 120px 80px;
+}
+.profil-entete { display: grid; gap: 10px; margin-top: -64px; }
+.profil-entete .avatar-grand { width: 104px; height: 104px; border: 4px solid var(--creme); box-shadow: var(--ombre-2); }
 .profil-entete h1 { margin: 0; font: 800 clamp(1.5rem, 6vw, 2rem)/1.1 var(--titre); letter-spacing: -0.02em; overflow-wrap: anywhere; }
 .profil-role { margin: 4px 0 0; font-weight: 700; color: var(--terre); }
-.profil-lieu { margin: 2px 0 0; color: var(--gris); }
+.profil-lieu { display: flex; align-items: center; gap: 6px; margin: 4px 0 0; color: var(--gris); }
+.profil-lieu .icone { width: 16px; height: 16px; }
+@media (prefers-color-scheme: dark) { .profil-role { color: var(--lien); } }
+
+/* Les chiffres du profil, en ligne : projets, amis, avis */
+.profil-chiffres { display: flex; margin: 0; padding: 12px 0; border-block: 1px solid var(--ligne); }
+.profil-chiffres div { flex: 1; display: grid; gap: 2px; justify-items: center; }
+.profil-chiffres div + div { border-left: 1px solid var(--ligne); }
+.profil-chiffres dd { margin: 0; font: 800 1.45rem/1 var(--titre); }
+.profil-chiffres dt { order: 2; font-size: 0.85rem; color: var(--gris); }
 .profil-bio { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
 .profil-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 
@@ -441,14 +550,23 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--er
 
 .section-profil { margin-top: 32px; }
 .section-profil h2 { margin: 0 0 12px; font: 800 1.35rem/1.2 var(--titre); }
+.section-profil > .bouton { margin-top: 16px; }
 
 .puces { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+/* Compétences en pastilles colorées : vert, terre cuite, neutre, à tour de rôle */
 .puces li {
-  padding: 6px 12px;
-  border: 1.5px solid var(--ligne);
+  padding: 6px 13px;
   border-radius: 999px;
-  background: var(--surface);
-  font-size: 0.95rem;
+  background: color-mix(in srgb, var(--feuille-vive) 15%, var(--surface));
+  color: var(--feuille);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+.puces li:nth-child(3n+2) { background: color-mix(in srgb, var(--terre-logo) 15%, var(--surface)); color: var(--terre); }
+.puces li:nth-child(3n) { background: color-mix(in srgb, var(--encre) 9%, var(--surface)); color: var(--encre); }
+@media (prefers-color-scheme: dark) {
+  .puces li { color: #6FD897; }
+  .puces li:nth-child(3n+2) { color: #F0A283; }
 }
 
 /* ---------- Modifier mon profil ---------- */
@@ -564,8 +682,22 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
   font-weight: 600;
   user-select: none;
 }
-.choix-puces input:checked + label { border-color: var(--feuille); background: var(--feuille); color: #fff; }
+.choix-puces label { gap: 6px; transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease; }
+.choix-puces label .icone { width: 18px; height: 18px; }
+.choix-puces label:active { transform: scale(0.96); }
+.choix-puces input:checked + label { border-color: var(--type, var(--feuille)); background: var(--type, var(--feuille)); color: var(--sur-type, #fff); }
 .choix-puces input:focus-visible + label { outline: 3px solid var(--terre-logo); outline-offset: 2px; }
+
+/* Zone « Publier » : un champ compact qui s'agrandit quand on touche dedans */
+.composer { gap: 12px; transition: box-shadow 0.2s ease; }
+.composer-champ { display: flex; align-items: flex-start; gap: 12px; }
+.composer-champ .champ { flex: 1; min-width: 0; }
+.composer textarea { min-height: 48px; height: 48px; resize: none; border-radius: 24px; transition: height 0.2s ease, border-radius 0.2s ease; }
+.composer.ouvert { box-shadow: var(--ombre-2); }
+.composer.ouvert textarea { height: 120px; border-radius: var(--rayon-petit); resize: vertical; }
+.composer:not(.ouvert) .composer-suite { display: none; }
+.composer:not(.ouvert) textarea { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.composer-suite { display: grid; gap: 12px; animation: glisser 0.25s ease; }
 
 .actions-publier { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; }
 .actions-publier label { cursor: pointer; }
@@ -604,37 +736,75 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
 .nom-auteur { color: var(--encre); font-weight: 700; text-decoration: none; overflow-wrap: anywhere; }
 .nom-auteur:hover { text-decoration: underline; }
 .publication-meta { margin: 2px 0 0; font-size: 0.9rem; }
-.type-publication { font-weight: 700; }
-.type-idee { color: var(--lien); }
-.type-question { color: var(--feuille); }
-.type-projet { color: var(--encre); }
-@media (prefers-color-scheme: dark) { .type-question { color: #5FD08A; } }
+
+/* Chaque type de publication a sa couleur et son badge avec icône :
+   idée = vert feuillage (ampoule), question = terre cuite (point d'interrogation), projet = noir du tronc (fusée). */
+.publication-idee, .badge-idee, [for="type-idee"] { --type: var(--feuille); --sur-type: #fff; }
+.publication-question, .badge-question, [for="type-question"] { --type: var(--terre-logo); --sur-type: #fff; }
+.publication-projet, .badge-projet, [for="type-projet"] { --type: var(--tronc); --sur-type: var(--sur-tronc); }
+.carte-publication[class*="publication-"] { border-left: 4px solid var(--type); }
+.badge-type {
+  flex: none;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px 5px 8px;
+  border-radius: 999px;
+  background: var(--type);
+  color: var(--sur-type);
+  font: 700 0.8rem/1 var(--texte);
+}
+.badge-type .icone { width: 16px; height: 16px; }
 
 .publication-texte { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
-.publication-image { width: 100%; max-height: 480px; object-fit: contain; border-radius: var(--rayon-petit); background: var(--ligne); }
+.publication-image { width: 100%; max-height: 480px; object-fit: contain; border-radius: var(--rayon-petit); background: var(--surface-2); }
 
-.publication-actions { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 4px; border-top: 1px solid var(--ligne); }
+.publication-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin: 0 -8px -8px; padding-top: 4px; border-top: 1px solid var(--ligne); }
 .bouton-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 44px;
   min-height: 44px;
   padding: 0 12px;
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: var(--gris);
-  font: 600 0.95rem/1 var(--texte);
+  font: 700 0.95rem/1 var(--texte);
   cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
-.bouton-action:hover { background: color-mix(in srgb, var(--gris) 12%, transparent); }
-.bouton-action[aria-pressed="true"] { color: var(--lien); }
-.bouton-action[aria-pressed="true"]::before { content: "♥ "; }
-.bouton-action-fin { margin-left: auto; font-weight: 400; }
+.bouton-action:hover { background: color-mix(in srgb, var(--gris) 12%, transparent); color: var(--encre); }
+.bouton-action:active .icone { transform: scale(0.85); }
+.bouton-action .icone { transition: transform 0.15s ease; }
+.bouton-action-fin { margin-left: auto; }
+
+/* J'aime : le cœur se remplit en terre cuite et fait un petit « pop » ; le compteur glisse en douceur. */
+.bouton-jaime[aria-pressed="true"] { color: var(--terre-logo); }
+.bouton-jaime[aria-pressed="true"] .icone { fill: currentColor; }
+.bouton-jaime.vient-d-aimer .icone { animation: pop 0.45s var(--ressort); }
+.compteur-action { display: inline-block; min-width: 1ch; font-variant-numeric: tabular-nums; }
+.compteur-action:empty { display: none; }
+.compteur-action.change { animation: glisser 0.25s ease; }
+@keyframes pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.45); }
+  100% { transform: scale(1); }
+}
+@keyframes glisser {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
 
 .commentaires { display: grid; gap: 12px; }
 .commentaires > .texte-discret { margin: 0; }
 .liste-commentaires { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 .liste-commentaires:empty { display: none; }
 .commentaire { display: flex; align-items: flex-start; gap: 10px; }
-.commentaire-corps { min-width: 0; flex: 1; padding: 8px 12px; border-radius: var(--rayon-petit); background: var(--papier); }
+.commentaire-corps { min-width: 0; flex: 1; padding: 8px 12px; border-radius: 4px var(--rayon-petit) var(--rayon-petit); background: var(--surface-2); }
 .commentaire-entete { margin: 0; font-size: 0.9rem; }
 .commentaire-texte { margin: 2px 0 0; white-space: pre-line; overflow-wrap: anywhere; }
 .bouton-discret {
@@ -650,21 +820,88 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
 .bouton-discret:hover { text-decoration: underline; }
 .form-commentaire { display: flex; gap: 8px; }
 .form-commentaire input { min-width: 0; flex: 1; }
-.form-commentaire .bouton { flex: none; padding: 0 16px; }
+.form-commentaire .bouton { flex: none; width: 48px; padding: 0; }
+.form-commentaire input { border-radius: 24px; }
 
 /* ---------- Fenêtre de dialogue (signalement) ---------- */
 .dialogue {
   width: min(440px, calc(100vw - 32px));
-  padding: 20px;
-  border: 1px solid var(--ligne);
-  border-radius: var(--rayon);
+  padding: 24px 20px 20px;
+  border: 0;
+  border-radius: var(--rayon-grand);
   background: var(--surface);
   color: var(--encre);
+  box-shadow: var(--ombre-3);
 }
-.dialogue::backdrop { background: rgba(0, 0, 0, 0.55); }
+.dialogue[open] { display: grid; gap: 14px; animation: surgir 0.22s var(--ressort); }
+.dialogue::backdrop { background: rgba(15, 12, 8, 0.55); backdrop-filter: blur(2px); }
+.dialogue form { gap: 14px; }
 .dialogue h2 { margin: 0; font: 800 1.35rem/1.2 var(--titre); }
 .dialogue p { margin: 0; }
-.dialogue-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.dialogue-confirmation p { color: var(--gris); }
+.dialogue-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+@keyframes surgir {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Petits messages (« toasts ») ---------- */
+.toasts {
+  position: fixed;
+  z-index: 40;
+  left: 16px;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 460px;
+  padding: 12px 16px 12px 12px;
+  border-radius: var(--rayon);
+  background: var(--tronc);
+  color: var(--sur-tronc);
+  font-size: 0.95rem;
+  font-weight: 600;
+  box-shadow: var(--ombre-3);
+  animation: surgir 0.25s var(--ressort);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.toast .icone { padding: 3px; border-radius: 50%; background: var(--feuille-vive); color: #fff; stroke-width: 3; }
+.toast-erreur .icone { background: var(--erreur); }
+.toast-sortie { opacity: 0; transform: translateY(8px); }
+
+/* ---------- Squelettes de chargement ---------- */
+.squelette {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--rayon);
+  background: var(--surface);
+  box-shadow: var(--ombre-1);
+}
+.squelette-entete { display: flex; align-items: center; gap: 12px; }
+.os {
+  display: block;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--ligne) 25%, color-mix(in srgb, var(--ligne) 45%, var(--surface)) 50%, var(--ligne) 75%) 0 0 / 200% 100%;
+  animation: balayer 1.4s linear infinite;
+}
+.os-rond { flex: none; width: 44px; height: 44px; border-radius: 50%; }
+.os-court { width: 38%; }
+.os-moyen { width: 68%; }
+.os-haut { height: 96px; border-radius: var(--rayon-petit); }
+.squelettes { display: grid; gap: 16px; }
+@keyframes balayer {
+  from { background-position: 200% 0; }
+  to { background-position: 0 0; }
+}
 
 /* ---------- Demandes et propositions ---------- */
 .formulaire-demande { margin-top: 12px; }
@@ -912,6 +1149,55 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
 .ligne-membre-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .ligne-membre-actions .bouton { min-height: 44px; padding: 0 16px; }
 .pastille-ami { background: color-mix(in srgb, var(--terre-logo) 14%, transparent); color: var(--lien); }
+
+/* ==========================================================================
+   Système de design : profondeur et mouvement, appliqués à toutes les pages
+   ========================================================================== */
+
+/* Profondeur : toutes les cartes sont posées sur le fond avec la même ombre douce, sans cadre marqué. */
+.carte-publication, .carte-projet, .carte-profil, .bloc-formulaire, .carte-formulaire,
+.ligne-membre, .notification, .avis, .tuile, .bloc-calculateur {
+  border-color: transparent;
+  box-shadow: var(--ombre-1);
+}
+.carte-publication[class*="publication-"] { border-left-color: var(--type); }
+.carte-publication.proposition-acceptee { border-color: var(--terre-logo); }
+.bloc-calculateur { border-color: var(--terre-logo); }
+.non-lue .notification { border-left-color: var(--terre-logo); }
+@media (prefers-color-scheme: dark) {
+  /* En mode sombre, l'ombre se voit peu : un filet fin garde les cartes bien détachées du fond. */
+  .carte-publication, .carte-projet, .carte-profil, .bloc-formulaire, .carte-formulaire,
+  .ligne-membre, .notification, .avis, .tuile, .squelette { border-color: var(--ligne); }
+  .squelette { border: 1px solid var(--ligne); }
+}
+/* Les cartes cliquables se soulèvent légèrement au survol */
+.carte-projet, .notification { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.carte-projet:hover, .notification:hover { transform: translateY(-2px); box-shadow: var(--ombre-2); }
+.carte-projet:active, .notification:active { transform: scale(0.99); }
+
+/* Champs de saisie : fond en retrait, coins cohérents */
+input, select, textarea { background: var(--surface-2); border-radius: var(--rayon-petit); transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+.onglet { transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease; }
+.onglet:active { transform: scale(0.96); }
+.pastille .icone, .badge-verifie .icone { width: 16px; height: 16px; }
+.badge-verifie::before { content: none; }
+.avec-icone { display: inline-flex; align-items: center; gap: 6px; }
+.avec-icone .icone { width: 16px; height: 16px; }
+
+/* Mouvement : les cartes apparaissent en glissant légèrement, l'une après l'autre.
+   Tout ce bloc est ignoré si la personne a demandé moins d'animations (voir la règle tout en bas). */
+@keyframes apparaitre {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.carte-publication, .carte-projet, .ligne-membre, .liste-notifications li, .avis, .tuile,
+.carte-profil, .section-profil, .vide {
+  animation: apparaitre 0.35s ease both;
+}
+:is(.liste-publications, .grille-projets, .liste-membres, .liste-notifications, .liste-avis, .tuiles) > :nth-child(2) { animation-delay: 0.05s; }
+:is(.liste-publications, .grille-projets, .liste-membres, .liste-notifications, .liste-avis, .tuiles) > :nth-child(3) { animation-delay: 0.10s; }
+:is(.liste-publications, .grille-projets, .liste-membres, .liste-notifications, .liste-avis, .tuiles) > :nth-child(4) { animation-delay: 0.15s; }
+:is(.liste-publications, .grille-projets, .liste-membres, .liste-notifications, .liste-avis, .tuiles) > :nth-child(n+5) { animation-delay: 0.20s; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }

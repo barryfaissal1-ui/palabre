@@ -1,6 +1,6 @@
 // Recherche de développeurs par compétence, pays, ville et disponibilité. Visible sans compte.
 (function () {
-  const { api, el, avatar, etoiles } = window.Palabre;
+  const { api, el, avatar, etoiles, icone, etatVide, chargement } = window.Palabre;
 
   const MAX_COMPETENCES_AFFICHEES = 5;
   let pageSuivante = null;
@@ -14,7 +14,7 @@
       preuves.push(el('span', {}, [etoiles(dev.noteMoyenne), ` ${String(dev.noteMoyenne).replace('.', ',')} (${dev.nbAvis} avis)`]));
     }
     if (dev.projetsVerifies) {
-      preuves.push(el('span', { classe: 'badge-verifie', texte: `${dev.projetsVerifies} projet${dev.projetsVerifies > 1 ? 's' : ''} vérifié${dev.projetsVerifies > 1 ? 's' : ''}` }));
+      preuves.push(el('span', { classe: 'badge-verifie' }, [icone('verifie'), `${dev.projetsVerifies} projet${dev.projetsVerifies > 1 ? 's' : ''} vérifié${dev.projetsVerifies > 1 ? 's' : ''}`]));
     } else if (dev.nbProjets) {
       preuves.push(el('span', { classe: 'texte-discret', texte: `${dev.nbProjets} projet${dev.nbProjets > 1 ? 's' : ''}` }));
     }
@@ -23,7 +23,7 @@
         el('a', { classe: 'lien-avatar', href: `/${dev.identifiant}`, 'aria-label': `Profil de ${dev.nom}` }, [avatar(dev, 'moyen')]),
         el('div', {}, [
           el('h2', {}, [el('a', { classe: 'nom-auteur', href: `/${dev.identifiant}`, texte: dev.nom })]),
-          el('p', { classe: 'texte-discret publication-meta', texte: lieu }),
+          el('p', { classe: 'texte-discret publication-meta avec-icone' }, [icone('lieu'), lieu]),
         ]),
       ]),
       el('span', { classe: `pastille ${dev.disponible ? 'pastille-dispo' : 'pastille-occupe'}`, texte: dev.disponible ? 'Disponible' : 'Occupé en ce moment' }),
@@ -42,8 +42,8 @@
     const boutonPlus = document.querySelector('[data-charger-plus]');
     if (page === 1) resultats.replaceChildren();
     boutonPlus.hidden = true;
-    etat.hidden = false;
-    etat.textContent = 'Recherche…';
+    etat.hidden = true;
+    const fini = chargement(resultats, page === 1 ? 3 : 1);
 
     const parametres = new URLSearchParams({ page });
     if (formulaire.elements.competence.value) parametres.set('competence', formulaire.elements.competence.value);
@@ -52,13 +52,16 @@
     if (formulaire.elements.disponible.checked) parametres.set('disponible', '1');
     try {
       const reponse = await api(`/devs?${parametres}`);
+      fini();
       resultats.append(...reponse.devs.map(carteDev));
       pageSuivante = reponse.pageSuivante;
       boutonPlus.hidden = !pageSuivante;
       etat.hidden = resultats.children.length > 0;
-      etat.textContent = 'Aucun développeur ne correspond. Essaie avec moins de critères.';
+      etat.replaceChildren(etatVide('recherche', 'Aucun développeur ne correspond', 'Essaie avec moins de critères, ou une autre ville.'));
     } catch (erreur) {
-      etat.textContent = erreur.message;
+      fini();
+      etat.hidden = false;
+      etat.replaceChildren(etatVide('calme', 'La recherche ne répond pas', erreur.message));
     }
   }
 

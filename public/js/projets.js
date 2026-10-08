@@ -1,6 +1,6 @@
 // Page « Mes projets » : ajouter un projet réalisé, revérifier son lien, le supprimer.
 (function () {
-  const { api, el, utilisateurConnecte, carteProjet, reduireImage } = window.Palabre;
+  const { api, el, utilisateurConnecte, carteProjet, reduireImage, etatVide, confirmer } = window.Palabre;
 
   let moi = null;
   let imageChoisie = null; // capture d'écran réduite, prête à être envoyée (data URL)
@@ -35,7 +35,7 @@
     }
     const supprimer = el('button', { classe: 'bouton bouton-lien', type: 'button', texte: 'Supprimer' });
     supprimer.addEventListener('click', async () => {
-      if (!window.confirm(`Supprimer le projet « ${projet.titre} » ?`)) return;
+      if (!(await confirmer(`Supprimer le projet « ${projet.titre} » ?`, { bouton: 'Supprimer', danger: true }))) return;
       try {
         await api(`/projets/${projet.id}`, { methode: 'DELETE', donnees: {} });
         await chargerListe();
@@ -55,7 +55,7 @@
     document.querySelector('[data-liste]').replaceChildren(...profil.projets.map(carteGestion));
     document.querySelector('[data-titre-liste]').textContent = profil.projets.length ? `Mes projets (${profil.projets.length})` : 'Mes projets';
     etat.hidden = profil.projets.length > 0;
-    etat.textContent = 'Tu n\'as pas encore ajouté de projet.';
+    etat.replaceChildren(etatVide('projets', 'Ton premier projet t\'attend', 'Ajoute un projet avec le formulaire ci-dessus. Il apparaîtra sur ton profil et dans la vitrine.'));
   }
 
   function brancherFormulaire() {
@@ -137,6 +137,10 @@
     const { secteurs } = await api('/secteurs');
     document.querySelector('#secteur').append(...secteurs.map((s) => el('option', { value: s.id, texte: s.nom })));
     brancherFormulaire();
-    chargerListe().catch((erreur) => { document.querySelector('[data-etat]').textContent = erreur.message; });
+    chargerListe().catch((erreur) => {
+      const etat = document.querySelector('[data-etat]');
+      etat.hidden = false;
+      etat.replaceChildren(etatVide('calme', 'Tes projets ne chargent pas', erreur.message));
+    });
   });
 })();
