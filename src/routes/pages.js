@@ -12,7 +12,9 @@ const v = require('../utils/validation');
 
 const router = express.Router();
 const DOSSIER_PUBLIC = path.join(__dirname, '..', '..', 'public');
-const IMAGE_PAR_DEFAUT = '/icons/logo-1024.png';
+// Image de partage quand la page n'a pas la sienne (accueil, calculateur, profil sans photo, projet sans capture).
+// 1200 × 630 : le format que Facebook et WhatsApp affichent en grande carte.
+const IMAGE_PAR_DEFAUT = '/img/palabre-partage-1200x630.png';
 const modeles = new Map();
 
 // Les textes viennent des membres : chaque caractère spécial est neutralisé avant d'entrer dans le HTML,
@@ -48,7 +50,10 @@ function rendrePage(res, fichier, { titre, description, chemin, image, type = 'w
     `<meta property="og:description" content="${echapper(description)}">`,
     `<meta property="og:url" content="${echapper(url)}">`,
     `<meta property="og:image" content="${echapper(`${config.urlPublique}${image || IMAGE_PAR_DEFAUT}`)}">`,
-    `<meta name="twitter:card" content="${image ? 'summary_large_image' : 'summary'}">`,
+    // Les dimensions ne sont annoncées que pour l'image par défaut, la seule dont on connaît la taille exacte :
+    // elles permettent à Facebook d'afficher la grande carte dès le premier partage, sans attendre de l'avoir analysée.
+    ...(image ? [] : ['<meta property="og:image:width" content="1200">', '<meta property="og:image:height" content="630">']),
+    '<meta name="twitter:card" content="summary_large_image">',
   ].join('\n  ');
   // La fonction en second argument évite que « $ » dans un titre soit pris pour un code de remplacement.
   const html = lireModele(fichier).replace(/<title>[^<]*<\/title>/, () => balises);

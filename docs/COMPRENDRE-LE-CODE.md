@@ -216,6 +216,8 @@ La page d'accueil affiche les projets, par 9, avec un filtre par secteur. Elle e
 
 Quand on colle un lien dans WhatsApp ou Facebook, leur robot lit la page **sans exécuter le JavaScript**. Il lui faut des balises « Open Graph » (`og:title`, `og:description`, `og:image`, `og:url`) déjà écrites dans le HTML. Pour l'accueil, les profils (`/barry-faissal`) et les projets (`/projets/12`), le serveur remplace donc le `<title>` de la page par un titre et des balises propres au contenu : nom, ville et présentation du dev avec sa photo ; titre et capture d'écran du projet.
 
+Quand la page n'a pas d'image à elle (accueil, calculateur, profil sans photo, projet sans capture), le serveur indique l'image de partage de Palabre, `public/img/palabre-partage-1200x630.png`. Elle fait 1200 × 630 pixels, le format des grandes cartes de Facebook et WhatsApp, et le serveur annonce ces dimensions (`og:image:width`, `og:image:height`) pour que la grande carte s'affiche dès le premier partage.
+
 Deux précautions : le texte des membres est **échappé** (`<` devient `&lt;`…) avant d'entrer dans le HTML, sinon un nom piégé deviendrait du code ; et l'adresse de l'image est complète (avec `URL_PUBLIQUE`), comme l'exigent Facebook et WhatsApp. Un profil ou un projet inconnu renvoie un vrai code 404.
 
 ## 10. L'administration (`src/routes/admin.js`, page `/admin`)

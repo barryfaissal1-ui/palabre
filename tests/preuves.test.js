@@ -275,7 +275,11 @@ test('partage : la page d\'un profil contient ses balises, sans exécuter le tex
   assert.ok(page.corps.includes('<meta property="og:description" content="Développeuse web &amp; mobile. J&#39;aime les projets utiles.">'));
   assert.ok(page.corps.includes(`<meta property="og:url" content="http://localhost:3000/${membres.awa.identifiant}">`));
   assert.ok(page.corps.includes('<meta property="og:type" content="profile">'));
-  assert.match(page.corps, /<meta property="og:image" content="http:\/\/localhost:3000\/icons\/logo-1024\.png">/);
+  // Sans photo de profil : l'image de partage par défaut, avec ses dimensions, en grande carte.
+  assert.ok(page.corps.includes('<meta property="og:image" content="http://localhost:3000/img/palabre-partage-1200x630.png">'));
+  assert.ok(page.corps.includes('<meta property="og:image:width" content="1200">'));
+  assert.ok(page.corps.includes('<meta property="og:image:height" content="630">'));
+  assert.ok(page.corps.includes('<meta name="twitter:card" content="summary_large_image">'));
   assert.equal((page.corps.match(/<title>/g) || []).length, 1);
 
   const inconnu = await appel('/personne-qui-n-existe-pas');
@@ -287,7 +291,10 @@ test('partage : accueil et page d\'un projet', async () => {
   const accueil = await appel('/');
   assert.equal(accueil.statut, 200);
   assert.ok(accueil.corps.includes('<meta property="og:url" content="http://localhost:3000/">'));
-  assert.match(accueil.corps, /og:image" content="http:\/\/localhost:3000\/icons\//);
+  assert.ok(accueil.corps.includes('og:image" content="http://localhost:3000/img/palabre-partage-1200x630.png"'));
+  const image = await fetch(`${base}/img/palabre-partage-1200x630.png`);
+  assert.equal(image.status, 200, 'l\'image de partage est bien servie');
+  assert.equal(image.headers.get('content-type'), 'image/png');
 
   const { corps: { projet } } = await poster('bintou', '/api/projets', { ...PROJET, titre: 'Boutique $1 & Fils', secteur: 'commerce', image: JPEG_1PX });
   const page = await appel(`/projets/${projet.id}`);
@@ -295,6 +302,7 @@ test('partage : accueil et page d\'un projet', async () => {
   assert.ok(page.corps.includes('<meta property="og:title" content="Boutique $1 &amp; Fils – réalisé par'));
   assert.ok(page.corps.includes(`<meta property="og:image" content="http://localhost:3000${projet.image}">`));
   assert.ok(page.corps.includes('<meta name="twitter:card" content="summary_large_image">'));
+  assert.ok(!page.corps.includes('og:image:width'), 'pas de dimensions annoncées pour la capture d\'un projet, dont la taille varie');
   assert.equal((await appel('/projets/999999999')).statut, 404);
 
   // Signaler un projet.

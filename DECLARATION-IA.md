@@ -4,7 +4,7 @@ Déclaration exigée par l'article 6 du règlement CADEV 2026. À compléter par
 
 ## Outils utilisés
 
-- **Claude (Anthropic)**, y compris Claude Code : conception du plan, génération et revue de code, rédaction de textes.
+- **Claude (Anthropic)**, y compris Claude Code : conception du plan, génération et revue de code, rédaction de textes, et réalisation des visuels (logo, image de partage, illustrations des états vides, motif de la bannière des profils).
 
 ## Parties concernées
 
@@ -24,6 +24,7 @@ Déclaration exigée par l'article 6 du règlement CADEV 2026. À compléter par
 | Système de design (`public/css/style.css`, fonctions `icone`, `toast`, `confirmer`, `etatVide`, `chargement` de `public/js/app.js`) | Généré par l'IA à partir des demandes de l'équipe, relu par l'équipe |
 | Illustrations des états vides et motif de la bannière (`public/icons/illustrations.svg`, `public/icons/motif-banniere.svg`) | Dessinés avec l'IA (Claude Code) pour le concours, sans source externe |
 | Icônes (`public/icons/icones.svg`) | Icônes Lucide (licence ISC), assemblées en un fichier avec l'IA |
+| Image de partage Facebook / WhatsApp (`public/img/palabre-partage-1200x630.png`) | Visuel réalisé avec Claude (Anthropic) à partir du logo et des couleurs de l'équipe |
 | Logo | Créé par l'équipe avec Claude Code ; icônes dérivées générées automatiquement |
 
 ## Maîtrise par l'équipe
