@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS projets (
   statut_facebook TEXT NOT NULL DEFAULT 'non' CHECK (statut_facebook IN ('non', 'en_attente', 'valide', 'publie', 'refuse')),
   cree_le         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Un administrateur peut masquer un projet signalé (colonne ajoutée après la création de la table).
+ALTER TABLE projets ADD COLUMN IF NOT EXISTS masque BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- ============ Réseau social ============
 CREATE TABLE IF NOT EXISTS publications (

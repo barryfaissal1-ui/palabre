@@ -1,6 +1,6 @@
 // Page d'une demande : le client compare et choisit ; le dev propose seul ou forme une équipe éclair.
 (function () {
-  const { api, el, avatar, utilisateurConnecte, dateRelative, deNom, fcfa } = window.Palabre;
+  const { api, el, avatar, utilisateurConnecte, dateRelative, deNom, fcfa, signaler } = window.Palabre;
 
   const id = new URLSearchParams(window.location.search).get('id');
   const NOMS_STATUTS = { ouverte: 'Ouverte', attribuee: 'Attribuée', terminee: 'Terminée', annulee: 'Annulée' };
@@ -92,7 +92,14 @@
         el('div', {}, [el('dt', { texte: 'Délai' }), el('dd', { texte: demande.delai || 'À discuter' })]),
       ]),
       el('p', { classe: 'profil-bio', texte: demande.description }),
+      demande.estMoi ? null : boutonSignaler(demande),
     ]);
+  }
+
+  function boutonSignaler(demande) {
+    const bouton = el('button', { classe: 'bouton-discret', type: 'button', texte: 'Signaler cette demande' });
+    bouton.addEventListener('click', () => signaler('demande', demande.id));
+    return bouton;
   }
 
   // ---------- Avis du client, une fois la demande terminée ----------

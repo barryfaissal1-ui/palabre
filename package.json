@@ -8,6 +8,7 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "migrate": "node src/db/migrate.js",
+    "admin": "node src/db/admin.js",
     "test": "node --test tests/*.test.js"
   },
   "engines": {

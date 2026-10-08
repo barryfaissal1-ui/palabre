@@ -71,7 +71,7 @@ router.get('/projets/:id', async (req, res, next) => {
   const { rows: [projet] } = await db.query(
     `SELECT p.titre, p.description, p.image, u.nom FROM projets p
        JOIN utilisateurs u ON u.id = p.dev_id
-      WHERE p.id = $1 AND u.bloque = FALSE`,
+      WHERE p.id = $1 AND u.bloque = FALSE AND p.masque = FALSE`,
     [id],
   );
   if (!projet) {

@@ -226,6 +226,7 @@
             demandes ? el('span', { classe: 'compteur', texte: String(demandes), 'aria-label': `${demandes} demande${demandes > 1 ? 's' : ''} en attente` }) : null,
           ]),
         ]),
+        moi.estAdmin ? el('a', { classe: 'bouton bouton-lien', href: '/admin', texte: 'Admin' }) : null,
         el('a', {
           classe: 'nav-cloche', href: '/notifications',
           'aria-label': nonLues ? `Notifications : ${nonLues} non lue${nonLues > 1 ? 's' : ''}` : 'Notifications',

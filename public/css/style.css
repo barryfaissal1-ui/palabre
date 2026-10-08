@@ -779,6 +779,28 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
 .carte-dev .bouton { justify-self: start; min-height: 44px; }
 .preuves { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0; font-size: 0.9rem; }
 
+/* ---------- Administration ---------- */
+.tuiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 0; }
+@media (min-width: 600px) { .tuiles { grid-template-columns: repeat(3, 1fr); } }
+.tuile { display: grid; gap: 2px; padding: 16px; background: var(--surface); border: 1px solid var(--ligne); border-radius: var(--rayon); }
+.tuile dd { margin: 0; font: 800 2rem/1 var(--titre); color: var(--lien); }
+.tuile dt { font-size: 0.9rem; color: var(--gris); }
+.type-signalement { font-weight: 700; color: var(--lien); }
+.carte-signalement p { margin: 0; }
+.contenu-signale {
+  margin: 0;
+  padding: 10px 14px;
+  border-left: 4px solid var(--terre-logo);
+  border-radius: 4px;
+  background: var(--papier);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.motifs { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 0.95rem; overflow-wrap: anywhere; }
+.carte-signalement .bouton, .carte-projet .profil-actions .bouton { min-height: 44px; padding: 0 16px; }
+.description-projet { white-space: pre-line; overflow-wrap: anywhere; }
+.section-profil > .texte-discret { margin-top: 0; }
+
 /* ---------- Notifications ---------- */
 .titre-avec-action { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 12px; }
 .liste-notifications { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }

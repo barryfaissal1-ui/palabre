@@ -15,13 +15,13 @@ const SECTEURS = Object.keys(v.SECTEURS_PROJET);
 const limiteProjets = limiteParMembre(15, 60, 'Tu ajoutes beaucoup de projets. Réessaie plus tard.');
 const limiteVerifications = limiteParMembre(20, 60, 'Trop de vérifications. Réessaie plus tard.');
 
-// Un projet avec son auteur. Les projets des comptes bloqués n'apparaissent jamais.
+// Un projet avec son auteur. Les projets masqués par un administrateur et ceux des comptes bloqués n'apparaissent jamais.
 const SELECTION = `
   SELECT p.id, p.dev_id, p.titre, p.description, p.secteur, p.lien, p.image, p.lien_verifie_le, p.cree_le,
          ${COLONNES_MEMBRE}
     FROM projets p
     JOIN utilisateurs u ON u.id = p.dev_id
-   WHERE u.bloque = FALSE`;
+   WHERE u.bloque = FALSE AND p.masque = FALSE`;
 
 function versProjet(ligne, moi) {
   return {

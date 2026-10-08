@@ -25,9 +25,9 @@ router.get('/', async (req, res) => {
             (SELECT array_agg(c.nom ORDER BY c.nom) FROM utilisateur_competences uc
                JOIN competences c ON c.id = uc.competence_id
               WHERE uc.utilisateur_id = u.id) AS competences,
-            (SELECT count(*)::int FROM projets p WHERE p.dev_id = u.id) AS nb_projets,
+            (SELECT count(*)::int FROM projets p WHERE p.dev_id = u.id AND p.masque = FALSE) AS nb_projets,
             (SELECT count(*)::int FROM projets p
-              WHERE p.dev_id = u.id AND p.lien IS NOT NULL AND p.lien_verifie_le IS NOT NULL) AS projets_verifies,
+              WHERE p.dev_id = u.id AND p.masque = FALSE AND p.lien IS NOT NULL AND p.lien_verifie_le IS NOT NULL) AS projets_verifies,
             notes.moyenne, notes.nb AS nb_avis
        FROM utilisateurs u
        LEFT JOIN LATERAL (

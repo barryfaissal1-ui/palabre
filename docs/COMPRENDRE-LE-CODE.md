@@ -218,12 +218,47 @@ Quand on colle un lien dans WhatsApp ou Facebook, leur robot lit la page **sans 
 
 Deux précautions : le texte des membres est **échappé** (`<` devient `&lt;`…) avant d'entrer dans le HTML, sinon un nom piégé deviendrait du code ; et l'adresse de l'image est complète (avec `URL_PUBLIQUE`), comme l'exigent Facebook et WhatsApp. Un profil ou un projet inconnu renvoie un vrai code 404.
 
-## 10. L'application installable (PWA)
+## 10. L'administration (`src/routes/admin.js`, page `/admin`)
+
+### Qui est administrateur ?
+
+Un compte dont la colonne `est_admin` vaut vrai. **Aucune page et aucune route du site ne permet de se donner ce rôle** : il faut avoir accès au serveur et lancer une commande.
+
+```
+npm run admin -- email@exemple.com             donne le rôle
+npm run admin -- email@exemple.com retirer     le retire
+```
+
+Toutes les routes `/api/admin/…` passent par `exigerConnexion` puis `exigerAdmin` : un visiteur reçoit 401, un membre ordinaire 403. La page `/admin` n'est qu'un affichage ; même en bricolant la page, un membre ordinaire n'obtient rien, car c'est le serveur qui refuse.
+
+### Les statistiques
+
+Six compteurs calculés en une seule requête : développeurs, clients, publications, demandes, projets, propositions acceptées. Les comptes bloqués et les contenus masqués ne sont pas comptés.
+
+### Les signalements
+
+Les signalements ouverts sont **regroupés par contenu** : si trois membres signalent la même publication, l'administrateur voit une seule carte avec les trois motifs, le texte signalé et son auteur. Trois décisions possibles :
+
+| Décision | Effet | Statut du signalement |
+| --- | --- | --- |
+| Masquer le contenu | la colonne `masque` passe à vrai : la publication, le commentaire, la demande ou le projet disparaît pour tout le monde | `traite` |
+| Bloquer le membre | la colonne `bloque` passe à vrai : il est déconnecté, ne peut plus se connecter, et son profil comme tout ce qu'il a publié disparaissent | `traite` |
+| Classer sans suite | rien ne change | `rejete` |
+
+La décision s'applique à tous les signalements ouverts qui visent le même contenu, dans une transaction. Garde-fous : un profil ne se « masque » pas (on bloque ou on classe), un administrateur ne peut pas être bloqué, et si l'auteur a supprimé son contenu entre-temps la carte l'indique et il ne reste qu'à classer.
+
+Rien n'est supprimé de la base : masquer et bloquer sont réversibles. Une liste « Membres bloqués » permet de débloquer quelqu'un en cas d'erreur.
+
+### Les projets proposés pour Facebook
+
+Seuls les projets dont le dev a coché son accord (`publier_facebook`) arrivent ici, avec le statut `en_attente`. L'administrateur les **valide** (`valide`) ou les **refuse** (`refuse`) ; le dev reçoit une notification. Un projet refusé pour Facebook reste visible sur Palabre. La publication elle-même sur la page Facebook viendra dans une étape suivante : elle ne prendra que les projets `valide`.
+
+## 11. L'application installable (PWA)
 
 - `public/manifest.json` : nom, couleurs et icônes de l'appli quand on l'ajoute à l'écran d'accueil.
 - `public/sw.js` : le « service worker » garde une copie des fichiers de l'interface. Les pages s'ouvrent vite, même avec une connexion faible. Les données (`/api`) ne sont jamais mises en cache, pour toujours être à jour. À chaque modification de l'interface, on augmente `VERSION` pour forcer la mise à jour chez tout le monde.
 
-## 11. Les tests automatiques
+## 12. Les tests automatiques
 
 `npm test` lance des tests qui démarrent un vrai serveur et vérifient, entre autres : inscription, refus d'un mauvais mot de passe, protection CSRF, modification de profil, identifiants réservés, confidentialité du numéro WhatsApp, envoi et remplacement de photo, refus d'un faux fichier image.
 
@@ -233,9 +268,14 @@ Pour les demandes (`tests/demandes.test.js`) : publication réservée aux client
 
 Pour le profil prouvé (`tests/preuves.test.js`) : une vingtaine de liens piégés refusés (localhost, IP privées, écritures déguisées, autres protocoles), un faux DNS qui mène à une adresse interne, une redirection vers une adresse interne, un vrai petit site local qui répond ; avis refusés dans tous les cas interdits (demande non terminée, autre client, dev non retenu, invité qui avait refusé, deuxième avis) ; recherche de devs ; balises de partage avec un nom piégé qui ne doit pas devenir du code.
 
+Pour l'administration (`tests/admin.test.js`) : chaque route refusée aux visiteurs (401) et aux membres ordinaires (403), impossibilité de se nommer administrateur en modifiant son profil, statistiques comparées au contenu réel de la base, les trois décisions sur un signalement et leurs effets visibles (contenu absent du fil, membre déconnecté), administrateur impossible à bloquer, contenu supprimé entre-temps, validation et refus des projets pour Facebook.
+
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
 
-## 12. Questions probables du jury
+## 13. Questions probables du jury
+
+- **Comment devient-on administrateur ? Un membre peut-il tricher ?** Par une commande lancée sur le serveur, jamais depuis le site. Les routes d'administration vérifient le rôle à chaque appel, côté serveur.
+- **Que devient un contenu masqué ou un membre bloqué ?** Il reste en base, mais toutes les requêtes du site l'écartent (`masque = FALSE`, `bloque = FALSE`). Rien n'est perdu et la décision peut être annulée.
 
 - **Votre serveur visite des liens fournis par les membres : n'est-ce pas dangereux ?** Si, sans précaution : c'est l'attaque SSRF. Palabre refuse les adresses internes à la saisie, après la résolution DNS et à chaque redirection, et se connecte à l'adresse qu'il vient de contrôler (voir le chapitre 9).
 - **Pourquoi le serveur écrit-il des balises dans la page, alors que le reste est fait en JavaScript ?** Parce que les robots de Facebook et WhatsApp n'exécutent pas le JavaScript. Sans ces balises, un lien partagé s'afficherait sans titre ni image.

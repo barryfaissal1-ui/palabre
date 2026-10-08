@@ -56,6 +56,7 @@ function creerApp() {
   app.use('/api/projets', require('./routes/projets'));
   app.use('/api/avis', require('./routes/avis'));
   app.use('/api/devs', require('./routes/devs'));
+  app.use('/api/admin', require('./routes/admin'));
   app.use('/api', require('./routes/references'));
 
   app.get('/api/sante', (req, res) => res.json({ ok: true }));

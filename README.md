@@ -29,6 +29,15 @@ Les devs partagent leurs projets, s'entraident et forment des équipes éclair. 
 
 Les tables sont créées automatiquement au démarrage (`src/db/schema.sql`). En local, les emails (mot de passe oublié) s'affichent dans la console.
 
+## Compte administrateur
+
+Le tableau de bord `/admin` est réservé aux comptes administrateurs. Inscris-toi sur le site, puis donne le rôle à ton compte depuis le serveur :
+
+```
+npm run admin -- ton-email@exemple.com
+npm run admin -- ton-email@exemple.com retirer     (pour retirer le rôle)
+```
+
 ## Tests
 
 ```
@@ -72,7 +81,8 @@ tests/                 tests automatiques
 - [x] Fil d'actualité (idée, question, projet, image), j'aime, commentaires, amis, signalement
 - [x] Demandes des clients, propositions en solo, équipes éclair, choix du client, notifications (cloche)
 - [x] Profil prouvé (projets avec badge « Lien vérifié », avis protégés), recherche de devs, vitrine par secteur, cartes de partage Open Graph
-- [ ] Tableau de bord administrateur, calculateur de prix, publication Facebook, défi de la semaine
+- [x] Tableau de bord administrateur `/admin` : statistiques, signalements, projets proposés pour Facebook
+- [ ] Calculateur de prix, publication Facebook, défi de la semaine
 
 ## Comprendre le code
 

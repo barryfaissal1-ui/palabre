@@ -14,6 +14,7 @@ const limiteSignalements = limiteParMembre(20, 60, 'Trop de signalements. Réess
 const CIBLES = {
   publication: (cible) => ['SELECT id, auteur_id FROM publications WHERE id = $1', v.idPositif(cible)],
   commentaire: (cible) => ['SELECT id, auteur_id FROM commentaires WHERE id = $1', v.idPositif(cible)],
+  demande: (cible) => ['SELECT id, client_id AS auteur_id FROM demandes WHERE id = $1', v.idPositif(cible)],
   projet: (cible) => ['SELECT id, dev_id AS auteur_id FROM projets WHERE id = $1', v.idPositif(cible)],
   profil: (cible) => [
     'SELECT id, id AS auteur_id FROM utilisateurs WHERE identifiant = $1',
