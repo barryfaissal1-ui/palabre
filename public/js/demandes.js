@@ -108,6 +108,34 @@
     });
   }
 
+  // Arrivée depuis le calculateur : /demandes?publier=1&categorie=site-web&budget=150000
+  // ouvre le formulaire avec la catégorie et le budget déjà remplis.
+  function reprendreCalculateur(moi, categories) {
+    const parametres = new URLSearchParams(window.location.search);
+    if (parametres.get('publier') !== '1') return;
+    const zoneMessage = document.querySelector('[data-message-page]');
+    if (moi.type !== 'client') {
+      zoneMessage.textContent = 'Les demandes se publient avec un compte client. Ton compte est un compte développeur : tu peux répondre aux demandes ci-dessous.';
+      zoneMessage.className = 'message';
+      return;
+    }
+    const formulaire = document.querySelector('[data-publier]');
+    formulaire.hidden = false;
+    document.querySelector('[data-ouvrir-formulaire]').setAttribute('aria-expanded', 'true');
+
+    // Ces valeurs viennent de l'adresse, donc de n'importe qui : on ne garde qu'une catégorie connue
+    // et un nombre. Le serveur revérifie de toute façon à l'envoi.
+    const categorie = parametres.get('categorie');
+    if (categories.some((c) => c.id === categorie)) formulaire.elements.categorie.value = categorie;
+    const budget = parametres.get('budget') || '';
+    if (/^\d{1,10}$/.test(budget)) {
+      formulaire.elements.budgetFcfa.value = budget.replace(/\B(?=(\d{3})+(?!\d))/g, ' '); // 150000 → 150 000
+    }
+    zoneMessage.textContent = 'Catégorie et budget repris du calculateur. Il te reste à donner un titre et à décrire ton projet.';
+    zoneMessage.className = 'message succes';
+    formulaire.elements.titre.focus();
+  }
+
   function brancherFiltres() {
     const boutons = document.querySelectorAll('[data-filtre]');
     boutons.forEach((bouton) => {
@@ -127,7 +155,8 @@
   document.addEventListener('DOMContentLoaded', async () => {
     const moi = await utilisateurConnecte();
     if (!moi) {
-      window.location.href = '/connexion?suite=/demandes';
+      // On garde les paramètres de l'adresse (catégorie et budget venus du calculateur) pour l'après-connexion.
+      window.location.href = `/connexion?suite=${encodeURIComponent(`/demandes${window.location.search}`)}`;
       return;
     }
     const { categories } = await api('/categories');
@@ -137,6 +166,7 @@
 
     if (moi.type === 'client') brancherFormulaire();
     else document.querySelector('[data-onglet-miennes]').textContent = 'Mes propositions';
+    reprendreCalculateur(moi, categories);
     brancherFiltres();
     document.querySelector('[data-charger-plus]').addEventListener('click', () => chargerPage());
     chargerPage({ depuisLeDebut: true });

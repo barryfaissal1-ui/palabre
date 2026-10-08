@@ -18,6 +18,7 @@ Déclaration exigée par l'article 6 du règlement CADEV 2026. À compléter par
 | Demandes, équipes éclair et notifications (`src/routes/demandes.js`, `src/routes/equipes.js`, `src/routes/notifications.js`, `src/utils/notifications.js`, `public/js/demandes.js`, `public/js/demande.js`, `public/js/notifications.js`, `tests/demandes.test.js`) | Généré par l'IA à partir de la demande de l'équipe, relu par l'équipe |
 | Profil prouvé, vitrine et partage (`src/routes/projets.js`, `src/routes/avis.js`, `src/routes/devs.js`, `src/routes/pages.js`, `src/utils/liens.js`, `public/js/projets.js`, `public/js/projet.js`, `public/js/chercher.js`, `public/js/vitrine.js`, `tests/preuves.test.js`) | Généré par l'IA à partir de la demande de l'équipe, relu par l'équipe |
 | Tableau de bord administrateur (`src/routes/admin.js`, `src/db/admin.js`, `public/js/admin.js`, `tests/admin.test.js`) | Généré par l'IA à partir de la demande de l'équipe, relu par l'équipe |
+| Calculateur de prix (`public/js/calcul-prix.js`, `public/js/calculateur.js`, `tests/calculateur.test.js`) | Généré par l'IA ; la grille de prix (`public/js/grille-prix.js`) a été fournie par l'équipe |
 | Guide `docs/COMPRENDRE-LE-CODE.md` | Rédigé par l'IA pour l'équipe |
 | Interface (`public/`) | Générée par l'IA, adaptée par l'équipe |
 | Logo | Créé par l'équipe avec Claude Code ; icônes dérivées générées automatiquement |

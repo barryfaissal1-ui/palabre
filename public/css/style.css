@@ -779,6 +779,81 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
 .carte-dev .bouton { justify-self: start; min-height: 44px; }
 .preuves { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0; font-size: 0.9rem; }
 
+/* ---------- Calculateur « Combien coûte mon projet ? » ---------- */
+.bloc-calculateur {
+  display: grid;
+  gap: 16px;
+  margin-top: 40px;
+  padding: 24px 20px;
+  border: 2px solid var(--terre-logo);
+  border-radius: var(--rayon);
+  background: color-mix(in srgb, var(--terre-logo) 10%, var(--surface));
+}
+.bloc-calculateur h2 { margin: 0 0 6px; font: 800 clamp(1.5rem, 5vw, 2rem)/1.1 var(--titre); letter-spacing: -0.02em; }
+.bloc-calculateur p { margin: 0; max-width: 56ch; }
+.bloc-calculateur .bouton { justify-self: start; }
+@media (min-width: 800px) { .bloc-calculateur { grid-template-columns: 1fr auto; align-items: center; padding: 28px 32px; } }
+
+.progression { display: grid; gap: 6px; margin-bottom: 16px; }
+.progression p { margin: 0; font-size: 0.9rem; }
+.progression progress {
+  width: 100%;
+  height: 10px;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--ligne);
+  accent-color: var(--feuille-vive);
+  appearance: none;
+  -webkit-appearance: none;
+}
+.progression progress::-webkit-progress-bar { background: var(--ligne); }
+.progression progress::-webkit-progress-value { background: var(--feuille-vive); border-radius: 999px; transition: width 0.25s ease; }
+.progression progress::-moz-progress-bar { background: var(--feuille-vive); border-radius: 999px; }
+
+.etape { display: grid; gap: 12px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.etape legend { padding: 0; margin-bottom: 12px; font: 800 1.35rem/1.2 var(--titre); }
+.etape legend:focus { outline: none; }
+.etape > p { margin: 0; }
+.choix-cartes { display: grid; gap: 10px; }
+.choix-cartes input { position: absolute; opacity: 0; width: 1px; height: 1px; min-height: 0; pointer-events: none; }
+.choix-cartes label {
+  display: grid;
+  gap: 2px;
+  min-height: 56px;
+  padding: 12px 14px;
+  border: 2px solid var(--ligne);
+  border-radius: var(--rayon-petit);
+  cursor: pointer;
+}
+.choix-cartes label strong { font: 700 1.05rem/1.25 var(--titre); }
+.choix-cartes label span { font-size: 0.9rem; color: var(--gris); }
+.choix-cartes label .prix-carte { color: var(--lien); font-weight: 700; }
+.choix-cartes input:checked + label { border-color: var(--feuille-vive); background: color-mix(in srgb, var(--feuille-vive) 10%, transparent); }
+.choix-cartes input[type="checkbox"]:checked + label strong::before { content: "✓ "; color: var(--feuille); }
+.choix-cartes input:focus-visible + label { outline: 3px solid var(--terre-logo); outline-offset: 2px; }
+@media (prefers-color-scheme: dark) { .choix-cartes input[type="checkbox"]:checked + label strong::before { color: #5FD08A; } }
+.actions-etape { display: flex; gap: 10px; }
+.actions-etape .bouton-principal { flex: 1; }
+
+.resultat h2 { margin: 0; font: 800 1.35rem/1.2 var(--titre); }
+.resultat h2:focus { outline: none; }
+.resultat h3 { margin: 4px 0 0; font: 800 1.05rem/1.2 var(--titre); }
+.resultat p { margin: 0; }
+.fourchette { font-size: 1.15rem; }
+.fourchette strong { font: 800 clamp(1.5rem, 7vw, 2.1rem)/1.15 var(--titre); color: var(--lien); white-space: nowrap; }
+.resultat .message { background: color-mix(in srgb, var(--gris) 12%, transparent); }
+.detail-calcul { display: grid; gap: 0; margin: 0; }
+.detail-calcul div { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--ligne); }
+.detail-calcul div:last-child { border-bottom: 0; font-weight: 700; }
+.detail-calcul dd { margin: 0; text-align: right; white-space: nowrap; }
+.actions-resultat { display: grid; gap: 10px; justify-items: center; }
+/* Un long libellé de bouton peut passer sur deux lignes sur un petit téléphone : il reste centré. */
+.actions-resultat .bouton-plein { padding-block: 12px; line-height: 1.25; text-align: center; }
+
+.lien-heros { margin: 0; }
+.lien-heros a { display: inline-flex; align-items: center; min-height: 44px; color: #fff; font-weight: 700; }
+
 /* ---------- Administration ---------- */
 .tuiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 0; }
 @media (min-width: 600px) { .tuiles { grid-template-columns: repeat(3, 1fr); } }

@@ -2,15 +2,21 @@
 (function () {
   const { api } = window.Palabre;
 
+  // Page où aller après l'inscription ou la connexion : le paramètre « suite » de l'adresse.
+  // On n'accepte qu'une adresse interne (« /… ») : jamais un autre site, même si quelqu'un fabrique le lien.
+  function suiteDemandee() {
+    const suite = new URLSearchParams(window.location.search).get('suite');
+    return suite && suite.startsWith('/') && !suite.startsWith('//') && !suite.includes('\\') ? suite : null;
+  }
+
   const actions = {
     async inscription(donnees) {
       await api('/auth/inscription', { methode: 'POST', donnees });
-      window.location.href = '/fil';
+      window.location.href = suiteDemandee() || '/fil';
     },
     async connexion(donnees) {
       await api('/auth/connexion', { methode: 'POST', donnees });
-      const suite = new URLSearchParams(window.location.search).get('suite');
-      window.location.href = suite && suite.startsWith('/') && !suite.startsWith('//') ? suite : '/fil';
+      window.location.href = suiteDemandee() || '/fil';
     },
     async 'mot-de-passe-oublie'(donnees, formulaire) {
       const { message } = await api('/auth/mot-de-passe-oublie', { methode: 'POST', donnees });
@@ -66,6 +72,16 @@
     if (typeDemande === 'client' || typeDemande === 'dev') {
       const radio = document.getElementById(`type-${typeDemande}`);
       if (radio) radio.checked = true;
+    }
+
+    // « Déjà inscrit ? » / « Pas encore de compte ? » : la destination suit la personne d'une page à l'autre.
+    const suite = suiteDemandee();
+    if (suite) {
+      document.querySelectorAll('.liens-formulaire a[href^="/connexion"], .liens-formulaire a[href^="/inscription"]').forEach((lien) => {
+        const url = new URL(lien.href);
+        url.searchParams.set('suite', suite);
+        lien.href = url.pathname + url.search;
+      });
     }
 
     document.querySelectorAll('[data-liste-pays]').forEach(remplirPays);

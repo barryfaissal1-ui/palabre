@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#171512">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Palabre">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="preload" href="/fonts/bricolage-grotesque-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/style.css">
+  <title>Combien coûte mon projet ? – Palabre</title>
+  <script src="/js/app.js" defer></script>
+  <script src="/js/grille-prix.js" defer></script>
+  <script src="/js/calcul-prix.js" defer></script>
+  <script src="/js/calculateur.js" defer></script>
+</head>
+<body>
+  <div class="bande"></div>
+  <header class="conteneur entete">
+    <a class="marque" href="/"><img src="/icons/logo-256.png" alt="" width="36" height="36">Palabre</a>
+    <nav data-nav></nav>
+  </header>
+  <main class="conteneur page-fil">
+    <h1 class="titre-page">Combien coûte mon projet&nbsp;?</h1>
+
+    <div class="progression" data-progression>
+      <p class="texte-discret" data-texte-progression aria-live="polite">Étape 1 sur 4</p>
+      <progress max="4" value="1" data-barre aria-label="Avancement du calculateur"></progress>
+    </div>
+
+    <form class="bloc-formulaire" data-calculateur novalidate>
+      <noscript><p class="message erreur">Le calculateur a besoin de JavaScript pour fonctionner.</p></noscript>
+    </form>
+
+    <section class="bloc-formulaire resultat" data-resultat hidden aria-live="polite"></section>
+  </main>
+</body>
+</html>

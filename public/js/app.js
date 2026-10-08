@@ -216,7 +216,8 @@
       }, contenu);
       // Sur téléphone, ces liens forment une barre fixe en bas de l'écran (voir .nav-liens dans le CSS).
       document.body.classList.add('avec-barre');
-      nav.append(
+      // filter(Boolean) : sans lui, l'élément absent (pas de lien « Admin ») s'afficherait comme le mot « null ».
+      nav.append(...[
         el('div', { classe: 'nav-liens' }, [
           lien('/fil', 'Fil'),
           lien('/demandes', 'Demandes'),
@@ -235,7 +236,7 @@
           nonLues ? el('span', { classe: 'compteur compteur-cloche', 'aria-hidden': 'true', texte: nonLues > 99 ? '99+' : String(nonLues) }) : null,
         ]),
         el('a', { classe: 'nav-profil', href: `/${moi.identifiant}`, 'aria-label': 'Mon profil' }, [avatar(moi, 'mini')]),
-      );
+      ].filter(Boolean));
     } else {
       nav.append(
         el('a', { classe: 'bouton bouton-lien', href: '/chercher', texte: 'Devs' }),

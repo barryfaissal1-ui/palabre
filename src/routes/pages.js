@@ -64,6 +64,15 @@ router.get('/', (req, res) => {
   });
 });
 
+// Calculateur « Combien coûte mon projet ? »
+router.get('/calculateur', (req, res) => {
+  rendrePage(res, 'calculateur.html', {
+    titre: 'Combien coûte mon projet ? – Palabre',
+    description: 'Site, boutique en ligne, application mobile ou logiciel de gestion : estime le prix de ton projet en FCFA en quatre questions, gratuitement et sans compte.',
+    chemin: '/calculateur',
+  });
+});
+
 // Page d'un projet : /projets/12
 router.get('/projets/:id', async (req, res, next) => {
   const id = v.idPositif(req.params.id);

@@ -1,6 +1,6 @@
 // Service worker : met en cache les fichiers de l'interface pour un chargement rapide, même en 3G.
 // Les données (/api) ne sont jamais mises en cache.
-const VERSION = 'palabre-v8';
+const VERSION = 'palabre-v9';
 const FICHIERS = [
   '/',
   '/connexion',
@@ -28,6 +28,10 @@ const FICHIERS = [
   '/chercher',
   '/js/admin.js',
   '/admin',
+  '/js/grille-prix.js',
+  '/js/calcul-prix.js',
+  '/js/calculateur.js',
+  '/calculateur',
   '/js/profil.js',
   '/js/modifier-profil.js',
   '/profil.html',

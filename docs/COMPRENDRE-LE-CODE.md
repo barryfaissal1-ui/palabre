@@ -253,12 +253,52 @@ Rien n'est supprimé de la base : masquer et bloquer sont réversibles. Une list
 
 Seuls les projets dont le dev a coché son accord (`publier_facebook`) arrivent ici, avec le statut `en_attente`. L'administrateur les **valide** (`valide`) ou les **refuse** (`refuse`) ; le dev reçoit une notification. Un projet refusé pour Facebook reste visible sur Palabre. La publication elle-même sur la page Facebook viendra dans une étape suivante : elle ne prendra que les projets `valide`.
 
-## 11. L'application installable (PWA)
+## 11. Le calculateur « Combien coûte mon projet ? » (page `/calculateur`)
+
+Un visiteur, même sans compte, répond à quatre questions (une par écran, avec une barre de progression) et obtient une fourchette de prix en FCFA. C'est une porte d'entrée pour les clients : ils arrivent avec une question simple et repartent avec une demande publiée.
+
+### Trois fichiers, trois rôles
+
+| Fichier | Rôle |
+| --- | --- |
+| `public/js/grille-prix.js` | **la grille de prix, et rien d'autre** : c'est le seul fichier à modifier pour changer un montant |
+| `public/js/calcul-prix.js` | la fonction `estimerPrix(grille, choix)` : le calcul, sans toucher à la page |
+| `public/js/calculateur.js` | l'affichage : les écrans, la barre de progression, le résultat |
+
+Les questions affichées sont construites à partir de la grille : ajouter une option dans la grille l'ajoute à l'écran, sans autre modification.
+
+### Le calcul
+
+```
+(prix de base × taille) + options, puis × 1,25 si urgent, arrondi à 5 000 FCFA
+```
+
+Il est fait deux fois, avec le prix minimum puis le prix maximum du type de projet : cela donne la fourchette. Exemple : boutique en ligne (200 000 à 450 000), 6 à 15 pages (+30 %), Mobile Money et logo (+100 000), urgent (+25 %) :
+
+- minimum : (200 000 × 1,3 + 100 000) × 1,25 = 450 000
+- maximum : (450 000 × 1,3 + 100 000) × 1,25 = 856 250, arrondi à 855 000
+
+La majoration de taille porte sur le prix de base seulement ; celle du délai porte sur le total. Les pourcentages sont appliqués sous la forme « × 130 / 100 » pour ne manipuler que des nombres entiers et éviter les erreurs d'arrondi des nombres à virgule.
+
+**Tout se passe dans le navigateur** : aucune requête au serveur pour calculer, donc le résultat est immédiat même en 3G, et le serveur n'a rien à supporter. Le résultat rappelle que c'est une estimation et que le vrai prix se fixe avec le développeur.
+
+### Du calculateur à la demande
+
+Le bouton « Publier ma demande avec ce budget » ouvre `/demandes?publier=1&categorie=…&budget=…` : le formulaire s'ouvre avec la catégorie et le budget (le milieu de la fourchette) déjà remplis. Un visiteur sans compte passe d'abord par l'inscription en compte client, qui le ramène ensuite au formulaire grâce au paramètre `suite`.
+
+Deux précautions de sécurité :
+
+- `suite` n'est suivi que s'il désigne une page de Palabre (il doit commencer par un seul `/`). Sinon, quelqu'un pourrait fabriquer un lien Palabre qui renvoie vers un site piégé après la connexion.
+- la catégorie et le budget lus dans l'adresse ne sont gardés que s'ils sont une catégorie connue et un nombre ; le serveur revérifie de toute façon à l'envoi.
+
+Le bouton « Partager sur WhatsApp » prépare un message avec la fourchette et le lien du calculateur. La page a ses balises de partage, écrites par le serveur comme pour les profils.
+
+## 12. L'application installable (PWA)
 
 - `public/manifest.json` : nom, couleurs et icônes de l'appli quand on l'ajoute à l'écran d'accueil.
 - `public/sw.js` : le « service worker » garde une copie des fichiers de l'interface. Les pages s'ouvrent vite, même avec une connexion faible. Les données (`/api`) ne sont jamais mises en cache, pour toujours être à jour. À chaque modification de l'interface, on augmente `VERSION` pour forcer la mise à jour chez tout le monde.
 
-## 12. Les tests automatiques
+## 13. Les tests automatiques
 
 `npm test` lance des tests qui démarrent un vrai serveur et vérifient, entre autres : inscription, refus d'un mauvais mot de passe, protection CSRF, modification de profil, identifiants réservés, confidentialité du numéro WhatsApp, envoi et remplacement de photo, refus d'un faux fichier image.
 
@@ -270,9 +310,14 @@ Pour le profil prouvé (`tests/preuves.test.js`) : une vingtaine de liens piég�
 
 Pour l'administration (`tests/admin.test.js`) : chaque route refusée aux visiteurs (401) et aux membres ordinaires (403), impossibilité de se nommer administrateur en modifiant son profil, statistiques comparées au contenu réel de la base, les trois décisions sur un signalement et leurs effets visibles (contenu absent du fil, membre déconnecté), administrateur impossible à bloquer, contenu supprimé entre-temps, validation et refus des projets pour Facebook.
 
+Pour le calculateur (`tests/calculateur.test.js`) : cohérence de la grille (chaque type mène à une catégorie de demande qui existe), prix de base de chaque type, majorations de taille et de délai, options, un calcul complet vérifié à la main, tous les résultats possibles multiples de 5 000, refus d'un choix inconnu, page ouverte à tous avec ses balises de partage. Comme le calcul vit dans des fichiers du navigateur, ces fichiers sont écrits pour être aussi chargés par Node.js.
+
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
 
-## 13. Questions probables du jury
+## 14. Questions probables du jury
+
+- **D'où viennent les prix du calculateur ?** D'une grille établie par l'équipe à partir des prix pratiqués, rangée dans un seul fichier (`public/js/grille-prix.js`). Le résultat est une fourchette, présentée comme une estimation.
+- **Pourquoi le calcul n'est-il pas fait par le serveur ?** Il n'y a rien de secret ni rien à protéger : le faire dans le navigateur donne une réponse immédiate, même avec une mauvaise connexion.
 
 - **Comment devient-on administrateur ? Un membre peut-il tricher ?** Par une commande lancée sur le serveur, jamais depuis le site. Les routes d'administration vérifient le rôle à chaque appel, côté serveur.
 - **Que devient un contenu masqué ou un membre bloqué ?** Il reste en base, mais toutes les requêtes du site l'écartent (`masque = FALSE`, `bloque = FALSE`). Rien n'est perdu et la décision peut être annulée.

@@ -82,7 +82,8 @@ tests/                 tests automatiques
 - [x] Demandes des clients, propositions en solo, équipes éclair, choix du client, notifications (cloche)
 - [x] Profil prouvé (projets avec badge « Lien vérifié », avis protégés), recherche de devs, vitrine par secteur, cartes de partage Open Graph
 - [x] Tableau de bord administrateur `/admin` : statistiques, signalements, projets proposés pour Facebook
-- [ ] Calculateur de prix, publication Facebook, défi de la semaine
+- [x] Calculateur « Combien coûte mon projet ? » `/calculateur` (grille de prix : `public/js/grille-prix.js`)
+- [ ] Publication Facebook, défi de la semaine
 
 ## Comprendre le code
 
