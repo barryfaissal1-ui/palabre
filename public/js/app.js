@@ -72,6 +72,17 @@
     return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
+  // « de Bintou » mais « d'Awa » : l'élision devant une voyelle.
+  function deNom(nom) {
+    return /^[aeiouyhàâäéèêëîïôöùûü]/i.test(nom) ? `d'${nom}` : `de ${nom}`;
+  }
+
+  // Montant en francs CFA : 250000 → « 250 000 FCFA ». Sans montant : « À discuter ».
+  function fcfa(montant) {
+    if (montant === null || montant === undefined) return 'À discuter';
+    return `${montant.toLocaleString('fr-FR')} FCFA`;
+  }
+
   // Réduit une image dans le navigateur avant l'envoi (côté le plus long : 1080 px, JPEG) :
   // une photo de plusieurs Mo devient une centaine de Ko, ce qui économise les données mobiles.
   async function reduireImage(fichier, coteMax = 1080) {
@@ -159,11 +170,27 @@
     nav.replaceChildren();
     if (moi) {
       const demandes = moi.demandesAmis || 0;
+      const nonLues = moi.notifications || 0;
+      const lien = (href, contenu) => el('a', {
+        classe: 'bouton bouton-lien', href, 'aria-current': window.location.pathname === href ? 'page' : null,
+      }, contenu);
+      // Sur téléphone, ces liens forment une barre fixe en bas de l'écran (voir .nav-liens dans le CSS).
+      document.body.classList.add('avec-barre');
       nav.append(
-        el('a', { classe: 'bouton bouton-lien', href: '/fil', texte: 'Fil' }),
-        el('a', { classe: 'bouton bouton-lien', href: '/amis' }, [
-          'Amis',
-          demandes ? el('span', { classe: 'compteur', texte: String(demandes), 'aria-label': `${demandes} demande${demandes > 1 ? 's' : ''} en attente` }) : null,
+        el('div', { classe: 'nav-liens' }, [
+          lien('/fil', 'Fil'),
+          lien('/demandes', 'Demandes'),
+          lien('/amis', [
+            'Amis',
+            demandes ? el('span', { classe: 'compteur', texte: String(demandes), 'aria-label': `${demandes} demande${demandes > 1 ? 's' : ''} en attente` }) : null,
+          ]),
+        ]),
+        el('a', {
+          classe: 'nav-cloche', href: '/notifications',
+          'aria-label': nonLues ? `Notifications : ${nonLues} non lue${nonLues > 1 ? 's' : ''}` : 'Notifications',
+        }, [
+          el('span', { classe: 'icone-cloche', 'aria-hidden': 'true' }),
+          nonLues ? el('span', { classe: 'compteur compteur-cloche', 'aria-hidden': 'true', texte: nonLues > 99 ? '99+' : String(nonLues) }) : null,
         ]),
         el('a', { classe: 'nav-profil', href: `/${moi.identifiant}`, 'aria-label': 'Mon profil' }, [avatar(moi, 'mini')]),
       );
@@ -180,5 +207,5 @@
 
   document.addEventListener('DOMContentLoaded', remplirNavigation);
 
-  window.Palabre = { api, utilisateurConnecte, el, avatar, initiales, dateRelative, reduireImage, signaler };
+  window.Palabre = { api, utilisateurConnecte, el, avatar, initiales, dateRelative, deNom, fcfa, reduireImage, signaler };
 })();

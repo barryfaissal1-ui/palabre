@@ -52,4 +52,15 @@ function exigerAdmin(req, res, next) {
   next();
 }
 
-module.exports = { ouvrirSession, fermerSession, chargerUtilisateur, exigerConnexion, exigerAdmin };
+// Certaines actions sont réservées à un type de compte : publier une demande (client), proposer (dev).
+function exigerClient(req, res, next) {
+  if (req.utilisateur?.type !== 'client') return res.status(403).json({ erreur: 'Action réservée aux comptes client.' });
+  next();
+}
+
+function exigerDev(req, res, next) {
+  if (req.utilisateur?.type !== 'dev') return res.status(403).json({ erreur: 'Action réservée aux comptes développeur.' });
+  next();
+}
+
+module.exports = { ouvrirSession, fermerSession, chargerUtilisateur, exigerConnexion, exigerAdmin, exigerClient, exigerDev };

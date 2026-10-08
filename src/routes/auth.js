@@ -111,14 +111,18 @@ router.post('/deconnexion', (req, res) => {
 // Renvoie le membre connecté, ou null pour un visiteur (pas d'erreur : c'est un cas normal).
 router.get('/moi', async (req, res) => {
   if (!req.utilisateur) return res.json({ utilisateur: null });
-  // Nombre de demandes d'amis à traiter : affiché en pastille dans le menu.
+  // Compteurs du menu : demandes d'amis à traiter et notifications non lues (la cloche).
   const { rows } = await db.query(
-    `SELECT count(*)::int AS nb FROM amities a
-       JOIN utilisateurs u ON u.id = a.demandeur_id
-      WHERE a.receveur_id = $1 AND a.statut = 'en_attente' AND u.bloque = FALSE`,
+    `SELECT (SELECT count(*)::int FROM amities a
+               JOIN utilisateurs u ON u.id = a.demandeur_id
+              WHERE a.receveur_id = $1 AND a.statut = 'en_attente' AND u.bloque = FALSE) AS demandes_amis,
+            (SELECT count(*)::int FROM notifications n
+              WHERE n.utilisateur_id = $1 AND n.lue = FALSE) AS notifications`,
     [req.utilisateur.id],
   );
-  res.json({ utilisateur: { ...profilPrive(req.utilisateur), demandesAmis: rows[0].nb } });
+  res.json({
+    utilisateur: { ...profilPrive(req.utilisateur), demandesAmis: rows[0].demandes_amis, notifications: rows[0].notifications },
+  });
 });
 
 // Toujours la même réponse, que l'email existe ou non (on ne révèle pas qui est inscrit).

@@ -112,20 +112,85 @@ Les envois sont limités **par membre** et non par adresse IP, car sur les rése
 
 Le texte des publications et des commentaires est affiché avec `textContent` : si quelqu'un écrit `<script>` dans un commentaire, on voit ces caractères à l'écran, rien ne s'exécute.
 
-## 8. L'application installable (PWA)
+## 8. Les demandes des clients et les équipes éclair
+
+C'est le cœur de Palabre : un client décrit son besoin, les développeurs répondent seuls ou à plusieurs, le client compare et choisit. Tout est réservé aux membres connectés.
+
+### La vie d'une demande
+
+```
+ouverte ──(le client choisit une proposition)──> attribuée ──(travail fini)──> terminée
+   └────(le client annule)────> annulée
+```
+
+- **Publier** (`POST /api/demandes`, comptes **client** seulement) : titre, description, catégorie (liste fixe dans `src/utils/validation.js`), budget en FCFA et délai facultatifs. Le budget accepte « 250 000 » avec des espaces ; sans budget, la page affiche « À discuter ».
+- **Liste** (`GET /api/demandes`) : les demandes ouvertes, par 10, avec un filtre par catégorie. L'onglet « Mes demandes » (client) ou « Mes propositions » (dev) retrouve celles où l'on est concerné, quel que soit leur statut.
+- **Détail** (`GET /api/demandes/:id`, page `/demande?id=…`) : la demande et les propositions **que l'on a le droit de voir**.
+
+### Qui voit quelles propositions ?
+
+| Qui regarde | Ce qu'il voit |
+| --- | --- |
+| Le client propriétaire | toutes les propositions qui lui ont été envoyées |
+| Un développeur | seulement les siennes : en solo, comme chef d'équipe ou comme invité |
+| Un autre client | aucune |
+
+Un développeur ne voit donc jamais l'offre ni le prix d'un concurrent. C'est le serveur qui filtre (`propositionsVisibles` dans `src/routes/demandes.js`), pas la page.
+
+### Proposer seul
+
+`POST /api/demandes/:id/propositions` (comptes **dev**) : un message et un montant facultatif. Un index unique en base garantit une seule proposition en solo par développeur et par demande. Le client reçoit une notification. Le développeur peut retirer sa proposition tant que le client n'a pas choisi.
+
+### L'équipe éclair
+
+1. **Création** (`POST /api/demandes/:id/equipes`) : le chef écrit la proposition, indique son rôle et invite de 1 à 5 **amis développeurs**, chacun avec un rôle. Le serveur vérifie l'amitié en base : impossible d'inviter un inconnu ou un client. L'équipe, ses membres, la proposition (statut `brouillon`) et les notifications d'invitation sont créés dans une seule **transaction**.
+2. **Réponses** (`POST /api/equipes/:id/accepter` ou `/refuser`, dans `src/routes/equipes.js`) : seul un invité peut répondre, une seule fois.
+3. **Envoi automatique** : quand le dernier invité a répondu, la proposition passe de `brouillon` à `envoyee` et le client est prévenu. Elle part avec ceux qui ont accepté ; ceux qui ont refusé n'apparaissent pas chez le client. Si tout le monde a refusé, rien ne part : le chef est prévenu et peut dissoudre l'équipe.
+
+Tant que la proposition est en `brouillon`, le client ne la voit pas et elle n'est pas comptée. Si deux invités répondent au même instant, un verrou sur l'équipe (`FOR UPDATE`) les fait passer l'un après l'autre : le dernier voit bien que tout le monde a répondu.
+
+### Le choix du client
+
+`POST /api/demandes/:id/choisir` : dans une transaction, la proposition choisie passe à `acceptee`, toutes les autres à `refusee`, et la demande à `attribuee`. Le développeur choisi, ou chaque membre de l'équipe choisie, reçoit une notification. La demande est verrouillée pendant l'opération : un double clic ne peut pas attribuer la demande deux fois.
+
+### Les notifications (`src/routes/notifications.js`, `src/utils/notifications.js`)
+
+La fonction `notifier()` ajoute une ligne dans la table `notifications` : un type, un texte et un lien interne. Quand elle est appelée dans une transaction, la notification est annulée avec le reste si l'action échoue.
+
+| Événement | Qui est prévenu |
+| --- | --- |
+| Demande d'ami reçue, demande d'ami acceptée | le membre concerné |
+| Invitation dans une équipe éclair | chaque invité |
+| Nouvelle proposition (solo ou équipe) | le client |
+| Proposition choisie | le dev, ou tous les membres de l'équipe |
+| Tous les invités ont répondu | le chef d'équipe |
+
+La **cloche** du menu affiche le nombre de notifications non lues (compté dans `GET /api/auth/moi`, donc sans requête supplémentaire). La page `/notifications` liste les 30 dernières ; cliquer sur une notification la marque comme lue puis ouvre la page concernée. Un membre ne peut marquer que ses propres notifications.
+
+### Le menu sur téléphone
+
+Avec « Fil », « Demandes », « Amis », la cloche et la photo, le menu ne tient plus sur 390 px. Sur téléphone, les trois liens principaux forment donc une **barre fixe en bas de l'écran**, à portée de pouce comme dans une application ; sur grand écran ils restent en haut. C'est le même HTML : seule la feuille de style change (`.nav-liens` dans `public/css/style.css`).
+
+## 9. L'application installable (PWA)
 
 - `public/manifest.json` : nom, couleurs et icônes de l'appli quand on l'ajoute à l'écran d'accueil.
 - `public/sw.js` : le « service worker » garde une copie des fichiers de l'interface. Les pages s'ouvrent vite, même avec une connexion faible. Les données (`/api`) ne sont jamais mises en cache, pour toujours être à jour. À chaque modification de l'interface, on augmente `VERSION` pour forcer la mise à jour chez tout le monde.
 
-## 9. Les tests automatiques
+## 10. Les tests automatiques
 
 `npm test` lance des tests qui démarrent un vrai serveur et vérifient, entre autres : inscription, refus d'un mauvais mot de passe, protection CSRF, modification de profil, identifiants réservés, confidentialité du numéro WhatsApp, envoi et remplacement de photo, refus d'un faux fichier image.
 
 Pour le réseau social (`tests/social.test.js`) : fil réservé aux membres, chargement par 10 sans doublon, j'aime compté une seule fois, commentaires, suppression réservée à l'auteur, demandes d'amis (envoyer, accepter, refuser, demandes croisées, tricher en acceptant sa propre demande), filtre « Mes amis », signalements (en double, de son propre contenu, d'une cible inconnue).
 
+Pour les demandes (`tests/demandes.test.js`) : publication réservée aux clients, chargement par 10, proposition en solo invisible pour les autres développeurs, invitation limitée aux amis développeurs, envoi de la proposition d'équipe seulement quand tous ont répondu, cas où tous refusent, choix du client (une seule fois, par le bon client), notifications de chaque événement et impossibilité de lire celles d'un autre.
+
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
 
-## 10. Questions probables du jury
+## 11. Questions probables du jury
+
+- **Qu'est-ce qui empêche un développeur de copier l'offre d'un concurrent ?** Le serveur ne lui envoie que ses propres propositions. Même en appelant l'API à la main, il ne reçoit rien d'autre.
+- **Pourquoi la proposition d'équipe attend-elle toutes les réponses ?** Pour que le client reçoive une équipe réelle, avec des membres qui se sont engagés, et non une liste de noms que le chef a écrite seul.
+- **Que se passe-t-il si le client clique deux fois sur « Choisir » ?** La demande est verrouillée dans la transaction : le second clic trouve une demande déjà attribuée et reçoit un refus.
 
 - **Pourquoi le fil est-il chargé avec « avant tel numéro » plutôt qu'avec « page 2, page 3 » ?** Avec des numéros de page, une nouvelle publication décale tout et on revoit une publication déjà lue. Avec « avant le numéro X », la suite est toujours la bonne, et la base répond vite grâce à la clé primaire.
 - **Comment empêchez-vous le spam et le harcèlement ?** Limites d'envoi par membre, une seule demande d'ami possible (pas de relance après un refus), bouton « Signaler » partout, et possibilité pour un administrateur de masquer un contenu ou de bloquer un compte.

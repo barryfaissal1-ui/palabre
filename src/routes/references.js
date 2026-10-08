@@ -1,12 +1,16 @@
 // Listes de référence utilisées par les formulaires (pays, compétences).
 const express = require('express');
 const db = require('../db/pool');
-const { PAYS } = require('../utils/validation');
+const { PAYS, CATEGORIES_DEMANDE } = require('../utils/validation');
 
 const router = express.Router();
 
 router.get('/pays', (req, res) => {
   res.json({ pays: PAYS });
+});
+
+router.get('/categories', (req, res) => {
+  res.json({ categories: Object.entries(CATEGORIES_DEMANDE).map(([id, nom]) => ({ id, nom })) });
 });
 
 router.get('/competences', async (req, res) => {

@@ -68,6 +68,38 @@ function typeCompte(valeur) {
   return valeur;
 }
 
+// Erreur « normale » à renvoyer telle quelle au navigateur (403 interdit, 404 introuvable…).
+class ErreurHttp extends Error {
+  constructor(statut, message) {
+    super(message);
+    this.statut = statut;
+  }
+}
+
+// Catégories des demandes des clients : identifiant gardé en base → nom affiché.
+const CATEGORIES_DEMANDE = {
+  'site-web': 'Site web',
+  'appli-mobile': 'Application mobile',
+  'boutique-en-ligne': 'Boutique en ligne',
+  'logiciel-gestion': 'Logiciel de gestion',
+  'paiement-mobile': 'Paiement et Mobile Money',
+  design: 'Design et identité visuelle',
+  autre: 'Autre',
+};
+
+// Nombre entier (montant en FCFA…). Les espaces de « 150 000 » sont acceptés.
+function entier(valeur, champ, { min = 0, max = 2000000000, optionnel = false } = {}) {
+  if (valeur === null || valeur === undefined || valeur === '') {
+    if (optionnel) return null;
+    throw new ErreurValidation('Ce champ est obligatoire.', champ);
+  }
+  const n = typeof valeur === 'string' ? Number(valeur.replace(/\s/g, '')) : valeur;
+  if (!Number.isInteger(n) || n < min || n > max) {
+    throw new ErreurValidation('Nombre entier attendu, sans virgule.', champ);
+  }
+  return n;
+}
+
 // Valeur à choisir dans une liste fixe (type de publication, type de cible signalée…).
 function parmi(valeur, liste, champ) {
   if (!liste.includes(valeur)) throw new ErreurValidation('Choix non reconnu.', champ);
@@ -83,7 +115,7 @@ function idPositif(valeur) {
 // Mots réservés : ils servent d'adresses de pages (palabre.dev/connexion…) et ne peuvent pas être des identifiants.
 const IDENTIFIANTS_RESERVES = new Set([
   'a-propos', 'admin', 'aide', 'amis', 'api', 'chercher', 'conditions', 'confidentialite', 'connexion',
-  'css', 'defis', 'demandes', 'equipes', 'fichiers', 'fil', 'fonts', 'icons', 'index', 'inscription',
+  'css', 'defis', 'demande', 'demandes', 'equipes', 'fichiers', 'fil', 'fonts', 'icons', 'index', 'inscription',
   'js', 'manifest', 'modifier-profil', 'moi', 'mot-de-passe-oublie', 'notifications', 'palabre', 'parametres',
   'profil', 'projets', 'reinitialiser', 'sw', 'vitrine',
 ]);
@@ -113,6 +145,9 @@ function versIdentifiant(nom) {
 module.exports = {
   PAYS,
   ErreurValidation,
+  ErreurHttp,
+  CATEGORIES_DEMANDE,
+  entier,
   texte,
   email,
   motDePasse,

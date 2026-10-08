@@ -50,6 +50,9 @@ function creerApp() {
   app.use('/api/publications', require('./routes/publications'));
   app.use('/api/amis', require('./routes/amis'));
   app.use('/api/signalements', require('./routes/signalements'));
+  app.use('/api/demandes', require('./routes/demandes'));
+  app.use('/api/equipes', require('./routes/equipes'));
+  app.use('/api/notifications', require('./routes/notifications'));
   app.use('/api', require('./routes/references'));
 
   app.get('/api/sante', (req, res) => res.json({ ok: true }));
@@ -75,8 +78,9 @@ function creerApp() {
   // Gestion centralisée des erreurs.
   // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, next) => {
-    if (err.statut === 400) {
-      return res.status(400).json({ erreur: err.message, champ: err.champ });
+    // Erreurs prévues (ErreurValidation, ErreurHttp) : le message est destiné à la personne.
+    if ([400, 403, 404].includes(err.statut)) {
+      return res.status(err.statut).json({ erreur: err.message, champ: err.champ });
     }
     if (err.type === 'entity.parse.failed') {
       return res.status(400).json({ erreur: 'Données illisibles.' });

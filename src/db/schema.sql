@@ -225,6 +225,11 @@ CREATE INDEX IF NOT EXISTS idx_amities_receveur ON amities (receveur_id, statut)
 -- Une seule ligne par paire de membres : A→B interdit B→A (pas de demandes en double dans les deux sens).
 CREATE UNIQUE INDEX IF NOT EXISTS idx_amities_paire
   ON amities (LEAST(demandeur_id, receveur_id), GREATEST(demandeur_id, receveur_id));
+-- Un dev n'envoie qu'une proposition en solo par demande ; une équipe n'a qu'une proposition.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_propositions_solo ON propositions (demande_id, dev_id) WHERE dev_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_propositions_equipe ON propositions (equipe_id) WHERE equipe_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_propositions_demande ON propositions (demande_id);
+CREATE INDEX IF NOT EXISTS idx_equipe_membres_dev ON equipe_membres (dev_id, statut);
 
 -- ============ Données de base ============
 INSERT INTO competences (nom) VALUES

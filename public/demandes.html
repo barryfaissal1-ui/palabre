@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#171512">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Palabre">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="preload" href="/fonts/bricolage-grotesque-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/style.css">
+  <title>Demandes des clients – Palabre</title>
+  <script src="/js/app.js" defer></script>
+  <script src="/js/demandes.js" defer></script>
+</head>
+<body>
+  <div class="bande"></div>
+  <header class="conteneur entete">
+    <a class="marque" href="/"><img src="/icons/logo-256.png" alt="" width="36" height="36">Palabre</a>
+    <nav data-nav></nav>
+  </header>
+  <main class="conteneur page-fil">
+    <h1 class="titre-page">Demandes des clients</h1>
+
+    <div data-zone-client hidden>
+      <button class="bouton bouton-or bouton-plein" type="button" data-ouvrir-formulaire aria-expanded="false">Publier une demande</button>
+      <form class="bloc-formulaire formulaire-demande" data-publier novalidate hidden>
+        <h2>Nouvelle demande</h2>
+        <div class="champ">
+          <label for="titre">Titre</label>
+          <input id="titre" name="titre" maxlength="120" placeholder="Ex. Site pour mon restaurant">
+          <p class="erreur-champ" data-erreur="titre"></p>
+        </div>
+        <div class="champ">
+          <label for="categorie">Catégorie</label>
+          <select id="categorie" name="categorie"></select>
+          <p class="erreur-champ" data-erreur="categorie"></p>
+        </div>
+        <div class="champ">
+          <label for="description">Description</label>
+          <textarea id="description" name="description" rows="5" maxlength="3000" placeholder="Explique ce que tu veux : à quoi ça sert, pour qui, ce qui est important pour toi…"></textarea>
+          <p class="erreur-champ" data-erreur="description"></p>
+        </div>
+        <div class="champ">
+          <label for="budget">Budget en FCFA</label>
+          <input id="budget" name="budgetFcfa" inputmode="numeric" autocomplete="off" placeholder="Ex. 250 000">
+          <span class="aide">Laisse vide si tu préfères en discuter.</span>
+          <p class="erreur-champ" data-erreur="budgetFcfa"></p>
+        </div>
+        <div class="champ">
+          <label for="delai">Délai souhaité</label>
+          <input id="delai" name="delai" maxlength="60" placeholder="Ex. 3 semaines">
+          <p class="erreur-champ" data-erreur="delai"></p>
+        </div>
+        <p class="message" role="status" data-message></p>
+        <button class="bouton bouton-principal bouton-plein" type="submit">Publier la demande</button>
+      </form>
+    </div>
+
+    <div class="onglets" role="group" aria-label="Filtrer les demandes">
+      <button class="onglet" type="button" data-filtre="ouvertes" aria-pressed="true">Ouvertes</button>
+      <button class="onglet" type="button" data-filtre="miennes" aria-pressed="false" data-onglet-miennes>Mes demandes</button>
+    </div>
+    <div class="champ filtre-categorie">
+      <label class="visuellement-cache" for="filtre-categorie">Catégorie</label>
+      <select id="filtre-categorie" data-filtre-categorie>
+        <option value="">Toutes les catégories</option>
+      </select>
+    </div>
+
+    <div class="liste-publications" data-liste></div>
+    <p class="texte-discret etat-fil" role="status" data-etat>Chargement…</p>
+    <button class="bouton bouton-contour bouton-plein" type="button" data-charger-plus hidden>Voir plus de demandes</button>
+  </main>
+</body>
+</html>
