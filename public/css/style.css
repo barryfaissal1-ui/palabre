@@ -250,7 +250,7 @@ a { color: var(--lien); text-underline-offset: 3px; }
   z-index: -1;
   background: linear-gradient(180deg, rgba(8, 37, 19, 0.92) 0%, rgba(8, 37, 19, 0.90) 62%, rgba(8, 37, 19, 0) 100%);
 }
-/* Le grand carré du logo laisse la place à la photo : retiré sur téléphone, petit sur ordinateur */
+/* Avec une photo, le carré du logo est retiré (il se superposait à elle) ; il ne reste que quand il n'y a pas de photo */
 .heros:has(.fond-photos) .heros-arbre { display: none; }
 .heros:has(.fond-photos) .heros-interieur { padding-bottom: 200px; }
 @media (min-width: 800px) {
@@ -258,7 +258,6 @@ a { color: var(--lien); text-underline-offset: 3px; }
     background: linear-gradient(90deg, rgba(8, 37, 19, 0.92) 0%, rgba(8, 37, 19, 0.88) 45%, rgba(8, 37, 19, 0.5) 68%, rgba(8, 37, 19, 0) 100%);
   }
   .heros:has(.fond-photos) .heros-interieur { min-height: 520px; padding-bottom: 72px; }
-  .heros:has(.fond-photos) .heros-arbre { display: block; align-self: end; width: 112px; border-radius: 24px; }
 }
 .heros-interieur {
   display: grid;
@@ -1955,7 +1954,10 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
 .fond-photos picture.visible { opacity: 1; }
 .fond-photos img { width: 100%; height: 100%; object-fit: cover; }
 /* Panneau vert de la connexion : la photo est en vraies couleurs, sous un voile vert qui garde le texte lisible */
-.lame-fond .fond-photos::after { content: ""; position: absolute; inset: 0; background: rgba(15, 61, 34, 0.76); }
+.lame-fond .fond-photos::after { content: ""; position: absolute; inset: 0; background: rgba(15, 61, 34, 0.55); }
+/* Le voile est léger pour laisser voir la photo. Derrière le texte seulement, une ombre verte plus dense, aux bords
+   fondus, garde les lettres lisibles (contraste AA) sans assombrir le reste de la photo. */
+.lame-fond:has(.fond-photos) .lame-message { background: linear-gradient(100deg, rgba(8, 37, 19, 0.72) 0%, rgba(8, 37, 19, 0.62) 78%, rgba(8, 37, 19, 0) 100%); }
 .lame-message { position: absolute; top: 0; left: 0; right: 0; display: grid; align-content: center; gap: 6px; height: calc(var(--haut-lame) - 16px); padding: calc(16px + env(safe-area-inset-top, 0px)) 24px 0; pointer-events: auto; }
 .acces-carte[data-vue="connexion"] .lame-message[data-pour="inscription"],
 .acces-carte[data-vue="inscription"] .lame-message[data-pour="connexion"] { display: none; }
@@ -1983,6 +1985,7 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
   .acces-carte .lame-message, .acces-carte .lame-message[data-pour] { display: grid; top: 0; bottom: 0; height: auto; padding: 48px; gap: 10px; }
   .lame-message[data-pour="connexion"] { left: 60%; right: 0; }
   .lame-message[data-pour="inscription"] { left: 0; right: 60%; }
+  .lame-fond:has(.fond-photos) .lame-message { background: radial-gradient(ellipse 78% 34% at 46% 50%, rgba(8, 37, 19, 0.74) 0%, rgba(8, 37, 19, 0.66) 55%, rgba(8, 37, 19, 0) 100%); }
   .lame-marque { margin-bottom: 16px; }
   .lame-marque img { width: 44px; height: 44px; }
 }
