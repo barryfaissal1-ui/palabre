@@ -59,6 +59,8 @@
       zone.append(el('a', { classe: 'bouton bouton-principal', href: '/modifier-profil' }, [icone('modifier'), 'Modifier mon profil']));
     } else {
       zone.append(...boutonsAmitie(profil));
+      // « amitie » n'existe que pour un membre connecté : un visiteur ne voit pas ce bouton.
+      if (profil.amitie) zone.append(el('a', { classe: 'bouton bouton-contour', href: `/messages?avec=${encodeURIComponent(profil.identifiant)}` }, [icone('commentaire'), 'Message']));
       if (profil.whatsapp) {
         zone.append(el('a', {
           classe: `bouton ${profil.amitie === 'aucune' ? 'bouton-contour' : 'bouton-principal'}`,

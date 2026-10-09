@@ -8,6 +8,7 @@ const config = require('../config');
 const v = require('../utils/validation');
 const { envoyerEmail } = require('../utils/mailer');
 const { ouvrirSession, fermerSession } = require('../middleware/auth');
+const { compterNonLus } = require('./messages');
 
 const router = express.Router();
 const COUT_BCRYPT = 12;
@@ -123,7 +124,7 @@ router.get('/moi', async (req, res) => {
     [req.utilisateur.id],
   );
   res.json({
-    utilisateur: { ...profilPrive(req.utilisateur), demandesAmis: rows[0].demandes_amis, notifications: rows[0].notifications, nbProjetsVerifies: rows[0].nb_projets_verifies },
+    utilisateur: { ...profilPrive(req.utilisateur), demandesAmis: rows[0].demandes_amis, notifications: rows[0].notifications, nbProjetsVerifies: rows[0].nb_projets_verifies, messagesNonLus: await compterNonLus(req.utilisateur.id) },
   });
 });
 

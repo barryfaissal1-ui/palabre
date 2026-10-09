@@ -186,14 +186,16 @@
     }
     // La proposition choisie en premier.
     const triees = [...propositions].sort((a, b) => Number(b.statut === 'acceptee') - Number(a.statut === 'acceptee'));
-    section.append(el('div', { classe: 'liste-publications' }, triees.map((p) => carteProposition(p, demande.statut === 'ouverte' ? [
+    // « Écrire » : le client parle directement au dev (ou au chef de l'équipe), sans demande de message.
+    const ecrire = (p) => el('a', { classe: 'bouton bouton-contour', href: `/messages?avec=${encodeURIComponent(p.auteur.identifiant)}&demande=${demande.id}` }, [icone('commentaire'), 'Écrire']);
+    section.append(el('div', { classe: 'liste-publications' }, triees.map((p) => carteProposition(p, demande.statut !== 'ouverte' ? [ecrire(p)] : [ecrire(p),
       boutonAction('Choisir cette proposition', 'bouton-principal',
         () => api(`/demandes/${demande.id}/choisir`, { methode: 'POST', donnees: { propositionId: p.id } }),
         {
           confirmation: `Choisir la proposition ${p.equipe ? `de l'équipe ${deNom(p.auteur.nom)}` : deNom(p.auteur.nom)} ? Les autres propositions seront refusées.`,
-          succes: 'Proposition choisie. Contacte maintenant le développeur depuis son profil.',
+          succes: 'Proposition choisie. Écris maintenant au développeur avec le bouton « Écrire ».',
         }),
-    ] : []))));
+    ]))));
 
     const gestion = el('div', { classe: 'profil-actions gestion-demande' });
     if (demande.statut === 'ouverte') {
@@ -229,6 +231,10 @@
       boutons = [boutonAction('Retirer ma proposition', 'bouton-lien',
         () => api(`/demandes/${demande.id}/propositions/mienne`, { methode: 'DELETE', donnees: {} }),
         { confirmation: 'Retirer ta proposition ?', succes: 'Proposition retirée.' })];
+    }
+    // Le dev qui a proposé seul, ou le chef de l'équipe (une fois la proposition envoyée), peut écrire au client.
+    if (proposition.maPlace === 'solo' || (proposition.maPlace === 'chef' && proposition.statut !== 'brouillon')) {
+      boutons = [el('a', { classe: 'bouton bouton-contour', href: `/messages?avec=${encodeURIComponent(demande.client.identifiant)}&demande=${demande.id}` }, [icone('commentaire'), 'Écrire au client']), ...boutons];
     }
     const carte = carteProposition(proposition, boutons, { avecReponses: true });
     if (proposition.maPlace === 'invite') {

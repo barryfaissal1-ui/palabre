@@ -3,7 +3,7 @@
 (function () {
   const { api, el, avatar, utilisateurConnecte, dateRelative, carteProjet, etatVide, confirmer } = window.Palabre;
 
-  const NOMS_CIBLES = { publication: 'Publication', commentaire: 'Commentaire', profil: 'Profil', projet: 'Projet', demande: 'Demande' };
+  const NOMS_CIBLES = { publication: 'Publication', commentaire: 'Commentaire', profil: 'Profil', projet: 'Projet', demande: 'Demande', message: 'Message privé' };
 
   function message(texte, type) {
     const zone = document.querySelector('[data-message]');

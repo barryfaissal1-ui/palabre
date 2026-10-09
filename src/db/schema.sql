@@ -200,7 +200,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE TABLE IF NOT EXISTS signalements (
   id          SERIAL PRIMARY KEY,
   auteur_id   INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
-  cible_type  TEXT NOT NULL CHECK (cible_type IN ('publication', 'commentaire', 'profil', 'demande', 'projet')),
+  cible_type  TEXT NOT NULL CHECK (cible_type IN ('publication', 'commentaire', 'profil', 'demande', 'projet', 'message')),
   cible_id    INTEGER NOT NULL,
   motif       TEXT NOT NULL CHECK (char_length(motif) BETWEEN 3 AND 500),
   statut      TEXT NOT NULL DEFAULT 'ouvert' CHECK (statut IN ('ouvert', 'traite', 'rejete')),
@@ -220,7 +220,65 @@ CREATE TABLE IF NOT EXISTS fichiers (
   cree_le        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ============ Messagerie privée (Palabre Messages) ============
+-- Une conversation relie exactement deux membres. membre_a < membre_b : une seule ligne par paire, quel que soit
+-- celui qui a écrit le premier. statut 'demande' : premier message d'un inconnu, en attente d'être accepté.
+CREATE TABLE IF NOT EXISTS conversations (
+  id                 SERIAL PRIMARY KEY,
+  membre_a           INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  membre_b           INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  demande_id         INTEGER REFERENCES demandes(id) ON DELETE SET NULL, -- la demande dont on parle (client et dev)
+  statut             TEXT NOT NULL DEFAULT 'acceptee' CHECK (statut IN ('demande', 'acceptee')),
+  cree_par           INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  cree_le            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  dernier_message_le TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (membre_a < membre_b),
+  UNIQUE (membre_a, membre_b)
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+  id              SERIAL PRIMARY KEY,
+  conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  auteur_id       INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  texte           TEXT NOT NULL CHECK (char_length(texte) BETWEEN 1 AND 2000),
+  fichier_id      UUID REFERENCES fichiers(id) ON DELETE SET NULL, -- photo facultative
+  masque          BOOLEAN NOT NULL DEFAULT FALSE,                  -- masqué par un administrateur après un signalement
+  cree_le         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Jusqu'où chaque membre a lu : sert au compteur de non lus et à la mention « Vu ».
+CREATE TABLE IF NOT EXISTS conversation_lectures (
+  conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  membre_id       INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  dernier_lu_id   INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (conversation_id, membre_id)
+);
+
+-- Un membre en bloque un autre : celui-ci ne peut plus lui écrire ni voir leurs conversations.
+CREATE TABLE IF NOT EXISTS blocages (
+  bloqueur_id INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  bloque_id   INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  cree_le     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (bloqueur_id, bloque_id),
+  CHECK (bloqueur_id <> bloque_id)
+);
+
+-- Conversation cachée d'un seul côté : demande de message refusée, ou « Supprimer la conversation ».
+CREATE TABLE IF NOT EXISTS conversation_masquees (
+  conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  membre_id       INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  PRIMARY KEY (conversation_id, membre_id)
+);
+
+-- On peut maintenant signaler un message. La table signalements existait déjà : sa règle est remplacée
+-- (retirer puis remettre la contrainte peut être rejoué sans risque à chaque démarrage).
+ALTER TABLE signalements DROP CONSTRAINT IF EXISTS signalements_cible_type_check;
+ALTER TABLE signalements ADD CONSTRAINT signalements_cible_type_check
+  CHECK (cible_type IN ('publication', 'commentaire', 'profil', 'demande', 'projet', 'message'));
+
 -- ============ Index ============
+CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages (conversation_id, id);
+CREATE INDEX IF NOT EXISTS idx_conversations_membre_b ON conversations (membre_b);
 CREATE INDEX IF NOT EXISTS idx_publications_date ON publications (cree_le DESC);
 CREATE INDEX IF NOT EXISTS idx_commentaires_pub ON commentaires (publication_id);
 CREATE INDEX IF NOT EXISTS idx_demandes_statut ON demandes (statut, cree_le DESC);

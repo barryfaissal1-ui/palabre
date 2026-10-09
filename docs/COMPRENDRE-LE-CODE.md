@@ -295,6 +295,59 @@ Deux précautions de sécurité :
 
 Le bouton « Partager sur WhatsApp » prépare un message avec la fourchette et le lien du calculateur. La page a ses balises de partage, écrites par le serveur comme pour les profils.
 
+## Palabre Messages : la messagerie privée
+
+Les membres s'écrivent en privé (`/messages`). Code : `src/routes/messages.js`, `public/js/messages.js`, `tests/messages.test.js`.
+
+### Qui peut écrire à qui
+
+| Situation | Ce qui se passe |
+| --- | --- |
+| Deux amis | ils s'écrivent librement |
+| Un client et un dev qui lui a envoyé une proposition (seul, ou comme chef d'une équipe éclair) | ils s'écrivent librement ; la conversation rappelle en haut la demande concernée |
+| Deux membres sans lien | UN premier message : c'est une « demande de message », rangée à part chez le destinataire |
+
+Le destinataire d'une demande de message choisit : **Accepter** (la conversation devient normale), **Refuser** ou **Bloquer**. Tant que ce n'est pas accepté, l'expéditeur ne peut rien envoyer de plus.
+
+- **Un refus n'est jamais annoncé.** Refuser cache la conversation chez celui qui refuse (table `conversation_masquees`) et ne change rien d'autre : chez l'expéditeur, la demande reste « en attente », avec exactement le même message d'erreur qu'avant. Il ne peut pas savoir s'il a été refusé ou simplement pas encore lu.
+- **Lire une demande sans l'accepter ne se voit pas** : la mention « Vu » n'est pas envoyée.
+- **Bloquer** (table `blocages`) : le membre bloqué ne peut plus écrire et ne voit plus la conversation. On ne lui dit pas qu'il est bloqué : le serveur répond « Tu ne peux pas écrire à ce membre », ou 404.
+- Toutes ces règles sont décidées par **le serveur**, dans une seule fonction, `droitDEcrire()`. La page ne fait qu'afficher sa réponse.
+
+### Les tables
+
+| Table | Rôle |
+| --- | --- |
+| `conversations` | une ligne par paire de membres. `membre_a < membre_b` et `UNIQUE (membre_a, membre_b)` : il ne peut pas y avoir deux conversations entre les deux mêmes personnes, même si elles s'écrivent au même instant (`ON CONFLICT`) |
+| `messages` | le texte (1 à 2000 caractères) et une photo facultative, rangée dans `fichiers` comme les autres images |
+| `conversation_lectures` | pour chaque membre, le numéro du dernier message qu'il a lu |
+| `blocages` | qui a bloqué qui |
+| `conversation_masquees` | conversation cachée d'un seul côté (refus, ou « Supprimer la conversation ») ; elle réapparaît si un nouveau message arrive |
+
+**Non lus et « Vu » avec un seul nombre.** On ne note pas « lu » sur chaque message. On retient seulement, par membre, le numéro du dernier message lu. Les non lus sont les messages de l'autre dont le numéro est plus grand ; « Vu » s'affiche sous mon dernier message quand le « dernier lu » de l'autre l'a atteint. Une ligne à mettre à jour au lieu de cent.
+
+### Sécurité
+
+- **Un intrus reçoit 404**, pas 403 : `maConversation()` vérifie à chaque route que je fais partie de la conversation, et répond comme si elle n'existait pas. On ne peut donc même pas deviner quelles conversations existent en essayant des numéros.
+- Le texte d'un message est affiché avec `textContent` : une balise écrite dans un message reste du texte, et un lien n'est pas cliquable (pas d'hameçonnage par lien déguisé).
+- **Limites** : 30 messages par minute, et 10 premières prises de contact par jour avec des inconnus (contre le démarchage en masse). La seconde n'est appliquée qu'au moment d'ouvrir une conversation avec quelqu'un qu'on ne connaît pas.
+- **Signaler** : on signale le dernier message reçu. Dans `/admin`, l'administrateur ne voit que ce message, jamais le reste de la conversation ; il peut le masquer ou bloquer son auteur.
+- La cloche ne sonne que pour une nouvelle demande de message, pas pour chaque message.
+
+### Pas de WebSocket : pourquoi, et comment
+
+Un WebSocket garde une connexion ouverte en permanence : c'est coûteux en batterie et fragile sur un réseau mobile qui coupe souvent. Palabre fait plus simple : la page **redemande** au serveur « quoi de neuf depuis le message n° X ? » (`GET …/nouveaux?apres=X`).
+
+- toutes les **5 secondes**, seulement si une conversation est ouverte **et** que l'onglet est visible ;
+- toutes les **60 secondes** pour la pastille de l'en-tête, sur les autres pages ;
+- **rien du tout** quand l'onglet est en arrière-plan (`document.hidden`) ; au retour, on rattrape tout de suite.
+
+La réponse à « quoi de neuf ? » est presque toujours une liste vide de quelques octets. Les messages sont chargés par paquets de 30, comme le fil.
+
+### La page
+
+Une seule page pour la liste et la conversation (`/messages` et `/messages/12`) : on passe de l'une à l'autre sans rechargement (`history.pushState`). Sur ordinateur, la liste est à gauche et la conversation à droite. Sur téléphone, la conversation prend tout l'écran, le menu du bas disparaît, et sa hauteur suit la partie visible de l'écran (`visualViewport`) : quand le clavier s'ouvre, la zone d'écriture reste au-dessus.
+
 ## 12. Le système de design
 
 Un « système de design », c'est un petit nombre de règles visuelles appliquées partout, pour que le site ait l'air d'une seule et même application. Tout est écrit à la main : aucune bibliothèque d'interface, aucun framework, donc des pages qui restent légères en 3G (les icônes pèsent 8 Ko en tout, les illustrations 4 Ko).
@@ -478,6 +531,8 @@ Pour le calculateur (`tests/calculateur.test.js`) : cohérence de la grille (cha
 
 Pour la refonte « réseau social » (`tests/preuve-sociale.test.js`) : `nbProjetsVerifies` (un projet sans lien ou masqué ne compte pas), recherche par nom (2 lettres minimum, majuscules ignorées, jokers `%` et `_` neutralisés, jamais d'email dans la réponse), « Disponibles maintenant » (amis d'abord, ni soi-même, ni les occupés, ni les clients), fil d'un auteur, « Aimé par » (jamais soi-même, un ami avant un inconnu), les 2 derniers commentaires dans l'ordre, taille de l'image lue par le serveur, couverture (envoi, remplacement, retrait, faux fichier refusé), amis en commun, recherche sans accents (« faissal » trouve « Faïssal »), publication seule par son numéro, suggestions de devs (jamais un ami, jamais une demande en cours, compétences en commun d'abord, puis la même ville).
 
+Pour la messagerie (`tests/messages.test.js`) : amis qui s'écrivent (avec photo, une seule conversation par paire), messages par 30, demande de message d'un inconnu (un seul message, onglet à part, une seule notification, pas de « Vu » avant acceptation), refus invisible pour l'expéditeur, blocage et déblocage, client et dev après une proposition, intrus (404 partout, y compris pour signaler), compteur de non lus et « Vu », message signalé visible seul dans `/admin`, suppression d'un seul côté, et les deux limites d'envoi.
+
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
 
 ## 15. Questions probables du jury
@@ -501,6 +556,9 @@ Les fichiers de tests démarrent en même temps et chacun met la base à jour : 
 - **À quoi sert l'anneau autour des photos ?** C'est la preuve visible du travail : un segment par projet dont Palabre a vérifié le lien. On ne peut pas l'obtenir en le déclarant, seulement en mettant un projet en ligne.
 - **Le fil affiche les j'aime et les commentaires de 10 publications : combien de requêtes ?** Une seule. Les compteurs sont des sous-requêtes, le prénom de « Aimé par » et les 2 derniers commentaires viennent de deux `LEFT JOIN LATERAL`.
 - **Pourquoi le j'aime s'affiche-t-il avant la réponse du serveur ?** Pour que l'appli paraisse immédiate même en 3G. Le serveur reste le seul juge : s'il refuse, l'affichage revient en arrière.
+- **Pourquoi pas de WebSocket pour la messagerie ?** Une connexion ouverte en permanence coûte de la batterie et casse souvent sur un réseau mobile. La page redemande les nouveaux messages toutes les 5 secondes, seulement quand la conversation est à l'écran : la réponse fait quelques octets. C'est plus simple, plus robuste, et suffisant.
+- **Comment empêchez-vous qu'un membre soit harcelé en privé ?** Un inconnu ne peut envoyer qu'un seul message, qui attend dans un onglet à part. Le destinataire peut refuser sans que l'autre le sache, bloquer, ou signaler. Et on ne peut contacter que 10 inconnus par jour.
+- **Un membre peut-il lire la conversation de deux autres en changeant le numéro dans l'adresse ?** Non. Chaque route vérifie qu'il en fait partie et répond 404 sinon, comme si la conversation n'existait pas.
 - **Pourquoi le fil est-il chargé avec « avant tel numéro » plutôt qu'avec « page 2, page 3 » ?** Avec des numéros de page, une nouvelle publication décale tout et on revoit une publication déjà lue. Avec « avant le numéro X », la suite est toujours la bonne, et la base répond vite grâce à la clé primaire.
 - **Comment empêchez-vous le spam et le harcèlement ?** Limites d'envoi par membre, une seule demande d'ami possible (pas de relance après un refus), bouton « Signaler » partout, et possibilité pour un administrateur de masquer un contenu ou de bloquer un compte.
 

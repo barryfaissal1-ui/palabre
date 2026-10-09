@@ -16,6 +16,12 @@ const CIBLES = {
   commentaire: (cible) => ['SELECT id, auteur_id FROM commentaires WHERE id = $1', v.idPositif(cible)],
   demande: (cible) => ['SELECT id, client_id AS auteur_id FROM demandes WHERE id = $1', v.idPositif(cible)],
   projet: (cible) => ['SELECT id, dev_id AS auteur_id FROM projets WHERE id = $1', v.idPositif(cible)],
+  // Un message privé : on ne peut signaler que celui d'une conversation dont on fait partie ($2 est le membre connecté).
+  message: (cible, moi) => [
+    `SELECT m.id, m.auteur_id FROM messages m JOIN conversations c ON c.id = m.conversation_id
+      WHERE m.id = $1 AND $2 IN (c.membre_a, c.membre_b)`,
+    v.idPositif(cible), moi.id,
+  ],
   profil: (cible) => [
     'SELECT id, id AS auteur_id FROM utilisateurs WHERE identifiant = $1',
     typeof cible === 'string' ? cible.trim().toLowerCase() : null,
@@ -29,8 +35,8 @@ router.post('/', exigerConnexion, limiteSignalements, async (req, res) => {
   const cibleType = v.parmi(corps.cibleType, Object.keys(CIBLES), 'cibleType');
   const motif = v.texte(corps.motif, 'motif', { min: 3, max: 500 });
 
-  const [requete, valeur] = CIBLES[cibleType](corps.cible);
-  const { rows } = valeur === null ? { rows: [] } : await db.query(requete, [valeur]);
+  const [requete, valeur, ...autres] = CIBLES[cibleType](corps.cible, moi);
+  const { rows } = valeur === null ? { rows: [] } : await db.query(requete, [valeur, ...autres]);
   if (!rows[0]) return res.status(404).json({ erreur: 'Ce contenu n\'existe plus.' });
   if (rows[0].auteur_id === moi.id) {
     throw new v.ErreurValidation('Tu ne peux pas signaler ton propre contenu.', 'cible');

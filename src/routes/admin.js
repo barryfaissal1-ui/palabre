@@ -19,6 +19,8 @@ const CIBLES = {
   commentaire: { table: 'commentaires', auteur: 'auteur_id', texte: 'left(t.texte, 300)', masquable: true, lien: () => null },
   demande: { table: 'demandes', auteur: 'client_id', texte: 't.titre || \' — \' || left(t.description, 200)', masquable: true, lien: (c) => `/demande?id=${c.id}` },
   projet: { table: 'projets', auteur: 'dev_id', texte: 't.titre || COALESCE(\' — \' || left(t.description, 200), \'\')', masquable: true, lien: (c) => `/projets/${c.id}` },
+  // Message privé : l'administrateur ne voit que le message signalé, jamais le reste de la conversation.
+  message: { table: 'messages', auteur: 'auteur_id', texte: 'left(t.texte, 300)', masquable: true, lien: () => null },
   profil: { table: 'utilisateurs', auteur: 'id', texte: 'COALESCE(left(t.bio, 300), \'\')', masquable: false, lien: (c) => `/${c.identifiant}` },
 };
 

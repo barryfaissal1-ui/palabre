@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#171512">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Palabre">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="preload" href="/fonts/bricolage-grotesque-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="/js/theme.js"></script>
+  <link rel="stylesheet" href="/css/style.css">
+  <title>Messages – Palabre</title>
+  <script src="/js/app.js" defer></script>
+  <script src="/js/messages.js" defer></script>
+</head>
+<body>
+  <div class="bande"></div>
+  <header class="entete"><div class="conteneur entete-interieur">
+    <a class="marque" href="/"><img src="/icons/logo-256.png" alt="" width="32" height="32">Palabre</a>
+    <nav data-nav></nav>
+  </div></header>
+  <main class="conteneur page-fil page-large page-messages" data-messagerie>
+    <!-- La liste des conversations (à gauche sur ordinateur, seule à l'écran sur téléphone) -->
+    <section class="messages-liste" aria-labelledby="titre-messages">
+      <h1 class="titre-page" id="titre-messages">Messages</h1>
+      <div class="onglets" role="group" aria-label="Type de conversations">
+        <button class="onglet" type="button" data-onglet="principal" aria-pressed="true">Messages</button>
+        <button class="onglet" type="button" data-onglet="demandes" aria-pressed="false">Demandes <span class="compteur" data-nb-demandes hidden></span></button>
+      </div>
+      <div class="champ">
+        <label class="visuellement-cache" for="recherche-conversations">Chercher une conversation par nom</label>
+        <input id="recherche-conversations" type="search" placeholder="Chercher par nom" autocomplete="off" data-recherche>
+      </div>
+      <ul class="liste-conversations" data-conversations></ul>
+      <div role="status" data-etat-liste hidden></div>
+    </section>
+    <!-- La conversation ouverte, remplie par messages.js (plein écran sur téléphone) -->
+    <section class="messages-conversation" data-conversation aria-label="Conversation"></section>
+  </main>
+</body>
+</html>

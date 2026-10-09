@@ -1521,6 +1521,117 @@ input, select, textarea { background: var(--surface-2); border-radius: var(--ray
    Tout est coupé si la personne a demandé moins d'animations (règle ci-dessous). */
 
 /* ==========================================================================
+   Palabre Messages (public/messages.html, public/js/messages.js)
+   ========================================================================== */
+.page-messages { padding-bottom: 24px; }
+.messages-liste { display: grid; align-content: start; gap: 12px; }
+.messages-liste .onglets { margin: 0; }
+.messages-liste .onglet { display: inline-flex; align-items: center; gap: 8px; }
+.messages-liste .onglet .compteur { min-width: 20px; height: 20px; }
+.liste-conversations { display: grid; gap: 2px; margin: 0 -8px; padding: 0; list-style: none; }
+.conversation-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 68px;
+  padding: 10px 8px;
+  border-radius: var(--rayon-petit);
+  color: var(--encre);
+  text-decoration: none;
+}
+.conversation-item:hover { background: color-mix(in srgb, var(--encre) 5%, transparent); }
+.conversation-item[aria-current="true"] { background: color-mix(in srgb, var(--feuille-vive) 12%, transparent); }
+.conversation-texte { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.conversation-apercu { display: flex; align-items: center; gap: 4px; overflow: hidden; color: var(--gris); font-size: var(--t-13); white-space: nowrap; text-overflow: ellipsis; }
+.conversation-apercu .icone { width: 14px; height: 14px; }
+/* Conversation avec des messages non lus : l'aperçu passe en gras */
+.non-lue .conversation-apercu { color: var(--encre); font-weight: 700; }
+.conversation-cote { flex: none; display: grid; justify-items: end; gap: 4px; color: var(--gris); font-size: var(--t-13); }
+.etiquette-attente { padding: 2px 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--ligne); }
+
+/* La conversation. Sur téléphone, elle n'existe que lorsqu'elle est ouverte (classe posée sur <body> par messages.js) :
+   elle couvre alors tout l'écran, menu du bas compris, et sa hauteur suit la partie visible de l'écran
+   (--hauteur-visible, mise à jour quand le clavier s'ouvre) : la zone d'écriture reste toujours au-dessus du clavier. */
+.messages-conversation { display: none; }
+body.conversation-ouverte .messages-conversation {
+  position: fixed;
+  z-index: 25;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  height: var(--hauteur-visible, 100dvh);
+  background: var(--surface);
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.messages-conversation > .vide { margin: auto; }
+.messages-conversation > .squelette { margin: 16px; box-shadow: none; }
+
+.conversation-entete { flex: none; display: flex; align-items: center; gap: 8px; min-height: 60px; padding: 6px 8px 6px 4px; border-bottom: 1px solid var(--ligne); }
+.conversation-qui { flex: 1; display: grid; min-width: 0; }
+.conversation-qui p { margin: 0; overflow: hidden; font-size: var(--t-13); white-space: nowrap; text-overflow: ellipsis; }
+/* Client et dev : le rappel de la demande dont on parle */
+.bandeau-demande {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--ligne);
+  background: var(--surface-2);
+  color: var(--encre);
+  font-size: var(--t-13);
+  text-decoration: none;
+}
+.bandeau-demande .icone { width: 18px; height: 18px; color: var(--action); }
+.bandeau-demande span { min-width: 0; overflow-wrap: anywhere; }
+
+/* Les bulles : les miennes à droite, en vert ; celles de l'autre à gauche, en surface neutre */
+.fil-messages { flex: 1; display: flex; flex-direction: column; gap: 4px; min-height: 0; padding: 12px 12px 8px; overflow-y: auto; overscroll-behavior: contain; }
+.fil-messages:focus-visible { outline-offset: -3px; }
+.fil-messages > .vide { margin: auto; }
+.plus-anciens { align-self: center; margin-bottom: 8px; }
+.jour-messages { align-self: center; margin: 10px 0 6px; padding: 2px 12px; border-radius: 999px; background: var(--surface-2); color: var(--gris); font-size: var(--t-13); }
+.bulle {
+  display: grid;
+  gap: 2px;
+  max-width: min(78%, 520px);
+  padding: 8px 12px;
+  border-radius: 18px;
+}
+.bulle-texte { white-space: pre-wrap; overflow-wrap: anywhere; }
+.bulle-heure { justify-self: end; font-size: var(--t-13); opacity: 0.75; }
+.bulle img { max-width: min(240px, 100%); max-height: 300px; margin-bottom: 4px; border-radius: 12px; }
+.bulle a { justify-self: start; border-radius: 12px; }
+.bulle-moi { align-self: flex-end; border-bottom-right-radius: 5px; background: var(--action); color: var(--sur-action); }
+.bulle-autre { align-self: flex-start; border-bottom-left-radius: 5px; background: var(--surface-2); color: var(--encre); }
+.bulle-moi + .bulle-autre, .bulle-autre + .bulle-moi { margin-top: 8px; }
+.mention-vu { align-self: flex-end; margin: 0 4px 0 0; color: var(--gris); font-size: var(--t-13); }
+
+/* La zone d'écriture, collée en bas */
+.zone-ecriture { flex: none; display: grid; gap: 6px; padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--ligne); background: var(--surface); }
+.ligne-ecriture { display: flex; align-items: flex-end; gap: 6px; }
+.ligne-ecriture textarea { flex: 1; min-width: 0; min-height: 44px; max-height: 132px; padding: 10px 14px; border-color: transparent; border-radius: 22px; resize: none; }
+.ligne-ecriture .bouton-icone { color: var(--action); cursor: pointer; }
+.ligne-ecriture .bouton-icone:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
+.bouton-envoyer { flex: none; width: 44px; padding: 0; }
+.apercu-photo { display: flex; align-items: center; gap: 12px; padding: 0 8px; }
+.apercu-photo img { max-height: 72px; border-radius: var(--rayon-petit); }
+.avertissement-message { margin: 0; padding: 0 8px; font-size: var(--t-13); }
+.zone-ecriture .erreur-champ { padding: 0 8px; }
+/* À la place de la zone d'écriture : répondre à une demande de message, ou l'explication quand on ne peut pas écrire */
+.zone-demande { flex: none; display: grid; gap: 10px; margin: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--ligne); background: var(--surface-2); }
+.zone-demande p { margin: 0; }
+
+@media (max-width: 767px) {
+  /* Conversation ouverte : le menu du bas disparaît, la liste aussi */
+  body.conversation-ouverte .nav-liens { display: none; }
+  body.conversation-ouverte { overflow: hidden; }
+}
+
+/* ==========================================================================
    Version ordinateur et tablette (768 px et plus)
    Le téléphone ne change pas : tout ce bloc est dans des @media (min-width: 768px).
    ========================================================================== */
@@ -1658,6 +1769,29 @@ input, select, textarea { background: var(--surface-2); border-radius: var(--ray
   .encadre-client { display: flex; align-items: center; gap: 10px; padding-top: 14px; border-top: 1px solid var(--ligne); }
   .encadre-client p { margin: 0; font-size: var(--t-13); }
   .demande-colonnes .faits { display: none; } /* déjà dans l'encadré */
+
+  /* ---------- Messages : la liste à gauche, la conversation ouverte à droite ---------- */
+  body.avec-barre > main.page-messages {
+    display: grid;
+    grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+    gap: 16px;
+    align-items: stretch;
+    height: calc(100vh - var(--haut-colle));
+    padding-bottom: 16px;
+  }
+  .messages-liste, .messages-conversation, body.conversation-ouverte .messages-conversation {
+    position: static;
+    min-height: 0;
+    height: auto;
+    padding: 16px;
+    border-radius: var(--rayon);
+    background: var(--surface);
+    box-shadow: var(--ombre-1);
+  }
+  .messages-liste { overflow-y: auto; scrollbar-width: thin; }
+  .messages-conversation, body.conversation-ouverte .messages-conversation { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+  .bouton-retour { display: none; } /* la liste est toujours à côté */
+  .conversation-entete { padding-left: 16px; }
 
   /* ---------- Profil : couverture large, actions à droite du nom, puis 2 colonnes ---------- */
   body.avec-barre > main.page-profil.page-large, main.page-profil.page-large {

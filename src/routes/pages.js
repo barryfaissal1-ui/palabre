@@ -144,6 +144,12 @@ router.get(['/connexion', '/inscription'], (req, res) => {
   res.type('html').send(html);
 });
 
+// Une conversation : /messages/12 affiche la même page que /messages, qui lit le numéro dans l'adresse.
+router.get('/messages/:id', (req, res, next) => {
+  if (!/^\d+$/.test(req.params.id)) return next();
+  res.type('html').send(lireModele('messages.html'));
+});
+
 // Page d'un projet : /projets/12
 router.get('/projets/:id', async (req, res, next) => {
   const id = v.idPositif(req.params.id);

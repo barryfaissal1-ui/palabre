@@ -36,7 +36,8 @@ Pour se connecter : ouvrir `/connexion`, saisir l'email d'un compte ci-dessous e
 - 15 membres, 17 amitiés ;
 - 16 publications (idées, questions, projets) avec leurs j'aime et leurs commentaires, étalées sur une semaine ;
 - des projets pour 10 développeurs, avec des anneaux de preuve de 1 à 11 segments ;
-- 6 demandes de clients : 2 terminées avec avis, 1 attribuée à une équipe éclair, 3 ouvertes.
+- 6 demandes de clients : 2 terminées avec avis, 1 attribuée à une équipe éclair, 3 ouvertes ;
+- 4 conversations privées : Awa et Bintou (amies), Salimata et Bintou (cliente et développeuse, à propos de la boutique), Esther et Fatoumata (cliente et cheffe d'équipe), et une **demande de message en attente** d'Idrissa chez Fatoumata (onglet « Demandes » de `fatou@demo.palabre.dev`).
 
 ## À savoir
 

@@ -32,6 +32,7 @@ function creerApp() {
   // toutes les autres requêtes restent limitées à 200 Ko.
   app.use('/api/profils/moi/avatar', express.json({ limit: '750kb' }));
   app.use('/api/profils/moi/couverture', express.json({ limit: '750kb' }));
+  app.use('/api/messages', express.json({ limit: '750kb' })); // un message peut porter une photo
   app.post('/api/publications', express.json({ limit: '750kb' }));
   app.post('/api/projets', express.json({ limit: '750kb' }));
   app.use(express.json({ limit: '200kb' }));
@@ -57,6 +58,7 @@ function creerApp() {
   app.use('/api/projets', require('./routes/projets'));
   app.use('/api/avis', require('./routes/avis'));
   app.use('/api/devs', require('./routes/devs'));
+  app.use('/api/messages', require('./routes/messages'));
   app.use('/api/admin', require('./routes/admin'));
   app.use('/api', require('./routes/references'));
 

@@ -130,7 +130,7 @@ function idPositif(valeur) {
 const IDENTIFIANTS_RESERVES = new Set([
   'a-propos', 'admin', 'aide', 'amis', 'api', 'calculateur', 'chercher', 'conditions', 'confidentialite', 'connexion',
   'css', 'defis', 'demande', 'demandes', 'equipes', 'fichiers', 'fil', 'fonts', 'icons', 'img', 'index', 'inscription',
-  'js', 'manifest', 'modifier-profil', 'moi', 'mot-de-passe-oublie', 'notifications', 'palabre', 'parametres',
+  'js', 'manifest', 'messages', 'modifier-profil', 'moi', 'mot-de-passe-oublie', 'notifications', 'palabre', 'parametres',
   'profil', 'projet', 'projets', 'reinitialiser', 'sw', 'vitrine',
 ]);
 

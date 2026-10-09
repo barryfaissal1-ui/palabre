@@ -537,7 +537,7 @@
   function colonneGauche(moi) {
     const demandes = moi.demandesAmis || 0;
     const nonLues = moi.notifications || 0;
-    const ici = (href) => (window.location.pathname === href ? 'page' : null);
+    const ici = (href) => (window.location.pathname === href || (href === '/messages' && window.location.pathname.startsWith('/messages/')) ? 'page' : null);
     const compteur = (nombre, classe) => (nombre ? el('span', { classe: `compteur ${classe}`, texte: nombre > 99 ? '99+' : String(nombre) }) : null);
     const lien = (href, nomIcone, texte, pastille = null) => el('li', {}, [
       el('a', { classe: 'lien-menu', href, 'aria-current': ici(href) }, [icone(nomIcone), el('span', { texte }), pastille]),
@@ -553,6 +553,7 @@
         lien('/demandes', 'demandes', 'Demandes'),
         lien('/chercher', 'devs', 'Devs'),
         lien('/amis', 'amis', 'Amis', compteur(demandes, 'compteur-amis')),
+        lien('/messages', 'commentaire', 'Messages', el('span', { classe: 'compteur compteur-messages', hidden: true })),
         lien('/notifications', 'cloche', 'Notifications', compteur(nonLues, 'compteur-notifications')),
         estDev ? lien('/projets', 'projet', 'Mes projets') : null,
         lien('/calculateur', 'calculatrice', 'Calculateur'),
@@ -668,6 +669,39 @@
     return bouton;
   }
 
+  // ---------- Messages : l'icône de l'en-tête et sa pastille de non lus ----------
+  function lienMessages(nonLus) {
+    return el('a', { classe: 'nav-cloche nav-messages', href: '/messages', 'aria-label': 'Messages', title: 'Messages' }, [
+      icone('commentaire'),
+      el('span', { classe: 'compteur compteur-cloche compteur-messages', 'aria-hidden': 'true', hidden: nonLus === 0, texte: nonLus > 99 ? '99+' : String(nonLus) }),
+    ]);
+  }
+  // Met à jour toutes les pastilles de messages (en-tête, menu de gauche). Appelée aussi par la page des messages.
+  function majPastilleMessages(nonLus) {
+    document.querySelectorAll('.compteur-messages').forEach((pastille) => {
+      pastille.textContent = nonLus > 99 ? '99+' : String(nonLus);
+      pastille.hidden = nonLus === 0;
+    });
+    const lien = document.querySelector('.nav-messages');
+    if (lien) lien.setAttribute('aria-label', nonLus ? `Messages : ${nonLus} non lu${nonLus > 1 ? 's' : ''}` : 'Messages');
+  }
+  // Pas de WebSocket : la pastille est redemandée toutes les 60 secondes, seulement quand l'onglet est visible.
+  // Onglet caché : plus aucune requête ; de retour au premier plan, on rattrape tout de suite.
+  function surveillerMessages() {
+    let minuterie = 0;
+    const demander = () => api('/messages/non-lus').then(({ nonLus }) => majPastilleMessages(nonLus)).catch(() => {});
+    const regler = () => {
+      clearInterval(minuterie);
+      if (document.hidden) return;
+      minuterie = setInterval(demander, 60000);
+    };
+    document.addEventListener('visibilitychange', () => {
+      regler();
+      if (!document.hidden) demander();
+    });
+    regler();
+  }
+
   // Remplit la navigation de l'en-tête selon que la personne est connectée ou non.
   // En-tête : recherche, cloche, avatar. Sur téléphone, les onglets (et l'avatar) forment la barre du bas ;
   // sur ordinateur, ils sont dans la colonne de gauche.
@@ -706,6 +740,7 @@
         moi.estAdmin ? el('a', { classe: 'nav-cloche nav-admin', href: '/admin', 'aria-label': 'Administration', title: 'Administration' }, [icone('admin')]) : null,
         loupe,
         boutonTheme(),
+        lienMessages(moi.messagesNonLus || 0),
         el('a', {
           classe: 'nav-cloche', href: '/notifications',
           'aria-label': nonLues ? `Notifications : ${nonLues} non lue${nonLues > 1 ? 's' : ''}` : 'Notifications',
@@ -716,6 +751,8 @@
         el('a', { classe: 'nav-profil', href: monProfil, 'aria-label': 'Mon profil' }, [avatar(moi, 'mini')]),
       ].filter(Boolean));
       poserColonnes(moi);
+      majPastilleMessages(moi.messagesNonLus || 0);
+      surveillerMessages();
     } else {
       nav.append(...[barreRecherche(), loupe, boutonTheme(), el('a', { classe: 'bouton bouton-principal bouton-compact', href: '/connexion', texte: 'Se connecter' })].filter(Boolean));
     }
@@ -729,5 +766,5 @@
 
   document.addEventListener('DOMContentLoaded', remplirNavigation);
 
-  window.Palabre = { api, utilisateurConnecte, el, avatar, nomMembre, badgeFeuille, prenom, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, copierLien, menuOptions, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
+  window.Palabre = { api, utilisateurConnecte, el, avatar, nomMembre, badgeFeuille, prenom, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, copierLien, menuOptions, majPastilleMessages, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
 })();

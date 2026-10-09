@@ -1,6 +1,7 @@
 // Peuple le site avec un contenu de démonstration : membres, amis, publications, j'aime, commentaires,
 // projets, demandes, propositions, équipe éclair, avis.
 //   npm run demo             crée le contenu ; ne fait RIEN si les comptes de démonstration existent déjà
+//                            (il leur ajoute seulement les conversations privées, si elles manquent)
 //   npm run demo -- retirer  retire les comptes de démonstration et tout leur contenu
 //
 // Tous les comptes de démonstration ont un email en …@demo.palabre.dev : c'est ce qui permet de les reconnaître
@@ -309,6 +310,97 @@ async function creer() {
   }
 }
 
+// ---------- Conversations privées de démonstration ----------
+// Écrites à part, pour pouvoir être ajoutées à des comptes de démonstration créés avant la messagerie.
+// Ne fait rien s'il existe déjà une conversation entre deux comptes de démonstration (pas de doublons).
+const CONVERSATIONS = [
+  // Deux amies qui préparent l'atelier Git. Le dernier message de Bintou reste à lire pour Awa.
+  { entre: ['awa', 'bintou'], messages: [
+    ['awa', 'Salut Bintou ! Tu es toujours partante pour l\'atelier Git du mois prochain ?'],
+    ['bintou', 'Oui, avec plaisir. Je prends la partie « travailler à plusieurs » : les branches, les conflits.'],
+    ['awa', 'Parfait. Idrissa amène sa promo, on sera une vingtaine.'],
+    ['bintou', 'Il nous faudra une salle avec du courant pour tout le monde. Le centre culturel ?'],
+    ['awa', 'Je les appelle demain matin.'],
+    ['bintou', 'Super. Je prépare un petit exercice sur un faux projet, je te l\'envoie ce week-end.'],
+  ] },
+  // Cliente et développeuse, à propos d'une demande : pas besoin d'être amies, la proposition suffit.
+  { entre: ['salimata', 'bintou'], demande: 'Boutique en ligne pour mes pagnes', messages: [
+    ['salimata', 'Bonjour Bintou, merci pour votre proposition. Est-ce que mes clientes pourront payer par Orange Money ?'],
+    ['bintou', 'Bonjour Salimata. Oui, Orange Money et Moov Money. Le paiement arrive directement sur votre compte marchand.'],
+    ['salimata', 'Très bien. Et pour ajouter mes nouveaux pagnes, je pourrai le faire moi-même ?'],
+    ['bintou', 'Oui : une photo, un prix, un bouton. Je vous montre en une heure à la livraison.'],
+    ['salimata', 'Parfait, on y va. Merci encore, les trois premières commandes sont arrivées dès le premier jour !'],
+  ] },
+  // Cliente et cheffe d'une équipe éclair.
+  { entre: ['esther', 'fatou'], demande: 'Application de livraison pour mes maquis', messages: [
+    ['esther', 'Bonjour Fatoumata, j\'ai choisi votre équipe. Quand pouvez-vous commencer ?'],
+    ['fatou', 'Bonjour Esther, merci pour votre confiance. Lundi, avec Yao pour la partie mobile.'],
+    ['fatou', 'Pouvez-vous m\'envoyer la carte de vos deux maquis et les zones de livraison ?'],
+    ['esther', 'Je vous envoie tout ça ce soir.'],
+  ] },
+  // Une demande de message en attente : Idrissa et Fatoumata ne sont pas amis.
+  { entre: ['idrissa', 'fatou'], messages: [
+    ['idrissa', 'Bonjour Fatoumata, je suis étudiant à Bobo et j\'admire votre travail. Accepteriez-vous de jeter un œil à mon premier site ?'],
+  ] },
+];
+
+async function creerConversations() {
+  const { rows: [deja] } = await pool.query(
+    `SELECT count(*)::int AS nb FROM conversations c
+       JOIN utilisateurs a ON a.id = c.membre_a JOIN utilisateurs b ON b.id = c.membre_b
+      WHERE a.email LIKE $1 AND b.email LIKE $1`,
+    [MOTIF_EMAIL],
+  );
+  if (deja.nb > 0) return 0;
+
+  const serveur = creerApp().listen(0);
+  const base = `http://localhost:${serveur.address().port}`;
+  const cookies = {};
+  const appel = async (chemin, qui, donnees) => {
+    const reponse = await fetch(`${base}/api${chemin}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(qui ? { Cookie: cookies[qui] } : {}) }, body: JSON.stringify(donnees) });
+    const corps = await reponse.json().catch(() => ({}));
+    if (!reponse.ok) throw new Error(`POST ${chemin} → ${reponse.status} ${corps.erreur || ''}`);
+    return { corps, entetes: reponse.headers };
+  };
+  try {
+    for (const cle of new Set(CONVERSATIONS.flatMap((c) => c.entre))) {
+      const connexion = await appel('/auth/connexion', null, { email: email(cle), motDePasse: MOT_DE_PASSE });
+      cookies[cle] = connexion.entetes.get('set-cookie').split(';')[0];
+    }
+    const { rows: comptes } = await pool.query('SELECT email, identifiant FROM utilisateurs WHERE email LIKE $1', [MOTIF_EMAIL]);
+    const identifiant = (cle) => comptes.find((c) => c.email === email(cle)).identifiant;
+
+    for (const [rang, conversation] of CONVERSATIONS.entries()) {
+      let demandeId;
+      if (conversation.demande) {
+        const { rows } = await pool.query(
+          'SELECT d.id FROM demandes d JOIN utilisateurs u ON u.id = d.client_id WHERE d.titre = $1 AND u.email LIKE $2 ORDER BY d.id DESC LIMIT 1',
+          [conversation.demande, MOTIF_EMAIL],
+        );
+        demandeId = rows[0] && rows[0].id;
+      }
+      let conversationId = null;
+      for (const [auteur, texte] of conversation.messages) {
+        const autre = conversation.entre.find((cle) => cle !== auteur);
+        const { corps } = await appel(`/messages/avec/${identifiant(autre)}`, auteur, { texte, ...(demandeId ? { demandeId } : {}) });
+        conversationId = corps.conversationId;
+      }
+      // Les messages sont étalés sur les deux derniers jours (sinon tout serait daté de la même seconde).
+      const fin = 40 + rang * 95; // minutes écoulées depuis le dernier message de cette conversation
+      await pool.query(
+        `UPDATE messages m SET cree_le = now() - make_interval(mins => ($2 + (t.total - t.position) * 37)::int)
+           FROM (SELECT id, row_number() OVER (ORDER BY id) AS position, count(*) OVER () AS total FROM messages WHERE conversation_id = $1) t
+          WHERE m.id = t.id`,
+        [conversationId, fin],
+      );
+      await pool.query('UPDATE conversations SET dernier_message_le = now() - make_interval(mins => $2) WHERE id = $1', [conversationId, fin]);
+    }
+    return CONVERSATIONS.length;
+  } finally {
+    serveur.close();
+  }
+}
+
 async function main() {
   // Garde-fou : jamais par accident sur le site en ligne (le mot de passe de ces comptes est écrit dans la documentation).
   if (config.production && !process.argv.includes('--forcer')) {
@@ -321,8 +413,10 @@ async function main() {
     return;
   }
   const bilan = await creer();
+  const conversations = await creerConversations();
+  if (conversations) console.log(`${conversations} conversations privées de démonstration ajoutées (dont une demande de message en attente).`);
   if (!bilan) {
-    console.log('Les comptes de démonstration existent déjà : rien n\'a été modifié.\nPour repartir de zéro : npm run demo -- retirer, puis npm run demo');
+    console.log(`Les comptes de démonstration existent déjà : ${conversations ? 'seules les conversations ont été ajoutées' : 'rien n\'a été modifié'}.\nPour repartir de zéro : npm run demo -- retirer, puis npm run demo`);
     return;
   }
   console.log(`Contenu de démonstration créé : ${bilan.membres} membres, ${bilan.publications} publications, des projets, 6 demandes, 2 avis.`);
