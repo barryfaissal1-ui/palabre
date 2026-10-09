@@ -80,20 +80,42 @@ router.get('/calculateur', (req, res) => {
   });
 });
 
-// Photos de fond (haut de l'accueil, panneau vert de la connexion) : les fichiers préparés par « npm run photos »
-// dans public/img/fond/. Chaque photo existe en deux formats : nom-1080.webp et nom-1080.jpg (secours).
+// Photos de fond (haut de l'accueil, panneau vert de la connexion) : les fichiers de public/img/fond/.
+// Chaque photo existe en deux formats (WebP, et JPEG en secours) et jusqu'à deux tailles :
+//   nom-1080.webp / nom-1080.jpg   → 1080 px de large (téléphones)
+//   nom-1920.webp / nom-1920.jpg   → 1920 px de large (grands écrans), facultative
 // Sans ce dossier, ou s'il est vide, les pages n'ont pas de photo : leur fond de couleur suffit.
 function photosDeFond() {
   try {
-    const dossier = path.join(DOSSIER_PUBLIC, 'img', 'fond');
-    const fichiers = new Set(fs.readdirSync(dossier));
+    const fichiers = new Set(fs.readdirSync(path.join(DOSSIER_PUBLIC, 'img', 'fond')));
+    const adresse = (nom) => `/img/fond/${nom}`;
     return [...fichiers]
-      .filter((nom) => /^[a-z0-9-]+-1080\.webp$/.test(nom) && fichiers.has(nom.replace(/\.webp$/, '.jpg'))) // noms simples, écrits tels quels dans la page
+      .map((nom) => /^([a-z0-9-]+)-1080\.webp$/.exec(nom)) // noms simples : ils sont écrits tels quels dans la page
+      .filter((trouve) => trouve && fichiers.has(`${trouve[1]}-1080.jpg`))
+      .map((trouve) => trouve[1])
       .sort()
-      .map((nom) => ({ webp: `/img/fond/${nom}`, jpg: `/img/fond/${nom.replace(/\.webp$/, '.jpg')}` }));
+      .map((nom) => {
+        // Les deux tailles d'une même photo sont regroupées dans un « srcset » : le navigateur choisit selon l'écran.
+        const tailles = (format) => [1080, 1920]
+          .filter((largeur) => fichiers.has(`${nom}-${largeur}.${format}`))
+          .map((largeur) => `${adresse(`${nom}-${largeur}.${format}`)} ${largeur}w`)
+          .join(', ');
+        return { petiteWebp: adresse(`${nom}-1080.webp`), webp: tailles('webp'), petiteJpg: adresse(`${nom}-1080.jpg`), jpg: tailles('jpg') };
+      });
   } catch {
     return [];
   }
+}
+
+// La balise <picture> d'une photo. Le navigateur lit les <source> dans l'ordre et prend la première qui convient :
+//  1. sur téléphone (moins de 768 px), toujours la petite : même un écran très dense ne télécharge pas la grande en 3G ;
+//  2. sinon, le WebP à la taille de l'écran (srcset + sizes="100vw" : la photo occupe toute la largeur) ;
+//  3. sinon, le JPEG de secours, lui aussi dans les deux tailles.
+// public/js/fonds.js fabrique la même balise pour les photos suivantes.
+function balisePhoto(photo, attributs = '') {
+  return `<picture${attributs}><source media="(max-width: 767px)" type="image/webp" srcset="${photo.petiteWebp}">`
+    + `<source type="image/webp" srcset="${photo.webp}" sizes="100vw">`
+    + `<img src="${photo.petiteJpg}" srcset="${photo.jpg}" sizes="100vw" alt="" decoding="async"`;
 }
 
 // Le HTML du fond : UNE seule photo dans la page (celle de « rang », pour varier d'une page à l'autre).
@@ -105,8 +127,7 @@ function baliseFond(rang, { differe = false } = {}) {
   const depart = rang % photos.length;
   const [premiere, ...suivantes] = [...photos.slice(depart), ...photos.slice(0, depart)];
   return `<div class="fond-photos" data-fond data-suivantes="${echapper(JSON.stringify(suivantes))}">`
-    + `<picture class="visible"><source type="image/webp" srcset="${premiere.webp}">`
-    + `<img src="${premiere.jpg}" alt="" decoding="async"${differe ? ' loading="lazy"' : ''}></picture></div>`;
+    + `${balisePhoto(premiere, ' class="visible"')}${differe ? ' loading="lazy"' : ''}></picture></div>`;
 }
 
 // Connexion et inscription : une seule page (connexion.html) qui contient les deux formulaires.

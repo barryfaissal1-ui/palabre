@@ -42,7 +42,8 @@ async function main() {
     console.log('Le dossier public/img/fond/ n\'existe pas. Crée-le et poses-y tes photos, puis relance : npm run photos');
     return;
   }
-  const sources = fs.readdirSync(DOSSIER).filter((nom) => /\.(jpe?g|png)$/i.test(nom) && !path.parse(nom).name.endsWith(SUFFIXE));
+  // Les fichiers déjà prêts (nom-1080, nom-1920) ne sont jamais retraités : seules les nouvelles photos d'origine le sont.
+  const sources = fs.readdirSync(DOSSIER).filter((nom) => /\.(jpe?g|png)$/i.test(nom) && !/-(1080|1920)$/.test(path.parse(nom).name));
   if (sources.length === 0) {
     console.log('Aucune nouvelle photo à préparer dans public/img/fond/ (JPEG ou PNG).');
     return;

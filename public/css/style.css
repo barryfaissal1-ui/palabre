@@ -235,10 +235,29 @@ a { color: var(--lien); text-underline-offset: 3px; }
   color: #fff;
   overflow: hidden;
 }
-/* Haut de l'accueil : la photo reste discrète derrière le texte, sous un voile sombre plus dense à gauche */
+/* Haut de l'accueil avec une photo : elle est en vraies couleurs, à pleine opacité, et devient le visuel principal.
+   Par-dessus, un dégradé vert très foncé garde le titre parfaitement lisible :
+   - sur ordinateur, dense à gauche (sous le texte) et transparent à droite, où la photo se montre ;
+   - sur téléphone, le texte prend toute la largeur : le dégradé est dense en haut et s'ouvre en bas. */
 .heros { position: relative; isolation: isolate; }
-.heros .fond-photos { z-index: -1; opacity: 0.42; mix-blend-mode: luminosity; }
-.heros::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgba(23, 21, 18, 0.72), rgba(23, 21, 18, 0.25)); }
+.heros .fond-photos { z-index: -2; }
+.heros:has(.fond-photos)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(8, 37, 19, 0.92) 0%, rgba(8, 37, 19, 0.90) 62%, rgba(8, 37, 19, 0) 100%);
+}
+/* Le grand carré du logo laisse la place à la photo : retiré sur téléphone, petit sur ordinateur */
+.heros:has(.fond-photos) .heros-arbre { display: none; }
+.heros:has(.fond-photos) .heros-interieur { padding-bottom: 200px; }
+@media (min-width: 800px) {
+  .heros:has(.fond-photos)::after {
+    background: linear-gradient(90deg, rgba(8, 37, 19, 0.92) 0%, rgba(8, 37, 19, 0.88) 45%, rgba(8, 37, 19, 0.5) 68%, rgba(8, 37, 19, 0) 100%);
+  }
+  .heros:has(.fond-photos) .heros-interieur { min-height: 520px; padding-bottom: 72px; }
+  .heros:has(.fond-photos) .heros-arbre { display: block; align-self: end; width: 112px; border-radius: 24px; }
+}
 .heros-interieur {
   display: grid;
   gap: 28px;
@@ -1590,16 +1609,15 @@ input, select, textarea { background: var(--surface-2); border-radius: var(--ray
 .fond-photos picture { position: absolute; inset: 0; opacity: 0; transition: opacity 2.5s ease; }
 .fond-photos picture.visible { opacity: 1; }
 .fond-photos img { width: 100%; height: 100%; object-fit: cover; }
-/* « luminosity » ne garde de la photo que ses clairs et ses sombres : elle prend la couleur du fond.
-   Sur le vert du panneau, cela donne une image en deux tons (duotone vert). */
-.lame-fond .fond-photos { opacity: 0.26; mix-blend-mode: luminosity; }
+/* Panneau vert de la connexion : la photo est en vraies couleurs, sous un voile vert qui garde le texte lisible */
+.lame-fond .fond-photos::after { content: ""; position: absolute; inset: 0; background: rgba(15, 61, 34, 0.76); }
 .lame-message { position: absolute; top: 0; left: 0; right: 0; display: grid; align-content: center; gap: 6px; height: calc(var(--haut-lame) - 16px); padding: calc(16px + env(safe-area-inset-top, 0px)) 24px 0; pointer-events: auto; }
 .acces-carte[data-vue="connexion"] .lame-message[data-pour="inscription"],
 .acces-carte[data-vue="inscription"] .lame-message[data-pour="connexion"] { display: none; }
 .lame-marque { justify-self: start; display: inline-flex; align-items: center; gap: 10px; min-height: 44px; margin-bottom: 4px; color: inherit; font: 800 var(--t-20)/1 var(--titre); text-decoration: none; }
 .lame-marque img { width: 36px; height: 36px; border-radius: 10px; }
 .lame-accroche { margin: 0; font: 800 var(--t-24)/1.15 var(--titre); }
-.lame-texte { margin: 0; max-width: 34ch; color: #CFE3D3; }
+.lame-texte { margin: 0; max-width: 34ch; color: #E6F0E8; }
 
 /* Ordinateur et tablette : une grande carte centrée, coupée en deux par une diagonale.
    Connexion : formulaire à gauche, lame à droite. Inscription : l'inverse. */

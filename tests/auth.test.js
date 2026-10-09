@@ -80,6 +80,11 @@ test('connexion et inscription : une seule page, le serveur choisit le formulair
     assert.doesNotMatch(page, /photo-panneau/); // le repère de la photo est toujours remplacé
     // Au plus UNE photo dans la page : les autres ne sont que listées, pour être chargées plus tard.
     assert.ok((page.match(/<picture/g) || []).length <= 1);
+    // Si une photo est là : les deux tailles sont proposées, et la petite est imposée aux téléphones.
+    if (page.includes('<picture')) {
+      assert.match(page, /<source media="\(max-width: 767px\)" type="image\/webp" srcset="\/img\/fond\/[a-z0-9-]+-1080\.webp">/);
+      assert.match(page, /sizes="100vw"/);
+    }
   }
   assert.match(pageConnexion, /data-vue="connexion"/);
   assert.match(pageConnexion, /<title>Se connecter/);

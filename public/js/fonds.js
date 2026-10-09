@@ -16,21 +16,26 @@
     return performance.now() > 4000;
   }
 
+  // La même balise <picture> que celle écrite par le serveur (balisePhoto dans src/routes/pages.js) :
+  // la petite taille sur téléphone, sinon le WebP à la taille de l'écran, sinon le JPEG de secours.
   function creerPhoto(photo) {
+    const source = (attributs) => Object.assign(document.createElement('source'), attributs);
     const image = document.createElement('img');
     image.alt = ''; // décorative : rien à lire pour un lecteur d'écran
     image.decoding = 'async';
-    const webp = document.createElement('source');
-    webp.type = 'image/webp';
-    webp.srcset = photo.webp;
+    image.sizes = '100vw';
     const cadre = document.createElement('picture');
-    cadre.append(webp, image);
-    // Le navigateur choisit le WebP s'il le lit, sinon le JPEG de secours.
+    cadre.append(
+      source({ media: '(max-width: 767px)', type: 'image/webp', srcset: photo.petiteWebp }),
+      source({ type: 'image/webp', srcset: photo.webp, sizes: '100vw' }),
+      image,
+    );
     const prete = new Promise((resolve, reject) => {
       image.addEventListener('load', resolve, { once: true });
       image.addEventListener('error', reject, { once: true });
     });
-    image.src = photo.jpg;
+    image.srcset = photo.jpg;
+    image.src = photo.petiteJpg;
     return { cadre, prete };
   }
 
