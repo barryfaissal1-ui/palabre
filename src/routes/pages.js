@@ -37,7 +37,7 @@ function lireModele(fichier) {
 }
 
 // Remplace le <title> de la page par un titre et des balises de partage propres à ce contenu.
-function rendrePage(res, fichier, { titre, description, chemin, image, type = 'website', statut = 200 }) {
+function rendrePage(res, fichier, { titre, description, chemin, image, type = 'website', statut = 200, fond = false }) {
   const url = `${config.urlPublique}${chemin}`;
   const balises = [
     `<title>${echapper(titre)}</title>`,
@@ -56,7 +56,8 @@ function rendrePage(res, fichier, { titre, description, chemin, image, type = 'w
     '<meta name="twitter:card" content="summary_large_image">',
   ].join('\n  ');
   // La fonction en second argument évite que « $ » dans un titre soit pris pour un code de remplacement.
-  const html = lireModele(fichier).replace(/<title>[^<]*<\/title>/, () => balises);
+  let html = lireModele(fichier).replace(/<title>[^<]*<\/title>/, () => balises);
+  if (fond) html = html.replace('<!-- photos-de-fond -->', () => baliseFond(0));
   res.status(statut).type('html').send(html);
 }
 
@@ -66,6 +67,7 @@ router.get('/', (req, res) => {
     titre: 'Palabre – le réseau des développeurs africains',
     description: 'Palabre réunit les développeurs africains : partage tes projets, forme des équipes éclair, et trouve des clients qui ont besoin de toi.',
     chemin: '/',
+    fond: true,
   });
 });
 
@@ -78,25 +80,41 @@ router.get('/calculateur', (req, res) => {
   });
 });
 
-// Photo du panneau vert des pages d'accès : la première image trouvée dans public/img/fond/, s'il y en a une.
-// Sans ce dossier (ou s'il est vide), la page n'a pas de photo : le dégradé vert suffit.
-function photoPanneau() {
+// Photos de fond (haut de l'accueil, panneau vert de la connexion) : les fichiers préparés par « npm run photos »
+// dans public/img/fond/. Chaque photo existe en deux formats : nom-1080.webp et nom-1080.jpg (secours).
+// Sans ce dossier, ou s'il est vide, les pages n'ont pas de photo : leur fond de couleur suffit.
+function photosDeFond() {
   try {
-    const image = fs.readdirSync(path.join(DOSSIER_PUBLIC, 'img', 'fond'))
-      .filter((nom) => /^[a-z0-9._-]+\.(jpe?g|png|webp)$/i.test(nom)) // un nom simple : il est écrit tel quel dans la page
-      .sort()[0];
-    // loading="lazy" : la photo est décorative, elle ne retarde jamais l'affichage du formulaire.
-    return image ? `<img class="lame-photo" src="/img/fond/${image}" alt="" loading="lazy" decoding="async">` : '';
+    const dossier = path.join(DOSSIER_PUBLIC, 'img', 'fond');
+    const fichiers = new Set(fs.readdirSync(dossier));
+    return [...fichiers]
+      .filter((nom) => /^[a-z0-9-]+-1080\.webp$/.test(nom) && fichiers.has(nom.replace(/\.webp$/, '.jpg'))) // noms simples, écrits tels quels dans la page
+      .sort()
+      .map((nom) => ({ webp: `/img/fond/${nom}`, jpg: `/img/fond/${nom.replace(/\.webp$/, '.jpg')}` }));
   } catch {
-    return '';
+    return [];
   }
+}
+
+// Le HTML du fond : UNE seule photo dans la page (celle de « rang », pour varier d'une page à l'autre).
+// Les suivantes sont seulement listées dans data-suivantes : public/js/fonds.js les demandera plus tard,
+// une par une, et jamais sur une connexion lente.
+function baliseFond(rang, { differe = false } = {}) {
+  const photos = photosDeFond();
+  if (photos.length === 0) return '';
+  const depart = rang % photos.length;
+  const [premiere, ...suivantes] = [...photos.slice(depart), ...photos.slice(0, depart)];
+  return `<div class="fond-photos" data-fond data-suivantes="${echapper(JSON.stringify(suivantes))}">`
+    + `<picture class="visible"><source type="image/webp" srcset="${premiere.webp}">`
+    + `<img src="${premiere.jpg}" alt="" decoding="async"${differe ? ' loading="lazy"' : ''}></picture></div>`;
 }
 
 // Connexion et inscription : une seule page (connexion.html) qui contient les deux formulaires.
 // Le serveur y écrit lequel montrer d'abord ; ensuite la page passe de l'un à l'autre sans recharger (public/js/acces.js).
 router.get(['/connexion', '/inscription'], (req, res) => {
   const inscription = req.path === '/inscription';
-  let html = lireModele('connexion.html').replace('<!-- photo-panneau -->', photoPanneau);
+  // loading="lazy" : la photo du panneau est décorative, elle ne retarde jamais l'affichage du formulaire.
+  let html = lireModele('connexion.html').replace('<!-- photo-panneau -->', () => baliseFond(1, { differe: true }));
   if (inscription) {
     html = html
       .replace('data-vue="connexion"', 'data-vue="inscription"')

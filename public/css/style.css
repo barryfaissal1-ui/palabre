@@ -235,6 +235,10 @@ a { color: var(--lien); text-underline-offset: 3px; }
   color: #fff;
   overflow: hidden;
 }
+/* Haut de l'accueil : la photo reste discrète derrière le texte, sous un voile sombre plus dense à gauche */
+.heros { position: relative; isolation: isolate; }
+.heros .fond-photos { z-index: -1; opacity: 0.42; mix-blend-mode: luminosity; }
+.heros::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgba(23, 21, 18, 0.72), rgba(23, 21, 18, 0.25)); }
 .heros-interieur {
   display: grid;
   gap: 28px;
@@ -1579,8 +1583,16 @@ input, select, textarea { background: var(--surface-2); border-radius: var(--ray
 .acces-carte.sans-transition .lame-couche { transition: none; }
 .acces-carte.lame-fixe .acces-lame { position: fixed; height: auto; bottom: 0; }
 
-/* Photo facultative (public/img/fond/) : fondue dans le vert, comme une image en deux tons */
-.lame-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.22; mix-blend-mode: luminosity; }
+/* ---------- Photos de fond (public/img/fond/, préparées par « npm run photos ») ---------- */
+/* Les photos sont empilées ; une seule a la classe .visible. Le fondu lent d'une photo à l'autre
+   est une simple transition d'opacité (public/js/fonds.js ne fait que déplacer la classe). */
+.fond-photos { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.fond-photos picture { position: absolute; inset: 0; opacity: 0; transition: opacity 2.5s ease; }
+.fond-photos picture.visible { opacity: 1; }
+.fond-photos img { width: 100%; height: 100%; object-fit: cover; }
+/* « luminosity » ne garde de la photo que ses clairs et ses sombres : elle prend la couleur du fond.
+   Sur le vert du panneau, cela donne une image en deux tons (duotone vert). */
+.lame-fond .fond-photos { opacity: 0.26; mix-blend-mode: luminosity; }
 .lame-message { position: absolute; top: 0; left: 0; right: 0; display: grid; align-content: center; gap: 6px; height: calc(var(--haut-lame) - 16px); padding: calc(16px + env(safe-area-inset-top, 0px)) 24px 0; pointer-events: auto; }
 .acces-carte[data-vue="connexion"] .lame-message[data-pour="inscription"],
 .acces-carte[data-vue="inscription"] .lame-message[data-pour="connexion"] { display: none; }

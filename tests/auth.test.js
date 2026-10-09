@@ -78,6 +78,8 @@ test('connexion et inscription : une seule page, le serveur choisit le formulair
     assert.match(page, /data-formulaire="connexion"/);
     assert.match(page, /data-formulaire="inscription"/);
     assert.doesNotMatch(page, /photo-panneau/); // le repère de la photo est toujours remplacé
+    // Au plus UNE photo dans la page : les autres ne sont que listées, pour être chargées plus tard.
+    assert.ok((page.match(/<picture/g) || []).length <= 1);
   }
   assert.match(pageConnexion, /data-vue="connexion"/);
   assert.match(pageConnexion, /<title>Se connecter/);

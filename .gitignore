@@ -147,3 +147,6 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Photos de fond d'origine (lourdes) : seules les versions optimisées de public/img/fond/ sont publiées
+photos-originales/

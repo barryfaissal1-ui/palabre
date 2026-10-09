@@ -400,8 +400,16 @@ Les règles de sécurité restent les mêmes : aucun style ni script en ligne (l
 - **Sur téléphone**, la lame est en haut (environ 34 % de l'écran) : elle descend, puis remonte avec l'autre message.
 - **Accessibilité** : le formulaire caché reçoit l'attribut `inert` (ni le clavier ni un lecteur d'écran ne peuvent y entrer) ; après le changement, le focus va au premier champ du nouveau formulaire ; si la personne a demandé moins d'animations, pas de balayage, un simple fondu.
 - **Les champs** sont soulignés ; le trait terre cuite qui se dessine de gauche à droite est une transformation (`scaleX`) déclenchée par `:focus-within`. Le bouton œil change le type du champ de `password` à `text`. L'indicateur de force n'est qu'un conseil : la règle des 8 caractères reste vérifiée par le serveur.
-- **La photo du panneau** est facultative : s'il y a une image dans `public/img/fond/`, le serveur l'ajoute à la page (chargée en différé, fondue dans le vert). Sinon, le dégradé suffit.
+- **La photo du panneau** est facultative : voir « Les photos de fond » ci-dessous. Sans photo, le dégradé suffit.
 - L'envoi des formulaires, les erreurs sous chaque champ et le paramètre `suite` n'ont pas changé : ils sont toujours dans `public/js/formulaires.js`.
+
+### Les photos de fond
+
+Le haut de l'accueil et le panneau vert de la connexion peuvent afficher des photos, avec un fondu lent de l'une à l'autre.
+
+- **Les préparer** : on pose les photos d'origine dans `public/img/fond/` et on lance `npm run photos` (`scripts/optimiser-photos.mjs`). Chaque photo est réduite à 1080 px au plus et enregistrée deux fois : en **WebP** de moins de 150 Ko (le script baisse la qualité par paliers jusqu'à passer sous ce poids) et en **JPEG de secours**. L'original, trop lourd, est rangé dans `photos-originales/`, hors du site et hors de git. L'outil utilisé (jSquash, licence Apache-2.0) n'est qu'une dépendance de développement : le serveur en ligne ne le charge pas.
+- **Les afficher** : la balise `<picture>` propose le WebP et le JPEG, le navigateur prend celui qu'il sait lire. Le « duotone vert » du panneau est une seule ligne de CSS, `mix-blend-mode: luminosity` : la photo ne garde que ses clairs et ses sombres, et prend la couleur du fond.
+- **Respecter la 3G** : le serveur n'écrit qu'**une** photo dans la page ; les autres sont seulement listées dans l'attribut `data-suivantes`. `public/js/fonds.js` attend que la page soit entièrement chargée, puis demande la photo suivante 8 secondes plus tard, une seule à la fois. Il ne demande **rien** si le navigateur annonce une connexion lente (`navigator.connection` : 2G, 3G, ou économie de données), si la page a mis plus de 4 secondes à charger, ou si la personne a demandé moins d'animations. Au deuxième tour, les photos sont déjà là : plus aucun téléchargement.
 
 ## 13. L'application installable (PWA)
 
