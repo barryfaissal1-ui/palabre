@@ -96,9 +96,27 @@ test('recherche par nom : au moins 2 lettres, devs et clients, sans email ni Wha
 });
 
 test('recherche par nom : % et _ sont cherchés tels quels, pas comme des jokers', async () => {
-  const r = await appel(`/api/devs?q=${encodeURIComponent(`%_${suffixe}`)}`);
+  const r = await appel(`/api/devs?q=${encodeURIComponent('%_%')}`);
   assert.equal(r.statut, 200);
   assert.equal(r.corps.devs.length, 0);
+});
+
+test('recherche par nom : les accents ne comptent pas', async () => {
+  // « Faïssal Zé… » a reçu à l'inscription l'identifiant « faissal-ze… » : c'est lui qu'on compare au texte tapé sans accent.
+  const email = `preuve-faissal-${suffixe}@palabre.test`;
+  const inscription = await appel('/api/auth/inscription', {
+    methode: 'POST',
+    donnees: { type: 'dev', nom: `Faïssal Zé${suffixe}`, email, motDePasse: 'motdepasse1', pays: 'Mali', ville: 'Bamako' },
+  });
+  assert.equal(inscription.statut, 201);
+  membres.faissal = { cookie: '', identifiant: inscription.corps.utilisateur.identifiant, email };
+
+  for (const q of [`faissal ze${suffixe}`, `FAISSAL ZE${suffixe}`, `ssal zé${suffixe}`, `Faïssal Zé${suffixe}`]) {
+    const r = await appel(`/api/devs?q=${encodeURIComponent(q)}`);
+    assert.deepEqual(r.corps.devs.map((d) => d.identifiant), [membres.faissal.identifiant], q);
+  }
+  const large = await appel('/api/devs?q=faissal');
+  assert.ok(large.corps.devs.some((d) => d.identifiant === membres.faissal.identifiant));
 });
 
 test('sans « q », la recherche ne montre toujours que des devs', async () => {
@@ -170,6 +188,14 @@ test('fil par auteur, aperçu des j\'aime et des 2 derniers commentaires', async
   const vueDao = (await appel(`/api/publications?auteur=${membres.bintou.identifiant}`, { qui: 'dao' })).corps.publications[1];
   assert.notEqual(vueDao.aimePar.identifiant, membres.dao.identifiant);
   assert.equal(vueDao.derniersCommentaires[1].estMoi, true);
+
+  // Une seule publication, par son numéro (le lien « Copier le lien »).
+  assert.equal((await appel(`/api/publications/${p1.id}`)).statut, 401);
+  const seule = await appel(`/api/publications/${p1.id}`, { qui: 'awa' });
+  assert.equal(seule.corps.publication.texte, 'Première de Bintou');
+  assert.equal(seule.corps.publication.derniersCommentaires.length, 2);
+  assert.equal((await appel('/api/publications/2147483000', { qui: 'awa' })).statut, 404);
+  assert.equal((await appel('/api/publications/abc', { qui: 'awa' })).statut, 404);
 
   const inconnu = await appel('/api/publications?auteur=personne-ici', { qui: 'awa' });
   assert.deepEqual(inconnu.corps.publications, []);

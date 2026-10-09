@@ -1,7 +1,12 @@
 // Une publication du fil : en-tête, texte, image, preuve sociale, j'aime, commentaires.
 // Partagé par le fil (/fil) et par l'onglet « Publications » d'un profil : le même code, le même rendu.
 (function () {
-  const { api, el, avatar, nomMembre, prenom, dateRelative, signaler, icone, chargement, toast, confirmer } = window.Palabre;
+  const { api, el, avatar, nomMembre, prenom, dateRelative, signaler, icone, chargement, toast, confirmer, menuOptions, copierLien, utilisateurConnecte } = window.Palabre;
+
+  // Un administrateur peut supprimer le contenu des autres : le menu « … » le lui propose.
+  // (Le serveur revérifie de toute façon : cacher un bouton n'est jamais une protection.)
+  let estAdmin = false;
+  utilisateurConnecte().then((moi) => { estAdmin = Boolean(moi && moi.estAdmin); });
 
   // Chaque type a son nom et son icône ; sa couleur est dans le CSS (.badge-idee, .badge-question, .badge-projet).
   const TYPES = {
@@ -26,19 +31,7 @@
 
   // ---------- Commentaires ----------
   function elementCommentaire(commentaire, publication, apresSuppression) {
-    const action = el('button', { classe: 'bouton-discret', type: 'button', texte: commentaire.estMoi ? 'Supprimer' : 'Signaler' });
-    const element = el('li', { classe: 'commentaire' }, [
-      lienAuteur(commentaire.auteur, 'mini'),
-      el('div', { classe: 'commentaire-corps' }, [
-        el('div', { classe: 'commentaire-bulle' }, [
-          nomMembre(commentaire.auteur),
-          el('p', { classe: 'commentaire-texte', texte: commentaire.texte }),
-        ]),
-        el('p', { classe: 'commentaire-pied' }, [el('span', { classe: 'texte-discret', texte: dateRelative(commentaire.creeLe) }), action]),
-      ]),
-    ]);
-    action.addEventListener('click', async () => {
-      if (!commentaire.estMoi) return signaler('commentaire', commentaire.id);
+    async function supprimer() {
       if (!(await confirmer('Supprimer ce commentaire ?', { bouton: 'Supprimer', danger: true }))) return;
       try {
         await api(`/publications/${publication.id}/commentaires/${commentaire.id}`, { methode: 'DELETE', donnees: {} });
@@ -48,7 +41,21 @@
       } catch (erreur) {
         toast(erreur.message, 'erreur');
       }
-    });
+    }
+    const menu = menuOptions(() => [
+      commentaire.estMoi ? null : { texte: 'Signaler', icone: 'signaler', action: () => signaler('commentaire', commentaire.id) },
+      commentaire.estMoi || estAdmin ? { texte: 'Supprimer', icone: 'supprimer', danger: true, action: supprimer } : null,
+    ], { cote: 'gauche' });
+    const element = el('li', { classe: 'commentaire' }, [
+      lienAuteur(commentaire.auteur, 'mini'),
+      el('div', { classe: 'commentaire-corps' }, [
+        el('div', { classe: 'commentaire-bulle' }, [
+          nomMembre(commentaire.auteur),
+          el('p', { classe: 'commentaire-texte', texte: commentaire.texte }),
+        ]),
+        el('div', { classe: 'commentaire-pied' }, [el('span', { classe: 'texte-discret', texte: dateRelative(commentaire.creeLe) }), menu]),
+      ]),
+    ]);
     return element;
   }
 
@@ -121,12 +128,17 @@
   }
 
   // Image jointe : toute la largeur, proportions gardées, au plus 4:5 en hauteur (une image plus haute est recadrée).
-  // Les attributs width et height donnent sa forme au navigateur avant le chargement : la page ne saute pas.
+  // Les attributs width et height (envoyés par le serveur) donnent sa forme au navigateur AVANT le chargement :
+  // il réserve la place, et la page ne saute pas quand l'image arrive.
+  // Pour une image plus haute que 4:5, la classe .image-haute impose la forme 4:5 (aspect-ratio dans le CSS).
   function imagePublication(publication) {
+    const { imageLargeur: largeur, imageHauteur: hauteur } = publication;
     const attributs = { classe: 'publication-image', src: publication.image, alt: 'Image jointe à la publication', loading: 'lazy', decoding: 'async' };
-    if (publication.imageLargeur && publication.imageHauteur) {
-      attributs.width = publication.imageLargeur;
-      attributs.height = Math.min(publication.imageHauteur, Math.round(publication.imageLargeur * 1.25));
+    if (largeur && hauteur) {
+      const tropHaute = hauteur > largeur * 1.25;
+      attributs.width = largeur;
+      attributs.height = tropHaute ? Math.round(largeur * 1.25) : hauteur;
+      if (tropHaute) attributs.classe += ' image-haute';
     }
     return el('img', attributs);
   }
@@ -137,11 +149,22 @@
     const type = TYPES[publication.type];
     const boutonJaime = el('button', { classe: 'bouton-action bouton-jaime', type: 'button' }, [icone('coeur'), 'J\'aime']);
     const boutonCommenter = el('button', { classe: 'bouton-action', type: 'button' }, [icone('commentaire'), 'Commenter']);
-    const boutonAutre = el('button', {
-      classe: 'bouton-icone publication-menu', type: 'button',
-      'aria-label': publication.estMoi ? 'Supprimer ma publication' : 'Signaler cette publication',
-      title: publication.estMoi ? 'Supprimer' : 'Signaler',
-    }, [icone(publication.estMoi ? 'supprimer' : 'signaler')]);
+    async function supprimer() {
+      if (!(await confirmer('Supprimer cette publication ? Ses commentaires et ses j\'aime partiront avec.', { bouton: 'Supprimer', danger: true }))) return;
+      try {
+        await api(`/publications/${publication.id}`, { methode: 'DELETE', donnees: {} });
+        carte.remove();
+        toast('Publication supprimée.');
+      } catch (erreur) {
+        toast(erreur.message, 'erreur');
+      }
+    }
+    const menu = menuOptions(() => [
+      { texte: 'Copier le lien', icone: 'lien', action: () => copierLien(`${window.location.origin}/fil?publication=${publication.id}`) },
+      publication.estMoi ? null : { texte: 'Signaler', icone: 'signaler', action: () => signaler('publication', publication.id) },
+      publication.estMoi || estAdmin ? { texte: 'Supprimer', icone: 'supprimer', danger: true, action: supprimer } : null,
+    ]);
+    menu.classList.add('publication-menu');
 
     // Preuve sociale : qui a aimé à gauche, nombre de commentaires à droite.
     const aime = el('span', { classe: 'preuve-aime' });
@@ -182,7 +205,7 @@
             el('span', { classe: `badge-type badge-${publication.type}` }, [icone(type.icone), type.nom]),
           ]),
         ]),
-        boutonAutre,
+        menu,
       ]),
       el('div', { classe: 'publication-corps' }, [texte, voirPlus]),
       publication.image ? imagePublication(publication) : null,
@@ -216,18 +239,6 @@
 
     boutonCommenter.addEventListener('click', commentaires.ecrire);
     nbCommentaires.addEventListener('click', commentaires.toutVoir);
-
-    boutonAutre.addEventListener('click', async () => {
-      if (!publication.estMoi) return signaler('publication', publication.id);
-      if (!(await confirmer('Supprimer cette publication ? Ses commentaires et ses j\'aime partiront avec.', { bouton: 'Supprimer', danger: true }))) return;
-      try {
-        await api(`/publications/${publication.id}`, { methode: 'DELETE', donnees: {} });
-        carte.remove();
-        toast('Publication supprimée.');
-      } catch (erreur) {
-        toast(erreur.message, 'erreur');
-      }
-    });
 
     return carte;
   }

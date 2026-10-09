@@ -140,6 +140,14 @@ router.get('/', async (req, res) => {
   });
 });
 
+// Une seule publication : GET /api/publications/:id (le lien « Copier le lien » y mène)
+router.get('/:id', async (req, res) => {
+  const id = v.idPositif(req.params.id);
+  const { rows } = id ? await db.query(`${SELECTION} AND p.id = $2`, [req.utilisateur.id, id]) : { rows: [] };
+  if (!rows[0]) return res.status(404).json({ erreur: 'Cette publication n\'existe plus.' });
+  res.json({ publication: versPublication(rows[0], req.utilisateur) });
+});
+
 // Publier : POST /api/publications  { type, texte, image? }
 router.post('/', limitePublications, async (req, res) => {
   const corps = req.body || {};

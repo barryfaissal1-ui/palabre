@@ -258,17 +258,12 @@
     ]);
   }
 
-  // Partage d'une page : menu de partage du téléphone s'il existe, sinon copie du lien.
-  async function partager(url, titre, bouton) {
-    if (navigator.share) {
-      try { await navigator.share({ title: titre, url }); } catch { /* partage annulé par la personne */ }
-      return;
-    }
+  // Copie un lien dans le presse-papiers ; si le navigateur refuse, on le montre pour qu'il soit copié à la main.
+  async function copierLien(url) {
     try {
       await navigator.clipboard.writeText(url);
       toast('Lien copié. Colle-le où tu veux.');
     } catch {
-      // Copie refusée par le navigateur : on montre le lien pour qu'il soit copié à la main.
       const champ = el('input', { type: 'text', readonly: true, value: url, 'aria-label': 'Lien à copier' });
       const fermer = el('button', { classe: 'bouton bouton-principal', type: 'button', texte: 'Fermer' });
       const dialogue = el('dialog', { classe: 'dialogue', 'aria-labelledby': 'lien-titre' }, [
@@ -280,6 +275,77 @@
       dialogue.showModal();
       champ.select();
     }
+  }
+
+  // Partage d'une page : menu de partage du téléphone s'il existe, sinon copie du lien.
+  async function partager(url, titre) {
+    if (navigator.share) {
+      try { await navigator.share({ title: titre, url }); } catch { /* partage annulé par la personne */ }
+      return;
+    }
+    await copierLien(url);
+  }
+
+  // ---------- Menu « … » (Plus d'options) ----------
+  // Un bouton « … » qui ouvre un petit menu : Copier le lien, Signaler, Supprimer…
+  // lister() renvoie les choix au moment de l'ouverture : [{ texte, icone, action, danger }] (les valeurs vides sont ignorées).
+  // Le menu se ferme avec Échap, en touchant à côté, ou après un choix. Un seul menu est ouvert à la fois.
+  let fermerMenuOuvert = null;
+  function menuOptions(lister, { cote = 'droite' } = {}) {
+    const bouton = el('button', {
+      classe: 'bouton-icone', type: 'button', 'aria-label': 'Plus d\'options', title: 'Plus d\'options',
+      'aria-haspopup': 'menu', 'aria-expanded': 'false',
+    }, [icone('options')]);
+    const liste = el('div', { classe: `menu-liste menu-${cote}`, role: 'menu', hidden: true });
+    const cadre = el('span', { classe: 'menu-options' }, [bouton, liste]);
+
+    function fermer({ rendreFocus = false } = {}) {
+      if (liste.hidden) return;
+      liste.hidden = true;
+      bouton.setAttribute('aria-expanded', 'false');
+      document.removeEventListener('pointerdown', dehors);
+      document.removeEventListener('keydown', clavier);
+      if (fermerMenuOuvert === fermer) fermerMenuOuvert = null;
+      if (rendreFocus) bouton.focus();
+    }
+    function dehors(evenement) {
+      if (!cadre.contains(evenement.target)) fermer();
+    }
+    function clavier(evenement) {
+      if (evenement.key === 'Escape') {
+        evenement.preventDefault();
+        fermer({ rendreFocus: true });
+      } else if (evenement.key === 'ArrowDown' || evenement.key === 'ArrowUp') {
+        // Les flèches passent d'un choix à l'autre, comme dans un menu d'ordinateur.
+        evenement.preventDefault();
+        const choix = [...liste.children];
+        const position = choix.indexOf(document.activeElement) + (evenement.key === 'ArrowDown' ? 1 : -1);
+        choix[(position + choix.length) % choix.length].focus();
+      }
+    }
+
+    bouton.addEventListener('click', () => {
+      if (!liste.hidden) {
+        fermer();
+        return;
+      }
+      if (fermerMenuOuvert) fermerMenuOuvert();
+      liste.replaceChildren(...lister().filter(Boolean).map((choix) => {
+        const ligne = el('button', { classe: `menu-choix${choix.danger ? ' menu-danger' : ''}`, type: 'button', role: 'menuitem' }, [icone(choix.icone), choix.texte]);
+        ligne.addEventListener('click', () => {
+          fermer({ rendreFocus: true });
+          choix.action();
+        });
+        return ligne;
+      }));
+      liste.hidden = false;
+      bouton.setAttribute('aria-expanded', 'true');
+      fermerMenuOuvert = fermer;
+      document.addEventListener('pointerdown', dehors);
+      document.addEventListener('keydown', clavier);
+      liste.firstElementChild.focus();
+    });
+    return cadre;
   }
 
   // Réduit une image dans le navigateur avant l'envoi (côté le plus long : 1080 px, JPEG) :
@@ -480,5 +546,5 @@
 
   document.addEventListener('DOMContentLoaded', remplirNavigation);
 
-  window.Palabre = { api, utilisateurConnecte, el, avatar, nomMembre, badgeFeuille, prenom, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
+  window.Palabre = { api, utilisateurConnecte, el, avatar, nomMembre, badgeFeuille, prenom, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, copierLien, menuOptions, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
 })();

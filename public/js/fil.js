@@ -1,7 +1,7 @@
 // Fil d'actualité : zone « Publier », rangée « Disponibles maintenant », puis les publications par 10.
 // La carte d'une publication (j'aime, commentaires…) est dans publication.js.
 (function () {
-  const { api, el, avatar, prenom, utilisateurConnecte, reduireImage, icone, etatVide, toast, filPublications } = window.Palabre;
+  const { api, el, avatar, prenom, utilisateurConnecte, reduireImage, icone, etatVide, toast, filPublications, cartePublication } = window.Palabre;
 
   let filtre = 'tout';     // 'tout' ou 'amis'
   let imageChoisie = null; // image réduite, prête à être envoyée (data URL)
@@ -109,6 +109,22 @@
     });
   }
 
+  // Lien copié depuis le menu « … » d'une publication : /fil?publication=12 n'affiche que celle-là.
+  async function afficherUneSeule(id) {
+    const zone = document.querySelector('[data-fil]');
+    const etat = document.querySelector('[data-etat-fil]');
+    document.querySelector('.filtres-fil').hidden = true;
+    const toutLeFil = el('a', { classe: 'bouton bouton-contour bouton-plein charger-plus', href: '/fil', texte: 'Voir tout le fil' });
+    try {
+      const { publication } = await api(`/publications/${encodeURIComponent(id)}`);
+      zone.replaceChildren(cartePublication(publication));
+      zone.after(toutLeFil);
+    } catch (erreur) {
+      etat.replaceChildren(etatVide('calme', 'Publication introuvable', erreur.statut === 404 ? 'Elle a peut-être été supprimée.' : erreur.message, toutLeFil));
+      etat.hidden = false;
+    }
+  }
+
   function brancherFiltres() {
     const boutons = document.querySelectorAll('[data-filtre]');
     boutons.forEach((bouton) => {
@@ -124,7 +140,7 @@
   document.addEventListener('DOMContentLoaded', async () => {
     const moi = await utilisateurConnecte();
     if (!moi) {
-      window.location.href = '/connexion?suite=/fil';
+      window.location.href = `/connexion?suite=${encodeURIComponent(window.location.pathname + window.location.search)}`;
       return;
     }
     fil = filPublications({
@@ -139,6 +155,11 @@
     });
     brancherPublier(moi);
     brancherFiltres();
+    const seule = new URLSearchParams(window.location.search).get('publication');
+    if (seule) {
+      afficherUneSeule(seule);
+      return;
+    }
     afficherDisponibles();
     fil.charger({ depuisLeDebut: true });
   });

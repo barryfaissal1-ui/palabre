@@ -310,7 +310,7 @@ Palabre reprend les **principes** des grands réseaux sociaux (le contenu d'abor
 | Petits accents | `--accent` | la terre cuite, seulement pour les pastilles de compteur et le badge « Question » |
 | Surfaces | `--papier`, `--surface`, `--surface-2` | le fond neutre, les publications en blanc pur, les zones en retrait |
 | Tailles de texte | `--t-13`, `--t-15`, `--t-17`, `--t-20`, `--t-24` | cinq tailles et rien d'autre |
-| Teintes d'avatar | `--teinte-0` à `--teinte-5` | terre cuite, vert feuillage, ocre, indigo, brun écorce, vert d'eau |
+| Teintes d'avatar | `--teinte-0` à `--teinte-5` | terre cuite, prune, ocre, indigo, brun écorce, bleu canard (aucun vert : il est réservé à l'anneau de preuve et aux actions) |
 | Ombres | `--ombre-1`, `--ombre-2`, `--ombre-3` | trois niveaux : carte posée, carte survolée, fenêtre au-dessus de la page |
 | Coins arrondis | `--rayon-petit`, `--rayon`, `--rayon-grand` | trois tailles seulement |
 
@@ -330,12 +330,19 @@ Une icône seule ne suffit pas pour un lecteur d'écran : les boutons sans texte
 | --- | --- |
 | `avatar(personne, taille)` | la photo ou les initiales d'un membre, avec son anneau de preuve |
 | `nomMembre(membre)` | son nom, suivi du badge feuille s'il a un projet vérifié |
+| `menuOptions(lister)` | le bouton « … » (« Plus d'options ») et son petit menu : Copier le lien, Signaler, Supprimer |
 | `toast(texte, type)` | petit message qui apparaît en bas de l'écran puis disparaît (« Publié ! », ou une erreur) |
 | `confirmer(question, options)` | fenêtre de confirmation ; renvoie une promesse, donc on écrit `if (await confirmer('Supprimer ?'))` |
 | `etatVide(illustration, titre, texte, bouton)` | quand une liste est vide : une illustration et un mot d'encouragement |
 | `chargement(zone, nombre)` | affiche des « squelettes » gris animés pendant un chargement, et renvoie la fonction qui les retire |
 
 **Il n'y a aucun `alert()` ni `confirm()` du navigateur dans le site** : ils bloquent la page, ne suivent pas le style, et certains navigateurs les masquent. La fenêtre de confirmation utilise la balise `<dialog>` : le navigateur gère lui-même le fond assombri, la touche Échap et le maintien du focus dans la fenêtre. Le focus va d'abord sur « Annuler », pour qu'une touche Entrée trop rapide ne supprime rien.
+
+### Le menu « … »
+
+En haut de chaque publication, sous chaque commentaire et sur le profil d'un autre membre, un bouton « … » ouvre un petit menu : « Copier le lien » (publications et profils), « Signaler », et « Supprimer » si le contenu est à moi ou si je suis administrateur. Le menu se ferme avec la touche Échap, en touchant à côté, ou après un choix ; les flèches du clavier passent d'un choix à l'autre. Montrer « Supprimer » à un administrateur n'est qu'un confort : c'est le serveur qui vérifie le droit de supprimer.
+
+Le lien copié d'une publication est `/fil?publication=12` : le fil n'affiche alors que celle-là (`GET /api/publications/:id`).
 
 ### Les avatars sans photo
 
@@ -356,7 +363,8 @@ L'en-tête fait 56 px et reste collée en haut (`position: sticky`) : le logo à
 La loupe ouvre un panneau plein écran. On tape un nom, les résultats arrivent en direct :
 
 - le navigateur attend **300 ms** après la dernière frappe avant d'interroger le serveur (une requête par mot, pas une par lettre), et ignore la réponse d'une ancienne frappe arrivée en retard ;
-- le serveur (`GET /api/devs?q=…`) exige au moins 2 lettres et cherche avec `ILIKE` (sans tenir compte des majuscules) dans une requête paramétrée. Les caractères `%` et `_`, qui sont des jokers pour `ILIKE`, sont neutralisés : on ne peut pas s'en servir pour lister tous les membres.
+- le serveur (`GET /api/devs?q=…`) exige au moins 2 lettres et cherche avec `ILIKE` (sans tenir compte des majuscules) dans une requête paramétrée. Les caractères `%` et `_`, qui sont des jokers pour `ILIKE`, sont neutralisés : on ne peut pas s'en servir pour lister tous les membres ;
+- **les accents ne comptent pas** : « ouedraogo » trouve « Ouédraogo ». Le texte tapé passe par `versIdentifiant()` (la fonction qui fabrique l'identifiant à l'inscription : minuscules, sans accents, tirets) et il est comparé à l'identifiant du membre, en plus de son nom.
 
 ### Le fil
 
@@ -365,7 +373,7 @@ La loupe ouvre un panneau plein écran. On tape un nom, les résultats arrivent 
 - **Preuve sociale** : « Aimé par Cheick et 12 autres » (un ami en priorité : un prénom connu donne plus envie de lire qu'un chiffre), le nombre de commentaires, et les 2 derniers commentaires visibles directement. Tout cela arrive **dans la requête du fil**, grâce à deux `LEFT JOIN LATERAL` : une sous-requête exécutée pour chaque publication, mais à l'intérieur de la même requête SQL.
 - **J'aime instantané** : le cœur se remplit et fait un petit « pop » **tout de suite**, sans attendre la réponse du serveur ; si le serveur refuse, l'affichage revient en arrière et un message s'affiche.
 - **Texte long** : coupé après 5 lignes par le CSS (`line-clamp`), avec « Voir plus ». Le bouton n'apparaît que si le texte dépasse vraiment (on compare sa hauteur réelle à sa hauteur visible).
-- **Images** : sur toute la largeur, proportions gardées, au plus 4:5 en hauteur. À l'envoi, le serveur lit la largeur et la hauteur dans les premiers octets du fichier (`src/utils/images.js`, sans bibliothèque) et les range avec la publication. Le navigateur connaît ainsi la forme de l'image avant de la télécharger et lui réserve sa place : **la page ne saute pas** pendant le chargement, ce qui compte beaucoup sur une connexion lente.
+- **Images** : sur toute la largeur, proportions gardées, au plus 4:5 en hauteur. À l'envoi, le serveur lit la largeur et la hauteur dans les premiers octets du fichier (`src/utils/images.js`, sans bibliothèque) et les range avec la publication. Le navigateur connaît ainsi la forme de l'image avant de la télécharger (attributs `width` et `height`, et `aspect-ratio: 4 / 5` pour une image trop haute) et lui réserve sa place : **la page ne saute pas** pendant le chargement, ce qui compte beaucoup sur une connexion lente.
 
 La carte d'une publication est dans `public/js/publication.js`, partagée par le fil et par l'onglet « Publications » des profils.
 
@@ -402,7 +410,7 @@ Pour l'administration (`tests/admin.test.js`) : chaque route refusée aux visite
 
 Pour le calculateur (`tests/calculateur.test.js`) : cohérence de la grille (chaque type mène à une catégorie de demande qui existe), prix de base de chaque type, majorations de taille et de délai, options, un calcul complet vérifié à la main, tous les résultats possibles multiples de 5 000, refus d'un choix inconnu, page ouverte à tous avec ses balises de partage. Comme le calcul vit dans des fichiers du navigateur, ces fichiers sont écrits pour être aussi chargés par Node.js.
 
-Pour la refonte « réseau social » (`tests/preuve-sociale.test.js`) : `nbProjetsVerifies` (un projet sans lien ou masqué ne compte pas), recherche par nom (2 lettres minimum, majuscules ignorées, jokers `%` et `_` neutralisés, jamais d'email dans la réponse), « Disponibles maintenant » (amis d'abord, ni soi-même, ni les occupés, ni les clients), fil d'un auteur, « Aimé par » (jamais soi-même, un ami avant un inconnu), les 2 derniers commentaires dans l'ordre, taille de l'image lue par le serveur, couverture (envoi, remplacement, retrait, faux fichier refusé), amis en commun.
+Pour la refonte « réseau social » (`tests/preuve-sociale.test.js`) : `nbProjetsVerifies` (un projet sans lien ou masqué ne compte pas), recherche par nom (2 lettres minimum, majuscules ignorées, jokers `%` et `_` neutralisés, jamais d'email dans la réponse), « Disponibles maintenant » (amis d'abord, ni soi-même, ni les occupés, ni les clients), fil d'un auteur, « Aimé par » (jamais soi-même, un ami avant un inconnu), les 2 derniers commentaires dans l'ordre, taille de l'image lue par le serveur, couverture (envoi, remplacement, retrait, faux fichier refusé), amis en commun, recherche sans accents (« faissal » trouve « Faïssal »), publication seule par son numéro.
 
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
 

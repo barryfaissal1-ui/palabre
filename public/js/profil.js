@@ -3,7 +3,7 @@
 (function () {
   const {
     api, el, avatar, nomMembre, badgeFeuille, prenom, utilisateurConnecte, signaler, partager, carteProjet, etoiles,
-    dateRelative, deNom, reduireImage, icone, etatVide, chargement, toast, confirmer, filPublications,
+    dateRelative, deNom, reduireImage, icone, etatVide, chargement, toast, confirmer, filPublications, menuOptions, copierLien,
   } = window.Palabre;
 
   const identifiant = decodeURIComponent(window.location.pathname.slice(1)).toLowerCase();
@@ -75,9 +75,10 @@
     zone.append(boutonPartage);
     // « amitie » n'est renseigné que pour un membre connecté qui regarde le profil de quelqu'un d'autre.
     if (profil.amitie) {
-      const boutonSignaler = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': 'Signaler ce profil', title: 'Signaler' }, [icone('signaler')]);
-      boutonSignaler.addEventListener('click', () => signaler('profil', profil.identifiant));
-      zone.append(boutonSignaler);
+      zone.append(menuOptions(() => [
+        { texte: 'Copier le lien', icone: 'lien', action: () => copierLien(`${window.location.origin}/${profil.identifiant}`) },
+        { texte: 'Signaler', icone: 'signaler', action: () => signaler('profil', profil.identifiant) },
+      ], { cote: 'gauche' }));
     }
     return zone;
   }

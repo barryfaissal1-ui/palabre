@@ -39,6 +39,8 @@ router.get('/disponibles', exigerConnexion, async (req, res) => {
 // GET /api/devs?competence=<id>&pays=<nom>&ville=<texte>&disponible=1&page=<n>&q=<nom>
 // Avec « q » (au moins 2 lettres), c'est la recherche de l'en-tête : tous les membres dont le nom contient ce texte,
 // devs comme clients, ceux dont le nom commence par ce texte en premier.
+// Les accents ne comptent pas : le texte tapé passe aussi par versIdentifiant() (« Ouédraogo » → « ouedraogo »)
+// et il est comparé à l'identifiant du membre, qui a été fabriqué de la même façon à partir de son nom.
 // Ni email ni numéro WhatsApp dans la réponse : pour contacter un dev, on passe par son profil.
 router.get('/', async (req, res) => {
   const competence = v.idPositif(req.query.competence);
@@ -55,6 +57,8 @@ router.get('/', async (req, res) => {
   const motifVille = ville ? `%${sansJokers(ville)}%` : null;
   const motifNom = nom ? `%${sansJokers(nom)}%` : null;
   const motifDebut = nom ? `${sansJokers(nom)}%` : null;
+  // Sans lettre ni chiffre (« %% », « ?! »), pas de recherche par identifiant : versIdentifiant() renverrait « dev ».
+  const sansAccent = nom && /[a-z0-9]/i.test(nom.normalize('NFD')) ? v.versIdentifiant(nom) : null;
 
   const { rows } = await db.query(
     `SELECT ${COLONNES_MEMBRE}, u.disponible, u.bio,
@@ -70,15 +74,15 @@ router.get('/', async (req, res) => {
        ) notes ON TRUE
       WHERE u.bloque = FALSE
         AND (u.type = 'dev' OR $7::text IS NOT NULL)
-        AND ($7::text IS NULL OR u.nom ILIKE $7 ESCAPE '\\')
+        AND ($7::text IS NULL OR u.nom ILIKE $7 ESCAPE '\\' OR u.identifiant LIKE '%' || $9::text || '%')
         AND ($1::int IS NULL OR EXISTS (
               SELECT 1 FROM utilisateur_competences uc WHERE uc.utilisateur_id = u.id AND uc.competence_id = $1))
         AND ($2::text IS NULL OR u.pays = $2)
         AND ($3::text IS NULL OR lower(u.ville) LIKE $3 ESCAPE '\\')
         AND ($4::boolean = FALSE OR u.disponible)
-      ORDER BY ($8::text IS NOT NULL AND u.nom ILIKE $8 ESCAPE '\\') DESC, u.disponible DESC, notes.moyenne DESC NULLS LAST, projets_verifies DESC, u.id DESC
+      ORDER BY ($8::text IS NOT NULL AND (u.nom ILIKE $8 ESCAPE '\\' OR u.identifiant LIKE $9::text || '%')) DESC, u.disponible DESC, notes.moyenne DESC NULLS LAST, projets_verifies DESC, u.id DESC
       LIMIT $5 OFFSET $6`,
-    [competence, pays, motifVille, disponible, PAR_PAGE + 1, (page - 1) * PAR_PAGE, motifNom, motifDebut],
+    [competence, pays, motifVille, disponible, PAR_PAGE + 1, (page - 1) * PAR_PAGE, motifNom, motifDebut, sansAccent],
   );
 
   res.json({

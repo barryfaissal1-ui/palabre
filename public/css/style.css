@@ -45,13 +45,14 @@
   --focus: var(--feuille-vive);
 
   /* Les 6 teintes des avatars sans photo, harmonisées avec le logo :
-     terre cuite, vert feuillage, ocre, indigo, brun écorce, vert d'eau */
+     terre cuite, prune, ocre, indigo, brun écorce, bleu canard.
+     Aucun vert : le vert est réservé à l'anneau de preuve et aux actions. */
   --teinte-0: #C8623F;
-  --teinte-1: #187A3B;
+  --teinte-1: #7E4468;
   --teinte-2: #A86A12;
   --teinte-3: #3F4C9A;
   --teinte-4: #6B4A35;
-  --teinte-5: #1B7F78;
+  --teinte-5: #1F6E8C;
 
   /* Texte courant dans la police du téléphone (rien à télécharger, net partout) ; Bricolage pour les noms et les titres */
   --titre: "Bricolage", "Segoe UI", system-ui, sans-serif;
@@ -106,7 +107,6 @@
     --sur-action: #0B1A10;
     --accent: #E07A55;
     --focus: #63D48A;
-    --teinte-1: #1E8A45;
     --ombre-1: 0 1px 2px rgba(0, 0, 0, 0.35);
     --ombre-2: 0 2px 6px rgba(0, 0, 0, 0.35), 0 10px 24px rgba(0, 0, 0, 0.35);
     --ombre-3: 0 10px 30px rgba(0, 0, 0, 0.55), 0 30px 60px rgba(0, 0, 0, 0.45);
@@ -840,7 +840,8 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
 .charger-plus { margin-top: 12px; }
 @media (min-width: 640px) {
   .page-fil { padding-top: 16px; }
-  .bloc-fil, .fil-social > * { margin-inline: 0; border-radius: var(--rayon); box-shadow: var(--ombre-1); overflow: hidden; }
+  .bloc-fil, .fil-social > * { margin-inline: 0; border-radius: var(--rayon); box-shadow: var(--ombre-1); }
+  .bloc-fil { overflow: hidden; }
   .fil-social > .squelette { border-radius: var(--rayon); box-shadow: var(--ombre-1); }
 }
 
@@ -983,6 +984,43 @@ a.nom-auteur:hover { text-decoration: underline; }
 .publication-qui .publication-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .publication-menu { margin-right: -10px; }
 
+/* Menu « … » (Plus d'options) : créé par menuOptions() dans app.js */
+.menu-options { position: relative; flex: none; display: inline-flex; }
+.menu-liste {
+  position: absolute;
+  z-index: 12;
+  top: 100%;
+  right: 0;
+  display: grid;
+  min-width: 200px;
+  padding: 6px;
+  border: 1px solid var(--ligne);
+  border-radius: var(--rayon-petit);
+  background: var(--surface);
+  box-shadow: var(--ombre-2);
+  animation: glisser 0.15s ease;
+}
+.menu-gauche { right: auto; left: 0; }
+.menu-choix {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--encre);
+  font: 600 var(--t-15)/1 var(--texte);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.menu-choix:hover { background: color-mix(in srgb, var(--gris) 14%, transparent); }
+.menu-choix .icone { width: 20px; height: 20px; }
+.menu-danger { color: var(--erreur); }
+@media (prefers-color-scheme: dark) { .menu-danger { color: #FF8A80; } }
+
 /* Chaque type de publication a un petit badge coloré avec son icône :
    idée = vert feuillage (ampoule), question = terre cuite (point d'interrogation), projet = noir du tronc (fusée). */
 .badge-idee { --type: var(--action); }
@@ -1009,7 +1047,11 @@ a.nom-auteur:hover { text-decoration: underline; }
 .voir-plus { color: var(--gris); font-weight: 700; }
 /* Image : toute la largeur. Sa hauteur vient des attributs width et height posés par publication.js
    (proportions réelles, au plus 4:5) : la place est réservée avant le chargement. */
-.publication-image { width: 100%; height: auto; max-height: 800px; object-fit: cover; background: var(--surface-2); }
+.publication-image { width: 100%; height: auto; object-fit: cover; background: var(--surface-2); }
+/* Image plus haute que 4:5 : on impose cette forme, sinon elle reprendrait sa vraie hauteur une fois chargée (et la page sauterait) */
+.publication-image.image-haute { aspect-ratio: 4 / 5; }
+/* Ancienne image dont on ne connaît pas la taille : on limite au moins sa hauteur */
+.publication-image:not([width]) { max-height: 125vw; }
 
 /* Preuve sociale : « Aimé par Awa et 12 autres » à gauche, « 4 commentaires » à droite */
 .publication-preuve { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--gris); font-size: var(--t-13); }
@@ -1065,8 +1107,8 @@ a.nom-auteur:hover { text-decoration: underline; }
 .commentaire-corps { min-width: 0; }
 .commentaire-bulle { display: inline-grid; gap: 2px; max-width: 100%; padding: 8px 12px; border-radius: 4px 16px 16px 16px; background: var(--surface-2); }
 .commentaire-texte { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
-.commentaire-pied { display: flex; align-items: center; gap: 12px; margin: 0; padding-left: 12px; font-size: var(--t-13); }
-.commentaire-pied .bouton-discret { margin-block: -8px; font-weight: 700; }
+.commentaire-pied { display: flex; align-items: center; gap: 4px; padding-left: 12px; font-size: var(--t-13); }
+.commentaire-pied .menu-options { margin-block: -10px; }
 .voir-commentaires { justify-self: start; margin-block: -10px; font-weight: 700; }
 /* Petit bouton en texte. Il garde 44 px de haut pour le doigt, même si le texte est petit. */
 .bouton-discret {
