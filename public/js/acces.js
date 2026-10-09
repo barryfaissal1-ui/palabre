@@ -19,7 +19,112 @@
     carte.dataset.vue = vue;
     document.title = TITRES[vue];
     carte.querySelectorAll('[data-pour]').forEach((zone) => { zone.inert = zone.dataset.pour !== vue; });
+    dessinerMotif(); // le formulaire a changé de taille : le motif se replace autour
   }
+
+  // ---------- Motif du fond : de petits dessins au trait, sur le thème des développeurs ----------
+  // Les dessins sont dans un seul petit fichier, /icons/motif-acces.svg. Ce code les dispose sur une grille dont
+  // chaque case reçoit un dessin, décalé, tourné et dimensionné « au hasard » : placement irrégulier mais équilibré.
+  // Le hasard est calculé à partir du numéro de la case : le même écran donne toujours le même motif.
+  // Une case qui toucherait la zone interdite (la carte sur ordinateur ; le panneau vert et le formulaire sur
+  // téléphone) reste vide : aucun dessin ne passe sous un champ.
+  const SVG = 'http://www.w3.org/2000/svg';
+  const DESSINS = ['code', 'accolades', 'fleche', 'terminal', 'portable', 'telephone', 'cafe', 'ampoule', 'fusee', 'bulles', 'sourire', 'groupe', 'feuille', 'wifi'];
+  const NB_FLOTTANTS = 6;
+  const zoneMotif = carte.parentElement; // <main class="acces">
+  const motif = document.createElementNS(SVG, 'svg');
+  motif.setAttribute('class', 'motif-acces');
+  motif.setAttribute('aria-hidden', 'true'); // purement décoratif
+  motif.setAttribute('focusable', 'false');
+  zoneMotif.prepend(motif);
+
+  // Un nombre entre 0 et 1, toujours le même pour les mêmes numéros.
+  function hasard(a, b, c) {
+    const x = Math.sin(a * 127.1 + b * 311.7 + c * 74.7) * 43758.5453;
+    return x - Math.floor(x);
+  }
+  const seTouchent = (a, b) => a.x < b.x + b.l && a.x + a.l > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+
+  function dessinerMotif() {
+    const cadre = zoneMotif.getBoundingClientRect();
+    const largeur = Math.round(cadre.width);
+    const hauteur = Math.round(zoneMotif.scrollHeight);
+    const rectangle = (element, marge) => {
+      const r = element.getBoundingClientRect();
+      return { x: r.left - cadre.left - marge, y: r.top - cadre.top - marge, l: r.width + marge * 2, h: r.height + marge * 2 };
+    };
+    const petit = telephone.matches;
+    const places = []; // { x, y, taille, angle, numero }
+    let interdits;
+    let pas; let tailleMin; let tailleMax;
+
+    if (petit) {
+      // Téléphone : rien sur le panneau vert, rien derrière le formulaire. Le motif vit sous le formulaire…
+      const formulaire = carte.querySelector(`.acces-formulaire[data-pour="${carte.dataset.vue}"]`);
+      const lame = carte.querySelector('.lame-message:not([inert])') || carte;
+      const basLame = lame.getBoundingClientRect().bottom - cadre.top + 44; // la diagonale et son liseré descendent un peu plus bas
+      interdits = [{ x: 0, y: 0, l: largeur, h: basLame }, rectangle(formulaire, 3)];
+      [pas, tailleMin, tailleMax] = [58, 20, 28];
+      // … et dans les deux marges, de chaque côté des champs (20 px, dans une marge de 24 px).
+      for (let n = 0, y = basLame + 14; y < hauteur - 24; n += 1, y += 86) {
+        const aGauche = n % 2 === 0;
+        places.push({ x: aGauche ? 2 : largeur - 22, y: y + hasard(n, 5, 1) * 30, taille: 20, angle: hasard(n, 5, 2) * 30 - 15, numero: n * 3 + 1 });
+      }
+    } else {
+      // Ordinateur et tablette : tout le fond, sauf la carte (avec une marge autour).
+      interdits = [rectangle(carte, 22)];
+      [pas, tailleMin, tailleMax] = [104, 24, 40];
+    }
+
+    for (let j = 0; j * pas < hauteur; j += 1) {
+      for (let i = 0; i * pas < largeur; i += 1) {
+        const taille = Math.round(tailleMin + hasard(i, j, 1) * (tailleMax - tailleMin));
+        const place = {
+          x: i * pas + 6 + hasard(i, j, 2) * (pas - taille - 12),
+          y: j * pas + 6 + hasard(i, j, 3) * (pas - taille - 12),
+          taille,
+          angle: hasard(i, j, 4) * 30 - 15, // entre -15° et +15°
+          numero: i * 5 + j * 3 + (j % 2) * 7,
+        };
+        // La place est testée un peu plus grande que le dessin : une fois tourné, il déborde légèrement de son carré.
+        const emprise = { x: place.x - 4, y: place.y - 4, l: taille + 8, h: taille + 8 };
+        const dehors = emprise.x < 0 || emprise.y < 0 || emprise.x + emprise.l > largeur || emprise.y + emprise.h > hauteur;
+        // Ni sur une zone interdite, ni sur un dessin déjà posé (ceux des marges, sur téléphone).
+        const surUnAutre = places.some((autre) => seTouchent(emprise, { x: autre.x, y: autre.y, l: autre.taille, h: autre.taille }));
+        if (!dehors && !surUnAutre && !interdits.some((zone) => seTouchent(emprise, zone))) places.push(place);
+      }
+    }
+
+    // Quelques dessins seulement flottent, pris à intervalles réguliers pour être répartis sur toute la page.
+    const ecart = Math.max(1, Math.floor(places.length / NB_FLOTTANTS));
+    motif.setAttribute('width', largeur);
+    motif.setAttribute('height', hauteur);
+    motif.setAttribute('viewBox', `0 0 ${largeur} ${hauteur}`);
+    motif.replaceChildren(...places.map((place, rang) => {
+      const dessin = document.createElementNS(SVG, 'use');
+      dessin.setAttribute('href', `/icons/motif-acces.svg#${DESSINS[place.numero % DESSINS.length]}`);
+      dessin.setAttribute('width', place.taille);
+      dessin.setAttribute('height', place.taille);
+      dessin.setAttribute('transform', `rotate(${place.angle.toFixed(1)} ${place.taille / 2} ${place.taille / 2})`);
+      // Les dessins sont tracés dans un carré de 24 : pour un trait de 1,5 px à l'écran, on compense l'agrandissement.
+      dessin.setAttribute('stroke-width', ((1.5 * 24) / place.taille).toFixed(2));
+      const flottant = rang % ecart === Math.floor(ecart / 2) && Math.floor(rang / ecart) < NB_FLOTTANTS;
+      const balancier = document.createElementNS(SVG, 'g'); // c'est lui que le CSS fait monter et descendre
+      if (flottant) balancier.setAttribute('class', `flotte flotte-${Math.floor(rang / ecart) % 6}`);
+      balancier.append(dessin);
+      const groupe = document.createElementNS(SVG, 'g');
+      groupe.setAttribute('class', rang % 2 ? 'motif-terre' : 'motif-feuille'); // alternance des deux couleurs du logo
+      groupe.setAttribute('transform', `translate(${place.x.toFixed(1)} ${place.y.toFixed(1)})`);
+      groupe.append(balancier);
+      return groupe;
+    }));
+  }
+  // La fenêtre change de taille, le téléphone tourne : on redessine, une seule fois par image affichée.
+  let redessin = 0;
+  new ResizeObserver(() => {
+    cancelAnimationFrame(redessin);
+    redessin = requestAnimationFrame(dessinerMotif);
+  }).observe(zoneMotif);
 
   function focusPremierChamp() {
     const premier = carte.querySelector(`.acces-formulaire[data-pour="${carte.dataset.vue}"] :is(input, select):not([type="radio"]:not(:checked))`);

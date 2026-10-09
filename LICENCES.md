@@ -56,6 +56,8 @@ Licences : https://www.pexels.com/license/ et https://unsplash.com/license
 | --- | --- | --- |
 | Lucide (38 icônes, rangées dans `public/icons/icones.svg`) | 1.53.0 | ISC (`public/icons/LICENSE-LUCIDE.txt`) |
 
+Le motif du fond des pages de connexion et d'inscription (`public/icons/motif-acces.svg`) reprend 12 autres tracés Lucide (même licence) et 2 dessins de l'équipe, signalés en commentaire dans le fichier.
+
 Les tracés des icônes sont repris tels quels du paquet `lucide-static` ; le nom d'origine de chaque icône est noté en commentaire dans le fichier. Ce n'est pas une dépendance npm : seul le fichier SVG est dans le projet.
 
 Les illustrations des états vides (`public/icons/illustrations.svg`) et le motif de la bannière des profils (`public/icons/motif-banniere.svg`) ont été dessinés par l'équipe pour le concours.

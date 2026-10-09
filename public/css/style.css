@@ -1764,7 +1764,52 @@ input, select, textarea { background: var(--surface-2); border-radius: var(--ray
    Pages d'accès : /connexion et /inscription (une seule page, public/connexion.html)
    ========================================================================== */
 .page-acces { padding: 0; }
-.acces { min-height: 100vh; min-height: 100svh; }
+.acces { position: relative; min-height: 100vh; min-height: 100svh; }
+
+/* Motif du fond : de petits dessins au trait (public/icons/motif-acces.svg), disposés par acces.js.
+   Très discrets (environ 10 % d'opacité), en terre cuite et en vert ; en mode sombre, tous en crème, encore plus légers. */
+.motif-acces {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.11;
+  pointer-events: none;
+}
+.motif-terre { color: var(--terre-logo); }
+.motif-feuille { color: var(--feuille); }
+:where([data-theme="sombre"]) .motif-acces { opacity: 0.08; }
+:where([data-theme="sombre"]) :is(.motif-terre, .motif-feuille) { color: #F7F1E6; }
+/* Cinq ou six dessins flottent très lentement : quelques pixels de haut en bas, chacun à son rythme.
+   (Coupé, comme toutes les animations, si la personne a demandé moins de mouvement.) */
+@keyframes flotter {
+  from { transform: translateY(-4px); }
+  to { transform: translateY(5px); }
+}
+.flotte { animation: flotter 10s ease-in-out infinite alternate; }
+.flotte-1 { animation-duration: 8s; animation-delay: -3s; }
+.flotte-2 { animation-duration: 12s; animation-delay: -7s; }
+.flotte-3 { animation-duration: 9s; animation-delay: -1.5s; }
+.flotte-4 { animation-duration: 11s; animation-delay: -5s; }
+.flotte-5 { animation-duration: 8.5s; animation-delay: -9s; }
+
+/* Remplissage automatique du navigateur : par défaut, Chrome peint le champ en bleu pâle (ou en jaune) et impose
+   sa couleur de texte. On ne peut pas changer ce fond directement : on le recouvre d'une ombre intérieure à la
+   couleur du site, en clair comme en sombre. */
+input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus,
+select:-webkit-autofill, textarea:-webkit-autofill {
+  -webkit-text-fill-color: var(--encre);
+  caret-color: var(--encre);
+  box-shadow: 0 0 0 100px var(--surface-2) inset;
+  transition: background-color 100000s ease-out; /* le fond du navigateur n'a jamais le temps d'apparaître */
+}
+input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0 0 0 3px color-mix(in srgb, var(--feuille-vive) 25%, transparent); }
+.ligne-saisie :is(input, select):-webkit-autofill,
+.ligne-saisie :is(input, select):-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface) inset; }
 .acces-carte {
   position: relative;
   min-height: 100vh;
@@ -1779,7 +1824,7 @@ input, select, textarea { background: var(--surface-2); border-radius: var(--ray
 .acces-carte[data-vue="connexion"] .acces-formulaire[data-pour="inscription"],
 .acces-carte[data-vue="inscription"] .acces-formulaire[data-pour="connexion"] { display: none; }
 
-.acces-volet { padding: calc(var(--haut-lame) + 56px) 24px 40px; }
+.acces-volet { padding: calc(var(--haut-lame) + 56px) 24px 150px; } /* en bas : de la place pour le motif, sous le formulaire */
 .acces-formulaire { display: grid; gap: 20px; width: 100%; max-width: 400px; margin: 0 auto; }
 .acces-formulaire form { gap: 18px; }
 /* Le titre du formulaire, avec son petit trait terre cuite */
@@ -1876,6 +1921,7 @@ input, select, textarea { background: var(--surface-2); border-radius: var(--ray
   .acces { display: grid; place-items: center; padding: 32px 24px; background: var(--papier); }
   .acces-carte { width: min(980px, 100%); min-height: 660px; border-radius: var(--rayon-grand); box-shadow: var(--ombre-3); overflow: hidden; }
   .acces-volet { display: grid; align-content: center; width: 44%; min-height: 660px; padding: 32px 12px 32px 48px; }
+  .acces-carte { z-index: 2; }
   .acces-formulaire { gap: 16px; }
   .acces-formulaire form { gap: 12px; }
   .acces-carte[data-vue="inscription"] .acces-volet { margin-left: 56%; padding: 32px 48px 32px 12px; }
