@@ -1,0 +1,227 @@
+// Peuple le site avec un contenu de démonstration : membres, amis, publications, j'aime, commentaires,
+// projets, demandes, propositions, équipe éclair, avis.
+//   npm run demo             crée le contenu (remplace celui d'un lancement précédent)
+//   npm run demo -- retirer  le retire entièrement
+//
+// Tous les comptes de démonstration ont un email en demo-…@palabre.test : c'est ce qui permet de les retirer
+// d'un coup (leurs publications, projets, demandes… partent avec eux, ON DELETE CASCADE).
+// Le script passe par la vraie API du site (un serveur démarré juste pour lui) : les données respectent donc
+// les mêmes règles que celles d'un vrai membre. Seuls les projets et les dates sont écrits directement en base.
+const fs = require('node:fs');
+const path = require('node:path');
+const config = require('../config');
+const { pool } = require('./pool');
+const { migrer } = require('./migrate');
+const { creerApp } = require('../app');
+
+const MOT_DE_PASSE = 'palabre-demo';
+const MOTIF_EMAIL = 'demo-%@palabre.test';
+const email = (cle) => `demo-${cle}@palabre.test`;
+
+// cle, type, nom, ville, pays, disponible, bio, compétences, nombre de projets au lien vérifié
+const MEMBRES = [
+  ['awa', 'dev', 'Awa Ouédraogo', 'Koudougou', 'Burkina Faso', true, 'Développeuse full-stack, Node.js et PostgreSQL. Toujours partante pour une équipe éclair.', ['JavaScript', 'Node.js', 'PostgreSQL'], 4],
+  ['bintou', 'dev', 'Bintou Traoré', 'Koudougou', 'Burkina Faso', true, 'J\'aide les commerçants à vendre en ligne, avec le paiement par Mobile Money.', ['JavaScript', 'React', 'Mobile Money'], 6],
+  ['cheick', 'dev', 'Cheick Diallo', 'Ouagadougou', 'Burkina Faso', true, 'Applications mobiles Flutter pour les PME. Ancien de l\'université Joseph Ki-Zerbo.', ['Flutter', 'Dart', 'Firebase'], 2],
+  ['fatou', 'dev', 'Fatoumata Koné', 'Abidjan', 'Côte d\'Ivoire', true, 'Dix ans de web. Livraison, restauration, paiement Wave : j\'ai fait le tour.', ['PHP', 'Laravel', 'MySQL'], 11],
+  ['idrissa', 'dev', 'Idrissa Sawadogo', 'Bobo-Dioulasso', 'Burkina Faso', true, 'Étudiant en informatique, je cherche mes premiers clients.', ['HTML', 'CSS', 'JavaScript'], 0],
+  ['mariam', 'dev', 'Mariam Sow', 'Dakar', 'Sénégal', true, 'Designer devenue développeuse. Des interfaces simples, pensées pour le téléphone.', ['UI/UX', 'Figma', 'CSS'], 3],
+  ['kofi', 'dev', 'Kofi Mensah', 'Lomé', 'Togo', true, 'Logiciels de gestion pour écoles et pharmacies. Python avant tout.', ['Python', 'Django', 'PostgreSQL'], 8],
+  ['oumar', 'dev', 'Oumar Bah', 'Bamako', 'Mali', false, 'Développeur backend. En mission jusqu\'à la fin du mois.', ['Java', 'Spring', 'Docker'], 1],
+  ['aminata', 'dev', 'Aminata Diop', 'Thiès', 'Sénégal', true, 'WordPress et boutiques en ligne pour les artisans.', ['WordPress', 'PHP', 'SEO'], 5],
+  ['yao', 'dev', 'Yao Kouassi', 'Bouaké', 'Côte d\'Ivoire', true, 'Mobile et web, avec une préférence pour le hors-ligne : là où le réseau est capricieux.', ['React Native', 'TypeScript', 'Node.js'], 2],
+  ['nadege', 'dev', 'Nadège Mbarga', 'Douala', 'Cameroun', false, 'Données et tableaux de bord. Je transforme les fichiers Excel en outils.', ['Python', 'SQL', 'Power BI'], 1],
+  ['ibrahim', 'dev', 'Ibrahim Maïga', 'Niamey', 'Niger', true, 'Sites vitrines rapides et pas chers pour les associations.', ['HTML', 'CSS', 'WordPress'], 0],
+  ['salimata', 'client', 'Salimata Dao', 'Ouagadougou', 'Burkina Faso', true, 'Gérante d\'une boutique de pagnes et de bijoux.', [], 0],
+  ['pascal', 'client', 'Pascal Zongo', 'Koudougou', 'Burkina Faso', true, 'Directeur d\'un collège privé.', [], 0],
+  ['esther', 'client', 'Esther Akakpo', 'Cotonou', 'Bénin', true, 'Restauratrice, deux maquis et bientôt un troisième.', [], 0],
+];
+
+const AMITIES = [
+  ['awa', 'bintou'], ['awa', 'cheick'], ['awa', 'kofi'], ['awa', 'mariam'], ['bintou', 'cheick'], ['bintou', 'fatou'], ['bintou', 'aminata'],
+  ['cheick', 'yao'], ['fatou', 'yao'], ['fatou', 'kofi'], ['mariam', 'aminata'], ['kofi', 'nadege'], ['idrissa', 'ibrahim'], ['idrissa', 'awa'],
+  ['oumar', 'kofi'], ['salimata', 'bintou'], ['pascal', 'kofi'],
+];
+
+// Publications, de la plus ancienne à la plus récente : auteur, type, texte, photo (numéro de public/img/fond), qui aime, commentaires.
+const PUBLICATIONS = [
+  ['kofi', 'projet', 'Le logiciel de gestion du collège Sainte-Thérèse est en service : notes, bulletins et paiements des frais de scolarité. Trois mois de travail, zéro papier perdu depuis.', 4, ['awa', 'fatou', 'nadege', 'pascal', 'oumar', 'bintou'], [['pascal', 'Les parents reçoivent enfin les bulletins à temps. Merci Kofi.'], ['nadege', 'Tu génères les bulletins en PDF côté serveur ?'], ['kofi', 'Oui, avec un modèle par classe. Je peux te montrer.']]],
+  ['idrissa', 'question', 'Je débute et je dois choisir : apprendre React ou rester sur du JavaScript simple pour mes premiers sites ? Vos avis m\'intéressent.', null, ['ibrahim', 'awa'], [['awa', 'Reste simple tant que tu n\'es pas à l\'aise avec le DOM. React viendra tout seul après.'], ['mariam', 'D\'accord avec Awa. Les clients veulent un site qui marche, pas un framework.']]],
+  ['fatou', 'idee', 'Petit rappel du vendredi : compressez vos images. Sur un forfait de 500 Mo, une page de 4 Mo, c\'est un client qui ne revient pas.', null, ['bintou', 'yao', 'kofi', 'mariam', 'cheick', 'aminata', 'awa'], [['yao', 'Et testez en 3G bridée dans le navigateur. Ça calme.']]],
+  ['mariam', 'projet', 'Refonte du site de la coopérative de karité de Thiès. Avant : un PDF. Maintenant : un catalogue, les prix, et un bouton WhatsApp.', 3, ['aminata', 'awa', 'fatou', 'bintou'], [['aminata', 'Très propre. La galerie se charge vite, bravo.']]],
+  ['cheick', 'question', 'Quelqu\'un a déjà intégré Orange Money dans une appli Flutter ? Je cherche un retour d\'expérience sur les délais de validation du compte marchand.\n\nJ\'ai lu la documentation trois fois et il me reste des doutes sur le mode bac à sable.\n\nPremier point : les notifications de paiement arrivent-elles toujours ?\n\nDeuxième point : comment tester un remboursement ?\n\nMerci d\'avance à ceux qui prendront le temps de répondre.', null, ['awa', 'bintou', 'yao'], [['bintou', 'Oui, sur deux projets. Compte une bonne semaine pour la validation.'], ['yao', 'Les notifications arrivent, mais prévois une vérification toutes les minutes en secours.'], ['cheick', 'Merci à vous deux, c\'est exactement ce qu\'il me fallait.']]],
+  ['aminata', 'idee', 'On devrait avoir une liste commune des hébergeurs qui acceptent le paiement Mobile Money. Qui commence ?', null, ['mariam', 'ibrahim', 'kofi'], []],
+  ['yao', 'projet', 'Appli de prise de commande pour les maquis, qui marche sans réseau : les commandes partent dès que la connexion revient.', 1, ['fatou', 'cheick', 'esther', 'awa', 'bintou', 'kofi', 'mariam', 'aminata'], [['esther', 'Je l\'utilise dans mes deux maquis. Les serveurs ont compris en dix minutes.'], ['fatou', 'Le mode hors-ligne, c\'est ce qui manque à presque toutes les applis d\'ici.'], ['cheick', 'Tu stockes en local avec quoi ?'], ['yao', 'SQLite, puis une file d\'attente d\'envoi.']]],
+  ['nadege', 'question', 'Vous hébergez vos bases PostgreSQL où, pour des clients au Cameroun ? Je cherche quelque chose de stable et pas trop loin.', null, ['kofi'], [['kofi', 'J\'ai de bons résultats avec un hébergeur à Abidjan. Je t\'envoie le nom.']]],
+  ['bintou', 'projet', 'La boutique de pagnes de Salimata est en ligne. Catalogue, panier et paiement Mobile Money : tout fonctionne sur un petit téléphone.', 5, ['salimata', 'cheick', 'fatou', 'awa', 'aminata', 'kofi'], [['salimata', 'Trois commandes dès le premier jour. Je n\'en reviens pas.'], ['cheick', 'Le panier est rapide même en 3G, beau travail.'], ['awa', 'Félicitations Bintou.']]],
+  ['ibrahim', 'idee', 'Un site vitrine n\'a pas besoin de base de données. Du HTML, du CSS, un formulaire : c\'est rapide, pas cher, et ça ne tombe jamais en panne.', null, ['idrissa', 'fatou'], [['idrissa', 'Je note. Je me compliquais la vie.']]],
+  ['awa', 'idee', 'Et si on organisait un atelier Git à Koudougou le mois prochain ? Une matinée, gratuit, pour les étudiants. Qui serait partant pour animer avec moi ?', null, ['bintou', 'cheick', 'idrissa', 'kofi', 'mariam'], [['bintou', 'Partante. Je peux prendre la partie « travailler à plusieurs ».'], ['idrissa', 'Je viens, et j\'amène ma promo.']]],
+  ['oumar', 'question', 'Docker sur un petit serveur de 1 Go de mémoire : bonne ou mauvaise idée ?', null, ['kofi', 'nadege'], [['kofi', 'Pour une seule appli, ça passe. Pour trois, non.']]],
+  ['fatou', 'projet', 'Nouvelle version de l\'appli de livraison pour les maquis d\'Abidjan : suivi du livreur en direct et paiement Wave.', 2, ['bintou', 'kofi', 'yao', 'esther', 'mariam', 'awa', 'cheick'], [['esther', 'On peut l\'avoir à Cotonou ?'], ['fatou', 'On en parle ! Publie une demande, je te réponds avec Yao.']]],
+  ['mariam', 'idee', 'Avant de coder, dessinez l\'écran sur une feuille et montrez-la au client. Dix minutes de crayon évitent trois jours de modifications.', null, ['awa', 'aminata', 'idrissa', 'bintou'], []],
+  ['kofi', 'question', 'Comment vous fixez vos prix pour un logiciel de gestion ? Au forfait, ou à la journée ?', null, ['fatou', 'nadege', 'awa'], [['fatou', 'Au forfait, avec un acompte de 40 %. Jamais sans acompte.'], ['awa', 'Le calculateur de Palabre donne une bonne base pour démarrer la discussion.']]],
+  ['bintou', 'idee', 'Le badge « Lien vérifié » m\'a déjà valu deux contacts cette semaine. Mettez vos projets en ligne, même les petits.', null, ['awa', 'cheick', 'aminata', 'yao', 'kofi'], [['aminata', 'Pareil ici. Les clients regardent d\'abord les projets.']]],
+];
+
+const SECTEURS_DEMO = ['commerce', 'restauration', 'education', 'sante', 'agriculture', 'finance', 'transport', 'services', 'culture'];
+const TITRES_PROJETS = {
+  commerce: 'Boutique en ligne', restauration: 'Commandes d\'un restaurant', education: 'Gestion d\'une école', sante: 'Rendez-vous d\'une clinique',
+  agriculture: 'Suivi d\'une coopérative', finance: 'Tontine sur téléphone', transport: 'Suivi de livraisons', services: 'Site d\'une association', culture: 'Billetterie d\'un festival',
+};
+
+async function retirer() {
+  const { rowCount } = await pool.query('DELETE FROM utilisateurs WHERE email LIKE $1', [MOTIF_EMAIL]);
+  return rowCount;
+}
+
+async function creer() {
+  await migrer();
+  await retirer();
+  const serveur = creerApp().listen(0);
+  const base = `http://localhost:${serveur.address().port}`;
+  const m = {}; // cle → { cookie, identifiant, id }
+
+  async function appel(chemin, { methode = 'GET', donnees, qui } = {}) {
+    const headers = {};
+    if (donnees) headers['Content-Type'] = 'application/json';
+    if (qui) headers.Cookie = m[qui].cookie;
+    const reponse = await fetch(`${base}/api${chemin}`, { method: methode, headers, body: donnees ? JSON.stringify(donnees) : undefined });
+    const corps = await reponse.json().catch(() => ({}));
+    if (!reponse.ok) throw new Error(`${methode} ${chemin} → ${reponse.status} ${corps.erreur || ''}`);
+    return { corps, entetes: reponse.headers };
+  }
+  const poster = (chemin, qui, donnees = {}) => appel(chemin, { methode: 'POST', qui, donnees });
+  // Les photos de fond du site (Pexels, voir LICENCES.md) servent aussi d'images aux publications et aux projets.
+  const photo = (numero) => {
+    const fichier = path.join(__dirname, '..', '..', 'public', 'img', 'fond', `fond-${numero}-1080.jpg`);
+    return fs.existsSync(fichier) ? fs.readFileSync(fichier) : null;
+  };
+  const dataUrl = (numero) => (photo(numero) ? `data:image/jpeg;base64,${photo(numero).toString('base64')}` : undefined);
+
+  try {
+    // 1. Les comptes, puis leur profil (bio, compétences, disponibilité)
+    const { corps: { competences } } = await appel('/competences');
+    for (const [cle, type, nom, ville, pays, disponible, bio, noms] of MEMBRES) {
+      const inscription = await appel('/auth/inscription', { methode: 'POST', donnees: { type, nom, email: email(cle), motDePasse: MOT_DE_PASSE, pays, ville } });
+      const { rows } = await pool.query('SELECT id FROM utilisateurs WHERE email = $1', [email(cle)]);
+      m[cle] = { cookie: inscription.entetes.get('set-cookie').split(';')[0], identifiant: inscription.corps.utilisateur.identifiant, id: rows[0].id };
+      await appel('/profils/moi', {
+        methode: 'PUT', qui: cle,
+        donnees: { nom, identifiant: m[cle].identifiant, pays, ville, bio, disponible, whatsapp: null, competences: competences.filter((c) => noms.includes(c.nom)).map((c) => c.id) },
+      });
+    }
+    if (dataUrl(1)) await poster('/profils/moi/couverture', 'bintou', { image: dataUrl(5) });
+    if (dataUrl(1)) await poster('/profils/moi/couverture', 'fatou', { image: dataUrl(2) });
+
+    // 2. Les projets réalisés. Écrits directement en base : passer par l'API ferait visiter chaque lien par le serveur.
+    //    ATTENTION : ces liens sont inventés et marqués « vérifiés » pour la démonstration.
+    let rang = 0;
+    for (const [cle, , , , , , , , verifies] of MEMBRES) {
+      for (let i = 0; i < verifies + (verifies > 0 && verifies < 4 ? 1 : 0); i += 1) {
+        const secteur = SECTEURS_DEMO[rang % SECTEURS_DEMO.length];
+        let image = null;
+        if (i === 0 && photo((rang % 5) + 1)) { // le premier projet de chaque dev a une image
+          const octets = photo((rang % 5) + 1);
+          const { rows } = await pool.query('INSERT INTO fichiers (proprietaire_id, type_mime, taille, donnees) VALUES ($1, \'image/jpeg\', $2, $3) RETURNING id', [m[cle].id, octets.length, octets]);
+          image = rows[0].id;
+        }
+        await pool.query(
+          `INSERT INTO projets (dev_id, titre, description, secteur, lien, image, lien_verifie_le, cree_le)
+           VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $7 THEN now() END, now() - make_interval(days => $8))`,
+          [m[cle].id, `${TITRES_PROJETS[secteur]} ${['à', 'pour', 'de'][i % 3]} ${MEMBRES[(rang * 7) % MEMBRES.length][3]}`,
+            'Projet de démonstration : conçu pour le téléphone, léger en données, avec paiement par Mobile Money quand il y en a besoin.',
+            secteur, `https://demo.palabre.dev/${m[cle].identifiant}/${i + 1}`, image, i < verifies, 3 + rang],
+        );
+        rang += 1;
+      }
+    }
+
+    // 3. Les amitiés
+    for (const [a, b] of AMITIES) {
+      await poster('/amis/demandes', a, { identifiant: m[b].identifiant });
+      await poster(`/amis/demandes/${m[a].identifiant}/accepter`, b);
+    }
+
+    // 4. Les publications, leurs j'aime et leurs commentaires
+    const publications = [];
+    for (const [auteur, type, texte, numeroPhoto, aime, commentaires] of PUBLICATIONS) {
+      const { corps } = await poster('/publications', auteur, { type, texte, image: numeroPhoto ? dataUrl(numeroPhoto) : undefined });
+      const { id } = corps.publication;
+      publications.push(id);
+      for (const qui of aime) await poster(`/publications/${id}/jaime`, qui);
+      for (const [qui, commentaire] of commentaires) await poster(`/publications/${id}/commentaires`, qui, { texte: commentaire });
+    }
+    // Les dates sont étalées sur une semaine (la plus ancienne en premier), sinon tout serait daté « à l'instant ».
+    for (const [i, id] of publications.entries()) {
+      const heures = (publications.length - i) * 9 + 2;
+      await pool.query('UPDATE publications SET cree_le = now() - make_interval(hours => $2) WHERE id = $1', [id, heures]);
+      await pool.query('UPDATE commentaires SET cree_le = now() - make_interval(hours => $2) + (id % 7) * interval \'11 minutes\' WHERE publication_id = $1', [id, heures - 1]);
+    }
+
+    // 5. Les demandes des clients, les propositions, une équipe éclair, un choix, des avis
+    const demander = async (qui, donnees) => (await poster('/demandes', qui, donnees)).corps.demande.id;
+    const proposer = (id, qui, message, montantFcfa) => poster(`/demandes/${id}/propositions`, qui, { message, montantFcfa });
+    const propositionDe = async (id, client, cle) => (await appel(`/demandes/${id}`, { qui: client })).corps.propositions.find((p) => p.auteur.identifiant === m[cle].identifiant).id;
+
+    // Terminée, avec avis : la boutique de Salimata, réalisée par Bintou
+    const boutique = await demander('salimata', { titre: 'Boutique en ligne pour mes pagnes', description: 'Je vends des pagnes et des bijoux à Ouagadougou. Je voudrais un site où mes clientes commandent et paient par Orange Money.', budgetFcfa: 300000, delai: '1 mois', categorie: 'boutique-en-ligne' });
+    await proposer(boutique, 'bintou', 'Bonjour Salimata, j\'ai déjà réalisé plusieurs boutiques avec paiement Mobile Money. Je peux livrer en trois semaines.', 280000);
+    await proposer(boutique, 'aminata', 'Bonjour, je propose une boutique WordPress simple à gérer vous-même, avec une formation d\'une heure.', 250000);
+    await poster(`/demandes/${boutique}/choisir`, 'salimata', { propositionId: await propositionDe(boutique, 'salimata', 'bintou') });
+    await poster(`/demandes/${boutique}/terminer`, 'salimata');
+    await poster('/avis', 'salimata', { demandeId: boutique, identifiant: m.bintou.identifiant, note: 5, commentaire: 'Livré avant la date, et Bintou m\'a montré comment ajouter mes articles moi-même. Trois commandes dès le premier jour.' });
+
+    // Terminée, avec avis : le logiciel du collège de Pascal, réalisé par Kofi
+    const college = await demander('pascal', { titre: 'Logiciel de notes et de bulletins pour un collège', description: 'Collège de 600 élèves à Koudougou. Nous voulons saisir les notes, imprimer les bulletins et suivre les frais de scolarité.', budgetFcfa: 600000, delai: '3 mois', categorie: 'logiciel-gestion' });
+    await proposer(college, 'kofi', 'Bonjour, j\'ai développé ce type de logiciel pour deux écoles à Lomé. Je vous propose une démonstration avant de commencer.', 550000);
+    await proposer(college, 'nadege', 'Bonjour, je peux aussi reprendre vos fichiers Excel actuels pour ne perdre aucune donnée.', 600000);
+    await poster(`/demandes/${college}/choisir`, 'pascal', { propositionId: await propositionDe(college, 'pascal', 'kofi') });
+    await poster(`/demandes/${college}/terminer`, 'pascal');
+    await poster('/avis', 'pascal', { demandeId: college, identifiant: m.kofi.identifiant, note: 5, commentaire: 'Sérieux et patient avec nos enseignants. Les bulletins sortent en une matinée au lieu d\'une semaine.' });
+
+    // Attribuée à une équipe éclair : Fatou invite Yao, qui accepte ; Esther choisit l'équipe
+    const livraison = await demander('esther', { titre: 'Application de livraison pour mes maquis', description: 'J\'ai deux maquis à Cotonou. Je voudrais une application pour que les clients commandent et suivent le livreur, avec paiement à la livraison ou par Mobile Money.', budgetFcfa: 900000, delai: '2 mois', categorie: 'appli-mobile' });
+    const equipe = await poster(`/demandes/${livraison}/equipes`, 'fatou', { message: 'Bonjour Esther, nous avons déjà fait cette application à Abidjan. À deux, nous livrons en six semaines.', montantFcfa: 850000, roleChef: 'Serveur et paiement', membres: [{ identifiant: m.yao.identifiant, role: 'Application mobile' }] });
+    await poster(`/equipes/${equipe.corps.propositions.find((p) => p.equipe).equipe.id}/accepter`, 'yao');
+    await proposer(livraison, 'cheick', 'Bonjour, je peux réaliser l\'application en Flutter pour Android et iPhone.', 800000);
+    await poster(`/demandes/${livraison}/choisir`, 'esther', { propositionId: await propositionDe(livraison, 'esther', 'fatou') });
+
+    // Ouvertes : elles attendent des propositions
+    const vitrine = await demander('salimata', { titre: 'Site vitrine pour une association de femmes', description: 'Notre association forme des jeunes filles à la couture. Nous voulons un site simple : qui nous sommes, nos activités, comment nous aider.', budgetFcfa: 100000, delai: '3 semaines', categorie: 'site-web' });
+    await proposer(vitrine, 'ibrahim', 'Bonjour, c\'est exactement le type de site que je fais pour les associations, rapide et facile à mettre à jour.', 90000);
+    await proposer(vitrine, 'idrissa', 'Bonjour, je débute mais je suis disponible tout de suite et je vous montre l\'avancement chaque semaine.', 75000);
+    await demander('pascal', { titre: 'Paiement des frais de scolarité par Mobile Money', description: 'Nous voudrions que les parents puissent payer les frais de scolarité depuis leur téléphone et recevoir un reçu.', budgetFcfa: 250000, delai: '1 mois', categorie: 'paiement-mobile' });
+    await demander('esther', { titre: 'Logo et menu pour un nouveau maquis', description: 'J\'ouvre un troisième maquis à Cotonou. Il me faut un logo, une carte des plats à imprimer et les visuels pour Facebook.', budgetFcfa: null, delai: '2 semaines', categorie: 'design' });
+
+    // 6. Un peu de vie pour les vrais comptes déjà inscrits : deux membres de démonstration leur demandent d'être amis.
+    const { rows: vrais } = await pool.query('SELECT identifiant FROM utilisateurs WHERE email NOT LIKE $1 AND email NOT LIKE \'%@palabre.test\' AND bloque = FALSE LIMIT 20', [MOTIF_EMAIL]);
+    for (const { identifiant } of vrais) {
+      for (const cle of ['awa', 'bintou']) await poster('/amis/demandes', cle, { identifiant }).catch(() => {});
+    }
+    return { membres: MEMBRES.length, publications: publications.length, vrais: vrais.length };
+  } finally {
+    serveur.close();
+  }
+}
+
+async function main() {
+  // Garde-fou : jamais par accident sur le site en ligne (les comptes ont un mot de passe connu de tous).
+  if (config.production && !process.argv.includes('--en-production')) {
+    console.error('Refusé : le site est en production. Les comptes de démonstration ont un mot de passe public.\nSi c\'est vraiment voulu : npm run demo -- --en-production');
+    process.exitCode = 1;
+    return;
+  }
+  if (process.argv.includes('retirer')) {
+    console.log(`${await retirer()} compte(s) de démonstration retiré(s), avec tout leur contenu.`);
+    return;
+  }
+  const bilan = await creer();
+  console.log(`Contenu de démonstration créé : ${bilan.membres} membres, ${bilan.publications} publications, des projets, 6 demandes, 2 avis.`);
+  console.log(`Pour te connecter comme l'un d'eux : email ${email('awa')} (ou bintou, kofi, salimata…), mot de passe « ${MOT_DE_PASSE} ».`);
+  if (bilan.vrais) console.log('Awa et Bintou ont envoyé une demande d\'ami aux comptes déjà inscrits : regarde tes notifications.');
+  console.log('Pour tout retirer : npm run demo -- retirer');
+}
+
+main()
+  .catch((erreur) => { console.error('Échec :', erreur.message); process.exitCode = 1; })
+  .finally(() => pool.end());

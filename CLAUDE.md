@@ -60,6 +60,7 @@ npm install
 npm start          # http://localhost:3000
 npm test           # utilise DATABASE_URL
 npm run admin -- email@exemple.com   # donne le rôle administrateur à un compte
+npm run demo       # peuple la base avec un contenu de démonstration (npm run demo -- retirer pour l'enlever)
 npm run photos     # prépare les photos posées dans public/img/fond/ (WebP + JPEG, 1080 px)
 ```
 
