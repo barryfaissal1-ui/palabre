@@ -90,4 +90,19 @@ test('connexion et inscription : une seule page, le serveur choisit le formulair
   assert.match(pageConnexion, /<title>Se connecter/);
   assert.match(pageInscription, /data-vue="inscription"/);
   assert.match(pageInscription, /<title>Créer un compte/);
+  // Par défaut : « Développeur » est coché et le panneau parle aux devs.
+  assert.match(pageInscription, /id="type-dev" value="dev" checked/);
+  assert.match(pageInscription, /data-client="[^"]*">Rejoins le cercle\.</);
+
+  // Avec ?type=client (bouton « J'ai un projet », calculateur) : « Client » est coché et le texte est déjà le bon.
+  const pageClient = await (await fetch(`${base}/inscription?type=client&suite=/demandes`)).text();
+  assert.match(pageClient, /id="type-client" value="client" checked/);
+  assert.doesNotMatch(pageClient, /id="type-dev" value="dev" checked/);
+  assert.match(pageClient, />Ton projet mérite les bons devs\.</);
+  assert.match(pageClient, />Publie ta demande en FCFA, reçois des propositions de devs prouvés et choisis en confiance\.</);
+  assert.doesNotMatch(pageClient, />Montre ton travail, forme ton équipe, trouve tes clients\.</);
+  // Une valeur inconnue ne change rien.
+  assert.match(await (await fetch(`${base}/inscription?type=pirate`)).text(), /id="type-dev" value="dev" checked/);
+  // Et le bouton « J'ai un projet » de l'accueil mène bien là.
+  assert.match(await (await fetch(`${base}/`)).text(), /href="\/inscription\?type=client">J'ai un projet</);
 });

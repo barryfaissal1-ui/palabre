@@ -267,6 +267,30 @@
   // Bouton retour (ou avance) du téléphone : l'adresse a changé, la page suit.
   window.addEventListener('popstate', () => aller(vueDeLAdresse()));
 
+  // ---------- Le texte du panneau suit le choix « Développeur / Client » ----------
+  // Un client n'a pas à lire « trouve tes clients » : dès qu'on touche une tuile, le titre et le texte du panneau
+  // changent. Les deux versions sont écrites dans la page (attributs data-dev et data-client), posées avec textContent.
+  const textesSelonType = carte.querySelectorAll('[data-selon-type]');
+  function ecrireSelonType({ fondu = false } = {}) {
+    const coche = carte.querySelector('input[name="type"]:checked');
+    const type = coche && coche.value === 'client' ? 'client' : 'dev';
+    textesSelonType.forEach((element) => {
+      const texte = element.dataset[type];
+      if (element.textContent === texte) return;
+      element.textContent = texte;
+      if (!fondu) return;
+      // Un fondu court sur le texte seulement (classe retirée puis remise pour le rejouer à chaque changement).
+      element.classList.remove('texte-change');
+      void element.offsetWidth;
+      element.classList.add('texte-change');
+    });
+  }
+  carte.querySelectorAll('input[name="type"]').forEach((tuile) => tuile.addEventListener('change', () => ecrireSelonType({ fondu: true })));
+  // Au chargement : le serveur a déjà écrit le bon texte ; on revérifie seulement (retour en arrière du navigateur,
+  // qui peut restaurer une tuile cochée), sans animation.
+  document.addEventListener('DOMContentLoaded', () => ecrireSelonType());
+  window.addEventListener('pageshow', () => ecrireSelonType());
+
   // ---------- Bouton œil : afficher ou masquer le mot de passe ----------
   carte.querySelectorAll('[data-oeil]').forEach((bouton) => {
     const champ = bouton.parentElement.querySelector('input');

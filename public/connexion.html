@@ -163,8 +163,10 @@
           </div>
           <div class="lame-message" data-pour="inscription">
             <a class="lame-marque" href="/"><img src="/icons/logo-256.png" alt="" width="44" height="44">Palabre</a>
-            <p class="lame-accroche">Rejoins le cercle.</p>
-            <p class="lame-texte">Montre ton travail, forme ton équipe, trouve tes clients.</p>
+            <!-- Le texte dépend du choix « Tu es : Développeur / Client ». Les deux versions sont ici, dans data-dev et
+                 data-client : acces.js affiche la bonne au clic, et le serveur l'écrit dès le départ avec ?type=client. -->
+            <p class="lame-accroche" data-selon-type data-dev="Rejoins le cercle." data-client="Ton projet mérite les bons devs.">Rejoins le cercle.</p>
+            <p class="lame-texte" data-selon-type data-dev="Montre ton travail, forme ton équipe, trouve tes clients." data-client="Publie ta demande en FCFA, reçois des propositions de devs prouvés et choisis en confiance.">Montre ton travail, forme ton équipe, trouve tes clients.</p>
           </div>
         </div>
       </div>

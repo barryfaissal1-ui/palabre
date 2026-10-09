@@ -141,6 +141,15 @@ router.get(['/connexion', '/inscription'], (req, res) => {
       .replace('data-vue="connexion"', 'data-vue="inscription"')
       .replace('<title>Se connecter – Palabre</title>', '<title>Créer un compte – Palabre</title>');
   }
+  // Arrivée avec ?type=client (bouton « J'ai un projet » de l'accueil, calculateur) : la tuile « Client » est cochée
+  // et le panneau parle déjà au client. Fait ici, avant l'envoi de la page : aucun clignotement à l'affichage.
+  if (req.query.type === 'client') {
+    html = html
+      .replace('id="type-dev" value="dev" checked', 'id="type-dev" value="dev"')
+      .replace('id="type-client" value="client"', 'id="type-client" value="client" checked')
+      // Chaque texte marqué data-selon-type est remplacé par sa version « client », lue dans son propre attribut.
+      .replace(/(data-selon-type data-dev="[^"]*" data-client="([^"]*)">)[^<]*/g, '$1$2');
+  }
   res.type('html').send(html);
 });
 

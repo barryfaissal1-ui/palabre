@@ -1998,7 +1998,7 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
   min-height: 100svh;
   background: var(--surface);
   /* Hauteur du panneau vert sur téléphone : environ 34 % de l'écran */
-  --haut-lame: clamp(200px, 34svh, 320px);
+  --haut-lame: clamp(224px, 34svh, 320px); /* au moins 224 px : le texte le plus long (version « client ») doit tenir, même sur un petit écran */
   --duree-lame: 0.45s; /* une moitié de l'animation ; la même valeur que DEMI_DUREE dans acces.js */
 }
 
@@ -2098,6 +2098,8 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
 .lame-marque { justify-self: start; display: inline-flex; align-items: center; gap: 10px; min-height: 44px; margin-bottom: 4px; color: inherit; font: 800 var(--t-20)/1 var(--titre); text-decoration: none; }
 .lame-marque img { width: 36px; height: 36px; border-radius: 10px; }
 .lame-accroche { margin: 0; font: 800 var(--t-24)/1.15 var(--titre); }
+/* Le texte change avec le choix « Développeur / Client » : un fondu court, sur le texte seulement */
+.texte-change { animation: fondu 0.2s ease; }
 .lame-texte { margin: 0; max-width: 34ch; color: #E6F0E8; }
 
 /* Ordinateur et tablette : une grande carte centrée, coupée en deux par une diagonale.
