@@ -1,6 +1,6 @@
 // Page publique d'un projet réalisé : palabre.dev/projets/12
 (function () {
-  const { api, el, avatar, utilisateurConnecte, partager, signaler, icone, etatVide } = window.Palabre;
+  const { api, el, avatar, utilisateurConnecte, partager, signaler, icone, etatVide, nomMembre } = window.Palabre;
 
   const id = window.location.pathname.split('/')[2];
 
@@ -43,7 +43,7 @@
         el('div', { classe: 'ligne-membre' }, [
           el('a', { classe: 'lien-avatar', href: `/${projet.dev.identifiant}`, 'aria-label': `Profil de ${projet.dev.nom}` }, [avatar(projet.dev, 'moyen')]),
           el('div', { classe: 'ligne-membre-infos' }, [
-            el('a', { classe: 'nom-auteur', href: `/${projet.dev.identifiant}`, texte: projet.dev.nom }),
+            nomMembre(projet.dev),
             el('p', { classe: 'texte-discret', texte: lieu }),
           ]),
           el('div', { classe: 'ligne-membre-actions' }, [

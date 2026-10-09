@@ -24,7 +24,38 @@ function lireImageDataUrl(dataUrl, champ = 'image') {
   if (donnees.length > TAILLE_MAX) throw new ErreurValidation('Image trop lourde (500 Ko maximum).', champ);
   if (!SIGNATURES[typeMime](donnees)) throw new ErreurValidation('Ce fichier n\'est pas une image valide.', champ);
 
-  return { typeMime, donnees };
+  return { typeMime, donnees, ...dimensions(typeMime, donnees) };
+}
+
+// Largeur et hauteur de l'image, lues dans les premiers octets du fichier (sans bibliothèque).
+// Renvoie { largeur: null, hauteur: null } si le format n'est pas reconnu : l'image s'affiche quand même.
+function dimensions(typeMime, b) {
+  const rien = { largeur: null, hauteur: null };
+  try {
+    if (typeMime === 'image/png') return { largeur: b.readUInt32BE(16), hauteur: b.readUInt32BE(20) };
+    if (typeMime === 'image/jpeg') {
+      // Un JPEG est une suite de blocs « FF xx longueur » ; la taille est dans le bloc SOF (C0 à CF, sauf C4, C8, CC).
+      let i = 2;
+      while (i + 9 < b.length) {
+        if (b[i] !== 0xff) return rien;
+        const marqueur = b[i + 1];
+        if (marqueur >= 0xc0 && marqueur <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marqueur)) {
+          return { largeur: b.readUInt16BE(i + 7), hauteur: b.readUInt16BE(i + 5) };
+        }
+        i += 2 + b.readUInt16BE(i + 2);
+      }
+      return rien;
+    }
+    // WebP : trois variantes, reconnues par les 4 lettres à la position 12.
+    const variante = b.subarray(12, 16).toString('ascii');
+    if (variante === 'VP8X') return { largeur: b.readUIntLE(24, 3) + 1, hauteur: b.readUIntLE(27, 3) + 1 };
+    if (variante === 'VP8 ') return { largeur: b.readUInt16LE(26) & 0x3fff, hauteur: b.readUInt16LE(28) & 0x3fff };
+    if (variante === 'VP8L') {
+      const bits = b.readUInt32LE(21);
+      return { largeur: (bits & 0x3fff) + 1, hauteur: ((bits >> 14) & 0x3fff) + 1 };
+    }
+  } catch { /* fichier trop court : pas de taille */ }
+  return rien;
 }
 
 module.exports = { lireImageDataUrl, TAILLE_MAX };

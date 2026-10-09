@@ -30,7 +30,7 @@ async function chargerUtilisateur(req, res, next) {
   try {
     const { id } = jwt.verify(jeton, config.jwtSecret);
     const { rows } = await db.query(
-      `SELECT id, type, est_admin, nom, identifiant, email, pays, ville, whatsapp, bio, avatar, disponible
+      `SELECT id, type, est_admin, nom, identifiant, email, pays, ville, whatsapp, bio, avatar, couverture, disponible
          FROM utilisateurs WHERE id = $1 AND bloque = FALSE`,
       [id],
     );

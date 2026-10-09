@@ -58,6 +58,8 @@ CREATE TABLE IF NOT EXISTS projets (
 );
 -- Un administrateur peut masquer un projet signalé (colonne ajoutée après la création de la table).
 ALTER TABLE projets ADD COLUMN IF NOT EXISTS masque BOOLEAN NOT NULL DEFAULT FALSE;
+-- Photo de couverture du profil (numéro du fichier, comme avatar).
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS couverture TEXT;
 
 -- ============ Réseau social ============
 CREATE TABLE IF NOT EXISTS publications (
@@ -69,6 +71,9 @@ CREATE TABLE IF NOT EXISTS publications (
   masque    BOOLEAN NOT NULL DEFAULT FALSE,
   cree_le   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Taille de l'image jointe : le navigateur réserve sa place avant qu'elle soit chargée (la page ne saute pas).
+ALTER TABLE publications ADD COLUMN IF NOT EXISTS image_largeur INTEGER;
+ALTER TABLE publications ADD COLUMN IF NOT EXISTS image_hauteur INTEGER;
 
 CREATE TABLE IF NOT EXISTS commentaires (
   id             SERIAL PRIMARY KEY,

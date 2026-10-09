@@ -15,19 +15,20 @@
   <link rel="stylesheet" href="/css/style.css">
   <title>Fil d'actualité – Palabre</title>
   <script src="/js/app.js" defer></script>
+  <script src="/js/publication.js" defer></script>
   <script src="/js/fil.js" defer></script>
 </head>
 <body>
   <div class="bande"></div>
-  <header class="conteneur entete">
-    <a class="marque" href="/"><img src="/icons/logo-256.png" alt="" width="36" height="36">Palabre</a>
+  <header class="entete"><div class="conteneur entete-interieur">
+    <a class="marque" href="/"><img src="/icons/logo-256.png" alt="" width="32" height="32">Palabre</a>
     <nav data-nav></nav>
-  </header>
+  </div></header>
   <main class="conteneur page-fil">
-    <h1 class="titre-page">Fil d'actualité</h1>
+    <h1 class="visuellement-cache">Fil d'actualité</h1>
 
-    <!-- Zone « Publier » : un champ compact ; le reste (.composer-suite) apparaît quand on touche le champ. -->
-    <form class="bloc-formulaire composer" data-publier novalidate>
+    <!-- Zone « Publier » : un champ compact et trois raccourcis ; le reste (.composer-suite) apparaît quand on écrit. -->
+    <form class="bloc-fil composer" data-publier novalidate>
       <div class="composer-champ">
         <span data-mon-avatar></span>
         <div class="champ">
@@ -51,24 +52,34 @@
           <button class="bouton bouton-lien" type="button" data-retirer-image>Retirer l'image</button>
         </div>
         <div class="actions-publier">
-          <label class="bouton bouton-contour">
-            <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#image"></use></svg>Image
-            <input type="file" accept="image/*" data-choisir-image class="visuellement-cache">
-          </label>
+          <label class="bouton bouton-contour" for="choisir-image"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#image"></use></svg>Image</label>
           <button class="bouton bouton-principal" type="submit"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#envoyer"></use></svg>Publier</button>
         </div>
       </div>
       <p class="message" role="status" data-message></p>
+      <!-- Raccourcis : ils préchoisissent le type de publication (ou ouvrent le choix d'une photo). -->
+      <div class="composer-raccourcis">
+        <label class="raccourci raccourci-photo" for="choisir-image"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#image"></use></svg>Photo</label>
+        <button class="raccourci raccourci-question" type="button" data-raccourci="question"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#question"></use></svg>Question</button>
+        <button class="raccourci raccourci-projet" type="button" data-raccourci="projet"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#projet"></use></svg>Projet</button>
+      </div>
+      <input type="file" id="choisir-image" accept="image/*" data-choisir-image class="visuellement-cache" aria-label="Choisir une image">
     </form>
 
-    <div class="onglets" role="group" aria-label="Filtrer le fil">
-      <button class="onglet" type="button" data-filtre="tout" aria-pressed="true">Tout le monde</button>
-      <button class="onglet" type="button" data-filtre="amis" aria-pressed="false">Mes amis</button>
+    <!-- « Disponibles maintenant » : remplie par fil.js, cachée s'il n'y a personne. -->
+    <section class="bloc-fil disponibles" data-disponibles aria-labelledby="titre-disponibles" hidden>
+      <h2 id="titre-disponibles">Disponibles maintenant</h2>
+      <ul class="rangee-disponibles" data-rangee></ul>
+    </section>
+
+    <div class="bloc-fil filtres-fil" role="group" aria-label="Filtrer le fil">
+      <button class="filtre-fil" type="button" data-filtre="tout" aria-pressed="true">Tout le monde</button>
+      <button class="filtre-fil" type="button" data-filtre="amis" aria-pressed="false">Mes amis</button>
     </div>
 
-    <div class="liste-publications" data-fil></div>
+    <div class="fil-social" data-fil></div>
     <div role="status" data-etat-fil hidden></div>
-    <button class="bouton bouton-contour bouton-plein" type="button" data-charger-plus hidden>Voir plus de publications</button>
+    <button class="bouton bouton-contour bouton-plein charger-plus" type="button" data-charger-plus hidden>Voir plus de publications</button>
   </main>
 </body>
 </html>

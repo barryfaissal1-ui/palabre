@@ -31,6 +31,7 @@ function creerApp() {
   // Les envois d'images ont droit à un corps plus gros (image compressée en base64) ;
   // toutes les autres requêtes restent limitées à 200 Ko.
   app.use('/api/profils/moi/avatar', express.json({ limit: '750kb' }));
+  app.use('/api/profils/moi/couverture', express.json({ limit: '750kb' }));
   app.post('/api/publications', express.json({ limit: '750kb' }));
   app.post('/api/projets', express.json({ limit: '750kb' }));
   app.use(express.json({ limit: '200kb' }));

@@ -12,11 +12,17 @@ function apercuMembre(ligne) {
     ville: ligne.ville,
     pays: ligne.pays,
     avatar: ligne.avatar ? `/fichiers/${ligne.avatar}` : null,
+    // Nombre de projets au lien vérifié : dessine l'anneau de preuve autour de la photo et le badge feuille.
+    nbProjetsVerifies: ligne.nb_projets_verifies || 0,
   };
 }
 
 // Colonnes à sélectionner (table utilisateurs sous l'alias « u ») pour apercuMembre.
-const COLONNES_MEMBRE = 'u.nom, u.identifiant, u.type AS type_compte, u.ville, u.pays, u.avatar';
+// Le nombre de projets vérifiés est une sous-requête de la même requête : jamais une requête par membre.
+const NB_PROJETS_VERIFIES = `(SELECT count(*)::int FROM projets pv
+    WHERE pv.dev_id = u.id AND pv.masque = FALSE AND pv.lien IS NOT NULL AND pv.lien_verifie_le IS NOT NULL)`;
+const COLONNES_MEMBRE = `u.nom, u.identifiant, u.type AS type_compte, u.ville, u.pays, u.avatar,
+    ${NB_PROJETS_VERIFIES} AS nb_projets_verifies`;
 
 // Lien entre deux membres, vu par « moi » : 'amis', 'envoyee', 'recue' ou 'aucune'.
 // Un refus n'est pas révélé : celui qui a demandé voit toujours « demande envoyée ».
@@ -46,4 +52,4 @@ function limiteParMembre(nombre, minutes, message) {
   });
 }
 
-module.exports = { apercuMembre, COLONNES_MEMBRE, etatAmitie, limiteParMembre };
+module.exports = { apercuMembre, COLONNES_MEMBRE, NB_PROJETS_VERIFIES, etatAmitie, limiteParMembre };

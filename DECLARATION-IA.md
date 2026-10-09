@@ -22,6 +22,7 @@ Déclaration exigée par l'article 6 du règlement CADEV 2026. À compléter par
 | Guide `docs/COMPRENDRE-LE-CODE.md` | Rédigé par l'IA pour l'équipe |
 | Interface (`public/`) | Générée par l'IA, adaptée par l'équipe |
 | Système de design (`public/css/style.css`, fonctions `icone`, `toast`, `confirmer`, `etatVide`, `chargement` de `public/js/app.js`) | Généré par l'IA à partir des demandes de l'équipe, relu par l'équipe |
+| Refonte « réseau social » : anneau de preuve, recherche de membres, « Disponibles maintenant », preuve sociale du fil, couverture et onglets du profil (`public/js/publication.js`, `public/js/fil.js`, `public/js/profil.js`, `src/routes/devs.js`, `src/routes/publications.js`, `src/routes/profils.js`, `tests/preuve-sociale.test.js`) | Généré par l'IA à partir du cahier des charges rédigé par l'équipe, relu par l'équipe |
 | Illustrations des états vides et motif de la bannière (`public/icons/illustrations.svg`, `public/icons/motif-banniere.svg`) | Dessinés avec l'IA (Claude Code) pour le concours, sans source externe |
 | Icônes (`public/icons/icones.svg`) | Icônes Lucide (licence ISC), assemblées en un fichier avec l'IA |
 | Image de partage Facebook / WhatsApp (`public/img/palabre-partage-1200x630.png`) | Visuel réalisé avec Claude (Anthropic) à partir du logo et des couleurs de l'équipe |

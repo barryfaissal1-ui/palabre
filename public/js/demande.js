@@ -1,6 +1,6 @@
 // Page d'une demande : le client compare et choisit ; le dev propose seul ou forme une équipe éclair.
 (function () {
-  const { api, el, avatar, utilisateurConnecte, dateRelative, deNom, fcfa, signaler, etatVide, confirmer, icone } = window.Palabre;
+  const { api, el, avatar, utilisateurConnecte, dateRelative, deNom, fcfa, signaler, etatVide, confirmer, icone, nomMembre } = window.Palabre;
 
   const id = new URLSearchParams(window.location.search).get('id');
   const NOMS_STATUTS = { ouverte: 'Ouverte', attribuee: 'Attribuée', terminee: 'Terminée', annulee: 'Annulée' };
@@ -43,8 +43,8 @@
     return el('li', { classe: 'membre-equipe' }, [
       el('a', { classe: 'lien-avatar', href: `/${membre.identifiant}`, 'aria-label': `Profil de ${membre.nom}` }, [avatar(membre, 'mini')]),
       el('div', {}, [
-        el('a', { classe: 'nom-auteur', href: `/${membre.identifiant}`, texte: membre.nom }),
-        el('p', { classe: 'texte-discret', texte: precision ? `${membre.role} · ${precision}` : membre.role }),
+        nomMembre(membre),
+        el('p', { classe: 'texte-discret', texte: precision ? `${membre.role}, ${precision}` : membre.role }),
       ]),
     ]);
   }
@@ -60,7 +60,7 @@
         el('div', { classe: 'publication-entete' }, [
           el('a', { classe: 'lien-avatar', href: `/${proposition.auteur.identifiant}`, 'aria-label': `Profil de ${proposition.auteur.nom}` }, [avatar(proposition.auteur, 'moyen')]),
           el('div', {}, [
-            el('a', { classe: 'nom-auteur', href: `/${proposition.auteur.identifiant}`, texte: proposition.auteur.nom }),
+            nomMembre(proposition.auteur),
             el('p', { classe: 'texte-discret publication-meta', texte: [proposition.auteur.ville, proposition.auteur.pays].filter(Boolean).join(', ') }),
           ]),
         ]),
@@ -80,7 +80,7 @@
     return el('section', { classe: 'carte-profil' }, [
       el('p', { classe: 'publication-meta' }, [
         el('span', { classe: `statut-demande statut-${demande.statut}`, texte: NOMS_STATUTS[demande.statut] }),
-        el('span', { classe: 'texte-discret', texte: ` · ${demande.nomCategorie} · ${dateRelative(demande.creeLe)}` }),
+        el('span', { classe: 'texte-discret', texte: ` ${demande.nomCategorie}, ${dateRelative(demande.creeLe)}` }),
       ]),
       el('h1', { classe: 'titre-demande', texte: demande.titre }),
       el('p', { classe: 'texte-discret' }, [

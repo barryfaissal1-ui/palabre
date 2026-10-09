@@ -1,6 +1,6 @@
 // Page « Mes amis » : demandes reçues, amis, demandes envoyées.
 (function () {
-  const { api, el, avatar, utilisateurConnecte, icone, etatVide, confirmer } = window.Palabre;
+  const { api, el, avatar, utilisateurConnecte, icone, etatVide, confirmer, nomMembre } = window.Palabre;
 
   function message(texte, type) {
     const zone = document.querySelector('[data-message]');
@@ -34,7 +34,7 @@
     return el('li', { classe: 'ligne-membre' }, [
       el('a', { classe: 'lien-avatar', href: `/${membre.identifiant}`, 'aria-label': `Profil de ${membre.nom}` }, [avatar(membre, 'moyen')]),
       el('div', { classe: 'ligne-membre-infos' }, [
-        el('a', { classe: 'nom-auteur', href: `/${membre.identifiant}`, texte: membre.nom }),
+        nomMembre(membre),
         el('p', { classe: 'texte-discret', texte: lieu }),
       ]),
       el('div', { classe: 'ligne-membre-actions' }, boutons),

@@ -15,7 +15,7 @@
     return el('article', { classe: 'carte-publication carte-demande' }, [
       el('p', { classe: 'publication-meta' }, [
         el('span', { classe: `statut-demande statut-${demande.statut}`, texte: NOMS_STATUTS[demande.statut] }),
-        el('span', { classe: 'texte-discret', texte: ` · ${demande.nomCategorie} · ${dateRelative(demande.creeLe)}` }),
+        el('span', { classe: 'texte-discret', texte: ` ${demande.nomCategorie}, ${dateRelative(demande.creeLe)}` }),
       ]),
       el('h2', {}, [el('a', { href: `/demande?id=${demande.id}`, texte: demande.titre })]),
       el('p', { classe: 'publication-texte', texte: demande.description }),
@@ -23,7 +23,7 @@
         el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('argent'), 'Budget']), el('dd', { texte: fcfa(demande.budgetFcfa) })]),
         el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('horloge'), 'Délai']), el('dd', { texte: demande.delai || 'À discuter' })]),
       ]),
-      el('p', { classe: 'texte-discret pied-demande', texte: `${demande.estMoi ? 'Ta demande' : `Par ${demande.client.nom}`} · ${propositions}` }),
+      el('p', { classe: 'texte-discret pied-demande', texte: `${demande.estMoi ? 'Ta demande' : `Par ${demande.client.nom}`}, ${propositions.toLowerCase()}` }),
       el('a', { classe: 'bouton bouton-contour', href: `/demande?id=${demande.id}`, texte: 'Voir la demande' }),
     ]);
   }

@@ -1,6 +1,6 @@
 // Recherche de développeurs par compétence, pays, ville et disponibilité. Visible sans compte.
 (function () {
-  const { api, el, avatar, etoiles, icone, etatVide, chargement } = window.Palabre;
+  const { api, el, avatar, etoiles, icone, etatVide, chargement, nomMembre } = window.Palabre;
 
   const MAX_COMPETENCES_AFFICHEES = 5;
   let pageSuivante = null;
@@ -22,7 +22,7 @@
       el('div', { classe: 'publication-entete' }, [
         el('a', { classe: 'lien-avatar', href: `/${dev.identifiant}`, 'aria-label': `Profil de ${dev.nom}` }, [avatar(dev, 'moyen')]),
         el('div', {}, [
-          el('h2', {}, [el('a', { classe: 'nom-auteur', href: `/${dev.identifiant}`, texte: dev.nom })]),
+          el('h2', {}, [nomMembre(dev)]),
           el('p', { classe: 'texte-discret publication-meta avec-icone' }, [icone('lieu'), lieu]),
         ]),
       ]),

@@ -11,6 +11,7 @@ const router = express.Router();
 const PAR_PAGE = 10;
 const TYPES = ['idee', 'question', 'projet'];
 const MAX_COMMENTAIRES_AFFICHES = 200;
+const COMMENTAIRES_APERCU = 2; // derniers commentaires montrés directement sous chaque publication
 
 const limitePublications = limiteParMembre(30, 15, 'Tu publies très vite. Réessaie dans quelques minutes.');
 const limiteCommentaires = limiteParMembre(60, 15, 'Tu commentes très vite. Réessaie dans quelques minutes.');
@@ -19,8 +20,12 @@ router.use(exigerConnexion);
 
 // Une publication avec son auteur et ses compteurs. $1 est toujours le membre connecté.
 // Les publications masquées par un administrateur et celles des comptes bloqués n'apparaissent jamais.
+// Tout ce qu'il faut pour afficher le fil arrive en UNE requête (sous-requêtes et LATERAL), jamais une par publication :
+//  - « aime » : une personne qui a aimé, autre que moi, un de mes amis en priorité (« Aimé par Awa et 12 autres ») ;
+//  - « apercu » : les 2 derniers commentaires, avec leur auteur.
 const SELECTION = `
-  SELECT p.id, p.type, p.texte, p.image, p.cree_le, p.auteur_id, ${COLONNES_MEMBRE},
+  SELECT p.id, p.type, p.texte, p.image, p.image_largeur, p.image_hauteur, p.cree_le, p.auteur_id, ${COLONNES_MEMBRE},
+         aime.nom AS aime_nom, aime.identifiant AS aime_identifiant, apercu.liste AS apercu_commentaires,
          (SELECT count(*)::int FROM jaime j WHERE j.publication_id = p.id) AS nb_jaime,
          (SELECT count(*)::int FROM commentaires c
             JOIN utilisateurs cu ON cu.id = c.auteur_id
@@ -28,6 +33,27 @@ const SELECTION = `
          EXISTS (SELECT 1 FROM jaime j WHERE j.publication_id = p.id AND j.utilisateur_id = $1) AS jaime_par_moi
     FROM publications p
     JOIN utilisateurs u ON u.id = p.auteur_id
+    LEFT JOIN LATERAL (
+      SELECT ju.nom, ju.identifiant
+        FROM jaime j
+        JOIN utilisateurs ju ON ju.id = j.utilisateur_id
+       WHERE j.publication_id = p.id AND j.utilisateur_id <> $1 AND ju.bloque = FALSE
+       ORDER BY EXISTS (SELECT 1 FROM amities a
+                         WHERE a.statut = 'acceptee'
+                           AND LEAST(a.demandeur_id, a.receveur_id) = LEAST($1, ju.id)
+                           AND GREATEST(a.demandeur_id, a.receveur_id) = GREATEST($1, ju.id)) DESC,
+                ju.id DESC
+       LIMIT 1
+    ) aime ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT json_agg(to_jsonb(d) ORDER BY d.id) AS liste
+        FROM (SELECT c.id, c.texte, c.cree_le, c.auteur_id, ${COLONNES_MEMBRE}
+                FROM commentaires c
+                JOIN utilisateurs u ON u.id = c.auteur_id -- ici « u » est l'auteur du commentaire
+               WHERE c.publication_id = p.id AND c.masque = FALSE AND u.bloque = FALSE
+               ORDER BY c.id DESC
+               LIMIT ${COMMENTAIRES_APERCU}) d
+    ) apercu ON TRUE
    WHERE p.masque = FALSE AND u.bloque = FALSE`;
 
 function versPublication(ligne, moi) {
@@ -36,9 +62,13 @@ function versPublication(ligne, moi) {
     type: ligne.type,
     texte: ligne.texte,
     image: ligne.image ? `/fichiers/${ligne.image}` : null,
+    imageLargeur: ligne.image_largeur,
+    imageHauteur: ligne.image_hauteur,
     creeLe: ligne.cree_le,
     auteur: apercuMembre(ligne),
     nbJaime: ligne.nb_jaime,
+    aimePar: ligne.aime_nom ? { nom: ligne.aime_nom, identifiant: ligne.aime_identifiant } : null,
+    derniersCommentaires: (ligne.apercu_commentaires || []).map((c) => versCommentaire(c, moi)),
     nbCommentaires: ligne.nb_commentaires,
     jaimeParMoi: ligne.jaime_par_moi,
     estMoi: ligne.auteur_id === moi.id,
@@ -80,13 +110,15 @@ async function compteurJaime(publicationId, moiId) {
   return { nbJaime: rows[0].nb, jaimeParMoi: rows[0].moi };
 }
 
-// Le fil : GET /api/publications?avant=<id>&amis=1
+// Le fil : GET /api/publications?avant=<id>&amis=1&auteur=<identifiant>
+// « auteur » ne garde que les publications d'un membre (onglet « Publications » de son profil).
 // Les publications sont chargées par 10, de la plus récente à la plus ancienne.
 // « avant » est le numéro de la dernière publication déjà affichée : on demande celles d'avant.
 router.get('/', async (req, res) => {
   const moi = req.utilisateur;
   const avant = v.idPositif(req.query.avant);
   const seulementAmis = req.query.amis === '1';
+  const auteur = typeof req.query.auteur === 'string' && req.query.auteur ? req.query.auteur.toLowerCase().slice(0, 30) : null;
 
   const { rows } = await db.query(
     `${SELECTION}
@@ -95,9 +127,10 @@ router.get('/', async (req, res) => {
              SELECT CASE WHEN a.demandeur_id = $1 THEN a.receveur_id ELSE a.demandeur_id END
                FROM amities a
               WHERE a.statut = 'acceptee' AND $1 IN (a.demandeur_id, a.receveur_id)))
+       AND ($5::text IS NULL OR u.identifiant = $5)
      ORDER BY p.id DESC
      LIMIT $4`,
-    [moi.id, avant, seulementAmis, PAR_PAGE + 1], // une de plus pour savoir s'il en reste
+    [moi.id, avant, seulementAmis, PAR_PAGE + 1, auteur], // une de plus pour savoir s'il en reste
   );
 
   const page = rows.slice(0, PAR_PAGE);
@@ -129,8 +162,9 @@ router.post('/', limitePublications, async (req, res) => {
       imageId = fichier.rows[0].id;
     }
     const { rows } = await client.query(
-      'INSERT INTO publications (auteur_id, type, texte, image) VALUES ($1, $2, $3, $4) RETURNING id',
-      [moi.id, type, texte, imageId],
+      `INSERT INTO publications (auteur_id, type, texte, image, image_largeur, image_hauteur)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      [moi.id, type, texte, imageId, image ? image.largeur : null, image ? image.hauteur : null],
     );
     id = rows[0].id;
     await client.query('COMMIT');

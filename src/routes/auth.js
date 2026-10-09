@@ -117,11 +117,13 @@ router.get('/moi', async (req, res) => {
                JOIN utilisateurs u ON u.id = a.demandeur_id
               WHERE a.receveur_id = $1 AND a.statut = 'en_attente' AND u.bloque = FALSE) AS demandes_amis,
             (SELECT count(*)::int FROM notifications n
-              WHERE n.utilisateur_id = $1 AND n.lue = FALSE) AS notifications`,
+              WHERE n.utilisateur_id = $1 AND n.lue = FALSE) AS notifications,
+            (SELECT count(*)::int FROM projets pv
+              WHERE pv.dev_id = $1 AND pv.masque = FALSE AND pv.lien IS NOT NULL AND pv.lien_verifie_le IS NOT NULL) AS nb_projets_verifies`,
     [req.utilisateur.id],
   );
   res.json({
-    utilisateur: { ...profilPrive(req.utilisateur), demandesAmis: rows[0].demandes_amis, notifications: rows[0].notifications },
+    utilisateur: { ...profilPrive(req.utilisateur), demandesAmis: rows[0].demandes_amis, notifications: rows[0].notifications, nbProjetsVerifies: rows[0].nb_projets_verifies },
   });
 });
 

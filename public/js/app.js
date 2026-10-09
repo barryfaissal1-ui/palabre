@@ -141,13 +141,76 @@
     return nom.split(/\s+/).filter(Boolean).slice(0, 2).map((m) => m[0].toUpperCase()).join('');
   }
 
-  // Photo de profil, ou initiales sur fond terre cuite quand il n'y a pas de photo.
-  function avatar(personne, taille = 'moyen') {
-    if (personne.avatar) {
-      return el('img', { classe: `avatar avatar-${taille}`, src: personne.avatar, alt: '' });
-    }
-    return el('span', { classe: `avatar avatar-${taille} avatar-initiales`, 'aria-hidden': 'true', texte: initiales(personne.nom) });
+  // ---------- Avatars, anneau de preuve et badge feuille ----------
+  // Sans photo, l'avatar montre les initiales sur une des 6 teintes du logo (classes .teinte-0 à .teinte-5 du CSS).
+  // La teinte est calculée à partir de l'identifiant : la même personne garde toujours la même couleur.
+  function teinteAvatar(identifiant = '') {
+    let somme = 0;
+    for (const lettre of identifiant) somme = (somme * 31 + lettre.charCodeAt(0)) % 997;
+    return somme % 6;
   }
+
+  // L'anneau de preuve, signature de Palabre : un segment vert par projet au lien vérifié.
+  // De 1 à 8 projets, autant d'arcs séparés par un petit espace ; au-delà de 8, l'anneau est plein.
+  // Dessiné en SVG dans un carré de 100 : il suit donc toutes les tailles d'avatar.
+  const MAX_SEGMENTS = 8;
+  function anneauPreuve(nombre) {
+    const svg = document.createElementNS(SVG, 'svg');
+    svg.setAttribute('class', 'anneau');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    const RAYON = 46;
+    if (nombre > MAX_SEGMENTS) {
+      const cercle = document.createElementNS(SVG, 'circle');
+      cercle.setAttribute('cx', '50');
+      cercle.setAttribute('cy', '50');
+      cercle.setAttribute('r', String(RAYON));
+      svg.append(cercle);
+      return svg;
+    }
+    const ESPACE = 14; // degrés laissés vides entre deux segments
+    const part = 360 / nombre;
+    // Un point du cercle à l'angle donné (0° en haut, sens des aiguilles d'une montre).
+    const point = (angle) => {
+      const radians = (angle * Math.PI) / 180;
+      return `${(50 + RAYON * Math.sin(radians)).toFixed(2)} ${(50 - RAYON * Math.cos(radians)).toFixed(2)}`;
+    };
+    for (let i = 0; i < nombre; i += 1) {
+      const debut = i * part + ESPACE / 2;
+      const fin = (i + 1) * part - ESPACE / 2;
+      const arc = document.createElementNS(SVG, 'path');
+      arc.setAttribute('d', `M ${point(debut)} A ${RAYON} ${RAYON} 0 ${fin - debut > 180 ? 1 : 0} 1 ${point(fin)}`);
+      svg.append(arc);
+    }
+    return svg;
+  }
+
+  // L'avatar d'un membre, le même partout : sa photo (ou ses initiales) et, s'il a des projets vérifiés, son anneau.
+  // Tailles : 'mini' (32 px), 'moyen' (44), 'rangee' (64), 'grand' (96), 'profil' (112).
+  function avatar(personne, taille = 'moyen') {
+    const image = personne.avatar
+      ? el('img', { classe: 'avatar', src: personne.avatar, alt: '', decoding: 'async' })
+      : el('span', { classe: `avatar avatar-initiales teinte-${teinteAvatar(personne.identifiant)}`, 'aria-hidden': 'true', texte: initiales(personne.nom) });
+    const prouve = personne.nbProjetsVerifies > 0;
+    return el('span', { classe: `avatar-cadre avatar-${taille}${prouve ? ' avec-anneau' : ''}` }, [image, prouve ? anneauPreuve(personne.nbProjetsVerifies) : null]);
+  }
+
+  // Badge feuille : à côté du nom de tout dev qui a au moins un projet vérifié.
+  function badgeFeuille() {
+    return el('span', { classe: 'badge-feuille', role: 'img', 'aria-label': 'Profil prouvé', title: 'Profil prouvé' }, [icone('feuille')]);
+  }
+
+  // Le nom d'un membre, avec son badge feuille s'il est prouvé. À utiliser partout où un nom s'affiche.
+  // « lien: false » quand le nom est déjà dans un lien (un lien ne peut pas en contenir un autre).
+  function nomMembre(membre, { lien = true } = {}) {
+    const nom = lien
+      ? el('a', { classe: 'nom-auteur', href: `/${membre.identifiant}`, texte: membre.nom })
+      : el('span', { classe: 'nom-auteur', texte: membre.nom });
+    return el('span', { classe: 'nom-membre' }, [nom, membre.nbProjetsVerifies > 0 ? badgeFeuille() : null]);
+  }
+
+  const prenom = (nom) => nom.trim().split(/\s+/)[0];
 
   // « il y a 5 min », « il y a 3 h », puis la date au-delà d'une semaine.
   function dateRelative(iso) {
@@ -190,7 +253,7 @@
           projet.lienVerifie ? el('span', { classe: 'badge-verifie' }, [icone('verifie'), 'Lien vérifié']) : null,
         ]),
         el('h3', {}, [el('a', { href: adresse, texte: projet.titre })]),
-        avecDev ? el('p', { classe: 'texte-discret' }, ['Par ', el('a', { href: `/${projet.dev.identifiant}`, texte: projet.dev.nom })]) : null,
+        avecDev ? el('p', { classe: 'texte-discret projet-auteur' }, ['Par ', nomMembre(projet.dev)]) : null,
       ]),
     ]);
   }
@@ -298,19 +361,86 @@
     dialogue.showModal();
   }
 
+  // ---------- Recherche de membres (loupe de l'en-tête) ----------
+  // Un panneau plein écran : on tape un nom, les résultats arrivent en direct.
+  // On attend 300 ms après la dernière frappe avant d'interroger le serveur : une seule requête par mot, pas une par lettre.
+  function ouvrirRecherche() {
+    const champ = el('input', {
+      type: 'search', placeholder: 'Chercher un membre par son nom', 'aria-label': 'Chercher un membre par son nom',
+      autocomplete: 'off', enterkeyhint: 'search', maxlength: '60',
+    });
+    const fermer = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': 'Fermer la recherche' }, [icone('fleche-gauche')]);
+    const resultats = el('div', { classe: 'recherche-resultats', 'aria-live': 'polite' });
+    const panneau = el('dialog', { classe: 'panneau-recherche', 'aria-label': 'Recherche de membres' }, [
+      el('div', { classe: 'recherche-barre' }, [fermer, champ]),
+      resultats,
+    ]);
+    const avancee = () => el('a', { classe: 'bouton bouton-contour', href: '/chercher' }, [icone('devs'), 'Chercher par compétence ou par ville']);
+    const conseil = (texte) => resultats.replaceChildren(el('p', { classe: 'texte-discret recherche-conseil', texte }), avancee());
+    conseil('Écris au moins 2 lettres du nom.');
+
+    let minuterie = null;
+    let numero = 0; // numéro de la dernière recherche : la réponse d'une ancienne frappe est ignorée
+    champ.addEventListener('input', () => {
+      clearTimeout(minuterie);
+      numero += 1;
+      const demande = numero;
+      const q = champ.value.trim();
+      if (q.length < 2) {
+        conseil('Écris au moins 2 lettres du nom.');
+        return;
+      }
+      minuterie = setTimeout(async () => {
+        try {
+          const { devs } = await api(`/devs?q=${encodeURIComponent(q)}`);
+          if (demande !== numero) return;
+          if (devs.length === 0) {
+            resultats.replaceChildren(etatVide('recherche', 'Personne à ce nom', 'Vérifie l\'orthographe, ou cherche plutôt par compétence.', avancee()));
+            return;
+          }
+          resultats.replaceChildren(el('ul', { classe: 'liste-recherche' }, devs.map((membre) => el('li', {}, [
+            el('a', { classe: 'resultat-membre', href: `/${membre.identifiant}` }, [
+              avatar(membre, 'moyen'),
+              el('span', { classe: 'resultat-texte' }, [
+                nomMembre(membre, { lien: false }),
+                el('span', { classe: 'texte-discret', texte: [membre.type === 'client' ? 'Client' : null, membre.ville, membre.pays].filter(Boolean).join(', ') }),
+              ]),
+            ]),
+          ]))));
+        } catch (erreur) {
+          if (demande === numero) conseil(erreur.message);
+        }
+      }, 300);
+    });
+
+    fermer.addEventListener('click', () => panneau.close());
+    panneau.addEventListener('close', () => {
+      clearTimeout(minuterie);
+      panneau.remove();
+    });
+    document.body.append(panneau);
+    panneau.showModal();
+    champ.focus();
+  }
+
   // Remplit la navigation de l'en-tête selon que la personne est connectée ou non.
+  // En-tête : loupe, cloche, avatar. Sur téléphone, les onglets (et l'avatar) forment la barre du bas.
   async function remplirNavigation() {
     const nav = document.querySelector('[data-nav]');
     if (!nav) return;
     const moi = await utilisateurConnecte();
     nav.replaceChildren();
+    const loupe = el('button', { classe: 'nav-cloche', type: 'button', 'aria-label': 'Chercher un membre', title: 'Chercher un membre' }, [icone('recherche')]);
+    loupe.addEventListener('click', ouvrirRecherche);
     if (moi) {
       const demandes = moi.demandesAmis || 0;
       const nonLues = moi.notifications || 0;
+      const ici = (href) => (window.location.pathname === href ? 'page' : null);
       // Un onglet du menu : une icône, un texte, et aria-current sur la page où l'on se trouve.
-      const lien = (href, nomIcone, texte, pastille = null) => el('a', {
-        classe: 'onglet-nav', href, 'aria-current': window.location.pathname === href ? 'page' : null,
-      }, [el('span', { classe: 'onglet-icone' }, [icone(nomIcone), pastille]), el('span', { classe: 'onglet-texte', texte })]);
+      const lien = (href, nomIcone, texte, pastille = null) => el('a', { classe: 'onglet-nav', href, 'aria-current': ici(href) }, [
+        el('span', { classe: 'onglet-icone' }, [icone(nomIcone), pastille]), el('span', { classe: 'onglet-texte', texte }),
+      ]);
+      const monProfil = `/${moi.identifiant}`;
       // Sur téléphone, ces liens forment une barre fixe en bas de l'écran (voir .nav-liens dans le CSS).
       document.body.classList.add('avec-barre');
       // filter(Boolean) : append() écrirait le mot « null » à la place d'un élément absent (pas de lien « Admin »).
@@ -321,8 +451,13 @@
           lien('/chercher', 'devs', 'Devs'),
           lien('/amis', 'amis', 'Amis',
             demandes ? el('span', { classe: 'compteur', texte: String(demandes), 'aria-label': `${demandes} demande${demandes > 1 ? 's' : ''} en attente` }) : null),
+          // Cinquième onglet, visible seulement sur téléphone : mon avatar, vers mon profil.
+          el('a', { classe: 'onglet-nav onglet-moi', href: monProfil, 'aria-current': ici(monProfil) }, [
+            el('span', { classe: 'onglet-icone' }, [avatar(moi, 'nav')]), el('span', { classe: 'onglet-texte', texte: 'Profil' }),
+          ]),
         ]),
         moi.estAdmin ? el('a', { classe: 'nav-cloche', href: '/admin', 'aria-label': 'Administration', title: 'Administration' }, [icone('admin')]) : null,
+        loupe,
         el('a', {
           classe: 'nav-cloche', href: '/notifications',
           'aria-label': nonLues ? `Notifications : ${nonLues} non lue${nonLues > 1 ? 's' : ''}` : 'Notifications',
@@ -330,13 +465,10 @@
           icone('cloche'),
           nonLues ? el('span', { classe: 'compteur compteur-cloche', 'aria-hidden': 'true', texte: nonLues > 99 ? '99+' : String(nonLues) }) : null,
         ]),
-        el('a', { classe: 'nav-profil', href: `/${moi.identifiant}`, 'aria-label': 'Mon profil' }, [avatar(moi, 'mini')]),
+        el('a', { classe: 'nav-profil', href: monProfil, 'aria-label': 'Mon profil' }, [avatar(moi, 'mini')]),
       ].filter(Boolean));
     } else {
-      nav.append(
-        el('a', { classe: 'bouton bouton-lien', href: '/chercher', texte: 'Devs' }),
-        el('a', { classe: 'bouton bouton-lien', href: '/connexion', texte: 'Se connecter' }),
-      );
+      nav.append(loupe, el('a', { classe: 'bouton bouton-principal bouton-compact', href: '/connexion', texte: 'Se connecter' }));
     }
   }
 
@@ -348,5 +480,5 @@
 
   document.addEventListener('DOMContentLoaded', remplirNavigation);
 
-  window.Palabre = { api, utilisateurConnecte, el, avatar, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
+  window.Palabre = { api, utilisateurConnecte, el, avatar, nomMembre, badgeFeuille, prenom, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
 })();

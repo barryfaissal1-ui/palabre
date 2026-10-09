@@ -5,7 +5,7 @@ const db = require('../db/pool');
 const v = require('../utils/validation');
 const { exigerConnexion } = require('../middleware/auth');
 const { lireImageDataUrl } = require('../utils/images');
-const { etatAmitie } = require('../utils/membres');
+const { etatAmitie, apercuMembre, COLONNES_MEMBRE, NB_PROJETS_VERIFIES } = require('../utils/membres');
 const { projetsDe } = require('./projets');
 const { avisDe } = require('./avis');
 
@@ -35,6 +35,7 @@ function profilVisible(u, competences, visiteur, amitie = null) {
     ville: u.ville,
     bio: u.bio,
     avatar: urlFichier(u.avatar),
+    couverture: urlFichier(u.couverture),
     disponible: u.disponible,
     competences,
     whatsapp: visiteur ? u.whatsapp : null,
@@ -57,11 +58,31 @@ async function competencesDe(utilisateurId) {
   return rows;
 }
 
+// Les amis d'un membre ($1), sans les comptes bloqués.
+const AMIS_DE = `SELECT u.id AS ami_id FROM amities a
+    JOIN utilisateurs u ON u.id = CASE WHEN a.demandeur_id = $1 THEN a.receveur_id ELSE a.demandeur_id END
+   WHERE a.statut = 'acceptee' AND $1 IN (a.demandeur_id, a.receveur_id) AND u.bloque = FALSE`;
+
+// Amis d'un membre (onglet « Amis » de son profil) : GET /api/profils/:identifiant/amis — membres connectés.
+router.get('/:identifiant/amis', exigerConnexion, async (req, res) => {
+  const { rows } = await db.query(
+    `SELECT ${COLONNES_MEMBRE}
+       FROM utilisateurs m
+       JOIN amities a ON a.statut = 'acceptee' AND m.id IN (a.demandeur_id, a.receveur_id)
+       JOIN utilisateurs u ON u.id = CASE WHEN a.demandeur_id = m.id THEN a.receveur_id ELSE a.demandeur_id END
+      WHERE m.identifiant = $1 AND m.bloque = FALSE AND u.bloque = FALSE
+      ORDER BY u.nom
+      LIMIT 200`,
+    [String(req.params.identifiant || '').toLowerCase()],
+  );
+  res.json({ amis: rows.map(apercuMembre) });
+});
+
 // Profil public : GET /api/profils/:identifiant
 router.get('/:identifiant', async (req, res) => {
   const identifiant = String(req.params.identifiant || '').toLowerCase();
   const { rows } = await db.query(
-    'SELECT * FROM utilisateurs WHERE identifiant = $1 AND bloque = FALSE',
+    `SELECT u.*, ${NB_PROJETS_VERIFIES} AS nb_projets_verifies FROM utilisateurs u WHERE u.identifiant = $1 AND u.bloque = FALSE`,
     [identifiant],
   );
   if (!rows[0]) return res.status(404).json({ erreur: 'Ce profil n\'existe pas.' });
@@ -78,6 +99,15 @@ router.get('/:identifiant', async (req, res) => {
     [rows[0].id],
   );
   profil.nbAmis = amis.nb;
+  profil.nbProjetsVerifies = rows[0].nb_projets_verifies;
+  // « N amis en commun » : les membres qui sont à la fois mes amis et les siens.
+  if (amitie) {
+    const { rows: [commun] } = await db.query(
+      `SELECT count(*)::int AS nb FROM (${AMIS_DE}) a JOIN (${AMIS_DE.replaceAll('$1', '$2')}) b USING (ami_id)`,
+      [visiteur.id, rows[0].id],
+    );
+    profil.amisEnCommun = commun.nb;
+  }
   // Le « profil prouvé » d'un dev : ses projets réalisés et les avis de ses vrais clients.
   if (rows[0].type === 'dev') {
     profil.projets = await projetsDe(rows[0].id, visiteur);
@@ -168,6 +198,38 @@ router.post('/moi/avatar', exigerConnexion, limiteEnvoiImages, async (req, res) 
   } finally {
     client.release();
   }
+});
+
+// Changer sa photo de couverture : POST /api/profils/moi/couverture  { image: "data:image/jpeg;base64,..." }
+// Même principe que la photo de profil : le navigateur réduit l'image (1200 px de large), le serveur la revérifie.
+router.post('/moi/couverture', exigerConnexion, limiteEnvoiImages, async (req, res) => {
+  const image = lireImageDataUrl(req.body?.image);
+  const moi = req.utilisateur;
+  const id = await db.transaction(async (client) => {
+    const { rows } = await client.query(
+      `INSERT INTO fichiers (proprietaire_id, type_mime, taille, donnees)
+       VALUES ($1, $2, $3, $4) RETURNING id`,
+      [moi.id, image.typeMime, image.donnees.length, image.donnees],
+    );
+    await client.query('UPDATE utilisateurs SET couverture = $1 WHERE id = $2', [rows[0].id, moi.id]);
+    if (moi.couverture) {
+      await client.query('DELETE FROM fichiers WHERE id = $1 AND proprietaire_id = $2', [moi.couverture, moi.id]);
+    }
+    return rows[0].id;
+  });
+  res.status(201).json({ couverture: urlFichier(id) });
+});
+
+// Retirer sa couverture : DELETE /api/profils/moi/couverture (le motif tissé revient).
+router.delete('/moi/couverture', exigerConnexion, async (req, res) => {
+  const moi = req.utilisateur;
+  await db.transaction(async (client) => {
+    await client.query('UPDATE utilisateurs SET couverture = NULL WHERE id = $1', [moi.id]);
+    if (moi.couverture) {
+      await client.query('DELETE FROM fichiers WHERE id = $1 AND proprietaire_id = $2', [moi.couverture, moi.id]);
+    }
+  });
+  res.json({ couverture: null });
 });
 
 // Retirer sa photo : DELETE /api/profils/moi/avatar

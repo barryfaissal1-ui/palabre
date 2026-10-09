@@ -299,47 +299,85 @@ Le bouton « Partager sur WhatsApp » prépare un message avec la fourchette et 
 
 Un « système de design », c'est un petit nombre de règles visuelles appliquées partout, pour que le site ait l'air d'une seule et même application. Tout est écrit à la main : aucune bibliothèque d'interface, aucun framework, donc des pages qui restent légères en 3G (les icônes pèsent 8 Ko en tout, les illustrations 4 Ko).
 
+Palabre reprend les **principes** des grands réseaux sociaux (le contenu d'abord, la preuve sociale, une en-tête compacte), pas leur apparence : ses couleurs, sa bande tissée et son anneau de preuve n'appartiennent qu'à lui.
+
 ### Les réglages communs (`public/css/style.css`, bloc `:root`)
 
 | Réglage | Variables | Rôle |
 | --- | --- | --- |
-| Couleurs du logo | `--terre-logo`, `--feuille`, `--tronc`, `--creme` | les mêmes partout ; redéfinies dans le bloc du mode sombre |
-| Surfaces | `--papier`, `--surface`, `--surface-2` | le fond crème, les cartes un peu plus blanches, les zones en retrait |
+| Couleurs du logo | `--terre-logo`, `--feuille`, `--tronc`, `--creme` | la palette de départ |
+| Couleur d'action | `--action`, `--action-survol`, `--sur-action` | **le vert feuillage** : boutons, liens, j'aime actif, onglet actif |
+| Petits accents | `--accent` | la terre cuite, seulement pour les pastilles de compteur et le badge « Question » |
+| Surfaces | `--papier`, `--surface`, `--surface-2` | le fond neutre, les publications en blanc pur, les zones en retrait |
+| Tailles de texte | `--t-13`, `--t-15`, `--t-17`, `--t-20`, `--t-24` | cinq tailles et rien d'autre |
+| Teintes d'avatar | `--teinte-0` à `--teinte-5` | terre cuite, vert feuillage, ocre, indigo, brun écorce, vert d'eau |
 | Ombres | `--ombre-1`, `--ombre-2`, `--ombre-3` | trois niveaux : carte posée, carte survolée, fenêtre au-dessus de la page |
 | Coins arrondis | `--rayon-petit`, `--rayon`, `--rayon-grand` | trois tailles seulement |
 
-Changer une valeur ici change tout le site. Le mode sombre n'est pas une seconde feuille de style : il redéfinit ces mêmes variables.
+Changer une valeur ici change tout le site. Le mode sombre (« nuit sous le baobab », un noir-vert et non un noir pur) n'est pas une seconde feuille de style : il redéfinit ces mêmes variables.
+
+**Le texte courant utilise la police du téléphone** (`system-ui`) en 15 px : rien à télécharger, donc rapide en 3G, et net sur tous les écrans. La police Bricolage ne sert qu'aux noms, aux titres et au logo. Deux exceptions à l'échelle, voulues : le grand titre de la page d'accueil, et les champs de saisie en 16 px (en dessous, l'iPhone zoome sur la page dès qu'on touche un champ).
 
 ### Les icônes (`public/icons/icones.svg`)
 
-Les icônes viennent de **Lucide** (licence ISC, notée dans `LICENCES.md`). Elles sont rangées dans un seul fichier, un « sprite » : le navigateur le télécharge une fois, puis chaque icône n'est qu'une référence, `<svg class="icone"><use href="/icons/icones.svg#coeur"></use></svg>`. Dans le JavaScript, la fonction `icone('coeur')` de `public/js/app.js` crée cette balise. Les icônes sont dessinées au trait avec `currentColor` : elles prennent toujours la couleur du texte voisin, en clair comme en sombre.
+Les icônes viennent de **Lucide** (licence ISC, notée dans `LICENCES.md`). Elles sont rangées dans un seul fichier, un « sprite » : le navigateur le télécharge une fois, puis chaque icône n'est qu'une référence, `<svg class="icone"><use href="/icons/icones.svg#coeur"></use></svg>`. Dans le JavaScript, la fonction `icone('coeur')` de `public/js/app.js` crée cette balise. Les icônes sont dessinées au trait avec `currentColor` : elles prennent toujours la couleur du texte voisin, en clair comme en sombre. Dans le menu, l'onglet de la page où l'on se trouve a son icône **pleine** (une seule règle CSS : `fill: currentColor`).
 
-Une icône seule ne suffit pas pour un lecteur d'écran : les boutons sans texte (cœur, bulle, corbeille) portent un `aria-label`.
+Une icône seule ne suffit pas pour un lecteur d'écran : les boutons sans texte (loupe, cloche, corbeille) portent un `aria-label`.
 
 ### Les composants communs (`public/js/app.js`)
 
 | Fonction | Ce qu'elle fait |
 | --- | --- |
+| `avatar(personne, taille)` | la photo ou les initiales d'un membre, avec son anneau de preuve |
+| `nomMembre(membre)` | son nom, suivi du badge feuille s'il a un projet vérifié |
 | `toast(texte, type)` | petit message qui apparaît en bas de l'écran puis disparaît (« Publié ! », ou une erreur) |
 | `confirmer(question, options)` | fenêtre de confirmation ; renvoie une promesse, donc on écrit `if (await confirmer('Supprimer ?'))` |
 | `etatVide(illustration, titre, texte, bouton)` | quand une liste est vide : une illustration et un mot d'encouragement |
 | `chargement(zone, nombre)` | affiche des « squelettes » gris animés pendant un chargement, et renvoie la fonction qui les retire |
 
-**Il n'y a plus aucun `alert()` ni `confirm()` du navigateur dans le site** : ils bloquent la page, ne suivent pas le style, et certains navigateurs les masquent. La fenêtre de confirmation utilise la balise `<dialog>` : le navigateur gère lui-même le fond assombri, la touche Échap et le maintien du focus dans la fenêtre. Le focus va d'abord sur « Annuler », pour qu'une touche Entrée trop rapide ne supprime rien.
+**Il n'y a aucun `alert()` ni `confirm()` du navigateur dans le site** : ils bloquent la page, ne suivent pas le style, et certains navigateurs les masquent. La fenêtre de confirmation utilise la balise `<dialog>` : le navigateur gère lui-même le fond assombri, la touche Échap et le maintien du focus dans la fenêtre. Le focus va d'abord sur « Annuler », pour qu'une touche Entrée trop rapide ne supprime rien.
+
+### Les avatars sans photo
+
+Un membre sans photo a ses initiales en blanc sur une couleur. Cette couleur n'est pas tirée au hasard : `teinteAvatar()` additionne les lettres de l'identifiant et garde le reste de la division par 6. Le même identifiant donne donc **toujours** la même teinte, sur toutes les pages et tous les téléphones, sans rien enregistrer en base.
+
+### L'anneau de preuve, la signature de Palabre
+
+Autour de la photo d'un dev, un anneau vert découpé en segments : **un segment par projet dont le lien a été vérifié**. De 1 à 8 projets, autant de segments ; au-delà de 8, l'anneau est plein. Pas de projet vérifié, pas d'anneau. D'un coup d'œil, on distingue celui qui a prouvé son travail de celui qui l'affirme seulement.
+
+- **Côté serveur** : `apercuMembre()` (`src/utils/membres.js`) renvoie `nbProjetsVerifies`. Ce nombre est une sous-requête ajoutée à `COLONNES_MEMBRE` : il arrive dans la même requête que le nom et la photo. Il n'y a jamais une requête par membre (ce défaut classique s'appelle « N+1 » : 10 publications demanderaient 11 requêtes).
+- **Côté navigateur** : `anneauPreuve(nombre)` dessine l'anneau en SVG, un arc (`<path>`) par segment, avec un peu de trigonométrie pour placer le début et la fin de chaque arc. Le dessin est fait dans un carré de 100 unités : il s'adapte donc à toutes les tailles d'avatar.
+- **Le badge feuille** : une petite feuille verte à côté du nom de tout dev qui a au moins un projet vérifié. Son `aria-label` est « Profil prouvé », pour les lecteurs d'écran.
+
+### L'en-tête et la recherche
+
+L'en-tête fait 56 px et reste collée en haut (`position: sticky`) : le logo à gauche ; la loupe, la cloche et l'avatar à droite. Sur téléphone, cinq onglets forment la barre du bas : Fil, Demandes, Devs, Amis, et **son propre avatar**, qui mène à son profil.
+
+La loupe ouvre un panneau plein écran. On tape un nom, les résultats arrivent en direct :
+
+- le navigateur attend **300 ms** après la dernière frappe avant d'interroger le serveur (une requête par mot, pas une par lettre), et ignore la réponse d'une ancienne frappe arrivée en retard ;
+- le serveur (`GET /api/devs?q=…`) exige au moins 2 lettres et cherche avec `ILIKE` (sans tenir compte des majuscules) dans une requête paramétrée. Les caractères `%` et `_`, qui sont des jokers pour `ILIKE`, sont neutralisés : on ne peut pas s'en servir pour lister tous les membres.
 
 ### Le fil
 
-- Chaque type de publication a sa couleur et son badge : idée (vert, ampoule), question (terre cuite, point d'interrogation), projet (noir du tronc, fusée). La couleur est une variable `--type` posée sur la carte.
-- **J'aime** : le cœur se remplit et fait un petit « pop » **tout de suite**, sans attendre la réponse du serveur ; si le serveur refuse, l'affichage revient en arrière et un message s'affiche. Sur une connexion lente, l'application paraît quand même instantanée.
-- La zone « Publier » est un champ compact qui s'agrandit quand on touche dedans.
+- **Bord à bord sur téléphone** : les publications vont d'un bord à l'autre de l'écran, sans coins arrondis ni ombre, séparées par une bande de 8 px de la couleur du fond. C'est un fil, pas une pile de cartes. À partir de 640 px de large, elles retrouvent des coins arrondis.
+- Le fil commence par la zone de publication (« Quoi de neuf, Awa ? », avec trois raccourcis : Photo, Question, Projet), puis la rangée **« Disponibles maintenant »** : au plus 15 devs disponibles, triés par le serveur (`GET /api/devs/disponibles`) : mes amis d'abord, puis ma ville, puis mon pays, puis ceux qui ont le plus de projets vérifiés.
+- **Preuve sociale** : « Aimé par Cheick et 12 autres » (un ami en priorité : un prénom connu donne plus envie de lire qu'un chiffre), le nombre de commentaires, et les 2 derniers commentaires visibles directement. Tout cela arrive **dans la requête du fil**, grâce à deux `LEFT JOIN LATERAL` : une sous-requête exécutée pour chaque publication, mais à l'intérieur de la même requête SQL.
+- **J'aime instantané** : le cœur se remplit et fait un petit « pop » **tout de suite**, sans attendre la réponse du serveur ; si le serveur refuse, l'affichage revient en arrière et un message s'affiche.
+- **Texte long** : coupé après 5 lignes par le CSS (`line-clamp`), avec « Voir plus ». Le bouton n'apparaît que si le texte dépasse vraiment (on compare sa hauteur réelle à sa hauteur visible).
+- **Images** : sur toute la largeur, proportions gardées, au plus 4:5 en hauteur. À l'envoi, le serveur lit la largeur et la hauteur dans les premiers octets du fichier (`src/utils/images.js`, sans bibliothèque) et les range avec la publication. Le navigateur connaît ainsi la forme de l'image avant de la télécharger et lui réserve sa place : **la page ne saute pas** pendant le chargement, ce qui compte beaucoup sur une connexion lente.
+
+La carte d'une publication est dans `public/js/publication.js`, partagée par le fil et par l'onglet « Publications » des profils.
 
 ### Le profil
 
-Une bannière au motif tissé (`public/icons/motif-banniere.svg`, dessiné par l'équipe), la photo qui la chevauche avec un contour crème, les chiffres du profil (projets, amis, avis) et les compétences en pastilles colorées.
+En haut, une **photo de couverture** choisie par le membre (réduite à 1200 px de large dans le navigateur, puis vérifiée par le serveur comme la photo de profil ; colonne `utilisateurs.couverture`). Sans couverture, le motif tissé de Palabre. La photo de profil chevauche la couverture ; viennent ensuite le nom avec le badge feuille, la ville, la bio, la disponibilité, les chiffres (projets vérifiés, amis, avis avec la note moyenne) et « N amis en commun » sur le profil de quelqu'un d'autre.
+
+Dessous, quatre onglets qui restent collés sous l'en-tête pendant le défilement : **Publications** (le fil filtré par `?auteur=identifiant`), **Projets**, **Avis**, **Amis**. Les publications et les amis sont réservés aux membres connectés ; un visiteur arrive sur les projets.
 
 ### Le mouvement, sans gêner personne
 
-Les cartes apparaissent en glissant légèrement, les boutons s'enfoncent sous le doigt, les squelettes brillent pendant le chargement. Mais certaines personnes sont gênées par les animations (vertiges, migraines) et le demandent dans les réglages de leur téléphone. La dernière règle de la feuille de style, `@media (prefers-reduced-motion: reduce)`, coupe alors **toutes** les animations et transitions du site.
+Le mouvement est volontairement rare : le « pop » du cœur, l'ouverture des commentaires, l'arrivée en douceur d'une publication qu'on vient d'écrire, les fenêtres et les toasts. Les publications du fil, elles, n'ont pas d'animation d'apparition : sur un fil qu'on fait défiler, cela fatigue. Certaines personnes sont gênées par les animations (vertiges, migraines) et le demandent dans les réglages de leur téléphone. La dernière règle de la feuille de style, `@media (prefers-reduced-motion: reduce)`, coupe alors **toutes** les animations et transitions du site.
 
 ### Ce qui n'a pas changé
 
@@ -364,6 +402,8 @@ Pour l'administration (`tests/admin.test.js`) : chaque route refusée aux visite
 
 Pour le calculateur (`tests/calculateur.test.js`) : cohérence de la grille (chaque type mène à une catégorie de demande qui existe), prix de base de chaque type, majorations de taille et de délai, options, un calcul complet vérifié à la main, tous les résultats possibles multiples de 5 000, refus d'un choix inconnu, page ouverte à tous avec ses balises de partage. Comme le calcul vit dans des fichiers du navigateur, ces fichiers sont écrits pour être aussi chargés par Node.js.
 
+Pour la refonte « réseau social » (`tests/preuve-sociale.test.js`) : `nbProjetsVerifies` (un projet sans lien ou masqué ne compte pas), recherche par nom (2 lettres minimum, majuscules ignorées, jokers `%` et `_` neutralisés, jamais d'email dans la réponse), « Disponibles maintenant » (amis d'abord, ni soi-même, ni les occupés, ni les clients), fil d'un auteur, « Aimé par » (jamais soi-même, un ami avant un inconnu), les 2 derniers commentaires dans l'ordre, taille de l'image lue par le serveur, couverture (envoi, remplacement, retrait, faux fichier refusé), amis en commun.
+
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
 
 ## 15. Questions probables du jury
@@ -384,6 +424,9 @@ Les fichiers de tests démarrent en même temps et chacun met la base à jour : 
 - **Pourquoi la proposition d'équipe attend-elle toutes les réponses ?** Pour que le client reçoive une équipe réelle, avec des membres qui se sont engagés, et non une liste de noms que le chef a écrite seul.
 - **Que se passe-t-il si le client clique deux fois sur « Choisir » ?** La demande est verrouillée dans la transaction : le second clic trouve une demande déjà attribuée et reçoit un refus.
 
+- **À quoi sert l'anneau autour des photos ?** C'est la preuve visible du travail : un segment par projet dont Palabre a vérifié le lien. On ne peut pas l'obtenir en le déclarant, seulement en mettant un projet en ligne.
+- **Le fil affiche les j'aime et les commentaires de 10 publications : combien de requêtes ?** Une seule. Les compteurs sont des sous-requêtes, le prénom de « Aimé par » et les 2 derniers commentaires viennent de deux `LEFT JOIN LATERAL`.
+- **Pourquoi le j'aime s'affiche-t-il avant la réponse du serveur ?** Pour que l'appli paraisse immédiate même en 3G. Le serveur reste le seul juge : s'il refuse, l'affichage revient en arrière.
 - **Pourquoi le fil est-il chargé avec « avant tel numéro » plutôt qu'avec « page 2, page 3 » ?** Avec des numéros de page, une nouvelle publication décale tout et on revoit une publication déjà lue. Avec « avant le numéro X », la suite est toujours la bonne, et la base répond vite grâce à la clé primaire.
 - **Comment empêchez-vous le spam et le harcèlement ?** Limites d'envoi par membre, une seule demande d'ami possible (pas de relance après un refus), bouton « Signaler » partout, et possibilité pour un administrateur de masquer un contenu ou de bloquer un compte.
 

@@ -81,7 +81,7 @@
           carte.cibleType === 'profil' ? 'Profil de ' : 'Par ',
           lienMembre(cible.membre),
           etat ? ` (${etat})` : null,
-          cible.lien ? ' · ' : null,
+          cible.lien ? ', ' : null,
           cible.lien ? el('a', { href: cible.lien, texte: 'Voir sur le site' }) : null,
         ]),
       ];
@@ -90,12 +90,12 @@
     return el('article', { classe: 'carte-publication carte-signalement' }, [
       el('p', { classe: 'publication-meta' }, [
         el('span', { classe: 'type-signalement', texte: NOMS_CIBLES[carte.cibleType] }),
-        el('span', { classe: 'texte-discret', texte: nombre > 1 ? ` · signalé ${nombre} fois` : ' · signalé 1 fois' }),
+        el('span', { classe: 'texte-discret', texte: nombre > 1 ? `, signalé ${nombre} fois` : ', signalé 1 fois' }),
       ]),
       ...contenu,
       el('ul', { classe: 'motifs' }, carte.signalements.map((s) => el('li', {}, [
         el('strong', { texte: s.motif }),
-        el('span', { classe: 'texte-discret' }, [' — ', lienMembre(s.auteur), ` · ${dateRelative(s.creeLe)}`]),
+        el('span', { classe: 'texte-discret' }, [', par ', lienMembre(s.auteur), `, ${dateRelative(s.creeLe)}`]),
       ]))),
       el('div', { classe: 'profil-actions' }, boutons),
     ]);
