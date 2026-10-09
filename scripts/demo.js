@@ -83,8 +83,17 @@ function crc32(octets) {
   return (c ^ 0xffffffff) >>> 0;
 }
 function png(largeur, hauteur, pixels) {
+  // Chaque ligne commence par un octet de « filtre ». Le filtre 1 (Sub) enregistre chaque valeur comme sa différence
+  // avec le pixel de gauche : un dégradé devient une suite de petits nombres, que zlib compresse très bien.
   const lignes = Buffer.alloc((largeur * 3 + 1) * hauteur);
-  for (let y = 0; y < hauteur; y += 1) pixels.copy(lignes, y * (largeur * 3 + 1) + 1, y * largeur * 3, (y + 1) * largeur * 3);
+  for (let y = 0; y < hauteur; y += 1) {
+    const d = y * (largeur * 3 + 1);
+    lignes[d] = 1;
+    for (let x = 0; x < largeur * 3; x += 1) {
+      const gauche = x >= 3 ? pixels[y * largeur * 3 + x - 3] : 0;
+      lignes[d + 1 + x] = (pixels[y * largeur * 3 + x] - gauche) & 0xff;
+    }
+  }
   const bloc = (type, donnees) => {
     const corps = Buffer.concat([Buffer.from(type), donnees]);
     const longueur = Buffer.alloc(4); longueur.writeUInt32BE(donnees.length);
@@ -96,6 +105,38 @@ function png(largeur, hauteur, pixels) {
   entete[8] = 8; entete[9] = 2; // 8 bits par couleur, rouge-vert-bleu
   return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), bloc('IHDR', entete), bloc('IDAT', zlib.deflateSync(lignes)), bloc('IEND', Buffer.alloc(0))]);
 }
+// Couverture de profil : un dégradé doux entre deux couleurs du logo, et par-dessus un motif géométrique très fin
+// (lignes obliques, losanges, chevrons ou points). Le numéro choisit les couleurs, l'angle et le motif :
+// chaque membre a une couverture différente.
+const DEGRADES = [
+  [[15, 61, 34], [34, 160, 75]], [[122, 52, 30], [200, 98, 63]], [[31, 54, 92], [31, 110, 140]], [[70, 44, 30], [168, 106, 18]],
+  [[24, 122, 59], [168, 150, 60]], [[84, 40, 68], [200, 98, 63]], [[18, 48, 44], [31, 110, 140]], [[107, 74, 53], [214, 150, 110]],
+];
+function couverture(numero, largeur, hauteur) {
+  const pixels = Buffer.alloc(largeur * hauteur * 3);
+  const [depart, arrivee] = DEGRADES[numero % DEGRADES.length];
+  const angle = [0.35, 0.6, 0.15, 0.8][numero % 4]; // part de la hauteur dans la direction du dégradé
+  const motif = Math.floor(numero / 2) % 4;
+  const pas = 28 + (numero % 3) * 8;
+  for (let y = 0; y < hauteur; y += 1) {
+    for (let x = 0; x < largeur; x += 1) {
+      const t = Math.min(1, Math.max(0, (x / largeur) * (1 - angle) + (y / hauteur) * angle));
+      // Le motif éclaircit légèrement certains pixels (12 % de blanc) : on le devine sans qu'il s'impose.
+      let trait = false;
+      if (motif === 0) trait = (x + y) % pas < 2;                                             // lignes obliques
+      else if (motif === 1) trait = (x + y) % pas < 2 || (x - y + 4000) % pas < 2;            // losanges
+      else if (motif === 2) trait = Math.abs(((x % pas) - pas / 2)) + (y % pas) === pas / 2 || Math.abs(((x % pas) - pas / 2)) + (y % pas) === pas / 2 + 1; // chevrons
+      else trait = (x % pas) < 3 && (y % pas) < 3;                                            // points
+      const i = (y * largeur + x) * 3;
+      for (let c = 0; c < 3; c += 1) {
+        const valeur = depart[c] + (arrivee[c] - depart[c]) * t;
+        pixels[i + c] = Math.round(trait ? valeur + (255 - valeur) * 0.12 : valeur);
+      }
+    }
+  }
+  return pixels;
+}
+
 // numero choisit la couleur et la disposition ; « large » donne un format de couverture de profil.
 function maquette(numero, { large = false } = {}) {
   const [largeur, hauteur] = large ? [1200, 400] : [[900, 600], [720, 900], [900, 675]][numero % 3];
@@ -111,11 +152,7 @@ function maquette(numero, { large = false } = {}) {
   };
   const clair = couleur.map((c) => Math.round(c + (255 - c) * 0.82));
   rectangle(0, 0, largeur, hauteur, [241, 240, 235]);
-  if (large) {
-    // Couverture : des bandes verticales aux couleurs du logo
-    for (let i = 0; i < 12; i += 1) rectangle(i * 100, 0, 100, hauteur, i % 2 ? clair : couleur.map((c) => Math.round(c * (0.75 + (i % 3) * 0.1))));
-    return png(largeur, hauteur, pixels);
-  }
+  if (large) return png(largeur, hauteur, couverture(numero, largeur, hauteur));
   rectangle(0, 0, largeur, 84, couleur);                         // bandeau du haut
   rectangle(32, 28, 180, 28, [255, 255, 255]);                   // nom de l'application
   rectangle(largeur - 76, 22, 40, 40, clair);                    // avatar
@@ -175,9 +212,10 @@ async function creer() {
         donnees: { nom, identifiant: m[cle].identifiant, pays, ville, bio, disponible, whatsapp: null, competences: competences.filter((c) => noms.includes(c.nom)).map((c) => c.id) },
       });
     }
-    await poster('/profils/moi/couverture', 'bintou', { image: dataUrl(0, { large: true }) });
-    await poster('/profils/moi/couverture', 'fatou', { image: dataUrl(5, { large: true }) });
-    await poster('/profils/moi/couverture', 'kofi', { image: dataUrl(3, { large: true }) });
+    // Une couverture différente pour chaque développeur ; les clients gardent le motif tissé du site.
+    for (const [rangMembre, [cle, type]] of MEMBRES.entries()) {
+      if (type === 'dev') await poster('/profils/moi/couverture', cle, { image: dataUrl(rangMembre, { large: true }) });
+    }
 
     // 2. Les projets réalisés. Écrits directement en base : passer par l'API ferait visiter chaque lien par le serveur.
     //    ATTENTION : ces liens sont inventés et marqués « vérifiés » pour la démonstration.

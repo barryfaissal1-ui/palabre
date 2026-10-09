@@ -61,6 +61,7 @@ test.before(async () => {
 
 test.after(async () => {
   await pool.query('DELETE FROM utilisateurs WHERE email = ANY($1)', [Object.values(membres).map((m) => m.email)]);
+  await pool.query('DELETE FROM competences WHERE nom LIKE $1', [`Compétence d'essai % ${suffixe}`]);
   serveur.close();
   await pool.end();
 });
@@ -152,7 +153,12 @@ test('suggestions : ni mes amis ni les demandes en cours, compétences en commun
 
   // Trois nouveaux devs, inconnus d'Awa. Awa a 2 compétences ; « commun » les partage toutes les deux,
   // « voisin » habite sa ville sans compétence commune, « loin » n'a rien en commun.
-  const { rows: competences } = await pool.query('SELECT id FROM competences ORDER BY id LIMIT 3');
+  // Trois compétences créées pour ce test (retirées à la fin) : aucun autre compte de la base ne les a,
+  // donc aucun autre dev ne peut passer devant « commun », quel que soit le contenu de la base.
+  const { rows: competences } = await pool.query(
+    'INSERT INTO competences (nom) SELECT unnest($1::text[]) RETURNING id',
+    [[1, 2, 3].map((n) => `Compétence d'essai ${n} ${suffixe}`)],
+  );
   const [c1, c2, c3] = competences.map((c) => c.id);
   const creer = async (cle, ville, pays) => {
     const email = `preuve-${cle}-${suffixe}@palabre.test`;
@@ -185,10 +191,12 @@ test('suggestions : ni mes amis ni les demandes en cours, compétences en commun
   }
   assert.ok(r.corps.devs.every((d) => d.type === 'dev' && !('email' in d)));
 
-  // Sans compétence : la même ville passe avant le reste. (Dao est cliente, de la ville du test.)
+  // Sans compétence : la même ville passe avant le reste. Dao est cliente, de la ville du test, que seuls
+  // 4 devs du test habitent : ce sont eux les 4 suggestions, quels que soient les autres comptes de la base.
   const pourDao = await appel('/api/devs/suggestions', { qui: 'dao' });
   assert.equal(pourDao.corps.devs.length, 4);
   assert.ok(pourDao.corps.devs.every((d) => d.ville === `Ville${suffixe}`), 'les 4 devs de sa ville d\'abord');
+  assert.ok(pourDao.corps.devs.every((d) => d.competencesCommunes === 0));
 
   // Une fois la demande envoyée, le dev disparaît des suggestions.
   await appel('/api/amis/demandes', { methode: 'POST', qui: 'awa', donnees: { identifiant: membres.commun.identifiant } });

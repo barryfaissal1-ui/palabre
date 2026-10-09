@@ -407,10 +407,10 @@ Le site est pensé d'abord pour le téléphone. À partir de 768 px de large, la
 | --- | --- |
 | moins de 768 px | téléphone : une colonne, barre de navigation en bas |
 | 768 à 1099 px | 2 colonnes : la page (680 px au plus) et le panneau de droite (300 px) ; le menu est dans l'en-tête, en icônes |
-| 1100 à 1599 px | 3 colonnes : menu 280 px, fil 680 px, panneau 320 px, le tout centré |
+| 1100 à 1599 px | 3 colonnes : menu 256 px, fil 680 px, panneau 344 px, le tout centré |
 | 1600 px et plus | menu 340 px collé à gauche, panneau 360 px collé à droite, fil de 720 px au milieu de l'écran |
 
-- **La grille est posée sur `<body>`** (`display: grid`) : la bande et l'en-tête occupent toute la largeur, puis une ligne porte les trois colonnes. Les largeurs sont des variables (`--col-gauche`, `--col-fil`, `--col-droite`) redéfinies à chaque palier. Entre 1100 et 1340 px environ, l'écran est trop étroit pour 280 + 680 + 320 : c'est le fil qui cède de la place (`minmax(0, 680px)`), jamais les colonnes de côté.
+- **La grille est posée sur `<body>`** (`display: grid`) : la bande et l'en-tête occupent toute la largeur, puis une ligne porte les trois colonnes. Les largeurs sont des variables (`--col-gauche`, `--col-fil`, `--col-droite`) redéfinies à chaque palier. Entre 1100 et 1340 px environ, l'écran est trop étroit pour 256 + 680 + 344 : c'est le fil qui cède de la place (`minmax(0, 680px)`), jamais les colonnes de côté.
 - **Les colonnes de côté restent collées** sous l'en-tête (`position: sticky`) et défilent seules si elles sont plus hautes que l'écran (`max-height` et `overflow-y: auto`).
 - **La colonne de gauche** (`colonneGauche()`) : ma carte, les liens avec icône et compteur, le lien de la page courante en vert (`aria-current="page"`), un bouton principal qui dépend du type de compte (« Ajouter un projet » ou « Publier une demande »).
 - **Le panneau de droite** (`colonneDroite()`) : les 3 dernières demandes, puis 4 « Devs à découvrir ». Sur téléphone, où il est caché, ses données ne sont **pas demandées au serveur** : rien n'est téléchargé pour rien en 3G.

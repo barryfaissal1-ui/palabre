@@ -41,7 +41,7 @@ Pour se connecter : ouvrir `/connexion`, saisir l'email d'un compte ci-dessous e
 ## À savoir
 
 - **Les liens des projets sont inventés** (`https://demo.palabre.dev/…`) et marqués « vérifiés » directement en base, pour montrer l'anneau de preuve. Sur le vrai site, ce badge n'est donné que si le serveur a réellement visité le lien.
-- **Les images sont dessinées par le script** (de fausses captures d'écran, des bandes de couleur) : aucune photo de personne.
+- **Les images sont dessinées par le script** (de fausses captures d'écran pour les projets, des dégradés à motif fin pour les couvertures, différents pour chaque développeur) : aucune photo de personne.
 - **Aucun de ces comptes n'est administrateur.** Pour montrer `/admin` : `npm run admin -- awa@demo.palabre.dev`.
 
 ## Commandes
