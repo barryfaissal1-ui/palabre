@@ -9,13 +9,23 @@
     return suite && suite.startsWith('/') && !suite.startsWith('//') && !suite.includes('\\') ? suite : null;
   }
 
+  // Sur la page d'accès, acces.js fait s'envoler le motif du fond (0,4 s) avant le changement de page.
+  // Ailleurs, ou si l'animation échoue, on continue tout de suite : rien ne doit retarder la connexion.
+  async function celebrer() {
+    try {
+      if (window.Palabre.celebrerAcces) await window.Palabre.celebrerAcces();
+    } catch { /* l'animation est un plus */ }
+  }
+
   const actions = {
     async inscription(donnees) {
       await api('/auth/inscription', { methode: 'POST', donnees });
+      await celebrer();
       window.location.href = suiteDemandee() || '/fil';
     },
     async connexion(donnees) {
       await api('/auth/connexion', { methode: 'POST', donnees });
+      await celebrer();
       window.location.href = suiteDemandee() || '/fil';
     },
     async 'mot-de-passe-oublie'(donnees, formulaire) {

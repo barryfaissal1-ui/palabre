@@ -30,7 +30,6 @@
   // téléphone) reste vide : aucun dessin ne passe sous un champ.
   const SVG = 'http://www.w3.org/2000/svg';
   const DESSINS = ['code', 'accolades', 'fleche', 'terminal', 'portable', 'telephone', 'cafe', 'ampoule', 'fusee', 'bulles', 'sourire', 'groupe', 'feuille', 'wifi'];
-  const NB_FLOTTANTS = 6;
   const zoneMotif = carte.parentElement; // <main class="acces">
   const motif = document.createElementNS(SVG, 'svg');
   motif.setAttribute('class', 'motif-acces');
@@ -68,7 +67,7 @@
       // … et dans les deux marges, de chaque côté des champs (20 px, dans une marge de 24 px).
       for (let n = 0, y = basLame + 14; y < hauteur - 24; n += 1, y += 86) {
         const aGauche = n % 2 === 0;
-        places.push({ x: aGauche ? 2 : largeur - 22, y: y + hasard(n, 5, 1) * 30, taille: 20, angle: hasard(n, 5, 2) * 30 - 15, numero: n * 3 + 1 });
+        places.push({ x: aGauche ? 2 : largeur - 22, y: y + hasard(n, 5, 1) * 30, taille: 20, angle: hasard(n, 5, 2) * 30 - 15, numero: n * 3 + 1, graine: [n, 91], marge: true });
       }
     } else {
       // Ordinateur et tablette : tout le fond, sauf la carte (avec une marge autour).
@@ -85,9 +84,13 @@
           taille,
           angle: hasard(i, j, 4) * 30 - 15, // entre -15° et +15°
           numero: i * 5 + j * 3 + (j % 2) * 7,
+          graine: [i, j],
         };
         // La place est testée un peu plus grande que le dessin : une fois tourné, il déborde légèrement de son carré.
-        const emprise = { x: place.x - 4, y: place.y - 4, l: taille + 8, h: taille + 8 };
+        // Sur téléphone on garde en plus la place de ses mouvements (vent et inclinaison) : il ne doit jamais
+        // glisser sous un champ, même un instant.
+        const jeu = petit ? 16 : 4;
+        const emprise = { x: place.x - jeu, y: place.y - jeu, l: taille + jeu * 2, h: taille + jeu * 2 };
         const dehors = emprise.x < 0 || emprise.y < 0 || emprise.x + emprise.l > largeur || emprise.y + emprise.h > hauteur;
         // Ni sur une zone interdite, ni sur un dessin déjà posé (ceux des marges, sur téléphone).
         const surUnAutre = places.some((autre) => seTouchent(emprise, { x: autre.x, y: autre.y, l: autre.taille, h: autre.taille }));
@@ -95,11 +98,11 @@
       }
     }
 
-    // Quelques dessins seulement flottent, pris à intervalles réguliers pour être répartis sur toute la page.
-    const ecart = Math.max(1, Math.floor(places.length / NB_FLOTTANTS));
     motif.setAttribute('width', largeur);
     motif.setAttribute('height', hauteur);
     motif.setAttribute('viewBox', `0 0 ${largeur} ${hauteur}`);
+    // Chaque dessin est fait de quatre éléments emboîtés, un par mouvement, pour qu'ils s'additionnent sans se gêner :
+    //   <g position> → <g profondeur> → <g vent> → <use dessin, tourné>
     motif.replaceChildren(...places.map((place, rang) => {
       const dessin = document.createElementNS(SVG, 'use');
       dessin.setAttribute('href', `/icons/motif-acces.svg#${DESSINS[place.numero % DESSINS.length]}`);
@@ -108,14 +111,26 @@
       dessin.setAttribute('transform', `rotate(${place.angle.toFixed(1)} ${place.taille / 2} ${place.taille / 2})`);
       // Les dessins sont tracés dans un carré de 24 : pour un trait de 1,5 px à l'écran, on compense l'agrandissement.
       dessin.setAttribute('stroke-width', ((1.5 * 24) / place.taille).toFixed(2));
-      const flottant = rang % ecart === Math.floor(ecart / 2) && Math.floor(rang / ecart) < NB_FLOTTANTS;
-      const balancier = document.createElementNS(SVG, 'g'); // c'est lui que le CSS fait monter et descendre
-      if (flottant) balancier.setAttribute('class', `flotte flotte-${Math.floor(rang / ecart) % 6}`);
-      balancier.append(dessin);
+
+      // Le vent : tous les dessins flottent, mais jamais ensemble. Le « hasard » de la case choisit une des 3 danses,
+      // une des 9 durées (6 à 14 s) et un des 8 décalages de départ : 216 combinaisons (classes du CSS).
+      const [a, b] = place.graine;
+      const vent = document.createElementNS(SVG, 'g');
+      // Dans les marges du téléphone, il n'y a que 2 px entre le dessin et les champs : il ne bouge que de haut en bas.
+      vent.setAttribute('class', `vent vent-${place.marge ? 3 : Math.floor(hasard(a, b, 5) * 3)} duree-${Math.floor(hasard(a, b, 6) * 9)} retard-${Math.floor(hasard(a, b, 7) * 8)}`);
+      vent.append(dessin);
+
+      // La profondeur : plus un dessin est grand, plus il paraît proche, et plus il se décale quand la souris bouge
+      // (5 niveaux, de 4 px pour les plus petits à 12 px pour les plus grands).
+      const profondeur = document.createElementNS(SVG, 'g');
+      const niveau = Math.max(0, Math.min(4, Math.round(((place.taille - tailleMin) / (tailleMax - tailleMin)) * 4)));
+      if (!place.marge) profondeur.setAttribute('class', `profondeur profondeur-${niveau}`);
+      profondeur.append(vent);
+
       const groupe = document.createElementNS(SVG, 'g');
       groupe.setAttribute('class', rang % 2 ? 'motif-terre' : 'motif-feuille'); // alternance des deux couleurs du logo
       groupe.setAttribute('transform', `translate(${place.x.toFixed(1)} ${place.y.toFixed(1)})`);
-      groupe.append(balancier);
+      groupe.append(profondeur);
       return groupe;
     }));
   }
@@ -125,6 +140,70 @@
     cancelAnimationFrame(redessin);
     redessin = requestAnimationFrame(dessinerMotif);
   }).observe(zoneMotif);
+
+  // ---------- Profondeur : le motif réagit à la souris (ordinateur) ou à l'inclinaison (téléphone) ----------
+  // On ne déplace pas les dessins un par un : on écrit seulement deux nombres entre -1 et 1 (--px et --py) sur le
+  // motif, et le CSS décale chaque niveau de profondeur en proportion, dans le sens opposé au pointeur.
+  // Les nombres se rapprochent de leur cible un peu à chaque image (requestAnimationFrame) : le mouvement est doux,
+  // et la boucle s'arrête d'elle-même dès qu'il n'y a plus rien à bouger.
+  const cible = { x: 0, y: 0 };
+  const position = { x: 0, y: 0 };
+  let boucle = 0;
+  function avancer() {
+    position.x += (cible.x - position.x) * 0.08;
+    position.y += (cible.y - position.y) * 0.08;
+    motif.style.setProperty('--px', position.x.toFixed(3));
+    motif.style.setProperty('--py', position.y.toFixed(3));
+    const arrive = Math.abs(cible.x - position.x) < 0.002 && Math.abs(cible.y - position.y) < 0.002;
+    boucle = arrive ? 0 : requestAnimationFrame(avancer);
+  }
+  function viser(x, y) {
+    cible.x = Math.max(-1, Math.min(1, x));
+    cible.y = Math.max(-1, Math.min(1, y));
+    if (!boucle) boucle = requestAnimationFrame(avancer);
+  }
+  const surSouris = (evenement) => {
+    if (evenement.pointerType !== 'mouse') return;
+    viser((evenement.clientX / window.innerWidth) * 2 - 1, (evenement.clientY / window.innerHeight) * 2 - 1);
+  };
+  const sourisPartie = () => viser(0, 0); // la souris quitte la page : retour doux au centre
+  // gamma : inclinaison gauche-droite ; beta : avant-arrière (un téléphone se tient penché d'environ 45°).
+  const surInclinaison = (evenement) => {
+    if (evenement.gamma === null || evenement.beta === null) return;
+    viser(evenement.gamma / 30, (evenement.beta - 45) / 30);
+  };
+  // On se contente d'écouter, sans jamais demander d'autorisation : sur les téléphones qui en exigent une (iPhone),
+  // le navigateur n'envoie simplement aucune inclinaison, et il reste le flottement seul.
+  const inclinaisonLibre = 'DeviceOrientationEvent' in window;
+
+  // On n'écoute que si la page est visible et si la personne n'a pas demandé moins de mouvement.
+  // Onglet caché : plus d'écoute, plus de boucle, et le flottement est mis en pause (classe .en-pause).
+  function reglerEcoute() {
+    const actif = !document.hidden && !moinsDeMouvement.matches;
+    motif.classList.toggle('en-pause', document.hidden);
+    window.removeEventListener('pointermove', surSouris);
+    document.documentElement.removeEventListener('pointerleave', sourisPartie);
+    window.removeEventListener('deviceorientation', surInclinaison);
+    if (!actif) {
+      cancelAnimationFrame(boucle);
+      boucle = 0;
+      return;
+    }
+    window.addEventListener('pointermove', surSouris, { passive: true });
+    document.documentElement.addEventListener('pointerleave', sourisPartie);
+    if (inclinaisonLibre && telephone.matches) window.addEventListener('deviceorientation', surInclinaison, { passive: true });
+  }
+  document.addEventListener('visibilitychange', reglerEcoute);
+  moinsDeMouvement.addEventListener('change', reglerEcoute);
+  reglerEcoute();
+
+  // Petite surprise : connexion ou inscription réussie, les dessins s'envolent (20 px vers le haut, effacés en 400 ms)
+  // juste avant le changement de page. formulaires.js attend cette promesse avant de changer d'adresse.
+  window.Palabre.celebrerAcces = () => {
+    if (moinsDeMouvement.matches) return Promise.resolve(); // aucun mouvement demandé : on part tout de suite
+    motif.classList.add('envol');
+    return attendre(400);
+  };
 
   function focusPremierChamp() {
     const premier = carte.querySelector(`.acces-formulaire[data-pour="${carte.dataset.vue}"] :is(input, select):not([type="radio"]:not(:checked))`);

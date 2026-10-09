@@ -1784,18 +1784,67 @@ input, select, textarea { background: var(--surface-2); border-radius: var(--ray
 .motif-feuille { color: var(--feuille); }
 :where([data-theme="sombre"]) .motif-acces { opacity: 0.08; }
 :where([data-theme="sombre"]) :is(.motif-terre, .motif-feuille) { color: #F7F1E6; }
-/* Cinq ou six dessins flottent très lentement : quelques pixels de haut en bas, chacun à son rythme.
-   (Coupé, comme toutes les animations, si la personne a demandé moins de mouvement.) */
-@keyframes flotter {
-  from { transform: translateY(-4px); }
-  to { transform: translateY(5px); }
+/* Le vent : tous les dessins flottent comme des feuilles, chacun montant, descendant (± 6 px) et tournant (± 6°)
+   à son rythme. acces.js donne à chaque dessin une danse (.vent-0 à 2), une durée (.duree-0 à 8, de 6 à 14 s)
+   et un décalage de départ (.retard-0 à 7) : ils ne sont jamais synchronisés.
+   Un retard négatif fait démarrer l'animation « en cours de route » : rien ne part en même temps au chargement. */
+@keyframes vent-a {
+  0% { transform: translateY(-6px) rotate(-6deg); }
+  50% { transform: translate(2px, 1px) rotate(3deg); }
+  100% { transform: translateY(6px) rotate(6deg); }
 }
-.flotte { animation: flotter 10s ease-in-out infinite alternate; }
-.flotte-1 { animation-duration: 8s; animation-delay: -3s; }
-.flotte-2 { animation-duration: 12s; animation-delay: -7s; }
-.flotte-3 { animation-duration: 9s; animation-delay: -1.5s; }
-.flotte-4 { animation-duration: 11s; animation-delay: -5s; }
-.flotte-5 { animation-duration: 8.5s; animation-delay: -9s; }
+@keyframes vent-b {
+  0% { transform: translate(-2px, 5px) rotate(5deg); }
+  40% { transform: translate(1px, -3px) rotate(-2deg); }
+  100% { transform: translate(2px, -6px) rotate(-6deg); }
+}
+@keyframes vent-c {
+  0% { transform: translate(2px, -4px) rotate(4deg); }
+  60% { transform: translate(-2px, 6px) rotate(-6deg); }
+  100% { transform: translate(0, 2px) rotate(2deg); }
+}
+.vent { transform-box: fill-box; transform-origin: center; animation: vent-a 10s ease-in-out infinite alternate; }
+.vent-1 { animation-name: vent-b; }
+.vent-2 { animation-name: vent-c; }
+/* Dans les marges étroites du téléphone : de haut en bas seulement, pour ne jamais toucher un champ */
+@keyframes vent-d {
+  from { transform: translateY(-5px) rotate(-4deg); }
+  to { transform: translateY(5px) rotate(4deg); }
+}
+.vent-3 { animation-name: vent-d; }
+.duree-0 { animation-duration: 6s; }
+.duree-1 { animation-duration: 7s; }
+.duree-2 { animation-duration: 8s; }
+.duree-3 { animation-duration: 9s; }
+.duree-4 { animation-duration: 10s; }
+.duree-5 { animation-duration: 11s; }
+.duree-6 { animation-duration: 12s; }
+.duree-7 { animation-duration: 13s; }
+.duree-8 { animation-duration: 14s; }
+.retard-0 { animation-delay: -0.7s; }
+.retard-1 { animation-delay: -2.3s; }
+.retard-2 { animation-delay: -3.9s; }
+.retard-3 { animation-delay: -5.2s; }
+.retard-4 { animation-delay: -6.8s; }
+.retard-5 { animation-delay: -8.1s; }
+.retard-6 { animation-delay: -9.6s; }
+.retard-7 { animation-delay: -11.4s; }
+/* Onglet caché : le flottement est mis en pause (classe posée par acces.js) */
+.motif-acces.en-pause .vent { animation-play-state: paused; }
+
+/* La profondeur : acces.js écrit --px et --py (entre -1 et 1) d'après la position de la souris ou l'inclinaison
+   du téléphone. Chaque niveau se décale dans le sens opposé, les plus grands dessins (les plus « proches ») le plus loin. */
+.profondeur { transform: translate(calc(var(--px, 0) * var(--decalage) * var(--ampleur, -1)), calc(var(--py, 0) * var(--decalage) * var(--ampleur, -1))); }
+@media (max-width: 767px) { .motif-acces { --ampleur: -0.5; } } /* sur téléphone, la place est comptée : moitié moins d'amplitude */
+.profondeur-0 { --decalage: 4px; }
+.profondeur-1 { --decalage: 6px; }
+.profondeur-2 { --decalage: 8px; }
+.profondeur-3 { --decalage: 10px; }
+.profondeur-4 { --decalage: 12px; }
+
+/* Connexion ou inscription réussie : les dessins s'envolent avant le changement de page */
+.motif-acces { transition: transform 0.4s ease-in, opacity 0.4s ease-in; }
+.motif-acces.envol { transform: translateY(-20px); opacity: 0; }
 
 /* Remplissage automatique du navigateur : par défaut, Chrome peint le champ en bleu pâle (ou en jaune) et impose
    sa couleur de texte. On ne peut pas changer ce fond directement : on le recouvre d'une ombre intérieure à la
