@@ -91,26 +91,28 @@
   );
 }
 
-/* Mode sombre « nuit sous le baobab » : un noir-vert, jamais un noir pur */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --papier: #0F130E;
-    --surface: #181D17;
-    --surface-2: #20261F;
-    --encre: #ECE8DF;
-    --tronc: #ECE8DF;
-    --sur-tronc: #171512;
-    --gris: #A4AA9F;
-    --ligne: #2B322A;
-    --action: #4CC777;
-    --action-survol: #63D48A;
-    --sur-action: #0B1A10;
-    --accent: #E07A55;
-    --focus: #63D48A;
-    --ombre-1: 0 1px 2px rgba(0, 0, 0, 0.35);
-    --ombre-2: 0 2px 6px rgba(0, 0, 0, 0.35), 0 10px 24px rgba(0, 0, 0, 0.35);
-    --ombre-3: 0 10px 30px rgba(0, 0, 0, 0.55), 0 30px 60px rgba(0, 0, 0, 0.45);
-  }
+/* Mode sombre « nuit sous le baobab » : un noir-vert, jamais un noir pur.
+   Il s'applique quand <html> porte data-theme="sombre" : c'est public/js/theme.js qui l'écrit, d'après le choix
+   de la personne (bouton soleil / lune de l'en-tête) ou, sans choix, d'après le réglage de son appareil.
+   Toute règle propre au mode sombre s'écrit donc :where([data-theme="sombre"]) .ma-classe { … }, sans @media.
+   (:where ne pèse rien dans la priorité des règles : la règle se comporte comme si le préfixe n'était pas là.) */
+:root[data-theme="sombre"] {
+  --papier: #0F130E;
+  --surface: #181D17;
+  --surface-2: #20261F;
+  --encre: #ECE8DF;
+  --tronc: #ECE8DF;
+  --sur-tronc: #171512;
+  --gris: #A4AA9F;
+  --ligne: #2B322A;
+  --action: #4CC777;
+  --action-survol: #63D48A;
+  --sur-action: #0B1A10;
+  --accent: #E07A55;
+  --focus: #63D48A;
+  --ombre-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --ombre-2: 0 2px 6px rgba(0, 0, 0, 0.35), 0 10px 24px rgba(0, 0, 0, 0.35);
+  --ombre-3: 0 10px 30px rgba(0, 0, 0, 0.55), 0 30px 60px rgba(0, 0, 0, 0.45);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -425,10 +427,8 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--er
 .message:empty { display: none; }
 .message.erreur { background: color-mix(in srgb, var(--erreur) 12%, transparent); color: var(--erreur); }
 .message.succes { background: color-mix(in srgb, var(--succes) 14%, transparent); color: var(--succes); }
-@media (prefers-color-scheme: dark) {
-  .message.erreur { color: #FF8A80; }
-  .message.succes { color: #7FD8A4; }
-}
+:where([data-theme="sombre"]) .message.erreur { color: #FF8A80; }
+:where([data-theme="sombre"]) .message.succes { color: #7FD8A4; }
 
 .liens-formulaire { margin: 20px 0 0; text-align: center; font-size: var(--t-15); }
 .liens-formulaire p { margin: 6px 0; }
@@ -1056,7 +1056,7 @@ a.nom-auteur:hover { text-decoration: underline; }
 .menu-choix:hover { background: color-mix(in srgb, var(--gris) 14%, transparent); }
 .menu-choix .icone { width: 20px; height: 20px; }
 .menu-danger { color: var(--erreur); }
-@media (prefers-color-scheme: dark) { .menu-danger { color: #FF8A80; } }
+:where([data-theme="sombre"]) .menu-danger { color: #FF8A80; }
 
 /* Chaque type de publication a un petit badge coloré avec son icône :
    idée = vert feuillage (ampoule), question = terre cuite (point d'interrogation), projet = noir du tronc (fusée). */
@@ -1075,7 +1075,7 @@ a.nom-auteur:hover { text-decoration: underline; }
 }
 .badge-type .icone { width: 14px; height: 14px; }
 .badge-question { color: var(--terre); }
-@media (prefers-color-scheme: dark) { .badge-question { color: #F0A283; } }
+:where([data-theme="sombre"]) .badge-question { color: #F0A283; }
 
 .publication-corps { display: grid; justify-items: start; }
 .publication-texte { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
@@ -1499,12 +1499,10 @@ a.nom-auteur:hover { text-decoration: underline; }
 .carte-publication.proposition-acceptee { border-color: var(--action); }
 .bloc-calculateur { border-color: var(--ligne); }
 .non-lue .notification { border-left-color: var(--accent); }
-@media (prefers-color-scheme: dark) {
-  /* En mode sombre, l'ombre se voit peu : un filet fin garde les cartes bien détachées du fond. */
-  .carte-publication, .carte-projet, .carte-profil, .bloc-formulaire, .carte-formulaire,
-  .ligne-membre, .notification, .avis, .tuile, .squelette { border-color: var(--ligne); }
-  .squelette { border: 1px solid var(--ligne); }
-}
+/* En mode sombre, l'ombre se voit peu : un filet fin garde les cartes bien détachées du fond. */
+:where([data-theme="sombre"]) :is(.carte-publication, .carte-projet, .carte-profil, .bloc-formulaire, .carte-formulaire,
+  .ligne-membre, .notification, .avis, .tuile, .squelette) { border-color: var(--ligne); }
+:where([data-theme="sombre"]) .squelette { border: 1px solid var(--ligne); }
 /* Les cartes cliquables se soulèvent légèrement au survol */
 .carte-projet, .notification { transition: transform 0.2s ease, box-shadow 0.2s ease; }
 .carte-projet:hover, .notification:hover { transform: translateY(-2px); box-shadow: var(--ombre-2); }

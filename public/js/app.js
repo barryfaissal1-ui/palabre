@@ -648,6 +648,26 @@
     if (!page.classList.contains('page-large')) page.after(colonneDroite(moi));
   }
 
+  // Bouton soleil / lune : passe du mode clair au mode sombre (voir public/js/theme.js, qui retient le choix).
+  function boutonTheme() {
+    const theme = window.PalabreTheme;
+    if (!theme) return null;
+    const bouton = el('button', { classe: 'nav-cloche nav-theme', type: 'button' });
+    function dessiner() {
+      const sombre = theme.actuel() === 'sombre';
+      // L'icône et le nom disent ce que fera le bouton : en mode sombre, il propose le clair.
+      bouton.replaceChildren(icone(sombre ? 'soleil' : 'lune'));
+      bouton.setAttribute('aria-label', sombre ? 'Passer en mode clair' : 'Passer en mode sombre');
+      bouton.title = sombre ? 'Mode clair' : 'Mode sombre';
+    }
+    bouton.addEventListener('click', () => {
+      theme.basculer();
+      dessiner();
+    });
+    dessiner();
+    return bouton;
+  }
+
   // Remplit la navigation de l'en-tête selon que la personne est connectée ou non.
   // En-tête : recherche, cloche, avatar. Sur téléphone, les onglets (et l'avatar) forment la barre du bas ;
   // sur ordinateur, ils sont dans la colonne de gauche.
@@ -685,6 +705,7 @@
         ]),
         moi.estAdmin ? el('a', { classe: 'nav-cloche nav-admin', href: '/admin', 'aria-label': 'Administration', title: 'Administration' }, [icone('admin')]) : null,
         loupe,
+        boutonTheme(),
         el('a', {
           classe: 'nav-cloche', href: '/notifications',
           'aria-label': nonLues ? `Notifications : ${nonLues} non lue${nonLues > 1 ? 's' : ''}` : 'Notifications',
@@ -696,7 +717,7 @@
       ].filter(Boolean));
       poserColonnes(moi);
     } else {
-      nav.append(barreRecherche(), loupe, el('a', { classe: 'bouton bouton-principal bouton-compact', href: '/connexion', texte: 'Se connecter' }));
+      nav.append(...[barreRecherche(), loupe, boutonTheme(), el('a', { classe: 'bouton bouton-principal bouton-compact', href: '/connexion', texte: 'Se connecter' })].filter(Boolean));
     }
   }
 

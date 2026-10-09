@@ -318,6 +318,14 @@ Changer une valeur ici change tout le site. Le mode sombre (« nuit sous le baob
 
 **Le texte courant utilise la police du téléphone** (`system-ui`) en 15 px : rien à télécharger, donc rapide en 3G, et net sur tous les écrans. La police Bricolage ne sert qu'aux noms, aux titres et au logo. Deux exceptions à l'échelle, voulues : le grand titre de la page d'accueil, et les champs de saisie en 16 px (en dessous, l'iPhone zoome sur la page dès qu'on touche un champ).
 
+### Mode clair et mode sombre : le choix du membre
+
+Par défaut, le site suit le réglage du téléphone ou de l'ordinateur. Un bouton de l'en-tête (une lune en mode clair, un soleil en mode sombre) permet de choisir soi-même ; le choix est gardé dans le navigateur (`localStorage`), il ne passe pas par le serveur.
+
+- `public/js/theme.js` est le seul script chargé **sans** `defer`, tout en haut de chaque page : il écrit `data-theme="clair"` ou `"sombre"` sur la balise `<html>` avant que la page s'affiche. Sans cela, on verrait un éclair de page blanche avant le passage en sombre.
+- Dans le CSS, les couleurs du mode sombre sont sous `:root[data-theme="sombre"]`. Les quelques règles particulières s'écrivent `:where([data-theme="sombre"]) .classe` : `:where` ne compte pas dans la priorité des règles, donc elles se comportent comme avant.
+- Le script est un fichier à part, et non du code écrit dans la page : la CSP du site interdit tout script en ligne.
+
 ### Les icônes (`public/icons/icones.svg`)
 
 Les icônes viennent de **Lucide** (licence ISC, notée dans `LICENCES.md`). Elles sont rangées dans un seul fichier, un « sprite » : le navigateur le télécharge une fois, puis chaque icône n'est qu'une référence, `<svg class="icone"><use href="/icons/icones.svg#coeur"></use></svg>`. Dans le JavaScript, la fonction `icone('coeur')` de `public/js/app.js` crée cette balise. Les icônes sont dessinées au trait avec `currentColor` : elles prennent toujours la couleur du texte voisin, en clair comme en sombre. Dans le menu, l'onglet de la page où l'on se trouve a son icône **pleine** (une seule règle CSS : `fill: currentColor`).
