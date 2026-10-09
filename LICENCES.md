@@ -40,7 +40,13 @@ Photos affichées en haut de l'accueil et dans le panneau vert de la page de con
 
 | Fichier | Auteur | Source | Lien de la photo |
 | --- | --- | --- | --- |
-| *(à compléter par l'équipe pour chaque photo ajoutée)* | | Pexels ou Unsplash | |
+| `fond-1-*` | Naboth Otieno | Pexels | https://www.pexels.com/photo/man-working-on-computer-in-an-office-19805876/ |
+| `fond-2-*` | Tima Miroshnichenko | Pexels | https://www.pexels.com/photo/man-in-red-and-black-plaid-dress-shirt-using-laptop-5702315/ |
+| `fond-3-*` | Domingos Henriques | Pexels | https://www.pexels.com/photo/woman-sitting-and-working-in-office-17471222/ |
+| `fond-4-*` | Mikhail Nilov | Pexels | https://www.pexels.com/photo/a-man-sitting-on-a-chair-inside-a-conference-room-smiling-at-the-camera-9301747/ |
+| `fond-5-*` | Studio Dydx Dominic | Pexels | https://www.pexels.com/photo/team-collaborating-on-engineering-project-39850239/ |
+
+Les photos ont été recadrées en 16:9 et étalonnées aux couleurs de Palabre (blancs vers la crème du site, ombres vers le vert feuillage, couleurs vives adoucies), puis exportées en deux tailles : 1080 px (téléphones) et 1920 px (ordinateurs), en WebP avec une copie JPEG. Usage : fond décoratif uniquement, sans nom ni légende, sans laisser croire que ces personnes sont membres de Palabre ou recommandent le site (règle de la licence Pexels).
 
 Licences : https://www.pexels.com/license/ et https://unsplash.com/license
 
