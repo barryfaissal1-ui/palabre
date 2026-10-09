@@ -391,6 +391,18 @@ Le mouvement est volontairement rare : le « pop » du cœur, l'ouverture des co
 
 Les règles de sécurité restent les mêmes : aucun style ni script en ligne (la CSP les bloque toujours), le texte des membres passe toujours par `textContent` ou `el()`, les zones tactiles font au moins 44 px et le focus au clavier reste visible.
 
+### Les pages Connexion et Inscription : la « lame »
+
+`/connexion` et `/inscription` sont **une seule page** (`public/connexion.html`) qui contient les deux formulaires. Le serveur (`src/routes/pages.js`) y écrit lequel montrer selon l'adresse (`data-vue`) : en arrivant directement sur `/inscription`, on voit tout de suite le bon formulaire, sans clignotement.
+
+- **Passer de l'un à l'autre sans recharger** : `public/js/acces.js` change l'adresse avec `history.pushState` (les paramètres `?suite=…` suivent), et écoute `popstate` pour que le bouton retour du téléphone fonctionne.
+- **La lame** : le panneau vert est fait de quatre couches superposées, découpées par `clip-path: polygon(…)`. La couche du dessus est le fond vert ; les trois autres dépassent de 3, 9 et 20 pixels et dessinent le liseré terre cuite et son halo. Pour l'animation, le CSS ne change que ce `clip-path` : la lame s'étend jusqu'à couvrir la carte, les formulaires s'échangent dessous, puis elle se retire de l'autre côté. Aucun élément ne se déplace vraiment, le navigateur n'a pas de mise en page à recalculer : cela reste fluide sur un petit téléphone.
+- **Sur téléphone**, la lame est en haut (environ 34 % de l'écran) : elle descend, puis remonte avec l'autre message.
+- **Accessibilité** : le formulaire caché reçoit l'attribut `inert` (ni le clavier ni un lecteur d'écran ne peuvent y entrer) ; après le changement, le focus va au premier champ du nouveau formulaire ; si la personne a demandé moins d'animations, pas de balayage, un simple fondu.
+- **Les champs** sont soulignés ; le trait terre cuite qui se dessine de gauche à droite est une transformation (`scaleX`) déclenchée par `:focus-within`. Le bouton œil change le type du champ de `password` à `text`. L'indicateur de force n'est qu'un conseil : la règle des 8 caractères reste vérifiée par le serveur.
+- **La photo du panneau** est facultative : s'il y a une image dans `public/img/fond/`, le serveur l'ajoute à la page (chargée en différé, fondue dans le vert). Sinon, le dégradé suffit.
+- L'envoi des formulaires, les erreurs sous chaque champ et le paramètre `suite` n'ont pas changé : ils sont toujours dans `public/js/formulaires.js`.
+
 ## 13. L'application installable (PWA)
 
 - `public/manifest.json` : nom, couleurs et icônes de l'appli quand on l'ajoute à l'écran d'accueil.

@@ -66,3 +66,21 @@ test('requête non JSON refusée (protection CSRF)', async () => {
   const r = await fetch(`${base}/api/auth/connexion`, { method: 'POST', body: 'email=a' });
   assert.equal(r.status, 415);
 });
+
+test('connexion et inscription : une seule page, le serveur choisit le formulaire montré', async () => {
+  const connexion = await fetch(`${base}/connexion`);
+  const inscription = await fetch(`${base}/inscription?suite=/amis`);
+  assert.equal(connexion.status, 200);
+  assert.equal(inscription.status, 200);
+  const [pageConnexion, pageInscription] = [await connexion.text(), await inscription.text()];
+  // Les deux adresses servent la même page, avec les deux formulaires.
+  for (const page of [pageConnexion, pageInscription]) {
+    assert.match(page, /data-formulaire="connexion"/);
+    assert.match(page, /data-formulaire="inscription"/);
+    assert.doesNotMatch(page, /photo-panneau/); // le repère de la photo est toujours remplacé
+  }
+  assert.match(pageConnexion, /data-vue="connexion"/);
+  assert.match(pageConnexion, /<title>Se connecter/);
+  assert.match(pageInscription, /data-vue="inscription"/);
+  assert.match(pageInscription, /<title>Créer un compte/);
+});

@@ -78,6 +78,33 @@ router.get('/calculateur', (req, res) => {
   });
 });
 
+// Photo du panneau vert des pages d'accès : la première image trouvée dans public/img/fond/, s'il y en a une.
+// Sans ce dossier (ou s'il est vide), la page n'a pas de photo : le dégradé vert suffit.
+function photoPanneau() {
+  try {
+    const image = fs.readdirSync(path.join(DOSSIER_PUBLIC, 'img', 'fond'))
+      .filter((nom) => /^[a-z0-9._-]+\.(jpe?g|png|webp)$/i.test(nom)) // un nom simple : il est écrit tel quel dans la page
+      .sort()[0];
+    // loading="lazy" : la photo est décorative, elle ne retarde jamais l'affichage du formulaire.
+    return image ? `<img class="lame-photo" src="/img/fond/${image}" alt="" loading="lazy" decoding="async">` : '';
+  } catch {
+    return '';
+  }
+}
+
+// Connexion et inscription : une seule page (connexion.html) qui contient les deux formulaires.
+// Le serveur y écrit lequel montrer d'abord ; ensuite la page passe de l'un à l'autre sans recharger (public/js/acces.js).
+router.get(['/connexion', '/inscription'], (req, res) => {
+  const inscription = req.path === '/inscription';
+  let html = lireModele('connexion.html').replace('<!-- photo-panneau -->', photoPanneau);
+  if (inscription) {
+    html = html
+      .replace('data-vue="connexion"', 'data-vue="inscription"')
+      .replace('<title>Se connecter – Palabre</title>', '<title>Créer un compte – Palabre</title>');
+  }
+  res.type('html').send(html);
+});
+
 // Page d'un projet : /projets/12
 router.get('/projets/:id', async (req, res, next) => {
   const id = v.idPositif(req.params.id);

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#171512">
+  <meta name="theme-color" content="#0F3D22">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -16,37 +16,155 @@
   <title>Se connecter – Palabre</title>
   <script src="/js/app.js" defer></script>
   <script src="/js/formulaires.js" defer></script>
+  <script src="/js/acces.js" defer></script>
 </head>
-<body class="page-formulaire">
-  <div>
-    <div class="bande"></div>
-    <header class="entete"><div class="conteneur entete-interieur">
-      <a class="marque" href="/"><img src="/icons/logo-256.png" alt="" width="32" height="32">Palabre</a>
-    </div></header>
-  </div>
-  <main class="conteneur">
-    <div class="carte-formulaire">
-      <h1>Bon retour</h1>
-      <p class="sous-titre">Connecte-toi pour retrouver ton fil et tes demandes.</p>
+<!-- Une seule page pour /connexion et /inscription : elle contient les deux formulaires.
+     data-vue dit lequel est affiché ; le serveur l'écrit selon l'adresse (src/routes/pages.js),
+     puis acces.js passe de l'un à l'autre sans recharger, avec l'animation de la « lame » verte. -->
+<body class="page-acces">
+  <main class="acces">
+    <div class="acces-carte" data-carte data-vue="connexion">
 
-      <form data-formulaire="connexion" novalidate>
-        <div class="champ">
-          <label for="email">Email</label>
-          <input id="email" name="email" type="email" autocomplete="email" inputmode="email" required>
-          <p class="erreur-champ" data-erreur="email"></p>
-        </div>
-        <div class="champ">
-          <label for="motDePasse">Mot de passe</label>
-          <input id="motDePasse" name="motDePasse" type="password" autocomplete="current-password" required>
-          <p class="erreur-champ" data-erreur="motDePasse"></p>
-        </div>
-        <p class="message" role="alert" data-message></p>
-        <button class="bouton bouton-principal bouton-plein" type="submit">Se connecter</button>
-      </form>
+      <!-- Côté formulaire -->
+      <div class="acces-volet">
+        <section class="acces-formulaire" data-pour="connexion" aria-labelledby="titre-connexion">
+          <h1 class="acces-titre" id="titre-connexion">Connexion</h1>
+          <form data-formulaire="connexion" novalidate>
+            <div class="champ">
+              <label for="connexion-email">Email</label>
+              <div class="ligne-saisie">
+                <input id="connexion-email" name="email" type="email" autocomplete="email" inputmode="email" required>
+                <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#enveloppe"></use></svg>
+                <span class="trait"></span>
+              </div>
+              <p class="erreur-champ" data-erreur="email"></p>
+            </div>
+            <div class="champ">
+              <label for="connexion-mot-de-passe">Mot de passe</label>
+              <div class="ligne-saisie">
+                <input id="connexion-mot-de-passe" name="motDePasse" type="password" autocomplete="current-password" required>
+                <button class="bouton-icone" type="button" data-oeil aria-label="Afficher le mot de passe" aria-pressed="false"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#oeil"></use></svg></button>
+                <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#cadenas"></use></svg>
+                <span class="trait"></span>
+              </div>
+              <p class="erreur-champ" data-erreur="motDePasse"></p>
+            </div>
+            <p class="message" role="alert" data-message></p>
+            <button class="bouton bouton-principal bouton-plein" type="submit">Se connecter</button>
+          </form>
+          <div class="liens-formulaire">
+            <p><a href="/mot-de-passe-oublie">Mot de passe oublié ?</a></p>
+            <p>Pas encore de compte ? <a href="/inscription" data-aller="inscription">Créer un compte</a></p>
+          </div>
+        </section>
 
-      <div class="liens-formulaire">
-        <p><a href="/mot-de-passe-oublie">Mot de passe oublié ?</a></p>
-        <p>Pas encore de compte ? <a href="/inscription">Créer un compte</a></p>
+        <section class="acces-formulaire" data-pour="inscription" aria-labelledby="titre-inscription">
+          <h1 class="acces-titre" id="titre-inscription">Créer un compte</h1>
+          <form data-formulaire="inscription" novalidate>
+            <fieldset class="choix-type tuiles-type champ">
+              <legend>Tu es</legend>
+              <input type="radio" name="type" id="type-dev" value="dev" checked>
+              <label for="type-dev"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#devs"></use></svg><strong>Développeur</strong><span>Je montre mon travail</span></label>
+              <input type="radio" name="type" id="type-client" value="client">
+              <label for="type-client"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#demandes"></use></svg><strong>Client</strong><span>J'ai un projet</span></label>
+            </fieldset>
+
+            <div class="champ">
+              <label for="nom">Nom complet</label>
+              <div class="ligne-saisie">
+                <input id="nom" name="nom" autocomplete="name" required minlength="2" maxlength="80">
+                <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#utilisateur"></use></svg>
+                <span class="trait"></span>
+              </div>
+              <p class="erreur-champ" data-erreur="nom"></p>
+            </div>
+
+            <div class="champ">
+              <label for="email">Email</label>
+              <div class="ligne-saisie">
+                <input id="email" name="email" type="email" autocomplete="email" inputmode="email" required>
+                <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#enveloppe"></use></svg>
+                <span class="trait"></span>
+              </div>
+              <p class="erreur-champ" data-erreur="email"></p>
+            </div>
+
+            <div class="champ">
+              <label for="motDePasse">Mot de passe</label>
+              <div class="ligne-saisie">
+                <input id="motDePasse" name="motDePasse" type="password" autocomplete="new-password" required minlength="8" aria-describedby="aide-mot-de-passe" data-mesurer-force>
+                <button class="bouton-icone" type="button" data-oeil aria-label="Afficher le mot de passe" aria-pressed="false"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#oeil"></use></svg></button>
+                <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#cadenas"></use></svg>
+                <span class="trait"></span>
+              </div>
+              <!-- Indicateur de force : rempli par acces.js pendant la saisie -->
+              <p class="force" id="aide-mot-de-passe" data-force>
+                <span class="force-barre" aria-hidden="true"><span></span><span></span><span></span></span>
+                <span class="aide" data-force-texte aria-live="polite">8 caractères minimum.</span>
+              </p>
+              <p class="erreur-champ" data-erreur="motDePasse"></p>
+            </div>
+
+            <div class="champs-cote-a-cote">
+              <div class="champ">
+                <label for="pays">Pays</label>
+                <div class="ligne-saisie">
+                  <select id="pays" name="pays" required data-liste-pays>
+                    <option value="Burkina Faso">Burkina Faso</option>
+                  </select>
+                  <span class="trait"></span>
+                </div>
+                <p class="erreur-champ" data-erreur="pays"></p>
+              </div>
+              <div class="champ">
+                <label for="ville">Ville</label>
+                <div class="ligne-saisie">
+                  <input id="ville" name="ville" autocomplete="address-level2" required>
+                  <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#lieu"></use></svg>
+                  <span class="trait"></span>
+                </div>
+                <p class="erreur-champ" data-erreur="ville"></p>
+              </div>
+            </div>
+
+            <div class="champ">
+              <label for="whatsapp">Numéro WhatsApp <span class="aide">(facultatif)</span></label>
+              <div class="ligne-saisie">
+                <input id="whatsapp" name="whatsapp" type="tel" autocomplete="tel" inputmode="tel" placeholder="+226 70 00 00 00">
+                <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#commentaire"></use></svg>
+                <span class="trait"></span>
+              </div>
+              <p class="erreur-champ" data-erreur="whatsapp"></p>
+            </div>
+
+            <p class="message" role="alert" data-message></p>
+            <button class="bouton bouton-principal bouton-plein" type="submit">Créer mon compte</button>
+          </form>
+          <div class="liens-formulaire">
+            <p>Déjà inscrit ? <a href="/connexion" data-aller="connexion">J'ai déjà un compte</a></p>
+          </div>
+        </section>
+      </div>
+
+      <!-- La « lame » : le panneau vert. Quatre couches superposées, découpées par clip-path dans le CSS :
+           deux halos et un liseré terre cuite, qui dépassent un peu sous le fond vert et dessinent son bord lumineux. -->
+      <div class="acces-lame">
+        <span class="lame-couche lame-halo-large"></span>
+        <span class="lame-couche lame-halo"></span>
+        <span class="lame-couche lame-lisere"></span>
+        <div class="lame-couche lame-fond">
+          <!-- photo-panneau -->
+          <div class="lame-message" data-pour="connexion">
+            <a class="lame-marque" href="/"><img src="/icons/logo-256.png" alt="" width="44" height="44">Palabre</a>
+            <p class="lame-accroche">Bon retour sous l'arbre.</p>
+            <p class="lame-texte">Ton fil, tes amis et tes demandes t'attendent.</p>
+          </div>
+          <div class="lame-message" data-pour="inscription">
+            <a class="lame-marque" href="/"><img src="/icons/logo-256.png" alt="" width="44" height="44">Palabre</a>
+            <p class="lame-accroche">Rejoins le cercle.</p>
+            <p class="lame-texte">Montre ton travail, forme ton équipe, trouve tes clients.</p>
+          </div>
+        </div>
       </div>
     </div>
   </main>

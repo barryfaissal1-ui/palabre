@@ -84,6 +84,7 @@ tests/                 tests automatiques
 - [x] Tableau de bord administrateur `/admin` : statistiques, signalements, projets proposés pour Facebook
 - [x] Calculateur « Combien coûte mon projet ? » `/calculateur` (grille de prix : `public/js/grille-prix.js`)
 - [x] Refonte du design, étape A : système de design (icônes Lucide, ombres, animations, toasts, états vides illustrés, squelettes de chargement, mode sombre)
+- [x] Pages Connexion et Inscription réunies en une seule, avec l'animation de la « lame »
 - [x] Refonte du design, étape C : qualité « réseau social » (anneau de preuve et badge feuille, en-tête compacte avec recherche de membres, « Disponibles maintenant », fil bord à bord avec preuve sociale et aperçu des commentaires, profil avec couverture et onglets)
 - [ ] Publication Facebook, défi de la semaine
 

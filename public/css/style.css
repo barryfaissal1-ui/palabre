@@ -1486,6 +1486,139 @@ input, select, textarea { background: var(--surface-2); border-radius: var(--ray
    l'arrivée d'une publication qu'on vient d'écrire, les fenêtres et les toasts.
    Tout est coupé si la personne a demandé moins d'animations (règle ci-dessous). */
 
+/* ==========================================================================
+   Pages d'accès : /connexion et /inscription (une seule page, public/connexion.html)
+   ========================================================================== */
+.page-acces { padding: 0; }
+.acces { min-height: 100vh; min-height: 100svh; }
+.acces-carte {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100svh;
+  background: var(--surface);
+  /* Hauteur du panneau vert sur téléphone : environ 34 % de l'écran */
+  --haut-lame: clamp(200px, 34svh, 320px);
+  --duree-lame: 0.45s; /* une moitié de l'animation ; la même valeur que DEMI_DUREE dans acces.js */
+}
+
+/* Un seul formulaire est affiché : celui que désigne data-vue (écrit par le serveur, puis changé par acces.js) */
+.acces-carte[data-vue="connexion"] .acces-formulaire[data-pour="inscription"],
+.acces-carte[data-vue="inscription"] .acces-formulaire[data-pour="connexion"] { display: none; }
+
+.acces-volet { padding: calc(var(--haut-lame) + 56px) 24px 40px; }
+.acces-formulaire { display: grid; gap: 20px; width: 100%; max-width: 400px; margin: 0 auto; }
+.acces-formulaire form { gap: 18px; }
+/* Le titre du formulaire, avec son petit trait terre cuite */
+.acces-titre { margin: 0; font: 800 var(--t-24)/1.15 var(--titre); }
+.acces-titre::after { content: ""; display: block; width: 40px; height: 3px; margin-top: 10px; border-radius: 2px; background: var(--accent); }
+.acces .liens-formulaire { margin: 0; }
+.acces .liens-formulaire p { margin: 0; }
+.acces .liens-formulaire a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 700; }
+.acces .champ label, .acces .champ legend { color: var(--gris); font-size: var(--t-13); font-weight: 600; }
+
+/* Champs soulignés : pas de cadre, un trait fin, une icône à droite.
+   Quand le champ est actif, un trait terre cuite se dessine de gauche à droite (.trait). */
+.ligne-saisie { position: relative; display: flex; align-items: center; gap: 4px; border-bottom: 1.5px solid var(--ligne); }
+.ligne-saisie :is(input, select) { flex: 1; min-width: 0; min-height: 44px; padding: 4px 0; border: 0; border-radius: 0; background: transparent; }
+.ligne-saisie :is(input, select):focus { outline: none; box-shadow: none; }
+.ligne-saisie > .icone { width: 20px; height: 20px; color: var(--gris); }
+.ligne-saisie .bouton-icone .icone { width: 20px; height: 20px; }
+.trait {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1.5px;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+  pointer-events: none;
+}
+.ligne-saisie:focus-within .trait { transform: scaleX(1); }
+.ligne-saisie:focus-within > .icone { color: var(--accent); }
+.ligne-saisie:has([aria-invalid="true"]) { border-bottom-color: var(--erreur); }
+.champs-cote-a-cote { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+
+/* Développeur / Client : deux grandes tuiles avec icône */
+.tuiles-type label { justify-items: start; gap: 4px; padding: 14px; border-width: 1.5px; border-radius: var(--rayon); transition: border-color 0.15s ease, background-color 0.15s ease; }
+.tuiles-type label .icone { width: 26px; height: 26px; margin-bottom: 4px; color: var(--gris); }
+.tuiles-type label strong { color: var(--encre); font: 700 var(--t-15)/1.2 var(--titre); }
+.tuiles-type label span { font-size: var(--t-13); font-weight: 400; }
+.tuiles-type input:checked + label { border-color: var(--action); background: color-mix(in srgb, var(--feuille-vive) 10%, transparent); }
+.tuiles-type input:checked + label .icone { color: var(--action); }
+
+/* Indicateur de force du mot de passe : trois segments (data-niveau posé par acces.js) */
+.force { display: flex; align-items: center; gap: 10px; margin: 0; }
+.force-barre { flex: none; display: inline-flex; gap: 4px; }
+.force-barre span { width: 28px; height: 4px; border-radius: 2px; background: var(--ligne); }
+.force[data-niveau="0"] .force-barre span:first-child,
+.force[data-niveau="1"] .force-barre span:first-child { background: var(--erreur); }
+.force[data-niveau="2"] .force-barre span:nth-child(-n+2) { background: var(--teinte-2); }
+.force[data-niveau="3"] .force-barre span { background: var(--feuille-vive); }
+
+/* ---------- La lame : le panneau vert ---------- */
+/* Quatre couches de la taille de la carte, découpées par le même clip-path. Chaque couche dépasse la précédente
+   de quelques pixels (--bord) : sous le fond vert, on voit ainsi une fine ligne terre cuite (le liseré),
+   puis deux bandes très transparentes (le halo). Seul clip-path est animé : rien d'autre ne bouge. */
+.acces-lame { position: absolute; z-index: 2; top: 0; left: 0; right: 0; height: 100vh; height: 100svh; pointer-events: none; }
+.lame-couche {
+  position: absolute;
+  inset: 0;
+  /* Téléphone : la lame est en haut, son bord bas est une diagonale */
+  clip-path: polygon(0 0, 100% 0, 100% calc(var(--haut-lame) - 16px + var(--bord)), 0 calc(var(--haut-lame) + 16px + var(--bord)));
+  transition: clip-path var(--duree-lame) cubic-bezier(0.65, 0, 0.35, 1);
+}
+.lame-fond { --bord: 0px; background: linear-gradient(160deg, #0F3D22, #082513); color: #F7F1E6; overflow: hidden; }
+.lame-lisere { --bord: 3px; background: #F08A5D; }
+.lame-halo { --bord: 9px; background: rgba(240, 138, 93, 0.30); }
+.lame-halo-large { --bord: 20px; background: rgba(240, 138, 93, 0.12); }
+/* États de l'animation (posés par acces.js) : la lame couvre tout, ou est repliée tout en haut */
+.acces-carte[data-etat="couvre"] .lame-couche { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+.acces-carte[data-etat="replie"] .lame-couche { clip-path: polygon(0 0, 100% 0, 100% 0, 0 0); }
+.acces-carte.sans-transition .lame-couche { transition: none; }
+.acces-carte.lame-fixe .acces-lame { position: fixed; height: auto; bottom: 0; }
+
+/* Photo facultative (public/img/fond/) : fondue dans le vert, comme une image en deux tons */
+.lame-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.22; mix-blend-mode: luminosity; }
+.lame-message { position: absolute; top: 0; left: 0; right: 0; display: grid; align-content: center; gap: 6px; height: calc(var(--haut-lame) - 16px); padding: calc(16px + env(safe-area-inset-top, 0px)) 24px 0; pointer-events: auto; }
+.acces-carte[data-vue="connexion"] .lame-message[data-pour="inscription"],
+.acces-carte[data-vue="inscription"] .lame-message[data-pour="connexion"] { display: none; }
+.lame-marque { justify-self: start; display: inline-flex; align-items: center; gap: 10px; min-height: 44px; margin-bottom: 4px; color: inherit; font: 800 var(--t-20)/1 var(--titre); text-decoration: none; }
+.lame-marque img { width: 36px; height: 36px; border-radius: 10px; }
+.lame-accroche { margin: 0; font: 800 var(--t-24)/1.15 var(--titre); }
+.lame-texte { margin: 0; max-width: 34ch; color: #CFE3D3; }
+
+/* Ordinateur et tablette : une grande carte centrée, coupée en deux par une diagonale.
+   Connexion : formulaire à gauche, lame à droite. Inscription : l'inverse. */
+@media (min-width: 768px) {
+  .acces { display: grid; place-items: center; padding: 32px 24px; background: var(--papier); }
+  .acces-carte { width: min(980px, 100%); min-height: 660px; border-radius: var(--rayon-grand); box-shadow: var(--ombre-3); overflow: hidden; }
+  .acces-volet { display: grid; align-content: center; width: 44%; min-height: 660px; padding: 32px 12px 32px 48px; }
+  .acces-formulaire { gap: 16px; }
+  .acces-formulaire form { gap: 12px; }
+  .acces-carte[data-vue="inscription"] .acces-volet { margin-left: 56%; padding: 32px 48px 32px 12px; }
+  .acces-lame, .acces-carte.lame-fixe .acces-lame { position: absolute; height: auto; bottom: 0; }
+  .acces-carte[data-vue="connexion"] .lame-couche { clip-path: polygon(calc(58% - var(--bord)) 0, 100% 0, 100% 100%, calc(46% - var(--bord)) 100%); }
+  .acces-carte[data-vue="inscription"] .lame-couche { clip-path: polygon(0 0, calc(54% + var(--bord)) 0, calc(42% + var(--bord)) 100%, 0 100%); }
+  .acces-carte[data-etat="couvre"] .lame-couche { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+  /* Les deux messages restent en place, chacun de son côté : la lame découvre celui qu'il faut.
+     Pendant qu'elle couvre toute la carte, on les voit tous les deux un court instant. */
+  .acces-carte .lame-message, .acces-carte .lame-message[data-pour] { display: grid; top: 0; bottom: 0; height: auto; padding: 48px; gap: 10px; }
+  .lame-message[data-pour="connexion"] { left: 60%; right: 0; }
+  .lame-message[data-pour="inscription"] { left: 0; right: 60%; }
+  .lame-marque { margin-bottom: 16px; }
+  .lame-marque img { width: 44px; height: 44px; }
+}
+
+/* Fondu utilisé à la place du balayage quand la personne a demandé moins d'animations */
+@keyframes fondu {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
+  /* Seule exception : un fondu court et doux, sans déplacement, pour le changement de formulaire */
+  .acces-carte.fondu .acces-volet, .acces-carte.fondu .lame-message { animation: fondu 0.25s ease !important; }
 }
