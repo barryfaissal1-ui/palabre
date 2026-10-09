@@ -4,9 +4,10 @@
 
   // La cloche du menu suit le nombre de notifications non lues.
   function majCloche(nonLues) {
-    const pastille = document.querySelector('[data-nav] .compteur-cloche');
-    if (pastille && nonLues) pastille.textContent = String(nonLues);
-    else if (pastille) pastille.remove();
+    document.querySelectorAll('.compteur-cloche, .compteur-notifications').forEach((pastille) => {
+      if (nonLues) pastille.textContent = String(nonLues);
+      else pastille.remove();
+    });
     document.querySelector('[data-tout-lire]').hidden = nonLues === 0;
   }
 

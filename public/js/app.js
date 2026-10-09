@@ -427,20 +427,11 @@
     dialogue.showModal();
   }
 
-  // ---------- Recherche de membres (loupe de l'en-tête) ----------
-  // Un panneau plein écran : on tape un nom, les résultats arrivent en direct.
-  // On attend 300 ms après la dernière frappe avant d'interroger le serveur : une seule requête par mot, pas une par lettre.
-  function ouvrirRecherche() {
-    const champ = el('input', {
-      type: 'search', placeholder: 'Chercher un membre par son nom', 'aria-label': 'Chercher un membre par son nom',
-      autocomplete: 'off', enterkeyhint: 'search', maxlength: '60',
-    });
-    const fermer = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': 'Fermer la recherche' }, [icone('fleche-gauche')]);
-    const resultats = el('div', { classe: 'recherche-resultats', 'aria-live': 'polite' });
-    const panneau = el('dialog', { classe: 'panneau-recherche', 'aria-label': 'Recherche de membres' }, [
-      el('div', { classe: 'recherche-barre' }, [fermer, champ]),
-      resultats,
-    ]);
+  // ---------- Recherche de membres ----------
+  // On tape un nom, les résultats arrivent en direct. On attend 300 ms après la dernière frappe avant d'interroger
+  // le serveur : une seule requête par mot, pas une par lettre. Sert au panneau plein écran du téléphone (loupe)
+  // et à la barre de recherche de l'en-tête sur ordinateur.
+  function brancherRecherche(champ, resultats) {
     const avancee = () => el('a', { classe: 'bouton bouton-contour', href: '/chercher' }, [icone('devs'), 'Chercher par compétence ou par ville']);
     const conseil = (texte) => resultats.replaceChildren(el('p', { classe: 'texte-discret recherche-conseil', texte }), avancee());
     conseil('Écris au moins 2 lettres du nom.');
@@ -478,10 +469,25 @@
         }
       }, 300);
     });
+    return () => clearTimeout(minuterie);
+  }
 
+  // Téléphone : la loupe ouvre un panneau plein écran.
+  function ouvrirRecherche() {
+    const champ = el('input', {
+      type: 'search', placeholder: 'Chercher un membre par son nom', 'aria-label': 'Chercher un membre par son nom',
+      autocomplete: 'off', enterkeyhint: 'search', maxlength: '60',
+    });
+    const fermer = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': 'Fermer la recherche' }, [icone('fleche-gauche')]);
+    const resultats = el('div', { classe: 'recherche-resultats', 'aria-live': 'polite' });
+    const panneau = el('dialog', { classe: 'panneau-recherche', 'aria-label': 'Recherche de membres' }, [
+      el('div', { classe: 'recherche-barre' }, [fermer, champ]),
+      resultats,
+    ]);
+    const arreter = brancherRecherche(champ, resultats);
     fermer.addEventListener('click', () => panneau.close());
     panneau.addEventListener('close', () => {
-      clearTimeout(minuterie);
+      arreter();
       panneau.remove();
     });
     document.body.append(panneau);
@@ -489,14 +495,168 @@
     champ.focus();
   }
 
+  // Ordinateur et tablette : une vraie barre de recherche dans l'en-tête, avec les résultats en liste dessous.
+  // La liste s'ouvre quand on entre dans le champ et se ferme avec Échap ou quand on en sort.
+  function barreRecherche() {
+    const champ = el('input', {
+      type: 'search', placeholder: 'Chercher un membre', 'aria-label': 'Chercher un membre par son nom',
+      autocomplete: 'off', maxlength: '60', 'data-recherche-entete': true,
+    });
+    const resultats = el('div', { classe: 'recherche-deroulant', 'aria-live': 'polite', hidden: true });
+    const barre = el('div', { classe: 'recherche-entete', role: 'search' }, [icone('recherche'), champ, resultats]);
+    brancherRecherche(champ, resultats);
+    champ.addEventListener('focus', () => { resultats.hidden = false; });
+    barre.addEventListener('focusout', (evenement) => {
+      if (!barre.contains(evenement.relatedTarget)) resultats.hidden = true;
+    });
+    barre.addEventListener('keydown', (evenement) => {
+      if (evenement.key !== 'Escape') return;
+      resultats.hidden = true;
+      champ.blur();
+    });
+    return barre;
+  }
+
+  // La touche « / » place le curseur dans la recherche (sauf si on est déjà en train d'écrire quelque part).
+  document.addEventListener('keydown', (evenement) => {
+    if (evenement.key !== '/' || evenement.ctrlKey || evenement.metaKey || evenement.altKey) return;
+    if (document.activeElement && document.activeElement.matches('input, textarea, select, [contenteditable]')) return;
+    const champ = document.querySelector('[data-recherche-entete]');
+    if (!champ) return;
+    evenement.preventDefault();
+    if (champ.offsetParent !== null) champ.focus(); // la barre est visible : ordinateur ou tablette
+    else ouvrirRecherche();                         // téléphone : le panneau plein écran
+  });
+
+  // ---------- Version ordinateur : les colonnes de gauche et de droite ----------
+  // Sur un écran large, la page d'un membre a trois colonnes (voir « Version ordinateur » dans le CSS) :
+  // le menu à gauche, la page au centre, un panneau à droite. Sur téléphone, ces colonnes sont cachées par le CSS
+  // et leur contenu n'est même pas demandé au serveur.
+  const ECRAN_LARGE = window.matchMedia('(min-width: 768px)');
+
+  function colonneGauche(moi) {
+    const demandes = moi.demandesAmis || 0;
+    const nonLues = moi.notifications || 0;
+    const ici = (href) => (window.location.pathname === href ? 'page' : null);
+    const compteur = (nombre, classe) => (nombre ? el('span', { classe: `compteur ${classe}`, texte: nombre > 99 ? '99+' : String(nombre) }) : null);
+    const lien = (href, nomIcone, texte, pastille = null) => el('li', {}, [
+      el('a', { classe: 'lien-menu', href, 'aria-current': ici(href) }, [icone(nomIcone), el('span', { texte }), pastille]),
+    ]);
+    const estDev = moi.type === 'dev';
+    return el('aside', { classe: 'colonne-gauche', 'aria-label': 'Menu principal' }, [
+      el('div', { classe: 'carte-moi' }, [
+        el('a', { classe: 'lien-avatar', href: `/${moi.identifiant}`, 'aria-label': 'Mon profil' }, [avatar(moi, 'moyen')]),
+        el('div', {}, [nomMembre(moi), el('a', { classe: 'voir-profil', href: `/${moi.identifiant}`, texte: 'Voir mon profil' })]),
+      ]),
+      el('nav', { 'aria-label': 'Pages' }, [el('ul', { classe: 'menu-gauche-liens' }, [
+        lien('/fil', 'fil', 'Fil'),
+        lien('/demandes', 'demandes', 'Demandes'),
+        lien('/chercher', 'devs', 'Devs'),
+        lien('/amis', 'amis', 'Amis', compteur(demandes, 'compteur-amis')),
+        lien('/notifications', 'cloche', 'Notifications', compteur(nonLues, 'compteur-notifications')),
+        estDev ? lien('/projets', 'projet', 'Mes projets') : null,
+        lien('/calculateur', 'calculatrice', 'Calculateur'),
+        moi.estAdmin ? lien('/admin', 'admin', 'Administration') : null,
+      ])]),
+      estDev
+        ? el('a', { classe: 'bouton bouton-principal bouton-plein', href: '/projets' }, [icone('plus'), 'Ajouter un projet'])
+        : el('a', { classe: 'bouton bouton-principal bouton-plein', href: '/demandes?publier=1' }, [icone('plus'), 'Publier une demande']),
+      el('p', { classe: 'pied-menu' }, [
+        el('a', { href: '/a-propos', texte: 'À propos' }), el('a', { href: '/conditions', texte: 'Conditions' }),
+        el('span', { texte: 'Palabre, fait au Burkina Faso, 2026' }),
+      ]),
+    ]);
+  }
+
+  // Panneau de droite : les demandes récentes, puis des devs à découvrir.
+  function colonneDroite(moi) {
+    const zoneDemandes = el('div', { classe: 'liste-cote' });
+    const zoneDevs = el('ul', { classe: 'liste-cote' });
+    const blocDemandes = el('section', { classe: 'bloc-cote', 'aria-labelledby': 'titre-demandes-recentes' }, [
+      el('h2', { id: 'titre-demandes-recentes', texte: moi.type === 'client' ? 'Mes demandes' : 'Demandes récentes' }),
+      zoneDemandes,
+      el('a', { classe: 'lien-cote', href: '/demandes', texte: 'Voir toutes les demandes' }),
+    ]);
+    const blocDevs = el('section', { classe: 'bloc-cote', 'aria-labelledby': 'titre-devs-decouvrir', hidden: true }, [
+      el('h2', { id: 'titre-devs-decouvrir', texte: 'Devs à découvrir' }),
+      zoneDevs,
+      el('a', { classe: 'lien-cote', href: '/chercher', texte: 'Chercher un développeur' }),
+    ]);
+    const colonne = el('aside', { classe: 'colonne-droite', 'aria-label': 'À découvrir' }, [blocDemandes, blocDevs]);
+
+    function boutonAjouter(dev) {
+      const bouton = el('button', { classe: 'bouton bouton-contour bouton-compact', type: 'button', 'aria-label': `Ajouter ${dev.nom} en ami` }, [icone('ami-ajouter'), 'Ajouter']);
+      bouton.addEventListener('click', async () => {
+        bouton.disabled = true;
+        try {
+          await api('/amis/demandes', { methode: 'POST', donnees: { identifiant: dev.identifiant } });
+          bouton.replaceChildren(icone('horloge'), 'Demande envoyée');
+          bouton.classList.add('envoyee');
+          bouton.setAttribute('aria-label', `Demande d'ami envoyée à ${dev.nom}`);
+        } catch (erreur) {
+          bouton.disabled = false;
+          toast(erreur.message, 'erreur');
+        }
+      });
+      return bouton;
+    }
+
+    let charge = false;
+    async function charger() {
+      if (charge || !ECRAN_LARGE.matches) return; // sur téléphone, le panneau est caché : on ne demande rien au serveur
+      charge = true;
+      const finiDemandes = chargement(zoneDemandes, 2);
+      api(`/demandes${moi.type === 'client' ? '?miennes=1' : ''}`).then(({ demandes }) => {
+        finiDemandes();
+        if (demandes.length === 0) {
+          zoneDemandes.replaceChildren(el('p', { classe: 'texte-discret', texte: moi.type === 'client' ? 'Tu n\'as pas encore publié de demande.' : 'Aucune demande ouverte pour l\'instant.' }));
+          return;
+        }
+        zoneDemandes.replaceChildren(...demandes.slice(0, 3).map((demande) => {
+          const propositions = `${demande.nbPropositions} proposition${demande.nbPropositions > 1 ? 's' : ''}`;
+          return el('a', { classe: 'demande-cote', href: `/demande?id=${demande.id}` }, [
+            el('span', { classe: 'demande-cote-titre', texte: demande.titre }),
+            el('span', { classe: 'texte-discret', texte: moi.type === 'client' ? `${demande.nomCategorie}, ${propositions}` : demande.nomCategorie }),
+            el('span', { classe: 'demande-cote-budget', texte: fcfa(demande.budgetFcfa) }),
+          ]);
+        }));
+      }).catch(() => { finiDemandes(); blocDemandes.hidden = true; });
+
+      api('/devs/suggestions').then(({ devs }) => {
+        if (devs.length === 0) return;
+        zoneDevs.replaceChildren(...devs.map((dev) => el('li', { classe: 'suggestion' }, [
+          el('a', { classe: 'lien-avatar', href: `/${dev.identifiant}`, 'aria-label': `Profil de ${dev.nom}` }, [avatar(dev, 'moyen')]),
+          el('div', { classe: 'suggestion-texte' }, [
+            nomMembre(dev),
+            el('span', { classe: 'texte-discret', texte: dev.raison }),
+          ]),
+          boutonAjouter(dev),
+        ])));
+        blocDevs.hidden = false;
+      }).catch(() => { /* les suggestions sont un plus */ });
+    }
+    charger();
+    ECRAN_LARGE.addEventListener('change', charger); // fenêtre élargie après coup
+    return colonne;
+  }
+
+  function poserColonnes(moi) {
+    const page = document.querySelector('body > main');
+    if (!page) return;
+    page.before(colonneGauche(moi));
+    // Les pages « larges » (profil, demandes, devs, détail d'une demande) ont leur propre colonne de droite.
+    if (!page.classList.contains('page-large')) page.after(colonneDroite(moi));
+  }
+
   // Remplit la navigation de l'en-tête selon que la personne est connectée ou non.
-  // En-tête : loupe, cloche, avatar. Sur téléphone, les onglets (et l'avatar) forment la barre du bas.
+  // En-tête : recherche, cloche, avatar. Sur téléphone, les onglets (et l'avatar) forment la barre du bas ;
+  // sur ordinateur, ils sont dans la colonne de gauche.
   async function remplirNavigation() {
     const nav = document.querySelector('[data-nav]');
     if (!nav) return;
     const moi = await utilisateurConnecte();
     nav.replaceChildren();
-    const loupe = el('button', { classe: 'nav-cloche', type: 'button', 'aria-label': 'Chercher un membre', title: 'Chercher un membre' }, [icone('recherche')]);
+    const loupe = el('button', { classe: 'nav-cloche nav-loupe', type: 'button', 'aria-label': 'Chercher un membre', title: 'Chercher un membre' }, [icone('recherche')]);
     loupe.addEventListener('click', ouvrirRecherche);
     if (moi) {
       const demandes = moi.demandesAmis || 0;
@@ -507,22 +667,23 @@
         el('span', { classe: 'onglet-icone' }, [icone(nomIcone), pastille]), el('span', { classe: 'onglet-texte', texte }),
       ]);
       const monProfil = `/${moi.identifiant}`;
-      // Sur téléphone, ces liens forment une barre fixe en bas de l'écran (voir .nav-liens dans le CSS).
+      // « avec-barre » : la page d'un membre connecté (barre du bas sur téléphone, colonnes sur ordinateur).
       document.body.classList.add('avec-barre');
       // filter(Boolean) : append() écrirait le mot « null » à la place d'un élément absent (pas de lien « Admin »).
       nav.append(...[
+        barreRecherche(),
         el('div', { classe: 'nav-liens' }, [
           lien('/fil', 'fil', 'Fil'),
           lien('/demandes', 'demandes', 'Demandes'),
           lien('/chercher', 'devs', 'Devs'),
           lien('/amis', 'amis', 'Amis',
-            demandes ? el('span', { classe: 'compteur', texte: String(demandes), 'aria-label': `${demandes} demande${demandes > 1 ? 's' : ''} en attente` }) : null),
+            demandes ? el('span', { classe: 'compteur compteur-amis', texte: String(demandes), 'aria-label': `${demandes} demande${demandes > 1 ? 's' : ''} en attente` }) : null),
           // Cinquième onglet, visible seulement sur téléphone : mon avatar, vers mon profil.
           el('a', { classe: 'onglet-nav onglet-moi', href: monProfil, 'aria-current': ici(monProfil) }, [
             el('span', { classe: 'onglet-icone' }, [avatar(moi, 'nav')]), el('span', { classe: 'onglet-texte', texte: 'Profil' }),
           ]),
         ]),
-        moi.estAdmin ? el('a', { classe: 'nav-cloche', href: '/admin', 'aria-label': 'Administration', title: 'Administration' }, [icone('admin')]) : null,
+        moi.estAdmin ? el('a', { classe: 'nav-cloche nav-admin', href: '/admin', 'aria-label': 'Administration', title: 'Administration' }, [icone('admin')]) : null,
         loupe,
         el('a', {
           classe: 'nav-cloche', href: '/notifications',
@@ -533,8 +694,9 @@
         ]),
         el('a', { classe: 'nav-profil', href: monProfil, 'aria-label': 'Mon profil' }, [avatar(moi, 'mini')]),
       ].filter(Boolean));
+      poserColonnes(moi);
     } else {
-      nav.append(loupe, el('a', { classe: 'bouton bouton-principal bouton-compact', href: '/connexion', texte: 'Se connecter' }));
+      nav.append(barreRecherche(), loupe, el('a', { classe: 'bouton bouton-principal bouton-compact', href: '/connexion', texte: 'Se connecter' }));
     }
   }
 

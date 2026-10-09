@@ -24,9 +24,11 @@
     <a class="marque" href="/"><img src="/icons/logo-256.png" alt="" width="32" height="32">Palabre</a>
     <nav data-nav></nav>
   </div></header>
-  <main class="conteneur page-fil">
+  <main class="conteneur page-fil page-large page-filtres">
     <h1 class="titre-page">Trouver un développeur</h1>
 
+    <!-- Les critères : en haut de la page sur téléphone, dans une colonne collée à droite sur ordinateur (.cote-page) -->
+    <div class="cote-page">
     <form class="bloc-formulaire" data-recherche role="search">
       <div class="champ">
         <label for="competence">Compétence</label>
@@ -50,6 +52,7 @@
       </label>
       <button class="bouton bouton-principal bouton-plein" type="submit">Chercher</button>
     </form>
+    </div>
 
     <div role="status" data-etat hidden></div>
     <div class="liste-publications" data-resultats></div>

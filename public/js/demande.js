@@ -96,6 +96,31 @@
     ]);
   }
 
+  // Encadré « En bref », collé à droite sur ordinateur (caché sur téléphone, où ces informations sont dans l'en-tête).
+  function encadreDemande(demande, peutRepondre) {
+    const repondre = el('button', { classe: 'bouton bouton-principal bouton-plein', type: 'button' }, [icone('envoyer'), 'Répondre à cette demande']);
+    repondre.addEventListener('click', () => {
+      const champ = document.getElementById('proposition-message');
+      if (!champ) return;
+      champ.scrollIntoView({ block: 'center' });
+      champ.focus();
+    });
+    const n = demande.nbPropositions;
+    return el('aside', { classe: 'encadre-demande', 'aria-label': 'La demande en bref' }, [
+      el('p', { classe: `statut-demande statut-${demande.statut}`, texte: NOMS_STATUTS[demande.statut] }),
+      el('dl', { classe: 'faits-encadre' }, [
+        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('argent'), 'Budget']), el('dd', { texte: fcfa(demande.budgetFcfa) })]),
+        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('horloge'), 'Délai']), el('dd', { texte: demande.delai || 'À discuter' })]),
+        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('commentaire'), 'Propositions']), el('dd', { texte: n ? String(n) : 'Aucune pour l\'instant' })]),
+      ]),
+      el('div', { classe: 'encadre-client' }, [
+        el('a', { classe: 'lien-avatar', href: `/${demande.client.identifiant}`, 'aria-label': `Profil de ${demande.client.nom}` }, [avatar(demande.client, 'moyen')]),
+        el('div', {}, [nomMembre(demande.client), el('p', { classe: 'texte-discret', texte: demande.estMoi ? 'C\'est ta demande' : 'Client' })]),
+      ]),
+      peutRepondre ? repondre : null,
+    ]);
+  }
+
   function boutonSignaler(demande) {
     const bouton = el('button', { classe: 'bouton-discret', type: 'button', texte: 'Signaler cette demande' });
     bouton.addEventListener('click', () => signaler('demande', demande.id));
@@ -323,7 +348,10 @@
     try {
       const { demande, propositions, avisDonnes } = await api(`/demandes/${encodeURIComponent(id)}`);
       document.title = `${demande.titre} – Palabre`;
-      const blocs = [enteteDemande(demande)];
+      const peutRepondre = !demande.estMoi && moi.type === 'dev' && demande.statut === 'ouverte'
+        && !(propositions.some((p) => p.maPlace === 'solo') && propositions.some((p) => p.maPlace === 'chef'));
+      const blocs = [enteteDemande(demande), encadreDemande(demande, peutRepondre)];
+      zone.classList.add('demande-colonnes');
       if (demande.estMoi) blocs.push(sectionAvis(demande, propositions, avisDonnes || []), sectionClient(demande, propositions));
       else if (moi.type === 'dev') blocs.push(await sectionDev(demande, propositions));
       zone.replaceChildren(...blocs.filter(Boolean));

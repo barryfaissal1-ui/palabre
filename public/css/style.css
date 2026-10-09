@@ -493,7 +493,7 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--er
 
 /* Sur téléphone, cinq onglets forment une barre fixe en bas de l'écran, sous le pouce :
    Fil, Demandes, Devs, Amis, et mon avatar (qui quitte l'en-tête). */
-@media (max-width: 719px) {
+@media (max-width: 767px) {
   .nav-liens {
     position: fixed;
     z-index: 20;
@@ -675,7 +675,21 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--er
 .bouton-flottant:hover { background: rgba(15, 19, 14, 0.88); color: #fff; }
 .bouton-flottant:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
 
-.profil-identite { display: grid; justify-items: start; gap: 10px; padding: 0 var(--gouttiere) 16px; }
+.profil-identite { display: grid; justify-items: start; gap: 10px; padding: 0 var(--gouttiere) 10px; }
+.profil-presentation, .profil-zone-actions {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  margin-inline: calc(-1 * var(--gouttiere));
+  padding: 0 var(--gouttiere) 10px;
+  background: var(--surface);
+}
+.profil-zone-actions { padding-bottom: 16px; }
+.profil-presentation > h2, .presentation-whatsapp { display: none; } /* montrés sur ordinateur seulement */
+.presentation-whatsapp { margin: 0; }
+@media (min-width: 640px) {
+  .profil-presentation, .profil-zone-actions { margin-inline: 0; }
+}
 .profil-identite > .avatar-cadre { margin-top: -56px; background: var(--surface); box-shadow: 0 0 0 4px var(--surface); }
 .profil-nom { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; font: 800 var(--t-24)/1.15 var(--titre); overflow-wrap: anywhere; }
 .profil-nom .badge-feuille .icone { width: 22px; height: 22px; }
@@ -1508,6 +1522,239 @@ input, select, textarea { background: var(--surface-2); border-radius: var(--ray
 /* Mouvement : volontairement rare. Seuls bougent le « pop » du cœur, l'ouverture des commentaires,
    l'arrivée d'une publication qu'on vient d'écrire, les fenêtres et les toasts.
    Tout est coupé si la personne a demandé moins d'animations (règle ci-dessous). */
+
+/* ==========================================================================
+   Version ordinateur et tablette (768 px et plus)
+   Le téléphone ne change pas : tout ce bloc est dans des @media (min-width: 768px).
+   ========================================================================== */
+
+/* Cachés sur téléphone : les colonnes de côté (créées par app.js), la barre de recherche, les encadrés */
+.colonne-gauche, .colonne-droite, .recherche-entete, .encadre-demande, .cote-titre { display: none; }
+/* Sur téléphone, .cote-page n'existe pas pour la mise en page : ses enfants se placent comme avant */
+.cote-page { display: contents; }
+.page-texte h2 { margin: 24px 0 6px; font: 800 var(--t-17)/1.3 var(--titre); }
+.page-texte p { margin: 0 0 10px; max-width: 65ch; }
+
+@media (min-width: 768px) {
+  /* ---------- En-tête : une vraie barre de recherche, visible ---------- */
+  .entete nav { flex: 1; justify-content: flex-end; }
+  .nav-loupe { display: none; }
+  .recherche-entete {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 280px;
+    min-width: 0;
+    height: 44px;
+    margin: 0 auto 0 16px;
+    padding: 0 14px;
+    border-radius: 22px;
+    background: var(--surface-2);
+    color: var(--gris);
+  }
+  .recherche-entete:focus-within { box-shadow: 0 0 0 2px var(--focus); }
+  .recherche-entete input { flex: 1; min-width: 0; min-height: 40px; padding: 0; border: 0; background: transparent; }
+  .recherche-entete input:focus { box-shadow: none; }
+  /* Les résultats, en liste sous la barre */
+  .recherche-deroulant {
+    position: absolute;
+    z-index: 30;
+    top: calc(100% + 8px);
+    left: 0;
+    display: grid;
+    justify-items: start;
+    gap: 8px;
+    width: 380px;
+    max-width: calc(100vw - 32px);
+    max-height: 70vh;
+    padding: 12px;
+    overflow-y: auto;
+    border: 1px solid var(--ligne);
+    border-radius: var(--rayon);
+    background: var(--surface);
+    color: var(--encre);
+    box-shadow: var(--ombre-2);
+  }
+  .recherche-deroulant .vide { justify-self: stretch; }
+
+  /* ---------- La page d'un membre connecté : une grille posée sur <body> ---------- */
+  /* Tablette (768 à 1099 px) : 2 colonnes, la page et le panneau de droite. Le menu reste dans l'en-tête. */
+  body.avec-barre {
+    --col-fil: 680px;
+    --col-droite: 300px;
+    --haut-colle: calc(var(--hauteur-entete) + 17px); /* où se collent les colonnes : juste sous l'en-tête */
+    display: grid;
+    grid-template-columns: minmax(0, var(--col-fil)) var(--col-droite);
+    justify-content: center;
+    align-content: start;
+    align-items: start;
+    column-gap: 24px;
+    padding-inline: 16px;
+  }
+  body.avec-barre > * { grid-column: 1 / -1; }
+  body.avec-barre > .bande, body.avec-barre > .entete { margin-inline: -16px; }
+  body.avec-barre .entete-interieur { max-width: none; }
+  body.avec-barre > main { grid-column: 1; grid-row: 3; width: 100%; max-width: none; min-width: 0; margin: 0; padding: 16px 0 48px; }
+  body.avec-barre > main.page-large { grid-column: 1 / -1; }
+  body.avec-barre > main > .titre-page:first-child { margin-top: 0; }
+  .page-fil { padding-top: 16px; }
+
+  /* Les colonnes de côté restent collées sous l'en-tête et défilent seules si elles sont plus hautes que l'écran */
+  body.avec-barre > .colonne-droite, body.avec-barre > .colonne-gauche, .cote-page, .encadre-demande, .profil-presentation {
+    position: sticky;
+    top: var(--haut-colle);
+    max-height: calc(100vh - var(--haut-colle));
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+  body.avec-barre > .colonne-droite { display: grid; align-content: start; gap: 16px; grid-column: 2; grid-row: 3; margin-top: 16px; padding-bottom: 16px; }
+
+  /* Dans l'en-tête de la tablette, les onglets n'ont que leur icône (le texte reste lu par les lecteurs d'écran) */
+  .onglet-nav { padding: 0 10px; }
+  .onglet-nav .onglet-texte { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ---------- Blocs du panneau de droite ---------- */
+  .bloc-cote, .cote-carte, .encadre-demande, .carte-moi {
+    padding: 16px;
+    border-radius: var(--rayon);
+    background: var(--surface);
+    box-shadow: var(--ombre-1);
+  }
+  .bloc-cote { display: grid; gap: 4px; }
+  .bloc-cote h2, .cote-titre { display: block; margin: 0 0 4px; font: 800 var(--t-17)/1.3 var(--titre); }
+  .liste-cote { display: grid; margin: 0; padding: 0; list-style: none; }
+  .demande-cote { display: grid; gap: 2px; padding: 10px 0; border-top: 1px solid var(--ligne); color: var(--encre); font-size: var(--t-13); text-decoration: none; }
+  .demande-cote:first-child { border-top: 0; }
+  .demande-cote-titre { font: 700 var(--t-15)/1.3 var(--titre); overflow-wrap: anywhere; }
+  .demande-cote-budget { font-weight: 700; color: var(--action); }
+  .suggestion { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 8px 0; }
+  .suggestion-texte { flex: 1; display: grid; min-width: 0; font-size: var(--t-13); }
+  .suggestion .bouton { min-height: 40px; padding: 0 12px; font-size: var(--t-13); }
+  .suggestion .bouton.envoyee { border-color: transparent; background: var(--surface-2); color: var(--gris); opacity: 1; cursor: default; }
+  .suggestion .bouton .icone { width: 16px; height: 16px; }
+  .lien-cote { display: inline-flex; align-items: center; min-height: 44px; font-weight: 700; }
+
+  /* ---------- Pages avec leur propre colonne de droite : Demandes, Devs, détail d'une demande ---------- */
+  body.avec-barre > main.page-filtres, .demande-colonnes {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--col-droite);
+    column-gap: 24px;
+    align-items: start;
+    align-content: start;
+  }
+  main.page-filtres > *, .demande-colonnes > * { grid-column: 1; min-width: 0; }
+  main.page-filtres > .cote-page, .demande-colonnes > .encadre-demande { grid-column: 2; grid-row: 1 / span 12; }
+  .cote-page { display: grid; align-content: start; gap: 12px; }
+  .cote-page .onglets { flex-wrap: wrap; margin: 0; }
+  .cote-page .filtre-categorie, .cote-page .bloc-formulaire { margin: 0; }
+  .encadre-demande { display: grid; gap: 14px; }
+  .encadre-demande > p { margin: 0; }
+  .faits-encadre { display: grid; gap: 10px; margin: 0; }
+  .faits-encadre dt { font-size: var(--t-13); color: var(--gris); }
+  .faits-encadre dd { margin: 0; font-weight: 700; }
+  .encadre-client { display: flex; align-items: center; gap: 10px; padding-top: 14px; border-top: 1px solid var(--ligne); }
+  .encadre-client p { margin: 0; font-size: var(--t-13); }
+  .demande-colonnes .faits { display: none; } /* déjà dans l'encadré */
+
+  /* ---------- Profil : couverture large, actions à droite du nom, puis 2 colonnes ---------- */
+  body.avec-barre > main.page-profil.page-large, main.page-profil.page-large {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    column-gap: 24px;
+    align-items: start;
+    align-content: start;
+    max-width: 1100px;
+    justify-self: center;
+  }
+  main.page-profil.page-large > * { grid-column: 1 / -1; }
+  main.page-profil.page-large > .profil-tete { grid-row: 1; margin-top: 0; }
+  .page-large .profil-couverture { max-height: 300px; }
+  .page-large .profil-identite { padding: 0 24px 20px; }
+  /* Les boutons se posent dans la même case que le haut du profil, en bas à droite */
+  main.page-profil.page-large > .profil-zone-actions { grid-row: 1; align-self: end; justify-self: end; justify-items: end; z-index: 1; padding: 0 24px 20px; background: transparent; }
+  main.page-profil.page-large > .profil-zone-actions .profil-actions { justify-content: flex-end; }
+  main.page-profil.page-large > .onglets-profil { grid-row: 2; }
+  main.page-profil.page-large > .profil-presentation {
+    grid-column: 1;
+    grid-row: 3;
+    margin: 16px 0 0;
+    padding: 16px;
+    border-radius: var(--rayon);
+    box-shadow: var(--ombre-1);
+  }
+  .profil-presentation > h2 { display: block; margin: 0; font: 800 var(--t-17)/1.3 var(--titre); }
+  .presentation-whatsapp { display: flex; }
+  main.page-profil.page-large > .profil-presentation .profil-chiffres { margin-top: 0; }
+  main.page-profil.page-large > .profil-panneau { grid-column: 2; grid-row: 3; padding-top: 16px; min-width: 0; }
+  main.page-profil.page-large > .profil-panneau .panneau-marge { padding-top: 0; }
+
+  /* Les images des publications : toute la largeur du fil, 720 px de haut au plus */
+  .publication-image { max-height: 720px; }
+
+  /* Léger effet au survol, seulement avec une souris */
+  @media (hover: hover) {
+    .fil-social > .publication, .bloc-cote, .carte-publication { transition: box-shadow 0.2s ease; }
+    .fil-social > .publication:hover, .carte-publication:hover { box-shadow: var(--ombre-2); }
+    .demande-cote:hover .demande-cote-titre { text-decoration: underline; }
+  }
+}
+
+/* Ordinateur (1100 px et plus) : 3 colonnes. Le menu quitte l'en-tête pour la colonne de gauche. */
+@media (min-width: 1100px) {
+  body.avec-barre {
+    --col-gauche: 280px;
+    --col-droite: 320px;
+    grid-template-columns: var(--col-gauche) minmax(0, var(--col-fil)) var(--col-droite);
+  }
+  body.avec-barre > main { grid-column: 2; }
+  body.avec-barre > main.page-large { grid-column: 2 / -1; }
+  body.avec-barre > .colonne-droite { grid-column: 3; }
+  body.avec-barre .nav-liens, body.avec-barre .nav-admin { display: none; }
+
+  body.avec-barre > .colonne-gauche { display: grid; align-content: start; gap: 12px; grid-column: 1; grid-row: 3; margin-top: 16px; padding-bottom: 16px; }
+  .carte-moi { display: flex; align-items: center; gap: 12px; padding: 12px; }
+  .carte-moi > div { display: grid; min-width: 0; }
+  .voir-profil { display: inline-flex; align-items: center; min-height: 28px; font-size: var(--t-13); }
+  .menu-gauche-liens { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+  .lien-menu {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 48px;
+    padding: 0 14px;
+    border-radius: var(--rayon-petit);
+    color: var(--encre);
+    font: 700 var(--t-15)/1 var(--texte);
+    text-decoration: none;
+    transition: background-color 0.15s ease;
+  }
+  .lien-menu:hover { background: color-mix(in srgb, var(--encre) 7%, transparent); }
+  .lien-menu .icone { width: 24px; height: 24px; color: var(--gris); }
+  .lien-menu .compteur { margin-left: auto; }
+  /* Le lien de la page où l'on se trouve : en vert sur un fond léger, icône pleine */
+  .lien-menu[aria-current="page"] { background: color-mix(in srgb, var(--feuille-vive) 13%, transparent); color: var(--action); }
+  .lien-menu[aria-current="page"] .icone { color: var(--action); fill: currentColor; }
+  .pied-menu { display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 4px 14px 0; color: var(--gris); font-size: var(--t-13); }
+  .pied-menu a { display: inline-flex; align-items: center; min-height: 32px; color: inherit; }
+  .pied-menu span { flex-basis: 100%; }
+}
+
+/* Très grand écran (1600 px et plus) : les colonnes de gauche et de droite se collent aux bords de l'écran
+   (marge de 16 px) et le fil reste au centre : plus de grands vides de chaque côté. */
+@media (min-width: 1600px) {
+  body.avec-barre {
+    --col-gauche: 340px;
+    --col-fil: 720px;
+    --col-droite: 360px;
+    grid-template-columns: var(--col-gauche) minmax(0, 1fr) var(--col-droite);
+  }
+  /* La colonne de droite est plus large de 20 px que celle de gauche : on décale le fil de 10 px pour qu'il soit
+     exactement au milieu de l'écran. */
+  body.avec-barre > main:not(.page-large) { position: relative; left: 10px; max-width: var(--col-fil); justify-self: center; }
+  main.page-filtres > :not(.cote-page), .demande-colonnes > :not(.encadre-demande) { width: 100%; max-width: var(--col-fil); justify-self: center; }
+  body.avec-barre > main.page-large > .retour, body.avec-barre > main.page-large > .message { max-width: calc(100% - var(--col-droite) - 24px); }
+}
 
 /* ==========================================================================
    Pages d'accès : /connexion et /inscription (une seule page, public/connexion.html)

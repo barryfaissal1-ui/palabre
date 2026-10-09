@@ -145,6 +145,57 @@ test('disponibles : réservé aux membres, amis d\'abord, sans moi ni les occup�
   await pool.query('UPDATE utilisateurs SET disponible = TRUE WHERE id = $1', [membres.cheick.id]);
 });
 
+// ---------- Devs à découvrir ----------
+
+test('suggestions : ni mes amis ni les demandes en cours, compétences en commun d\'abord', async () => {
+  assert.equal((await appel('/api/devs/suggestions')).statut, 401);
+
+  // Trois nouveaux devs, inconnus d'Awa. Awa a 2 compétences ; « commun » les partage toutes les deux,
+  // « voisin » habite sa ville sans compétence commune, « loin » n'a rien en commun.
+  const { rows: competences } = await pool.query('SELECT id FROM competences ORDER BY id LIMIT 3');
+  const [c1, c2, c3] = competences.map((c) => c.id);
+  const creer = async (cle, ville, pays) => {
+    const email = `preuve-${cle}-${suffixe}@palabre.test`;
+    const r = await appel('/api/auth/inscription', { methode: 'POST', donnees: { type: 'dev', nom: `${cle} Sugg${suffixe}`, email, motDePasse: 'motdepasse1', pays, ville } });
+    assert.equal(r.statut, 201);
+    const { rows } = await pool.query('SELECT id FROM utilisateurs WHERE email = $1', [email]);
+    membres[cle] = { cookie: r.entetes.get('set-cookie').split(';')[0], identifiant: r.corps.utilisateur.identifiant, email, id: rows[0].id };
+  };
+  await creer('commun', 'Lomé', 'Togo');
+  await creer('voisin', `Ville${suffixe}`, 'Burkina Faso');
+  await creer('loin', 'Dakar', 'Sénégal');
+  await creer('attente', 'Lomé', 'Togo');
+  const donner = (qui, ids) => pool.query('INSERT INTO utilisateur_competences (utilisateur_id, competence_id) SELECT $1, unnest($2::int[])', [membres[qui].id, ids]);
+  await donner('awa', [c1, c2]);
+  await donner('commun', [c1, c2]);
+  await donner('attente', [c1, c2]);
+  await donner('loin', [c3]);
+  // « attente » a une demande d'ami en cours avec Awa : il ne doit pas être proposé.
+  await appel('/api/amis/demandes', { methode: 'POST', qui: 'awa', donnees: { identifiant: membres.attente.identifiant } });
+
+  const r = await appel('/api/devs/suggestions', { qui: 'awa' });
+  assert.equal(r.statut, 200);
+  assert.ok(r.corps.devs.length <= 4);
+  const identifiants = r.corps.devs.map((d) => d.identifiant);
+  assert.equal(identifiants[0], membres.commun.identifiant); // 2 compétences en commun : en tête
+  assert.equal(r.corps.devs[0].competencesCommunes, 2);
+  assert.equal(r.corps.devs[0].raison, '2 compétences en commun');
+  for (const exclu of ['awa', 'bintou', 'cheick', 'attente', 'dao']) { // moi, mes amis, la demande en cours, un client
+    assert.ok(!identifiants.includes(membres[exclu].identifiant), exclu);
+  }
+  assert.ok(r.corps.devs.every((d) => d.type === 'dev' && !('email' in d)));
+
+  // Sans compétence : la même ville passe avant le reste. (Dao est cliente, de la ville du test.)
+  const pourDao = await appel('/api/devs/suggestions', { qui: 'dao' });
+  assert.equal(pourDao.corps.devs.length, 4);
+  assert.ok(pourDao.corps.devs.every((d) => d.ville === `Ville${suffixe}`), 'les 4 devs de sa ville d\'abord');
+
+  // Une fois la demande envoyée, le dev disparaît des suggestions.
+  await appel('/api/amis/demandes', { methode: 'POST', qui: 'awa', donnees: { identifiant: membres.commun.identifiant } });
+  const apres = await appel('/api/devs/suggestions', { qui: 'awa' });
+  assert.ok(!apres.corps.devs.some((d) => d.identifiant === membres.commun.identifiant));
+});
+
 // ---------- Fil ----------
 
 test('fil par auteur, aperçu des j\'aime et des 2 derniers commentaires', async () => {

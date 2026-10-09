@@ -391,6 +391,25 @@ Le mouvement est volontairement rare : le « pop » du cœur, l'ouverture des co
 
 Les règles de sécurité restent les mêmes : aucun style ni script en ligne (la CSP les bloque toujours), le texte des membres passe toujours par `textContent` ou `el()`, les zones tactiles font au moins 44 px et le focus au clavier reste visible.
 
+### La version ordinateur : trois colonnes
+
+Le site est pensé d'abord pour le téléphone. À partir de 768 px de large, la page d'un membre connecté gagne des colonnes, sans qu'aucune page HTML ne change : tout tient dans un bloc de la feuille de style (« Version ordinateur et tablette ») et dans trois fonctions de `public/js/app.js`.
+
+| Largeur de l'écran | Mise en page |
+| --- | --- |
+| moins de 768 px | téléphone : une colonne, barre de navigation en bas |
+| 768 à 1099 px | 2 colonnes : la page (680 px au plus) et le panneau de droite (300 px) ; le menu est dans l'en-tête, en icônes |
+| 1100 à 1599 px | 3 colonnes : menu 280 px, fil 680 px, panneau 320 px, le tout centré |
+| 1600 px et plus | menu 340 px collé à gauche, panneau 360 px collé à droite, fil de 720 px au milieu de l'écran |
+
+- **La grille est posée sur `<body>`** (`display: grid`) : la bande et l'en-tête occupent toute la largeur, puis une ligne porte les trois colonnes. Les largeurs sont des variables (`--col-gauche`, `--col-fil`, `--col-droite`) redéfinies à chaque palier. Entre 1100 et 1340 px environ, l'écran est trop étroit pour 280 + 680 + 320 : c'est le fil qui cède de la place (`minmax(0, 680px)`), jamais les colonnes de côté.
+- **Les colonnes de côté restent collées** sous l'en-tête (`position: sticky`) et défilent seules si elles sont plus hautes que l'écran (`max-height` et `overflow-y: auto`).
+- **La colonne de gauche** (`colonneGauche()`) : ma carte, les liens avec icône et compteur, le lien de la page courante en vert (`aria-current="page"`), un bouton principal qui dépend du type de compte (« Ajouter un projet » ou « Publier une demande »).
+- **Le panneau de droite** (`colonneDroite()`) : les 3 dernières demandes, puis 4 « Devs à découvrir ». Sur téléphone, où il est caché, ses données ne sont **pas demandées au serveur** : rien n'est téléchargé pour rien en 3G.
+- **Les suggestions** (`GET /api/devs/suggestions`) : des devs qui ne sont ni mes amis ni liés à moi par une demande en cours, triés par compétences en commun, puis même ville, puis même pays, puis nombre de projets vérifiés. Tout est calculé dans une seule requête SQL. Le bouton « Ajouter » envoie la demande d'ami et devient « Demande envoyée ».
+- **La recherche** devient une vraie barre dans l'en-tête, avec les résultats en liste dessous. Elle partage son code avec le panneau plein écran du téléphone (`brancherRecherche()`). La touche `/` y place le curseur.
+- **Certaines pages ont leur propre colonne de droite** (classe `page-large` sur `<main>`) : les filtres pour Demandes et Devs, un encadré « en bref » pour le détail d'une demande, et sur le profil une colonne « Présentation » à gauche du contenu des onglets. Sur téléphone, ces mêmes éléments sont simplement dans le fil de la page (`display: contents`).
+
 ### Les pages Connexion et Inscription : la « lame »
 
 `/connexion` et `/inscription` sont **une seule page** (`public/connexion.html`) qui contient les deux formulaires. Le serveur (`src/routes/pages.js`) y écrit lequel montrer selon l'adresse (`data-vue`) : en arrivant directement sur `/inscription`, on voit tout de suite le bon formulaire, sans clignotement.
@@ -414,6 +433,15 @@ Le haut de l'accueil et le panneau vert de la connexion affichent des photos (`p
 - **Respecter la 3G** : le serveur n'écrit qu'**une** photo dans la page ; les autres sont seulement listées dans l'attribut `data-suivantes`. `public/js/fonds.js` attend que la page soit entièrement chargée, puis demande la photo suivante 8 secondes plus tard, une seule à la fois. Il ne demande **rien** si le navigateur annonce une connexion lente (`navigator.connection` : 2G, 3G, ou économie de données), si la page a mis plus de 4 secondes à charger, ou si la personne a demandé moins d'animations. Au deuxième tour, les photos sont déjà là : plus aucun téléchargement.
 - **Ajouter une photo plus tard** : `npm run photos` (`scripts/optimiser-photos.mjs`, outil jSquash sous Apache-2.0, dépendance de développement seulement) réduit une photo d'origine à 1080 px en WebP de moins de 150 Ko avec son JPEG de secours. Il ne touche jamais aux fichiers déjà prêts (`-1080`, `-1920`).
 
+### Le contenu de démonstration
+
+`npm run demo` (`scripts/demo.js`) remplit le site : 15 membres, leurs amitiés, 16 publications avec j'aime et commentaires, des projets, 6 demandes avec propositions, une équipe éclair et 2 avis. La liste des comptes et leur mot de passe sont dans `docs/COMPTES-DEMO.md`.
+
+- Le script passe par la **vraie API** du site : ses données respectent les mêmes règles que celles d'un membre.
+- Il ne fait **rien** si les comptes existent déjà (pas de doublons), et **refuse** de tourner en production sans l'option `--forcer`.
+- Tous les comptes ont un email en `@demo.palabre.dev` : `npm run demo -- retirer` les enlève d'un coup, avec tout leur contenu.
+- Les images sont **dessinées par le script** : il remplit un tableau de pixels (de fausses captures d'écran) et l'enregistre au format PNG. Aucune photo de personne.
+
 ## 13. L'application installable (PWA)
 
 - `public/manifest.json` : nom, couleurs et icônes de l'appli quand on l'ajoute à l'écran d'accueil.
@@ -433,7 +461,7 @@ Pour l'administration (`tests/admin.test.js`) : chaque route refusée aux visite
 
 Pour le calculateur (`tests/calculateur.test.js`) : cohérence de la grille (chaque type mène à une catégorie de demande qui existe), prix de base de chaque type, majorations de taille et de délai, options, un calcul complet vérifié à la main, tous les résultats possibles multiples de 5 000, refus d'un choix inconnu, page ouverte à tous avec ses balises de partage. Comme le calcul vit dans des fichiers du navigateur, ces fichiers sont écrits pour être aussi chargés par Node.js.
 
-Pour la refonte « réseau social » (`tests/preuve-sociale.test.js`) : `nbProjetsVerifies` (un projet sans lien ou masqué ne compte pas), recherche par nom (2 lettres minimum, majuscules ignorées, jokers `%` et `_` neutralisés, jamais d'email dans la réponse), « Disponibles maintenant » (amis d'abord, ni soi-même, ni les occupés, ni les clients), fil d'un auteur, « Aimé par » (jamais soi-même, un ami avant un inconnu), les 2 derniers commentaires dans l'ordre, taille de l'image lue par le serveur, couverture (envoi, remplacement, retrait, faux fichier refusé), amis en commun, recherche sans accents (« faissal » trouve « Faïssal »), publication seule par son numéro.
+Pour la refonte « réseau social » (`tests/preuve-sociale.test.js`) : `nbProjetsVerifies` (un projet sans lien ou masqué ne compte pas), recherche par nom (2 lettres minimum, majuscules ignorées, jokers `%` et `_` neutralisés, jamais d'email dans la réponse), « Disponibles maintenant » (amis d'abord, ni soi-même, ni les occupés, ni les clients), fil d'un auteur, « Aimé par » (jamais soi-même, un ami avant un inconnu), les 2 derniers commentaires dans l'ordre, taille de l'image lue par le serveur, couverture (envoi, remplacement, retrait, faux fichier refusé), amis en commun, recherche sans accents (« faissal » trouve « Faïssal »), publication seule par son numéro, suggestions de devs (jamais un ami, jamais une demande en cours, compétences en commun d'abord, puis la même ville).
 
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
 

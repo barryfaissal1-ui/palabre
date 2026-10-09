@@ -36,6 +36,41 @@ router.get('/disponibles', exigerConnexion, async (req, res) => {
   res.json({ devs: rows.map((ligne) => ({ ...apercuMembre(ligne), estAmi: ligne.est_ami })) });
 });
 
+// « Devs à découvrir » (panneau de droite sur ordinateur) : GET /api/devs/suggestions (membres connectés).
+// Des devs que je ne connais pas encore : ni mes amis, ni une demande d'ami en cours dans un sens ou dans l'autre.
+// Tri : d'abord ceux qui partagent le plus de compétences avec moi, puis ma ville, puis mon pays, puis les plus prouvés.
+// Tout est calculé dans UNE requête (sous-requêtes), jamais une par dev.
+const MAX_SUGGESTIONS = 4;
+router.get('/suggestions', exigerConnexion, async (req, res) => {
+  const moi = req.utilisateur;
+  const { rows } = await db.query(
+    `SELECT ${COLONNES_MEMBRE},
+            (SELECT count(*)::int FROM utilisateur_competences miennes
+               JOIN utilisateur_competences siennes ON siennes.competence_id = miennes.competence_id
+              WHERE miennes.utilisateur_id = $1 AND siennes.utilisateur_id = u.id) AS competences_communes,
+            (lower(u.ville) = lower($2) AND u.pays = $3) AS meme_ville,
+            (u.pays = $3) AS meme_pays
+       FROM utilisateurs u
+      WHERE u.type = 'dev' AND u.bloque = FALSE AND u.id <> $1
+        AND NOT EXISTS (SELECT 1 FROM amities a
+                         WHERE LEAST(a.demandeur_id, a.receveur_id) = LEAST($1, u.id)
+                           AND GREATEST(a.demandeur_id, a.receveur_id) = GREATEST($1, u.id))
+      ORDER BY competences_communes DESC, meme_ville DESC, meme_pays DESC, nb_projets_verifies DESC, u.id DESC
+      LIMIT $4`,
+    [moi.id, moi.ville, moi.pays, MAX_SUGGESTIONS],
+  );
+  res.json({
+    devs: rows.map((ligne) => {
+      const n = ligne.competences_communes;
+      // La raison affichée sous le nom : pourquoi ce dev est proposé.
+      let raison = [ligne.ville, ligne.pays].filter(Boolean).join(', ');
+      if (n > 0) raison = `${n} compétence${n > 1 ? 's' : ''} en commun`;
+      else if (ligne.meme_ville) raison = `Aussi à ${ligne.ville}`;
+      return { ...apercuMembre(ligne), competencesCommunes: n, raison };
+    }),
+  });
+});
+
 // GET /api/devs?competence=<id>&pays=<nom>&ville=<texte>&disponible=1&page=<n>&q=<nom>
 // Avec « q » (au moins 2 lettres), c'est la recherche de l'en-tête : tous les membres dont le nom contient ce texte,
 // devs comme clients, ceux dont le nom commence par ce texte en premier.

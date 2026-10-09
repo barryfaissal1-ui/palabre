@@ -23,7 +23,7 @@
     <a class="marque" href="/"><img src="/icons/logo-256.png" alt="" width="32" height="32">Palabre</a>
     <nav data-nav></nav>
   </div></header>
-  <main class="conteneur page-fil">
+  <main class="conteneur page-fil page-large page-filtres">
     <h1 class="titre-page">Demandes des clients</h1>
     <p class="intro-page">Tu ne sais pas quel budget prévoir ? <a href="/calculateur">Estime le prix de ton projet</a> en quatre questions.</p>
     <p class="message" role="status" data-message-page></p>
@@ -63,6 +63,9 @@
       </form>
     </div>
 
+    <!-- Les filtres : dans le fil de la page sur téléphone, dans une colonne collée à droite sur ordinateur (.cote-page) -->
+    <div class="cote-page cote-carte">
+    <h2 class="cote-titre">Filtrer</h2>
     <div class="onglets" role="group" aria-label="Filtrer les demandes">
       <button class="onglet" type="button" data-filtre="ouvertes" aria-pressed="true">Ouvertes</button>
       <button class="onglet" type="button" data-filtre="miennes" aria-pressed="false" data-onglet-miennes>Mes demandes</button>
@@ -72,6 +75,7 @@
       <select id="filtre-categorie" data-filtre-categorie>
         <option value="">Toutes les catégories</option>
       </select>
+    </div>
     </div>
 
     <div class="liste-publications" data-liste></div>

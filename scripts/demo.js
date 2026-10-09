@@ -1,22 +1,25 @@
 // Peuple le site avec un contenu de démonstration : membres, amis, publications, j'aime, commentaires,
 // projets, demandes, propositions, équipe éclair, avis.
-//   npm run demo             crée le contenu (remplace celui d'un lancement précédent)
-//   npm run demo -- retirer  le retire entièrement
+//   npm run demo             crée le contenu ; ne fait RIEN si les comptes de démonstration existent déjà
+//   npm run demo -- retirer  retire les comptes de démonstration et tout leur contenu
 //
-// Tous les comptes de démonstration ont un email en demo-…@palabre.test : c'est ce qui permet de les retirer
-// d'un coup (leurs publications, projets, demandes… partent avec eux, ON DELETE CASCADE).
+// Tous les comptes de démonstration ont un email en …@demo.palabre.dev : c'est ce qui permet de les reconnaître
+// et de les retirer d'un coup (leurs publications, projets, demandes… partent avec eux, ON DELETE CASCADE).
+// Leur mot de passe et leur liste sont dans docs/COMPTES-DEMO.md : c'est ce qu'on donne au jury.
+//
 // Le script passe par la vraie API du site (un serveur démarré juste pour lui) : les données respectent donc
 // les mêmes règles que celles d'un vrai membre. Seuls les projets et les dates sont écrits directement en base.
-const fs = require('node:fs');
-const path = require('node:path');
-const config = require('../config');
-const { pool } = require('./pool');
-const { migrer } = require('./migrate');
-const { creerApp } = require('../app');
+// Les images sont dessinées par le script lui-même (de fausses captures d'écran) : aucune photo de personne.
+const zlib = require('node:zlib');
+const config = require('../src/config');
+const { pool } = require('../src/db/pool');
+const { migrer } = require('../src/db/migrate');
+const { creerApp } = require('../src/app');
 
-const MOT_DE_PASSE = 'palabre-demo';
-const MOTIF_EMAIL = 'demo-%@palabre.test';
-const email = (cle) => `demo-${cle}@palabre.test`;
+const MOT_DE_PASSE = 'Palabre-Jury-2026'; // le même que dans docs/COMPTES-DEMO.md
+const MOTIF_EMAIL = '%@demo.palabre.dev';
+const ANCIEN_MOTIF = 'demo-%@palabre.test'; // comptes d'une première version du script
+const email = (cle) => `${cle}@demo.palabre.dev`;
 
 // cle, type, nom, ville, pays, disponible, bio, compétences, nombre de projets au lien vérifié
 const MEMBRES = [
@@ -69,14 +72,81 @@ const TITRES_PROJETS = {
   agriculture: 'Suivi d\'une coopérative', finance: 'Tontine sur téléphone', transport: 'Suivi de livraisons', services: 'Site d\'une association', culture: 'Billetterie d\'un festival',
 };
 
+// ---------- Images de démonstration, dessinées ici ----------
+// Une fausse capture d'écran d'application : un bandeau de couleur, un titre, des cartes. Le script remplit un tableau
+// de pixels puis l'enregistre en PNG (format simple : un en-tête, les pixels compressés par zlib, des sommes de contrôle).
+const COULEURS = [[200, 98, 63], [24, 122, 59], [168, 106, 18], [63, 76, 154], [107, 74, 53], [31, 110, 140]];
+const TABLE_CRC = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+function crc32(octets) {
+  let c = 0xffffffff;
+  for (const octet of octets) c = TABLE_CRC[(c ^ octet) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+function png(largeur, hauteur, pixels) {
+  const lignes = Buffer.alloc((largeur * 3 + 1) * hauteur);
+  for (let y = 0; y < hauteur; y += 1) pixels.copy(lignes, y * (largeur * 3 + 1) + 1, y * largeur * 3, (y + 1) * largeur * 3);
+  const bloc = (type, donnees) => {
+    const corps = Buffer.concat([Buffer.from(type), donnees]);
+    const longueur = Buffer.alloc(4); longueur.writeUInt32BE(donnees.length);
+    const somme = Buffer.alloc(4); somme.writeUInt32BE(crc32(corps));
+    return Buffer.concat([longueur, corps, somme]);
+  };
+  const entete = Buffer.alloc(13);
+  entete.writeUInt32BE(largeur, 0); entete.writeUInt32BE(hauteur, 4);
+  entete[8] = 8; entete[9] = 2; // 8 bits par couleur, rouge-vert-bleu
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), bloc('IHDR', entete), bloc('IDAT', zlib.deflateSync(lignes)), bloc('IEND', Buffer.alloc(0))]);
+}
+// numero choisit la couleur et la disposition ; « large » donne un format de couverture de profil.
+function maquette(numero, { large = false } = {}) {
+  const [largeur, hauteur] = large ? [1200, 400] : [[900, 600], [720, 900], [900, 675]][numero % 3];
+  const pixels = Buffer.alloc(largeur * hauteur * 3);
+  const couleur = COULEURS[numero % COULEURS.length];
+  const rectangle = (x0, y0, l, h, [r, g, b]) => {
+    for (let y = Math.max(0, y0); y < Math.min(hauteur, y0 + h); y += 1) {
+      for (let x = Math.max(0, x0); x < Math.min(largeur, x0 + l); x += 1) {
+        const i = (y * largeur + x) * 3;
+        pixels[i] = r; pixels[i + 1] = g; pixels[i + 2] = b;
+      }
+    }
+  };
+  const clair = couleur.map((c) => Math.round(c + (255 - c) * 0.82));
+  rectangle(0, 0, largeur, hauteur, [241, 240, 235]);
+  if (large) {
+    // Couverture : des bandes verticales aux couleurs du logo
+    for (let i = 0; i < 12; i += 1) rectangle(i * 100, 0, 100, hauteur, i % 2 ? clair : couleur.map((c) => Math.round(c * (0.75 + (i % 3) * 0.1))));
+    return png(largeur, hauteur, pixels);
+  }
+  rectangle(0, 0, largeur, 84, couleur);                         // bandeau du haut
+  rectangle(32, 28, 180, 28, [255, 255, 255]);                   // nom de l'application
+  rectangle(largeur - 76, 22, 40, 40, clair);                    // avatar
+  rectangle(32, 116, Math.round(largeur * 0.55), 34, [26, 28, 24]); // titre
+  rectangle(32, 164, Math.round(largeur * 0.38), 16, [150, 152, 146]);
+  const colonnes = numero % 2 ? 2 : 3;
+  const l = Math.floor((largeur - 32 * (colonnes + 1)) / colonnes);
+  for (let rangee = 0; rangee * 250 + 210 < hauteur; rangee += 1) {
+    for (let c = 0; c < colonnes; c += 1) {
+      const x = 32 + c * (l + 32); const y = 210 + rangee * 250;
+      rectangle(x, y, l, 218, [255, 255, 255]);
+      rectangle(x, y, l, 120, (c + rangee + numero) % 2 ? clair : couleur.map((v) => Math.round(v + (255 - v) * 0.45)));
+      rectangle(x + 16, y + 138, Math.round(l * 0.7), 16, [26, 28, 24]);
+      rectangle(x + 16, y + 166, Math.round(l * 0.45), 12, [150, 152, 146]);
+      rectangle(x + 16, y + 186, 84, 20, couleur);
+    }
+  }
+  return png(largeur, hauteur, pixels);
+}
+
 async function retirer() {
-  const { rowCount } = await pool.query('DELETE FROM utilisateurs WHERE email LIKE $1', [MOTIF_EMAIL]);
+  const { rowCount } = await pool.query('DELETE FROM utilisateurs WHERE email LIKE $1 OR email LIKE $2', [MOTIF_EMAIL, ANCIEN_MOTIF]);
   return rowCount;
 }
 
 async function creer() {
   await migrer();
-  await retirer();
+  // Déjà fait ? On ne touche à rien : relancer le script ne crée jamais de doublons.
+  const { rows: [deja] } = await pool.query('SELECT count(*)::int AS nb FROM utilisateurs WHERE email LIKE $1', [MOTIF_EMAIL]);
+  if (deja.nb > 0) return null;
+  await pool.query('DELETE FROM utilisateurs WHERE email LIKE $1', [ANCIEN_MOTIF]);
   const serveur = creerApp().listen(0);
   const base = `http://localhost:${serveur.address().port}`;
   const m = {}; // cle → { cookie, identifiant, id }
@@ -91,12 +161,7 @@ async function creer() {
     return { corps, entetes: reponse.headers };
   }
   const poster = (chemin, qui, donnees = {}) => appel(chemin, { methode: 'POST', qui, donnees });
-  // Les photos de fond du site (Pexels, voir LICENCES.md) servent aussi d'images aux publications et aux projets.
-  const photo = (numero) => {
-    const fichier = path.join(__dirname, '..', '..', 'public', 'img', 'fond', `fond-${numero}-1080.jpg`);
-    return fs.existsSync(fichier) ? fs.readFileSync(fichier) : null;
-  };
-  const dataUrl = (numero) => (photo(numero) ? `data:image/jpeg;base64,${photo(numero).toString('base64')}` : undefined);
+  const dataUrl = (numero, options) => `data:image/png;base64,${maquette(numero, options).toString('base64')}`;
 
   try {
     // 1. Les comptes, puis leur profil (bio, compétences, disponibilité)
@@ -110,8 +175,9 @@ async function creer() {
         donnees: { nom, identifiant: m[cle].identifiant, pays, ville, bio, disponible, whatsapp: null, competences: competences.filter((c) => noms.includes(c.nom)).map((c) => c.id) },
       });
     }
-    if (dataUrl(1)) await poster('/profils/moi/couverture', 'bintou', { image: dataUrl(5) });
-    if (dataUrl(1)) await poster('/profils/moi/couverture', 'fatou', { image: dataUrl(2) });
+    await poster('/profils/moi/couverture', 'bintou', { image: dataUrl(0, { large: true }) });
+    await poster('/profils/moi/couverture', 'fatou', { image: dataUrl(5, { large: true }) });
+    await poster('/profils/moi/couverture', 'kofi', { image: dataUrl(3, { large: true }) });
 
     // 2. Les projets réalisés. Écrits directement en base : passer par l'API ferait visiter chaque lien par le serveur.
     //    ATTENTION : ces liens sont inventés et marqués « vérifiés » pour la démonstration.
@@ -120,9 +186,9 @@ async function creer() {
       for (let i = 0; i < verifies + (verifies > 0 && verifies < 4 ? 1 : 0); i += 1) {
         const secteur = SECTEURS_DEMO[rang % SECTEURS_DEMO.length];
         let image = null;
-        if (i === 0 && photo((rang % 5) + 1)) { // le premier projet de chaque dev a une image
-          const octets = photo((rang % 5) + 1);
-          const { rows } = await pool.query('INSERT INTO fichiers (proprietaire_id, type_mime, taille, donnees) VALUES ($1, \'image/jpeg\', $2, $3) RETURNING id', [m[cle].id, octets.length, octets]);
+        if (i < 2) { // les deux premiers projets de chaque dev ont une image
+          const octets = maquette(rang);
+          const { rows } = await pool.query('INSERT INTO fichiers (proprietaire_id, type_mime, taille, donnees) VALUES ($1, \'image/png\', $2, $3) RETURNING id', [m[cle].id, octets.length, octets]);
           image = rows[0].id;
         }
         await pool.query(
@@ -145,7 +211,7 @@ async function creer() {
     // 4. Les publications, leurs j'aime et leurs commentaires
     const publications = [];
     for (const [auteur, type, texte, numeroPhoto, aime, commentaires] of PUBLICATIONS) {
-      const { corps } = await poster('/publications', auteur, { type, texte, image: numeroPhoto ? dataUrl(numeroPhoto) : undefined });
+      const { corps } = await poster('/publications', auteur, { type, texte, image: numeroPhoto ? dataUrl(numeroPhoto + publications.length) : undefined });
       const { id } = corps.publication;
       publications.push(id);
       for (const qui of aime) await poster(`/publications/${id}/jaime`, qui);
@@ -193,8 +259,9 @@ async function creer() {
     await demander('pascal', { titre: 'Paiement des frais de scolarité par Mobile Money', description: 'Nous voudrions que les parents puissent payer les frais de scolarité depuis leur téléphone et recevoir un reçu.', budgetFcfa: 250000, delai: '1 mois', categorie: 'paiement-mobile' });
     await demander('esther', { titre: 'Logo et menu pour un nouveau maquis', description: 'J\'ouvre un troisième maquis à Cotonou. Il me faut un logo, une carte des plats à imprimer et les visuels pour Facebook.', budgetFcfa: null, delai: '2 semaines', categorie: 'design' });
 
-    // 6. Un peu de vie pour les vrais comptes déjà inscrits : deux membres de démonstration leur demandent d'être amis.
-    const { rows: vrais } = await pool.query('SELECT identifiant FROM utilisateurs WHERE email NOT LIKE $1 AND email NOT LIKE \'%@palabre.test\' AND bloque = FALSE LIMIT 20', [MOTIF_EMAIL]);
+    // 6. En local seulement, un peu de vie pour les vrais comptes déjà inscrits : deux membres de démonstration
+    //    leur demandent d'être amis. Jamais en production : on n'écrit pas aux vrais membres du site.
+    const { rows: vrais } = config.production ? { rows: [] } : await pool.query('SELECT identifiant FROM utilisateurs WHERE email NOT LIKE $1 AND email NOT LIKE \'%@palabre.test\' AND bloque = FALSE LIMIT 20', [MOTIF_EMAIL]);
     for (const { identifiant } of vrais) {
       for (const cle of ['awa', 'bintou']) await poster('/amis/demandes', cle, { identifiant }).catch(() => {});
     }
@@ -205,9 +272,9 @@ async function creer() {
 }
 
 async function main() {
-  // Garde-fou : jamais par accident sur le site en ligne (les comptes ont un mot de passe connu de tous).
-  if (config.production && !process.argv.includes('--en-production')) {
-    console.error('Refusé : le site est en production. Les comptes de démonstration ont un mot de passe public.\nSi c\'est vraiment voulu : npm run demo -- --en-production');
+  // Garde-fou : jamais par accident sur le site en ligne (le mot de passe de ces comptes est écrit dans la documentation).
+  if (config.production && !process.argv.includes('--forcer')) {
+    console.error('Refusé : NODE_ENV=production. Les comptes de démonstration ont un mot de passe connu.\nSi c\'est voulu (comptes pour le jury) : npm run demo -- --forcer');
     process.exitCode = 1;
     return;
   }
@@ -216,10 +283,13 @@ async function main() {
     return;
   }
   const bilan = await creer();
+  if (!bilan) {
+    console.log('Les comptes de démonstration existent déjà : rien n\'a été modifié.\nPour repartir de zéro : npm run demo -- retirer, puis npm run demo');
+    return;
+  }
   console.log(`Contenu de démonstration créé : ${bilan.membres} membres, ${bilan.publications} publications, des projets, 6 demandes, 2 avis.`);
-  console.log(`Pour te connecter comme l'un d'eux : email ${email('awa')} (ou bintou, kofi, salimata…), mot de passe « ${MOT_DE_PASSE} ».`);
+  console.log(`Comptes et mot de passe : docs/COMPTES-DEMO.md (par exemple ${email('awa')}, mot de passe « ${MOT_DE_PASSE} »).`);
   if (bilan.vrais) console.log('Awa et Bintou ont envoyé une demande d\'ami aux comptes déjà inscrits : regarde tes notifications.');
-  console.log('Pour tout retirer : npm run demo -- retirer');
 }
 
 main()

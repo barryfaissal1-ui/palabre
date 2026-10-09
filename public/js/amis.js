@@ -88,9 +88,10 @@
     zone.replaceChildren(...sections);
 
     // La pastille du menu suit le nombre de demandes qui restent à traiter.
-    const pastille = document.querySelector('[data-nav] .nav-liens .compteur');
-    if (pastille && recues.length) pastille.textContent = String(recues.length);
-    else if (pastille) pastille.remove();
+    document.querySelectorAll('.compteur-amis').forEach((pastille) => {
+      if (recues.length) pastille.textContent = String(recues.length);
+      else pastille.remove();
+    });
   }
 
   document.addEventListener('DOMContentLoaded', async () => {

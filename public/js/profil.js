@@ -139,25 +139,37 @@
     }
     const commun = profil.amisEnCommun;
 
-    return el('section', { classe: 'profil-tete' }, [
+    // Trois blocs. Sur téléphone ils se suivent, comme une seule carte. Sur ordinateur (CSS), les actions viennent
+    // à droite du nom, et la présentation forme une colonne à gauche du contenu des onglets.
+    const tete = el('section', { classe: 'profil-tete' }, [
       couverture(profil),
       el('div', { classe: 'profil-identite' }, [
         avatar(profil, 'profil'),
         el('h1', { classe: 'profil-nom' }, [profil.nom, profil.nbProjetsVerifies > 0 ? badgeFeuille() : null]),
         el('p', { classe: 'profil-lieu' }, [icone('lieu'), `${estDev ? 'Développeur' : 'Client'} à ${lieu}`]),
-        profil.bio ? el('p', { classe: 'profil-bio', texte: profil.bio }) : null,
-        estDev
-          ? el('span', { classe: `pastille ${profil.disponible ? 'pastille-dispo' : 'pastille-occupe'}`, texte: profil.disponible ? 'Disponible pour des projets' : 'Occupé en ce moment' })
-          : null,
-        estDev && profil.competences.length ? el('ul', { classe: 'puces' }, profil.competences.map((c) => el('li', { texte: c.nom }))) : null,
-        estDev && profil.estMoi && !profil.competences.length
-          ? el('p', { classe: 'texte-discret', texte: 'Ajoute tes compétences pour que les clients te trouvent.' }) : null,
-        el('dl', { classe: 'profil-chiffres' }, chiffres),
-        profil.amitie === 'amis' ? el('p', { classe: 'profil-lien avec-icone' }, [icone('valide'), 'Vous êtes amis']) : null,
-        commun ? el('p', { classe: 'profil-lien avec-icone' }, [icone('amis'), `${commun} ${pluriel(commun, 'ami')} en commun`]) : null,
-        actions(profil),
       ]),
     ]);
+    const presentation = el('section', { classe: 'profil-presentation', 'aria-labelledby': 'titre-presentation' }, [
+      el('h2', { id: 'titre-presentation', texte: 'Présentation' }),
+      profil.bio ? el('p', { classe: 'profil-bio', texte: profil.bio }) : null,
+      estDev
+        ? el('span', { classe: `pastille ${profil.disponible ? 'pastille-dispo' : 'pastille-occupe'}`, texte: profil.disponible ? 'Disponible pour des projets' : 'Occupé en ce moment' })
+        : null,
+      estDev && profil.competences.length ? el('ul', { classe: 'puces' }, profil.competences.map((c) => el('li', { texte: c.nom }))) : null,
+      estDev && profil.estMoi && !profil.competences.length
+        ? el('p', { classe: 'texte-discret', texte: 'Ajoute tes compétences pour que les clients te trouvent.' }) : null,
+      // Le numéro n'est envoyé par le serveur qu'aux membres connectés.
+      profil.whatsapp && !profil.estMoi
+        ? el('p', { classe: 'presentation-whatsapp avec-icone' }, [icone('commentaire'), 'WhatsApp : ', el('a', { href: lienWhatsApp(profil.whatsapp, prenom(profil.nom)), target: '_blank', rel: 'noopener', texte: profil.whatsapp })])
+        : null,
+      el('dl', { classe: 'profil-chiffres' }, chiffres),
+    ]);
+    const zoneActions = el('div', { classe: 'profil-zone-actions' }, [
+      profil.amitie === 'amis' ? el('p', { classe: 'profil-lien avec-icone' }, [icone('valide'), 'Vous êtes amis']) : null,
+      commun ? el('p', { classe: 'profil-lien avec-icone' }, [icone('amis'), `${commun} ${pluriel(commun, 'ami')} en commun`]) : null,
+      actions(profil),
+    ]);
+    return [tete, presentation, zoneActions];
   }
 
   // ---------- Onglets ----------
@@ -276,7 +288,7 @@
     try {
       const [{ profil }, moi] = await Promise.all([api(`/profils/${encodeURIComponent(identifiant)}`), utilisateurConnecte()]);
       document.title = `${profil.nom} – Palabre`;
-      zone.replaceChildren(teteProfil(profil), ...onglets(profil, moi));
+      zone.replaceChildren(...teteProfil(profil), ...onglets(profil, moi));
     } catch (erreur) {
       document.title = 'Profil introuvable – Palabre';
       zone.replaceChildren(etatVide('recherche', 'Profil introuvable',
