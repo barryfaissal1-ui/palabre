@@ -25,7 +25,7 @@ router.use(exigerConnexion);
 //  - « apercu » : les 2 derniers commentaires, avec leur auteur.
 const SELECTION = `
   SELECT p.id, p.type, p.texte, p.image, p.image_largeur, p.image_hauteur, p.cree_le, p.auteur_id, ${COLONNES_MEMBRE},
-         aime.nom AS aime_nom, aime.identifiant AS aime_identifiant, apercu.liste AS apercu_commentaires,
+         aime.nom AS aime_nom, aime.prenom AS aime_prenom, aime.identifiant AS aime_identifiant, apercu.liste AS apercu_commentaires,
          (SELECT count(*)::int FROM jaime j WHERE j.publication_id = p.id) AS nb_jaime,
          (SELECT count(*)::int FROM commentaires c
             JOIN utilisateurs cu ON cu.id = c.auteur_id
@@ -34,7 +34,7 @@ const SELECTION = `
     FROM publications p
     JOIN utilisateurs u ON u.id = p.auteur_id
     LEFT JOIN LATERAL (
-      SELECT ju.nom, ju.identifiant
+      SELECT ju.nom, ju.prenom, ju.identifiant
         FROM jaime j
         JOIN utilisateurs ju ON ju.id = j.utilisateur_id
        WHERE j.publication_id = p.id AND j.utilisateur_id <> $1 AND ju.bloque = FALSE
@@ -67,7 +67,7 @@ function versPublication(ligne, moi) {
     creeLe: ligne.cree_le,
     auteur: apercuMembre(ligne),
     nbJaime: ligne.nb_jaime,
-    aimePar: ligne.aime_nom ? { nom: ligne.aime_nom, identifiant: ligne.aime_identifiant } : null,
+    aimePar: ligne.aime_nom ? { nom: ligne.aime_nom, prenom: ligne.aime_prenom || ligne.aime_nom.split(' ')[0], identifiant: ligne.aime_identifiant } : null,
     derniersCommentaires: (ligne.apercu_commentaires || []).map((c) => versCommentaire(c, moi)),
     nbCommentaires: ligne.nb_commentaires,
     jaimeParMoi: ligne.jaime_par_moi,

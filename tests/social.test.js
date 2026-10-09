@@ -8,6 +8,8 @@ const { pool } = require('../src/db/pool');
 let serveur;
 let base;
 const suffixe = Date.now();
+// Le même suffixe écrit en lettres : un nom de famille n'accepte pas les chiffres.
+const lettres = String(suffixe).replace(/\d/g, (chiffre) => 'abcdefghij'[chiffre]);
 const membres = {}; // awa, bintou, cheick : { cookie, identifiant, email }
 
 async function appel(chemin, { methode = 'GET', donnees, qui } = {}) {
@@ -36,7 +38,7 @@ test.before(async () => {
     const email = `social-${prenom}-${suffixe}@palabre.test`;
     const r = await appel('/api/auth/inscription', {
       methode: 'POST',
-      donnees: { type: 'dev', nom: `${prenom} social${suffixe}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Koudougou' },
+      donnees: { type: 'dev', prenom, nomFamille: `Social${lettres}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Koudougou' },
     });
     assert.equal(r.statut, 201);
     membres[prenom] = { cookie: r.entetes.get('set-cookie').split(';')[0], identifiant: r.corps.utilisateur.identifiant, email };

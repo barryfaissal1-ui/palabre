@@ -7,6 +7,8 @@ const db = require('../db/pool');
 function apercuMembre(ligne) {
   return {
     nom: ligne.nom,
+    // Le vrai prénom (« Aimé par Awa », « Écris à Awa »…). Secours pour une ligne sans prénom : le premier mot du nom.
+    prenom: ligne.prenom || String(ligne.nom).split(' ')[0],
     identifiant: ligne.identifiant,
     type: ligne.type_compte,
     ville: ligne.ville,
@@ -21,7 +23,7 @@ function apercuMembre(ligne) {
 // Le nombre de projets vérifiés est une sous-requête de la même requête : jamais une requête par membre.
 const NB_PROJETS_VERIFIES = `(SELECT count(*)::int FROM projets pv
     WHERE pv.dev_id = u.id AND pv.masque = FALSE AND pv.lien IS NOT NULL AND pv.lien_verifie_le IS NOT NULL)`;
-const COLONNES_MEMBRE = `u.nom, u.identifiant, u.type AS type_compte, u.ville, u.pays, u.avatar,
+const COLONNES_MEMBRE = `u.nom, u.prenom, u.identifiant, u.type AS type_compte, u.ville, u.pays, u.avatar,
     ${NB_PROJETS_VERIFIES} AS nb_projets_verifies`;
 
 // Lien entre deux membres, vu par « moi » : 'amis', 'envoyee', 'recue' ou 'aucune'.

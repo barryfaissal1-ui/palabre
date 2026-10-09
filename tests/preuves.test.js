@@ -12,6 +12,8 @@ let base;
 let siteTest; // petit site local qui joue le rôle du « projet » visité par le serveur
 let adresseSite;
 const suffixe = Date.now();
+// Le même suffixe écrit en lettres : un nom de famille n'accepte pas les chiffres.
+const lettres = String(suffixe).replace(/\d/g, (chiffre) => 'abcdefghij'[chiffre]);
 const membres = {}; // kadi, moussa (clients) ; awa, bintou, cheick, dao (devs)
 
 async function appel(chemin, { methode = 'GET', donnees, qui } = {}) {
@@ -49,7 +51,7 @@ test.before(async () => {
     const email = `preuves-${prenom}-${suffixe}@palabre.test`;
     const r = await appel('/api/auth/inscription', {
       methode: 'POST',
-      donnees: { type, nom: `${prenom} preuves${suffixe}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Ouagadougou', whatsapp: '+22670000000' },
+      donnees: { type, prenom, nomFamille: `Preuves${lettres}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Ouagadougou', whatsapp: '+22670000000' },
     });
     assert.equal(r.statut, 201);
     membres[prenom] = { cookie: r.entetes.get('set-cookie').split(';')[0], identifiant: r.corps.utilisateur.identifiant, email };
@@ -236,7 +238,7 @@ test('recherche de devs : compétence, pays, ville, disponibilité', async () =>
   const ville = `Banfora${suffixe}`;
   const modifier = (qui, extra) => appel('/api/profils/moi', {
     methode: 'PUT', qui,
-    donnees: { nom: `${qui} preuves${suffixe}`, identifiant: membres[qui].identifiant, pays: 'Mali', ville, whatsapp: '+22670000000', bio: '', disponible: true, competences: [], ...extra },
+    donnees: { prenom: qui, nomFamille: `Preuves${lettres}`, identifiant: membres[qui].identifiant, pays: 'Mali', ville, whatsapp: '+22670000000', bio: '', disponible: true, competences: [], ...extra },
   });
   assert.equal((await modifier('bintou', { competences: [flutter.id] })).statut, 200);
   assert.equal((await modifier('cheick', { disponible: false })).statut, 200);
@@ -263,10 +265,20 @@ test('recherche de devs : compétence, pays, ville, disponibilité', async () =>
 
 test('partage : la page d\'un profil contient ses balises, sans exécuter le texte du membre', async () => {
   const nomPiege = 'Awa "><script>alert(1)</script>';
+  // Première barrière : un prénom ou un nom n'accepte que des lettres, la validation refuse donc ce piège.
+  const refus = await appel('/api/profils/moi', {
+    methode: 'PUT', qui: 'awa',
+    donnees: { prenom: nomPiege, nomFamille: 'Test', identifiant: membres.awa.identifiant, pays: 'Burkina Faso', ville: 'Koudougou' },
+  });
+  assert.equal(refus.statut, 400);
+  assert.equal(refus.corps.champ, 'prenom');
+  // Seconde barrière : même si un tel nom se trouvait déjà en base, la page ne l'exécuterait pas.
+  // On l'y écrit directement pour le vérifier.
   await appel('/api/profils/moi', {
     methode: 'PUT', qui: 'awa',
-    donnees: { nom: nomPiege, identifiant: membres.awa.identifiant, pays: 'Burkina Faso', ville: 'Koudougou', whatsapp: '', bio: 'Développeuse web & mobile.\nJ\'aime les projets utiles.', disponible: true, competences: [] },
+    donnees: { prenom: 'Awa', nomFamille: 'Test', identifiant: membres.awa.identifiant, pays: 'Burkina Faso', ville: 'Koudougou', whatsapp: '', bio: 'Développeuse web & mobile.\nJ\'aime les projets utiles.', disponible: true, competences: [] },
   });
+  await pool.query('UPDATE utilisateurs SET nom = $1 WHERE identifiant = $2', [nomPiege, membres.awa.identifiant]);
   const page = await appel(`/${membres.awa.identifiant}`);
   assert.equal(page.statut, 200);
   assert.match(page.corps, /data-profil/, 'c\'est toujours la page profil');

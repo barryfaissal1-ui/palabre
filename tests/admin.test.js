@@ -9,6 +9,8 @@ const { changerRole } = require('../src/db/admin');
 let serveur;
 let base;
 const suffixe = Date.now();
+// Le même suffixe écrit en lettres : un nom de famille n'accepte pas les chiffres.
+const lettres = String(suffixe).replace(/\d/g, (chiffre) => 'abcdefghij'[chiffre]);
 const membres = {}; // chef (admin), awa, bintou, cheick, dao (devs), kadi (cliente)
 
 async function appel(chemin, { methode = 'GET', donnees, qui } = {}) {
@@ -44,7 +46,7 @@ test.before(async () => {
     const email = `admin-${prenom}-${suffixe}@palabre.test`;
     const r = await appel('/api/auth/inscription', {
       methode: 'POST',
-      donnees: { type, nom: `${prenom} admin${suffixe}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Bobo-Dioulasso' },
+      donnees: { type, prenom, nomFamille: `Admin${lettres}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Bobo-Dioulasso' },
     });
     assert.equal(r.statut, 201);
     membres[prenom] = { cookie: r.entetes.get('set-cookie').split(';')[0], identifiant: r.corps.utilisateur.identifiant, email };
@@ -62,7 +64,7 @@ test('le rôle administrateur se donne par la commande du serveur, pas par le si
   // Un membre ne peut pas se nommer administrateur en l'ajoutant à ses données de profil.
   await appel('/api/profils/moi', {
     methode: 'PUT', qui: 'awa',
-    donnees: { nom: `awa admin${suffixe}`, identifiant: membres.awa.identifiant, pays: 'Burkina Faso', ville: 'Bobo-Dioulasso', est_admin: true, estAdmin: true },
+    donnees: { prenom: 'awa', nomFamille: `Admin${lettres}`, identifiant: membres.awa.identifiant, pays: 'Burkina Faso', ville: 'Bobo-Dioulasso', est_admin: true, estAdmin: true },
   });
   assert.equal((await appel('/api/auth/moi', { qui: 'awa' })).corps.utilisateur.estAdmin, false);
 

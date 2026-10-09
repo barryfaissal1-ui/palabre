@@ -29,6 +29,8 @@ function urlFichier(id) {
 function profilVisible(u, competences, visiteur, amitie = null) {
   return {
     nom: u.nom,
+    prenom: u.prenom || u.nom.split(' ')[0],
+    nomFamille: u.nom_famille || '', // sert au formulaire « Modifier mon profil »
     identifiant: u.identifiant,
     type: u.type,
     pays: u.pays,
@@ -121,7 +123,8 @@ router.put('/moi', exigerConnexion, async (req, res) => {
   const corps = req.body || {};
   const moi = req.utilisateur;
   const donnees = {
-    nom: v.texte(corps.nom, 'nom', { min: 2, max: 80 }),
+    prenom: v.nomPropre(corps.prenom, 'prenom'),
+    nomFamille: v.nomPropre(corps.nomFamille, 'nomFamille'),
     identifiant: v.identifiant(corps.identifiant),
     pays: v.pays(corps.pays),
     ville: v.texte(corps.ville, 'ville', { min: 2, max: 60 }),
@@ -145,9 +148,11 @@ router.put('/moi', exigerConnexion, async (req, res) => {
     await client.query('BEGIN');
     await client.query(
       `UPDATE utilisateurs
-          SET nom = $1, identifiant = $2, pays = $3, ville = $4, whatsapp = $5, bio = $6, disponible = $7
+          SET nom = $1, identifiant = $2, pays = $3, ville = $4, whatsapp = $5, bio = $6, disponible = $7,
+              prenom = $9, nom_famille = $10
         WHERE id = $8`,
-      [donnees.nom, donnees.identifiant, donnees.pays, donnees.ville, donnees.whatsapp, donnees.bio, donnees.disponible, moi.id],
+      // Le nom affiché (« Prénom Nom ») est recalculé en même temps que les deux champs.
+      [`${donnees.prenom} ${donnees.nomFamille}`, donnees.identifiant, donnees.pays, donnees.ville, donnees.whatsapp, donnees.bio, donnees.disponible, moi.id, donnees.prenom, donnees.nomFamille],
     );
     await client.query('DELETE FROM utilisateur_competences WHERE utilisateur_id = $1', [moi.id]);
     if (competences.length) {

@@ -31,7 +31,9 @@ function profilPrive(u) {
     id: u.id,
     type: u.type,
     estAdmin: u.est_admin,
-    nom: u.nom,
+    nom: u.nom, // le nom affiché : « Prénom Nom »
+    prenom: u.prenom,
+    nomFamille: u.nom_famille,
     identifiant: u.identifiant,
     email: u.email,
     pays: u.pays,
@@ -58,7 +60,8 @@ router.post('/inscription', limiteSensible, async (req, res) => {
   const corps = req.body || {};
   const donnees = {
     type: v.typeCompte(corps.type),
-    nom: v.texte(corps.nom, 'nom', { min: 2, max: 80 }),
+    prenom: v.nomPropre(corps.prenom, 'prenom'),
+    nomFamille: v.nomPropre(corps.nomFamille, 'nomFamille'),
     email: v.email(corps.email),
     motDePasse: v.motDePasse(corps.motDePasse),
     pays: v.pays(corps.pays),
@@ -72,12 +75,14 @@ router.post('/inscription', limiteSensible, async (req, res) => {
   }
 
   const hash = await bcrypt.hash(donnees.motDePasse, COUT_BCRYPT);
-  const identifiant = await identifiantLibre(donnees.nom);
+  // Le nom affiché partout sur le site : « Prénom Nom ». Il est gardé dans sa propre colonne, recalculée ici.
+  const nom = `${donnees.prenom} ${donnees.nomFamille}`;
+  const identifiant = await identifiantLibre(nom);
   const { rows } = await db.query(
-    `INSERT INTO utilisateurs (type, nom, identifiant, email, mot_de_passe_hash, pays, ville, whatsapp)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO utilisateurs (type, nom, prenom, nom_famille, identifiant, email, mot_de_passe_hash, pays, ville, whatsapp)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING *`,
-    [donnees.type, donnees.nom, identifiant, donnees.email, hash, donnees.pays, donnees.ville, donnees.whatsapp],
+    [donnees.type, nom, donnees.prenom, donnees.nomFamille, identifiant, donnees.email, hash, donnees.pays, donnees.ville, donnees.whatsapp],
   );
 
   ouvrirSession(res, rows[0]);

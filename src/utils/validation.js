@@ -26,6 +26,17 @@ function texte(valeur, champ, { min = 1, max = 200, optionnel = false } = {}) {
   return v;
 }
 
+// Prénom ou nom de famille : 1 à 50 caractères, des lettres (accents compris), des espaces, des tirets et des
+// apostrophes seulement (« Jean-Baptiste », « N'Diaye », « De La Cruz »). Les espaces en trop sont retirés.
+// \p{L} = n'importe quelle lettre, dans n'importe quel alphabet ; \p{M} = les accents écrits à part.
+function nomPropre(valeur, champ) {
+  const v = texte(valeur, champ, { max: 50 }).replace(/\s+/g, ' ');
+  if (!/^\p{L}[\p{L}\p{M} '’-]*$/u.test(v)) {
+    throw new ErreurValidation('Lettres, espaces, tirets et apostrophes seulement.', champ);
+  }
+  return v;
+}
+
 function email(valeur) {
   const v = texte(valeur, 'email', { max: 254 }).toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) {
@@ -164,6 +175,7 @@ module.exports = {
   SECTEURS_PROJET,
   entier,
   texte,
+  nomPropre,
   email,
   motDePasse,
   pays,

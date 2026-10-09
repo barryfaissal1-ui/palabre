@@ -127,7 +127,8 @@
 
   // ---------- Formulaire principal ----------
   function remplirFormulaire(formulaire) {
-    formulaire.elements.nom.value = profil.nom;
+    formulaire.elements.prenom.value = profil.prenom || '';
+    formulaire.elements.nomFamille.value = profil.nomFamille || '';
     formulaire.elements.identifiant.value = profil.identifiant;
     formulaire.elements.ville.value = profil.ville;
     formulaire.elements.whatsapp.value = profil.whatsapp || '';
@@ -160,7 +161,8 @@
       bouton.disabled = true;
       try {
         const donnees = {
-          nom: formulaire.elements.nom.value,
+          prenom: formulaire.elements.prenom.value,
+          nomFamille: formulaire.elements.nomFamille.value,
           identifiant: formulaire.elements.identifiant.value,
           pays: formulaire.elements.pays.value,
           ville: formulaire.elements.ville.value,

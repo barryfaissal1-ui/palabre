@@ -9,6 +9,8 @@ const { pool } = require('../src/db/pool');
 let serveur;
 let base;
 const suffixe = Date.now();
+// Le même suffixe écrit en lettres : un nom de famille n'accepte pas les chiffres.
+const lettres = String(suffixe).replace(/\d/g, (chiffre) => 'abcdefghij'[chiffre]);
 const membres = {}; // awa, bintou, cheick (devs) et dao (client) : { cookie, identifiant, email, id }
 
 async function appel(chemin, { methode = 'GET', donnees, qui } = {}) {
@@ -40,7 +42,7 @@ test.before(async () => {
     const r = await appel('/api/auth/inscription', {
       methode: 'POST',
       // un nom unique à ce test (Zz + date) : la recherche par nom ne trouve que ces comptes
-      donnees: { type, nom: `${prenom} Zz${suffixe}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: `Ville${suffixe}` },
+      donnees: { type, prenom, nomFamille: `Zz${lettres}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: `Ville${suffixe}` },
     });
     assert.equal(r.statut, 201);
     const { rows } = await pool.query('SELECT id FROM utilisateurs WHERE email = $1', [email]);
@@ -73,6 +75,9 @@ test('nbProjetsVerifies : dans l\'aperçu d\'un membre, le profil et /auth/moi',
   const parIdentifiant = Object.fromEntries(amis.corps.amis.map((a) => [a.identifiant, a]));
   assert.equal(parIdentifiant[membres.bintou.identifiant].nbProjetsVerifies, 2); // ni le projet sans lien, ni le masqué
   assert.equal(parIdentifiant[membres.cheick.identifiant].nbProjetsVerifies, 0);
+  // L'aperçu d'un membre porte aussi son vrai prénom (« Aimé par… », « Écris à… »), pas un mot découpé dans le nom.
+  assert.equal(parIdentifiant[membres.bintou.identifiant].prenom, 'bintou');
+  assert.equal(parIdentifiant[membres.bintou.identifiant].nom, `bintou Zz${lettres}`);
 
   const profil = await appel(`/api/profils/${membres.bintou.identifiant}`);
   assert.equal(profil.corps.profil.nbProjetsVerifies, 2);
@@ -86,12 +91,12 @@ test('recherche par nom : au moins 2 lettres, devs et clients, sans email ni Wha
   assert.equal((await appel('/api/devs?q=a')).statut, 400);
   assert.equal((await appel('/api/devs?q=')).statut, 400);
 
-  const r = await appel(`/api/devs?q=${encodeURIComponent(`zz${suffixe}`)}`); // insensible à la casse (ILIKE)
+  const r = await appel(`/api/devs?q=${encodeURIComponent(`zz${lettres}`)}`); // insensible à la casse (ILIKE)
   assert.equal(r.statut, 200);
   assert.equal(r.corps.devs.length, 4); // les 3 devs et le client
   assert.ok(r.corps.devs.every((d) => !('email' in d) && !('whatsapp' in d)));
 
-  const debut = await appel(`/api/devs?q=${encodeURIComponent(`BINTOU zz${suffixe}`)}`);
+  const debut = await appel(`/api/devs?q=${encodeURIComponent(`BINTOU zz${lettres}`)}`);
   assert.deepEqual(debut.corps.devs.map((d) => d.identifiant), [membres.bintou.identifiant]);
   assert.equal(debut.corps.devs[0].nbProjetsVerifies, 2);
 });
@@ -107,12 +112,12 @@ test('recherche par nom : les accents ne comptent pas', async () => {
   const email = `preuve-faissal-${suffixe}@palabre.test`;
   const inscription = await appel('/api/auth/inscription', {
     methode: 'POST',
-    donnees: { type: 'dev', nom: `Faïssal Zé${suffixe}`, email, motDePasse: 'motdepasse1', pays: 'Mali', ville: 'Bamako' },
+    donnees: { type: 'dev', prenom: 'Faïssal', nomFamille: `Zé${lettres}`, email, motDePasse: 'motdepasse1', pays: 'Mali', ville: 'Bamako' },
   });
   assert.equal(inscription.statut, 201);
   membres.faissal = { cookie: '', identifiant: inscription.corps.utilisateur.identifiant, email };
 
-  for (const q of [`faissal ze${suffixe}`, `FAISSAL ZE${suffixe}`, `ssal zé${suffixe}`, `Faïssal Zé${suffixe}`]) {
+  for (const q of [`faissal ze${lettres}`, `FAISSAL ZE${lettres.toUpperCase()}`, `ssal zé${lettres}`, `Faïssal Zé${lettres}`]) {
     const r = await appel(`/api/devs?q=${encodeURIComponent(q)}`);
     assert.deepEqual(r.corps.devs.map((d) => d.identifiant), [membres.faissal.identifiant], q);
   }
@@ -162,7 +167,7 @@ test('suggestions : ni mes amis ni les demandes en cours, compétences en commun
   const [c1, c2, c3] = competences.map((c) => c.id);
   const creer = async (cle, ville, pays) => {
     const email = `preuve-${cle}-${suffixe}@palabre.test`;
-    const r = await appel('/api/auth/inscription', { methode: 'POST', donnees: { type: 'dev', nom: `${cle} Sugg${suffixe}`, email, motDePasse: 'motdepasse1', pays, ville } });
+    const r = await appel('/api/auth/inscription', { methode: 'POST', donnees: { type: 'dev', prenom: cle, nomFamille: `Sugg${lettres}`, email, motDePasse: 'motdepasse1', pays, ville } });
     assert.equal(r.statut, 201);
     const { rows } = await pool.query('SELECT id FROM utilisateurs WHERE email = $1', [email]);
     membres[cle] = { cookie: r.entetes.get('set-cookie').split(';')[0], identifiant: r.corps.utilisateur.identifiant, email, id: rows[0].id };
@@ -237,6 +242,7 @@ test('fil par auteur, aperçu des j\'aime et des 2 derniers commentaires', async
   assert.equal(vue.jaimeParMoi, true);
   // « Aimé par » : jamais moi-même, et un ami passe avant un inconnu.
   assert.equal(vue.aimePar.identifiant, membres.cheick.identifiant);
+  assert.equal(vue.aimePar.prenom, 'cheick');
   assert.equal(vue.nbCommentaires, 3);
   assert.deepEqual(vue.derniersCommentaires.map((c) => c.texte), ['Deux', 'Trois']); // les 2 derniers, dans l'ordre
   assert.equal(vue.derniersCommentaires[1].auteur.identifiant, membres.dao.identifiant);

@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS utilisateurs (
   id                SERIAL PRIMARY KEY,
   type              TEXT NOT NULL CHECK (type IN ('dev', 'client')),
   est_admin         BOOLEAN NOT NULL DEFAULT FALSE,
-  nom               TEXT NOT NULL CHECK (char_length(nom) BETWEEN 2 AND 80),
+  nom               TEXT NOT NULL CHECK (char_length(nom) BETWEEN 2 AND 101), -- le nom affiché : « Prénom Nom »
   identifiant       TEXT NOT NULL UNIQUE CHECK (identifiant ~ '^[a-z0-9-]{3,30}$'),
   email             TEXT NOT NULL UNIQUE CHECK (email = lower(email)),
   mot_de_passe_hash TEXT NOT NULL,
@@ -58,6 +58,19 @@ CREATE TABLE IF NOT EXISTS projets (
 );
 -- Un administrateur peut masquer un projet signalé (colonne ajoutée après la création de la table).
 ALTER TABLE projets ADD COLUMN IF NOT EXISTS masque BOOLEAN NOT NULL DEFAULT FALSE;
+-- Prénom et nom de famille, saisis séparément. La colonne « nom » reste : c'est le nom affiché (« Prénom Nom »),
+-- recalculé à chaque inscription ou modification du profil. Tout le reste du code continue de lire « nom ».
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS prenom TEXT;
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS nom_famille TEXT;
+-- Comptes créés avant cette séparation : le premier mot du nom devient le prénom, le reste le nom de famille.
+-- « WHERE prenom IS NULL » : ce remplissage ne se fait qu'une fois par compte, même si le fichier est rejoué.
+UPDATE utilisateurs
+   SET prenom = split_part(btrim(nom), ' ', 1),
+       nom_famille = btrim(substr(btrim(nom), length(split_part(btrim(nom), ' ', 1)) + 1))
+ WHERE prenom IS NULL;
+-- Deux champs de 50 caractères et une espace : le nom affiché peut maintenant atteindre 101 caractères.
+ALTER TABLE utilisateurs DROP CONSTRAINT IF EXISTS utilisateurs_nom_check;
+ALTER TABLE utilisateurs ADD CONSTRAINT utilisateurs_nom_check CHECK (char_length(nom) BETWEEN 2 AND 101);
 -- Photo de couverture du profil (numéro du fichier, comme avatar).
 ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS couverture TEXT;
 

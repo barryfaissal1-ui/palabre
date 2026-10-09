@@ -260,7 +260,7 @@
   async function bloquer(autre) {
     if (!(await confirmer(`Bloquer ${autre.nom} ? Cette personne ne pourra plus t'écrire ni voir vos conversations. Elle ne sera pas prévenue.`, { bouton: 'Bloquer', danger: true }))) return false;
     await api(`/messages/blocages/${encodeURIComponent(autre.identifiant)}`, { methode: 'POST', donnees: {} });
-    toast(`${prenom(autre.nom)} est bloqué.`);
+    toast(`${prenom(autre)} est bloqué.`);
     return true;
   }
 
@@ -294,7 +294,7 @@
         ? { texte: 'Débloquer', icone: 'valide', action: async () => {
           try {
             await api(`/messages/blocages/${encodeURIComponent(autre.identifiant)}`, { methode: 'DELETE', donnees: {} });
-            toast(`${prenom(autre.nom)} est débloqué.`);
+            toast(`${prenom(autre)} est débloqué.`);
             ouvrir(id);
           } catch (erreur) { toast(erreur.message, 'erreur'); }
         } }
@@ -320,7 +320,7 @@
     let bas;
     if (conversation.estDemandeRecue) {
       bas = el('div', { classe: 'zone-demande' }, [
-        el('p', {}, [el('strong', { texte: `${prenom(autre.nom)} veut t'écrire.` }), ' Vous n\'êtes pas amis. Tant que tu n\'acceptes pas, cette personne ne peut rien envoyer d\'autre et ne sait pas que tu as lu.']),
+        el('p', {}, [el('strong', { texte: `${prenom(autre)} veut t'écrire.` }), ' Vous n\'êtes pas amis. Tant que tu n\'acceptes pas, cette personne ne peut rien envoyer d\'autre et ne sait pas que tu as lu.']),
         el('div', { classe: 'profil-actions' }, [
           boutonAction('Accepter', 'bouton-principal', async () => {
             await api(`/messages/conversations/${id}/accepter`, { methode: 'POST', donnees: {} });
@@ -411,7 +411,7 @@
       const bas = info.peutEcrire
         ? zoneEcriture({
           avertissement: info.seraUneDemande
-            ? `Vous n'êtes pas encore amis : ton premier message sera une demande. Tu pourras continuer quand ${prenom(info.autre.nom)} l'aura acceptée.`
+            ? `Vous n'êtes pas encore amis : ton premier message sera une demande. Tu pourras continuer quand ${prenom(info.autre)} l'aura acceptée.`
             : null,
           envoyer: async (donnees) => {
             const reponse = await api(`/messages/avec/${encodeURIComponent(identifiant)}`, { methode: 'POST', donnees: { ...donnees, ...(demandeId ? { demandeId: Number(demandeId) } : {}) } });
@@ -423,7 +423,7 @@
         : el('p', { classe: 'zone-demande texte-discret', texte: info.raison });
       panneau.replaceChildren(
         enteteConversation(info.autre),
-        el('div', { classe: 'fil-messages' }, [etatVide('palabre', `Écris à ${prenom(info.autre.nom)}`, 'Présente-toi en quelques mots : c\'est le début de la conversation.')]),
+        el('div', { classe: 'fil-messages' }, [etatVide('palabre', `Écris à ${prenom(info.autre)}`, 'Présente-toi en quelques mots : c\'est le début de la conversation.')]),
         bas,
       );
       const champ = panneau.querySelector('textarea');

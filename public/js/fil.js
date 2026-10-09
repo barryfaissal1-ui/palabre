@@ -17,7 +17,7 @@
       section.querySelector('[data-rangee]').replaceChildren(...devs.map((dev) => el('li', {}, [
         el('a', { classe: 'dev-disponible', href: `/${dev.identifiant}`, 'aria-label': `Profil de ${dev.nom}` }, [
           avatar(dev, 'rangee'),
-          el('span', { classe: 'dev-prenom', texte: prenom(dev.nom) }),
+          el('span', { classe: 'dev-prenom', texte: prenom(dev) }),
         ]),
       ])));
       section.hidden = false;
@@ -34,7 +34,7 @@
     const bouton = formulaire.querySelector('button[type="submit"]');
     const champ = formulaire.elements.texte;
     formulaire.querySelector('[data-mon-avatar]').replaceChildren(avatar(moi, 'moyen'));
-    champ.placeholder = `Quoi de neuf, ${prenom(moi.nom)} ?`;
+    champ.placeholder = `Quoi de neuf, ${prenom(moi)} ?`;
 
     // Le champ compact s'agrandit dès qu'on touche dedans, qu'on y arrive au clavier ou qu'on y écrit.
     const ouvrir = () => formulaire.classList.add('ouvert');

@@ -205,12 +205,15 @@ async function creer() {
     // 1. Les comptes, puis leur profil (bio, compétences, disponibilité)
     const { corps: { competences } } = await appel('/competences');
     for (const [cle, type, nom, ville, pays, disponible, bio, noms] of MEMBRES) {
-      const inscription = await appel('/auth/inscription', { methode: 'POST', donnees: { type, nom, email: email(cle), motDePasse: MOT_DE_PASSE, pays, ville } });
+      // « Fatoumata Koné » → prénom « Fatoumata », nom de famille « Koné » : les deux champs de l'inscription.
+      const [prenom, ...reste] = nom.split(' ');
+      const nomFamille = reste.join(' ');
+      const inscription = await appel('/auth/inscription', { methode: 'POST', donnees: { type, prenom, nomFamille, email: email(cle), motDePasse: MOT_DE_PASSE, pays, ville } });
       const { rows } = await pool.query('SELECT id FROM utilisateurs WHERE email = $1', [email(cle)]);
       m[cle] = { cookie: inscription.entetes.get('set-cookie').split(';')[0], identifiant: inscription.corps.utilisateur.identifiant, id: rows[0].id };
       await appel('/profils/moi', {
         methode: 'PUT', qui: cle,
-        donnees: { nom, identifiant: m[cle].identifiant, pays, ville, bio, disponible, whatsapp: null, competences: competences.filter((c) => noms.includes(c.nom)).map((c) => c.id) },
+        donnees: { prenom, nomFamille, identifiant: m[cle].identifiant, pays, ville, bio, disponible, whatsapp: null, competences: competences.filter((c) => noms.includes(c.nom)).map((c) => c.id) },
       });
     }
     // Une couverture différente pour chaque développeur ; les clients gardent le motif tissé du site.

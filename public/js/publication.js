@@ -26,7 +26,7 @@
     const autres = nbJaime - 1 === 1 ? '1 autre' : `${nbJaime - 1} autres`;
     if (jaimeParMoi) return nbJaime === 1 ? 'Aimé par toi' : `Aimé par toi et ${autres}`;
     if (!aimePar) return `${nbJaime} j'aime`;
-    return nbJaime === 1 ? `Aimé par ${prenom(aimePar.nom)}` : `Aimé par ${prenom(aimePar.nom)} et ${autres}`;
+    return nbJaime === 1 ? `Aimé par ${prenom(aimePar)}` : `Aimé par ${prenom(aimePar)} et ${autres}`;
   }
 
   // ---------- Commentaires ----------

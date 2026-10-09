@@ -8,6 +8,8 @@ const { pool } = require('../src/db/pool');
 let serveur;
 let base;
 const suffixe = Date.now();
+// Le même suffixe écrit en lettres : un nom de famille n'accepte pas les chiffres.
+const lettres = String(suffixe).replace(/\d/g, (chiffre) => 'abcdefghij'[chiffre]);
 const membres = {}; // kadi, moussa (clients) ; awa, bintou, cheick, dao (devs)
 
 async function appel(chemin, { methode = 'GET', donnees, qui } = {}) {
@@ -72,7 +74,7 @@ test.before(async () => {
     const email = `demandes-${prenom}-${suffixe}@palabre.test`;
     const r = await appel('/api/auth/inscription', {
       methode: 'POST',
-      donnees: { type, nom: `${prenom} demandes${suffixe}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Ouagadougou' },
+      donnees: { type, prenom, nomFamille: `Demandes${lettres}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Ouagadougou' },
     });
     assert.equal(r.statut, 201);
     membres[prenom] = { cookie: r.entetes.get('set-cookie').split(';')[0], identifiant: r.corps.utilisateur.identifiant, email };

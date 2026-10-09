@@ -71,14 +71,24 @@
               <label for="type-client"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#demandes"></use></svg><strong>Client</strong><span>J'ai un projet</span></label>
             </fieldset>
 
-            <div class="champ">
-              <label for="nom">Nom complet</label>
-              <div class="ligne-saisie">
-                <input id="nom" name="nom" autocomplete="name" required minlength="2" maxlength="80">
-                <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#utilisateur"></use></svg>
-                <span class="trait"></span>
+            <div class="champs-cote-a-cote">
+              <div class="champ">
+                <label for="prenom">Prénom</label>
+                <div class="ligne-saisie">
+                  <input id="prenom" name="prenom" autocomplete="given-name" required maxlength="50">
+                  <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#utilisateur"></use></svg>
+                  <span class="trait"></span>
+                </div>
+                <p class="erreur-champ" data-erreur="prenom"></p>
               </div>
-              <p class="erreur-champ" data-erreur="nom"></p>
+              <div class="champ">
+                <label for="nom-famille">Nom</label>
+                <div class="ligne-saisie">
+                  <input id="nom-famille" name="nomFamille" autocomplete="family-name" required maxlength="50">
+                  <span class="trait"></span>
+                </div>
+                <p class="erreur-champ" data-erreur="nomFamille"></p>
+              </div>
             </div>
 
             <div class="champ">

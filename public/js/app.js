@@ -210,7 +210,9 @@
     return el('span', { classe: 'nom-membre' }, [nom, membre.nbProjetsVerifies > 0 ? badgeFeuille() : null]);
   }
 
-  const prenom = (nom) => nom.trim().split(/\s+/)[0];
+  // Le prénom d'un membre : celui qu'il a saisi à l'inscription (envoyé par le serveur avec chaque aperçu de membre).
+  // Secours si le prénom manque : le premier mot du nom.
+  const prenom = (membre) => membre.prenom || String(membre.nom || '').trim().split(/\s+/)[0];
 
   // « il y a 5 min », « il y a 3 h », puis la date au-delà d'une semaine.
   function dateRelative(iso) {

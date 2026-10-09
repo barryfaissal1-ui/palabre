@@ -52,10 +52,17 @@
 
       <section class="bloc-formulaire">
         <h2>Informations</h2>
-        <div class="champ">
-          <label for="nom">Nom complet</label>
-          <input id="nom" name="nom" autocomplete="name" required maxlength="80">
-          <p class="erreur-champ" data-erreur="nom"></p>
+        <div class="champs-cote-a-cote">
+          <div class="champ">
+            <label for="prenom">Prénom</label>
+            <input id="prenom" name="prenom" autocomplete="given-name" required maxlength="50">
+            <p class="erreur-champ" data-erreur="prenom"></p>
+          </div>
+          <div class="champ">
+            <label for="nom-famille">Nom</label>
+            <input id="nom-famille" name="nomFamille" autocomplete="family-name" required maxlength="50">
+            <p class="erreur-champ" data-erreur="nomFamille"></p>
+          </div>
         </div>
         <div class="champ">
           <label for="identifiant">Lien de ton profil</label>

@@ -43,6 +43,8 @@ Le navigateur ne parle jamais directement à la base : tout passe par le serveur
 
 **Inscription** (`POST /api/auth/inscription`) : les champs sont vérifiés (`src/utils/validation.js`), le mot de passe est transformé en empreinte bcrypt, un identifiant de profil est créé à partir du nom (« Barry Faïssal » devient `barry-faissal`, ou `barry-faissal-2` s'il est déjà pris), puis la session est ouverte.
 
+**Prénom et nom** : l'inscription et « Modifier mon profil » demandent deux champs, validés par `nomPropre()` (1 à 50 caractères, lettres avec accents, espaces, tirets et apostrophes). La base garde `prenom`, `nom_famille` et aussi `nom`, le nom affiché « Prénom Nom », recalculé à chaque fois : tout le reste du code continue de lire `nom`. Les comptes plus anciens ont été remplis une seule fois par le schéma (`UPDATE … WHERE prenom IS NULL`). Le vrai prénom est envoyé avec chaque aperçu de membre (`apercuMembre`), pour « Aimé par Awa » ou « Quoi de neuf, Awa ? ».
+
 **Connexion** (`POST /api/auth/connexion`) : on compare le mot de passe à l'empreinte. Si l'email n'existe pas, on compare quand même avec une fausse empreinte, pour que la réponse prenne le même temps.
 
 **Session** : un jeton JWT signé avec `JWT_SECRET`, valable 30 jours, rangé dans un cookie httpOnly. À chaque requête, `chargerUtilisateur` vérifie le jeton et retrouve le membre.

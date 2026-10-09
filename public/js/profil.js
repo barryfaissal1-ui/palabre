@@ -64,7 +64,7 @@
       if (profil.whatsapp) {
         zone.append(el('a', {
           classe: `bouton ${profil.amitie === 'aucune' ? 'bouton-contour' : 'bouton-principal'}`,
-          href: lienWhatsApp(profil.whatsapp, prenom(profil.nom)),
+          href: lienWhatsApp(profil.whatsapp, prenom(profil)),
           target: '_blank',
           rel: 'noopener',
         }, [icone('commentaire'), 'WhatsApp']));
@@ -162,7 +162,7 @@
         ? el('p', { classe: 'texte-discret', texte: 'Ajoute tes compétences pour que les clients te trouvent.' }) : null,
       // Le numéro n'est envoyé par le serveur qu'aux membres connectés.
       profil.whatsapp && !profil.estMoi
-        ? el('p', { classe: 'presentation-whatsapp avec-icone' }, [icone('commentaire'), 'WhatsApp : ', el('a', { href: lienWhatsApp(profil.whatsapp, prenom(profil.nom)), target: '_blank', rel: 'noopener', texte: profil.whatsapp })])
+        ? el('p', { classe: 'presentation-whatsapp avec-icone' }, [icone('commentaire'), 'WhatsApp : ', el('a', { href: lienWhatsApp(profil.whatsapp, prenom(profil)), target: '_blank', rel: 'noopener', texte: profil.whatsapp })])
         : null,
       el('dl', { classe: 'profil-chiffres' }, chiffres),
     ]);
@@ -179,7 +179,7 @@
     el('a', { classe: 'bouton bouton-principal', href: `/connexion?suite=/${profil.identifiant}`, texte: 'Se connecter' }));
 
   function ongletPublications(profil, moi) {
-    if (!moi) return invitation(profil, `Connecte-toi pour lire les publications ${deNom(prenom(profil.nom))}.`);
+    if (!moi) return invitation(profil, `Connecte-toi pour lire les publications ${deNom(prenom(profil))}.`);
     const zone = el('div', { classe: 'fil-social' });
     const etat = el('div', { role: 'status', hidden: true });
     const boutonPlus = el('button', { classe: 'bouton bouton-contour bouton-plein charger-plus', type: 'button', hidden: true, texte: 'Voir plus de publications' });
@@ -189,7 +189,7 @@
       vide: () => (profil.estMoi
         ? etatVide('palabre', 'Tu n\'as encore rien publié', 'Partage une idée, pose une question ou montre un projet.',
           el('a', { classe: 'bouton bouton-principal', href: '/fil' }, [icone('plus'), 'Publier dans le fil']))
-        : etatVide('palabre', 'Pas encore de publication', `${prenom(profil.nom)} n'a encore rien publié.`)),
+        : etatVide('palabre', 'Pas encore de publication', `${prenom(profil)} n'a encore rien publié.`)),
     });
     fil.charger({ depuisLeDebut: true });
     return el('div', {}, [zone, etat, boutonPlus]);
@@ -202,7 +202,7 @@
     if (!profil.projets.length) {
       return profil.estMoi
         ? etatVide('projets', 'Montre ce que tu sais faire', 'Ajoute tes projets réalisés : chaque lien qui répond ajoute un segment à ton anneau de preuve.', gerer)
-        : etatVide('projets', 'Pas encore de réalisation', `${prenom(profil.nom)} n'a pas encore ajouté de projet.`);
+        : etatVide('projets', 'Pas encore de réalisation', `${prenom(profil)} n'a pas encore ajouté de projet.`);
     }
     return el('div', { classe: 'panneau-marge' }, [
       el('div', { classe: 'grille-projets' }, profil.projets.map((p) => carteProjet(p, { avecDev: false }))),
@@ -235,7 +235,7 @@
         zone.replaceChildren(profil.estMoi
           ? etatVide('amis', 'Ton cercle commence ici', 'Ouvre le profil d\'un membre et touche « Ajouter en ami ».',
             el('a', { classe: 'bouton bouton-principal', href: '/chercher' }, [icone('recherche'), 'Trouver des développeurs']))
-          : etatVide('amis', 'Pas encore d\'ami', `${prenom(profil.nom)} n'a pas encore d'ami sur Palabre.`));
+          : etatVide('amis', 'Pas encore d\'ami', `${prenom(profil)} n'a pas encore d'ami sur Palabre.`));
         return;
       }
       zone.replaceChildren(...[

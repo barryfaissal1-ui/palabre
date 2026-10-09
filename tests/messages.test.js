@@ -8,6 +8,8 @@ const { pool } = require('../src/db/pool');
 let serveur;
 let base;
 const suffixe = Date.now();
+// Le même suffixe écrit en lettres : un nom de famille n'accepte pas les chiffres.
+const lettres = String(suffixe).replace(/\d/g, (chiffre) => 'abcdefghij'[chiffre]);
 const membres = {}; // cle → { cookie, identifiant, email, id }
 const emailsDirects = []; // comptes créés directement en base (destinataires du test des limites)
 
@@ -43,7 +45,7 @@ test.before(async () => {
     const email = `messages-${cle}-${suffixe}@palabre.test`;
     const r = await appel('/api/auth/inscription', {
       methode: 'POST',
-      donnees: { type, nom: `${cle} Msg${suffixe}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Koudougou' },
+      donnees: { type, prenom: cle, nomFamille: `Msg${lettres}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Koudougou' },
     });
     assert.equal(r.statut, 201);
     const { rows } = await pool.query('SELECT id FROM utilisateurs WHERE email = $1', [email]);
@@ -365,7 +367,7 @@ test('la page /messages/:id est servie, et « messages » ne peut pas être un i
   assert.match(await page.text(), /data-messagerie/);
   const profil = await appel('/api/profils/moi', {
     methode: 'PUT', qui: 'eve',
-    donnees: { nom: 'Eve Test', identifiant: 'messages', pays: 'Burkina Faso', ville: 'Koudougou' },
+    donnees: { prenom: 'Eve', nomFamille: 'Test', identifiant: 'messages', pays: 'Burkina Faso', ville: 'Koudougou' },
   });
   assert.equal(profil.statut, 400);
   assert.equal(profil.corps.champ, 'identifiant');

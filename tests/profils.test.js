@@ -32,7 +32,7 @@ test.before(async () => {
   base = `http://localhost:${serveur.address().port}`;
   const r = await appel('/api/auth/inscription', {
     methode: 'POST',
-    donnees: { type: 'dev', nom: 'Profil Test', email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Koudougou', whatsapp: '+22670000000' },
+    donnees: { type: 'dev', prenom: 'Profil', nomFamille: 'Test', email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Koudougou', whatsapp: '+22670000000' },
   });
   cookie = r.entetes.get('set-cookie').split(';')[0];
 });
@@ -48,7 +48,7 @@ test('modifier son profil et ses compétences', async () => {
   const ids = competences.slice(0, 3).map((c) => c.id);
   const r = await appel('/api/profils/moi', {
     methode: 'PUT',
-    donnees: { nom: 'Profil Test', identifiant, pays: 'Burkina Faso', ville: 'Koudougou', whatsapp: '+22670000000', bio: 'Bonjour', disponible: false, competences: [...ids, 999999] },
+    donnees: { prenom: 'Profil', nomFamille: 'Test', identifiant, pays: 'Burkina Faso', ville: 'Koudougou', whatsapp: '+22670000000', bio: 'Bonjour', disponible: false, competences: [...ids, 999999] },
   });
   assert.equal(r.statut, 200);
   assert.equal(r.corps.profil.identifiant, identifiant);
@@ -56,10 +56,41 @@ test('modifier son profil et ses compétences', async () => {
   assert.equal(r.corps.profil.competences.length, 3, 'la compétence inexistante est ignorée');
 });
 
+test('modifier son prénom et son nom : le nom affiché est recalculé', async () => {
+  const modifier = (prenom, nomFamille) => appel('/api/profils/moi', {
+    methode: 'PUT',
+    donnees: { prenom, nomFamille, identifiant, pays: 'Burkina Faso', ville: 'Koudougou', whatsapp: '+22670000000', bio: 'Bonjour', disponible: false, competences: [] },
+  });
+  const r = await modifier('  Marie-Claire ', 'N\'Diaye   Sow');
+  assert.equal(r.statut, 200);
+  assert.equal(r.corps.profil.nom, 'Marie-Claire N\'Diaye Sow'); // espaces en trop retirés
+  assert.equal(r.corps.profil.prenom, 'Marie-Claire');
+
+  // Les trois colonnes sont à jour, et le reste du site lit bien le nouveau nom.
+  const { rows: [ligne] } = await pool.query('SELECT nom, prenom, nom_famille FROM utilisateurs WHERE email = $1', [email]);
+  assert.deepEqual(ligne, { nom: 'Marie-Claire N\'Diaye Sow', prenom: 'Marie-Claire', nom_famille: 'N\'Diaye Sow' });
+  const profil = await appel(`/api/profils/${identifiant}`, { avecCookie: false });
+  assert.equal(profil.corps.profil.nom, 'Marie-Claire N\'Diaye Sow');
+  assert.equal(profil.corps.profil.prenom, 'Marie-Claire');
+  const moi = await appel('/api/auth/moi');
+  assert.equal(moi.corps.utilisateur.prenom, 'Marie-Claire');
+  assert.equal(moi.corps.utilisateur.nomFamille, 'N\'Diaye Sow');
+
+  // Même validation qu'à l'inscription, avec le nom du champ fautif.
+  for (const [prenom, nomFamille, champ] of [['', 'Test', 'prenom'], ['Profil', '', 'nomFamille'], ['Pr0fil', 'Test', 'prenom'], ['Profil', 'x'.repeat(51), 'nomFamille'], ['Profil', '<b>Test</b>', 'nomFamille']]) {
+    const refus = await modifier(prenom, nomFamille);
+    assert.equal(refus.statut, 400, `${prenom} / ${nomFamille}`);
+    assert.equal(refus.corps.champ, champ);
+  }
+  // Un refus ne change rien en base.
+  assert.equal((await appel('/api/auth/moi')).corps.utilisateur.nom, 'Marie-Claire N\'Diaye Sow');
+  assert.equal((await modifier('Profil', 'Test')).statut, 200);
+});
+
 test('identifiant réservé refusé', async () => {
   const r = await appel('/api/profils/moi', {
     methode: 'PUT',
-    donnees: { nom: 'Profil Test', identifiant: 'connexion', pays: 'Burkina Faso', ville: 'Koudougou' },
+    donnees: { prenom: 'Profil', nomFamille: 'Test', identifiant: 'connexion', pays: 'Burkina Faso', ville: 'Koudougou' },
   });
   assert.equal(r.statut, 400);
   assert.equal(r.corps.champ, 'identifiant');
@@ -105,7 +136,7 @@ test('un faux fichier image est refusé', async () => {
 });
 
 test('modifier un profil sans être connecté est refusé', async () => {
-  const r = await appel('/api/profils/moi', { methode: 'PUT', donnees: { nom: 'X' }, avecCookie: false });
+  const r = await appel('/api/profils/moi', { methode: 'PUT', donnees: { prenom: 'X', nomFamille: 'Y' }, avecCookie: false });
   assert.equal(r.statut, 401);
 });
 
