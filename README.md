@@ -84,6 +84,7 @@ tests/                 tests automatiques
 - [x] Tableau de bord administrateur `/admin` : statistiques, signalements, projets proposés pour Facebook
 - [x] Calculateur « Combien coûte mon projet ? » `/calculateur` (grille de prix : `public/js/grille-prix.js`)
 - [x] Refonte du design, étape A : système de design (icônes Lucide, ombres, animations, toasts, états vides illustrés, squelettes de chargement, mode sombre)
+- [x] Prénom et nom saisis séparément (inscription et profil)
 - [x] Palabre Messages : messagerie privée (amis, client et dev, demandes de message, blocage, signalement, « Vu »), sans WebSocket
 - [x] Version ordinateur et tablette en 3 colonnes (menu, fil, panneau), recherche dans l'en-tête
 - [x] Contenu de démonstration (`npm run demo`, comptes dans `docs/COMPTES-DEMO.md`)

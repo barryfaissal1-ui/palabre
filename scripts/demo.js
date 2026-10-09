@@ -307,7 +307,9 @@ async function creer() {
     for (const { identifiant } of vrais) {
       for (const cle of ['awa', 'bintou']) await poster('/amis/demandes', cle, { identifiant }).catch(() => {});
     }
-    return { membres: MEMBRES.length, publications: publications.length, vrais: vrais.length };
+    // Les sessions ouvertes à l'inscription servent ensuite aux conversations : inutile de se reconnecter.
+    const sessions = Object.fromEntries(Object.entries(m).map(([cle, membre]) => [cle, membre.cookie]));
+    return { membres: MEMBRES.length, publications: publications.length, vrais: vrais.length, sessions };
   } finally {
     serveur.close();
   }
@@ -347,7 +349,10 @@ const CONVERSATIONS = [
   ] },
 ];
 
-async function creerConversations() {
+// sessions : les cookies des comptes qui viennent d'être créés. Sans eux (comptes créés lors d'un lancement
+// précédent), le script se connecte. On évite ainsi de dépasser la limite de 20 inscriptions et connexions
+// par quart d'heure quand tout est créé d'un coup.
+async function creerConversations(sessions = null) {
   const { rows: [deja] } = await pool.query(
     `SELECT count(*)::int AS nb FROM conversations c
        JOIN utilisateurs a ON a.id = c.membre_a JOIN utilisateurs b ON b.id = c.membre_b
@@ -358,7 +363,7 @@ async function creerConversations() {
 
   const serveur = creerApp().listen(0);
   const base = `http://localhost:${serveur.address().port}`;
-  const cookies = {};
+  const cookies = { ...sessions };
   const appel = async (chemin, qui, donnees) => {
     const reponse = await fetch(`${base}/api${chemin}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(qui ? { Cookie: cookies[qui] } : {}) }, body: JSON.stringify(donnees) });
     const corps = await reponse.json().catch(() => ({}));
@@ -367,6 +372,7 @@ async function creerConversations() {
   };
   try {
     for (const cle of new Set(CONVERSATIONS.flatMap((c) => c.entre))) {
+      if (cookies[cle]) continue;
       const connexion = await appel('/auth/connexion', null, { email: email(cle), motDePasse: MOT_DE_PASSE });
       cookies[cle] = connexion.entetes.get('set-cookie').split(';')[0];
     }
@@ -416,7 +422,7 @@ async function main() {
     return;
   }
   const bilan = await creer();
-  const conversations = await creerConversations();
+  const conversations = await creerConversations(bilan ? bilan.sessions : null);
   if (conversations) console.log(`${conversations} conversations privées de démonstration ajoutées (dont une demande de message en attente).`);
   if (!bilan) {
     console.log(`Les comptes de démonstration existent déjà : ${conversations ? 'seules les conversations ont été ajoutées' : 'rien n\'a été modifié'}.\nPour repartir de zéro : npm run demo -- retirer, puis npm run demo`);
