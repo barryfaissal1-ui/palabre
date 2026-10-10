@@ -7,6 +7,8 @@ const { exigerConnexion, exigerClient, exigerDev, exigerProfilComplet } = requir
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
 const { notifier, court } = require('../utils/notifications');
 
+const { creerGroupeEquipe, entrerDansLeGroupe } = require('../utils/groupes');
+
 const router = express.Router();
 const PAR_PAGE = 10;
 const MAX_INVITES = 5;
@@ -78,6 +80,14 @@ async function lirePropositions(condition, valeurs, moi, pourClient) {
       ORDER BY u.nom`,
     [idsEquipes],
   )).rows;
+  // Le groupe de discussion de chaque équipe, seulement si celui qui regarde en est membre actuel
+  // (un membre de l'équipe, ou le client après son choix) : la page lui montre « Discussion de l'équipe ».
+  const groupesVisibles = idsEquipes.length === 0 ? [] : (await db.query(
+    `SELECT c.equipe_id, c.id FROM conversations c
+       JOIN conversation_membres cm ON cm.conversation_id = c.id AND cm.membre_id = $2 AND cm.quitte_le IS NULL
+      WHERE c.equipe_id = ANY($1::int[])`,
+    [idsEquipes, moi.id],
+  )).rows;
 
   return rows.map((ligne) => {
     const proposition = {
@@ -99,6 +109,7 @@ async function lirePropositions(condition, valeurs, moi, pourClient) {
       else if (moiDansEquipe?.statut === 'accepte') proposition.maPlace = 'membre';
       proposition.equipe = {
         id: ligne.equipe_id,
+        groupeId: (groupesVisibles.find((g) => g.equipe_id === ligne.equipe_id) || {}).id || null,
         membres: liste
           .filter((m) => !pourClient || m.statut === 'accepte')
           .map((m) => ({ ...apercuMembre(m), role: m.role, statut: m.statut, estChef: m.dev_id === ligne.chef_id }))
@@ -313,6 +324,8 @@ router.post('/:id/equipes', exigerDev, exigerProfilComplet, limitePropositions, 
       if (err.code === '23505') throw new v.ErreurValidation('Tu as déjà une équipe pour cette demande.');
       throw err;
     }
+    // Le groupe de discussion de l'équipe naît avec elle, dans la même transaction (voir src/utils/groupes.js).
+    await creerGroupeEquipe(client, { equipeId, chef: moi, titreDemande: demande.titre });
     // Le chef fait partie de l'équipe d'office.
     await client.query(
       'INSERT INTO equipe_membres (equipe_id, dev_id, role, statut) VALUES ($1, $2, $3, \'accepte\')',
@@ -380,6 +393,10 @@ router.post('/:id/choisir', exigerClient, async (req, res) => {
       await notifier(client, gagnant.dev_id, 'proposition_acceptee',
         `Bonne nouvelle : ${moi.nom} a choisi ${choisie.dev_id ? 'ta proposition' : 'la proposition de ton équipe'} pour « ${court(demande.titre)} ».`,
         `/demande?id=${demande.id}`, { acteur: moi });
+    }
+    // Une équipe choisie : le client entre dans son groupe de discussion, et un message l'annonce.
+    if (choisie.equipe_id) {
+      await entrerDansLeGroupe(client, choisie.equipe_id, moi, `${moi.nom}, qui a publié la demande, a choisi l'équipe et rejoint le groupe.`);
     }
   });
 

@@ -11,7 +11,7 @@ router.get('/:id', async (req, res, next) => {
 
   // La même requête dit si l'image est la photo d'un message privé, et de quelle conversation.
   const { rows } = await db.query(
-    `SELECT f.type_mime, f.donnees, m.id AS message_id, m.masque, c.membre_a, c.membre_b
+    `SELECT f.type_mime, f.donnees, m.id AS message_id, m.masque, c.id AS conversation_id, c.type, c.membre_a, c.membre_b
        FROM fichiers f
        LEFT JOIN messages m ON m.fichier_id = f.id
        LEFT JOIN conversations c ON c.id = m.conversation_id
@@ -27,7 +27,17 @@ router.get('/:id', async (req, res, next) => {
   if (fichier.message_id) {
     await new Promise((resolve, reject) => { chargerUtilisateur(req, res, (err) => (err ? reject(err) : resolve())); });
     const moi = req.utilisateur;
-    const dedans = moi && moi.email_confirme_le && [fichier.membre_a, fichier.membre_b].includes(moi.id);
+    let dedans = Boolean(moi && moi.email_confirme_le);
+    if (dedans && fichier.type === 'groupe') {
+      // Photo envoyée dans un groupe : seulement pour ses membres ACTUELS (quelqu'un qui a quitté ne la voit plus).
+      const { rowCount } = await db.query(
+        'SELECT 1 FROM conversation_membres WHERE conversation_id = $1 AND membre_id = $2 AND quitte_le IS NULL',
+        [fichier.conversation_id, moi.id],
+      );
+      dedans = rowCount > 0;
+    } else if (dedans) {
+      dedans = [fichier.membre_a, fichier.membre_b].includes(moi.id);
+    }
     if (!dedans || fichier.masque) return res.status(404).end();
     // « private » : le navigateur du membre peut la garder, pas un cache partagé (proxy d'opérateur, cybercafé).
     res.set({ 'Content-Type': fichier.type_mime, 'Cache-Control': 'private, max-age=31536000, immutable' });

@@ -25,7 +25,7 @@ Si tu ne dois en retenir que deux, ce sont ceux-là. Dès la connexion, ils ont 
 | Amis (`/amis`) | 5 amis, **2 demandes reçues** (Mariam, Aminata) à accepter ou refuser, 1 demande envoyée (Oumar) à annuler |
 | Fil | 2 publications à lui avec j'aime et commentaires ; publier une idée, une question, un projet, une photo, une vidéo ; aimer, commenter, signaler |
 | Demandes | une proposition **en attente** (l'auberge), une **acceptée** sur une demande terminée (la caisse), une **non retenue** (la paie) ; proposer seul sur une demande ouverte |
-| Équipe éclair | **une invitation à accepter ou refuser** (équipe de Fatoumata, livraison) ; en former une lui-même avec ses 5 amis sur une demande ouverte |
+| Équipe éclair | **une invitation à accepter ou refuser** (équipe de Fatoumata, livraison) : l'accepter le fait entrer dans le **groupe de discussion** de l'équipe ; en former une lui-même avec ses 5 amis sur une demande ouverte |
 | Messages | une conversation avec Awa (amie) **à lire**, une avec Rasmata (cliente), et **une demande de message** d'Ibrahim, un inconnu (accepter, refuser, bloquer) |
 | Profil | couverture, 4 projets (3 au lien vérifié : anneau de preuve et badge « Profil prouvé »), 1 avis 5 étoiles, onglets Publications / Projets / Avis / Amis |
 | Projets (`/projets`) | ajouter un projet, faire vérifier un lien, proposer un projet pour Facebook |
@@ -69,13 +69,13 @@ Une fois ces actions faites, elles ne sont plus « à faire ». Pour tout remett
 | Awa Ouédraogo | `awa@demo.palabre.dev` | Koudougou, Burkina Faso | le fil, ses amis, les suggestions « Devs à découvrir » |
 | Bintou Traoré | `bintou@demo.palabre.dev` | Koudougou, Burkina Faso | un avis 5 étoiles, une photo de couverture, 6 projets vérifiés |
 | Cheick Diallo | `cheick@demo.palabre.dev` | Ouagadougou, Burkina Faso | une proposition refusée |
-| Fatoumata Koné | `fatou@demo.palabre.dev` | Abidjan, Côte d'Ivoire | l'anneau de preuve plein (11 projets), cheffe d'une équipe éclair retenue |
+| Fatoumata Koné | `fatou@demo.palabre.dev` | Abidjan, Côte d'Ivoire | l'anneau de preuve plein (11 projets), cheffe d'une équipe éclair retenue, **le groupe de discussion de son équipe** dans `/messages` |
 | Idrissa Sawadogo | `idrissa@demo.palabre.dev` | Bobo-Dioulasso, Burkina Faso | un débutant : aucun projet, donc pas d'anneau |
 | Mariam Sow | `mariam@demo.palabre.dev` | Dakar, Sénégal | |
 | Kofi Mensah | `kofi@demo.palabre.dev` | Lomé, Togo | un avis 5 étoiles, 8 projets vérifiés |
 | Oumar Bah | `oumar@demo.palabre.dev` | Bamako, Mali | un dev « occupé » (absent de « Disponibles maintenant ») |
 | Aminata Diop | `aminata@demo.palabre.dev` | Thiès, Sénégal | |
-| Yao Kouassi | `yao@demo.palabre.dev` | Bouaké, Côte d'Ivoire | membre de l'équipe éclair de Fatoumata |
+| Yao Kouassi | `yao@demo.palabre.dev` | Bouaké, Côte d'Ivoire | membre de l'équipe éclair de Fatoumata, et de son groupe de discussion |
 | Nadège Mbarga | `nadege@demo.palabre.dev` | Douala, Cameroun | |
 | Ibrahim Maïga | `ibrahim@demo.palabre.dev` | Niamey, Niger | une proposition en attente |
 
@@ -85,7 +85,7 @@ Une fois ces actions faites, elles ne sont plus « à faire ». Pour tout remett
 | --- | --- | --- | --- |
 | Salimata Dao | `salimata@demo.palabre.dev` | Ouagadougou, Burkina Faso | une demande terminée avec avis, une demande ouverte avec 2 propositions à départager |
 | Pascal Zongo | `pascal@demo.palabre.dev` | Koudougou, Burkina Faso | une demande terminée avec avis, une demande ouverte sans proposition |
-| Esther Akakpo | `esther@demo.palabre.dev` | Cotonou, Bénin | une demande attribuée à une équipe éclair |
+| Esther Akakpo | `esther@demo.palabre.dev` | Cotonou, Bénin | une demande attribuée à une équipe éclair, dont elle a rejoint le groupe de discussion |
 
 ## Ce que contient la démonstration
 

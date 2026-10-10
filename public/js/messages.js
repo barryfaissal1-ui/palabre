@@ -1,6 +1,7 @@
 // Palabre Messages : la liste des conversations et la conversation ouverte, dans la même page.
 //   /messages                 la liste (et, sur ordinateur, la dernière conversation choisie à droite)
 //   /messages/12              la conversation n° 12
+//   /messages/groupe/34       le groupe n° 34 (la discussion d'une équipe éclair)
 //   /messages?avec=awa-dev    écrire à un membre depuis son profil ou depuis une proposition
 //
 // Pas de WebSocket : la page redemande au serveur « quoi de neuf depuis le message n° X ? » toutes les 5 secondes,
@@ -44,10 +45,18 @@
   }
 
   // ---------- La liste des conversations ----------
+  const adresseDe = (conversation) => (conversation.type === 'groupe' ? `/messages/groupe/${conversation.id}` : `/messages/${conversation.id}`);
+  // Un groupe se reconnaît à ses avatars empilés (trois au plus).
+  function avatarsEmpiles(membres, taille = 'mini') {
+    return el('span', { classe: `avatars-empiles avatars-${Math.max(1, Math.min(3, membres.length))}`, 'aria-hidden': 'true' }, membres.slice(0, 3).map((m) => avatar(m, taille)));
+  }
+
   function ligneConversation(conversation) {
+    const groupe = conversation.type === 'groupe';
     const dernier = conversation.dernierMessage;
     let apercu = '';
-    if (dernier) apercu = `${dernier.estMoi ? 'Toi : ' : ''}${dernier.texte}`;
+    if (dernier && groupe) apercu = dernier.systeme ? dernier.texte : `${dernier.estMoi ? 'Toi' : dernier.prenom} : ${dernier.texte}`;
+    else if (dernier) apercu = `${dernier.estMoi ? 'Toi : ' : ''}${dernier.texte}`;
     const cote = el('span', { classe: 'conversation-cote' }, [
       dernier ? el('span', { texte: quand(dernier.creeLe) }) : null,
       conversation.nonLus
@@ -56,12 +65,12 @@
       conversation.enAttente ? el('span', { classe: 'etiquette-attente', texte: 'En attente' }) : null,
     ]);
     const lien = el('a', {
-      classe: `conversation-item${conversation.nonLus ? ' non-lue' : ''}`, href: `/messages/${conversation.id}`,
+      classe: `conversation-item${conversation.nonLus ? ' non-lue' : ''}`, href: adresseDe(conversation),
       'aria-current': ouverte && ouverte.id === conversation.id ? 'true' : null,
     }, [
-      avatar(conversation.autre, 'moyen'),
+      groupe ? avatarsEmpiles(conversation.membres) : avatar(conversation.autre, 'moyen'),
       el('span', { classe: 'conversation-texte' }, [
-        nomMembre(conversation.autre, { lien: false }),
+        groupe ? el('strong', { classe: 'conversation-titre', texte: conversation.titre }) : nomMembre(conversation.autre, { lien: false }),
         el('span', { classe: 'conversation-apercu' }, [dernier && dernier.aImage ? icone('image') : null, apercu]),
       ]),
       cote,
@@ -69,14 +78,14 @@
     lien.addEventListener('click', (evenement) => {
       if (evenement.ctrlKey || evenement.metaKey || evenement.shiftKey) return; // nouvel onglet
       evenement.preventDefault();
-      aller(`/messages/${conversation.id}`);
+      aller(adresseDe(conversation));
     });
     return el('li', {}, [lien]);
   }
 
   function dessinerListe() {
     const filtre = recherche.value.trim().toLowerCase();
-    const visibles = filtre ? conversations.filter((c) => c.autre.nom.toLowerCase().includes(filtre)) : conversations;
+    const visibles = filtre ? conversations.filter((c) => (c.type === 'groupe' ? c.titre : c.autre.nom).toLowerCase().includes(filtre)) : conversations;
     zoneListe.replaceChildren(...visibles.map(ligneConversation));
     etatListe.hidden = visibles.length > 0;
     if (visibles.length > 0) return;
@@ -95,7 +104,8 @@
       const reponse = await api(`/messages/conversations?onglet=${onglet}`);
       fini();
       if (demande !== onglet) return; // l'onglet a changé pendant le chargement
-      conversations = reponse.conversations;
+      // Conversations privées et groupes d'équipe, mêlés : la plus récente en premier.
+      conversations = [...reponse.conversations, ...(reponse.groupes || [])].sort((a, b) => new Date(b.actifLe) - new Date(a.actifLe));
       const pastille = document.querySelector('[data-nb-demandes]');
       pastille.textContent = String(reponse.nbDemandes);
       pastille.hidden = reponse.nbDemandes === 0;
@@ -111,7 +121,12 @@
 
   // ---------- Les messages d'une conversation ----------
   function bulle(message) {
-    return el('div', { classe: `bulle ${message.estMoi ? 'bulle-moi' : 'bulle-autre'}`, 'data-message': message.id }, [
+    // Message « système » d'un groupe (« Awa a rejoint l'équipe ») : une ligne discrète au centre, pas une bulle.
+    if (message.systeme) return el('p', { classe: 'message-systeme', 'data-message': message.id, texte: message.texte });
+    // Dans un groupe, la bulle d'un autre dit de qui elle vient.
+    const signee = ouverte && ouverte.estGroupe && !message.estMoi && message.auteur;
+    return el('div', { classe: `bulle ${message.estMoi ? 'bulle-moi' : 'bulle-autre'}${signee ? ' bulle-signee' : ''}`, 'data-message': message.id }, [
+      signee ? el('a', { classe: 'bulle-auteur', href: `/${message.auteur.identifiant}`, texte: message.auteur.nom }) : null,
       message.image
         ? el('a', { href: message.image, target: '_blank', rel: 'noopener', 'aria-label': 'Ouvrir la photo' }, [el('img', { src: message.image, alt: 'Photo jointe au message', loading: 'lazy', decoding: 'async' })])
         : null,
@@ -130,6 +145,7 @@
       ouverte.dernierJour = message.creeLe;
       ouverte.zone.append(bulle(message));
       ouverte.dernierId = Math.max(ouverte.dernierId, message.id);
+      if (message.systeme) return;
       if (message.estMoi) ouverte.monDernierId = message.id;
       else ouverte.dernierDeLAutre = message.id;
     });
@@ -145,7 +161,13 @@
   async function marquerLu() {
     if (!ouverte || !ouverte.id || ouverte.donnees.estDemandeRecue || document.hidden) return;
     try {
-      const { nonLus } = await api(`/messages/conversations/${ouverte.id}/lu`, { methode: 'POST', donnees: {} });
+      let nonLus;
+      if (ouverte.estGroupe) {
+        await api(`/messages/groupes/${ouverte.id}/lu`, { methode: 'POST', donnees: {} });
+        ({ nonLus } = await api('/messages/non-lus'));
+      } else {
+        ({ nonLus } = await api(`/messages/conversations/${ouverte.id}/lu`, { methode: 'POST', donnees: {} }));
+      }
       window.Palabre.majPastilleMessages(nonLus);
       const dansLaListe = conversations.find((c) => c.id === ouverte.id);
       if (dansLaListe && dansLaListe.nonLus) {
@@ -393,6 +415,174 @@
     demarrerConversation();
   }
 
+  // ---------- Ouvrir un groupe (la discussion d'une équipe éclair) ----------
+  const roleDe = (membre) => [membre.chef ? 'Chef d\'équipe' : null, membre.estClient ? 'Client' : null, membre.roleEquipe].filter(Boolean).join(', ');
+
+  // Le panneau « Membres » : qui est là, et son rôle dans l'équipe.
+  function montrerMembres(groupe) {
+    const fermer = el('button', { classe: 'bouton bouton-principal', type: 'button', texte: 'Fermer' });
+    const dialogue = el('dialog', { classe: 'dialogue dialogue-membres', 'aria-labelledby': 'membres-titre' }, [
+      el('h2', { id: 'membres-titre', texte: `${groupe.membres.length} membre${groupe.membres.length > 1 ? 's' : ''}` }),
+      el('ul', { classe: 'liste-membres-groupe' }, groupe.membres.map((membre) => el('li', {}, [
+        el('a', { classe: 'lien-avatar', href: `/${membre.identifiant}`, 'aria-label': `Profil de ${membre.nom}` }, [avatar(membre, 'moyen')]),
+        el('div', {}, [nomMembre(membre), el('p', { classe: 'texte-discret', texte: `${roleDe(membre) || 'Membre'}${membre.estMoi ? ' (toi)' : ''}` })]),
+      ]))),
+      el('div', { classe: 'dialogue-actions' }, [fermer]),
+    ]);
+    fermer.addEventListener('click', () => dialogue.close());
+    dialogue.addEventListener('close', () => dialogue.remove());
+    document.body.append(dialogue);
+    dialogue.showModal();
+  }
+
+  // Renommer le groupe : réservé au chef (le serveur le vérifie aussi).
+  function renommer(groupe) {
+    const champ = el('input', { id: 'titre-groupe', type: 'text', maxlength: '80', required: true });
+    champ.value = groupe.titre;
+    const erreurZone = el('p', { classe: 'erreur-champ', role: 'alert' });
+    const annuler = el('button', { classe: 'bouton bouton-lien', type: 'button', texte: 'Annuler' });
+    const valider = el('button', { classe: 'bouton bouton-principal', type: 'submit', texte: 'Enregistrer' });
+    const formulaire = el('form', { novalidate: true }, [
+      el('h2', { id: 'renommer-titre', texte: 'Nom du groupe' }),
+      el('div', { classe: 'champ' }, [el('label', { for: 'titre-groupe', texte: 'Nom' }), champ, erreurZone]),
+      el('div', { classe: 'dialogue-actions' }, [annuler, valider]),
+    ]);
+    const dialogue = el('dialog', { classe: 'dialogue', 'aria-labelledby': 'renommer-titre' }, [formulaire]);
+    annuler.addEventListener('click', () => dialogue.close());
+    dialogue.addEventListener('close', () => dialogue.remove());
+    formulaire.addEventListener('submit', async (evenement) => {
+      evenement.preventDefault();
+      valider.disabled = true;
+      try {
+        await api(`/messages/groupes/${groupe.id}`, { methode: 'PUT', donnees: { titre: champ.value } });
+        dialogue.close();
+        toast('Groupe renommé.');
+        chargerListe();
+        ouvrirGroupe(groupe.id);
+      } catch (erreur) {
+        erreurZone.textContent = erreur.message;
+        valider.disabled = false;
+      }
+    });
+    document.body.append(dialogue);
+    dialogue.showModal();
+    champ.select();
+  }
+
+  async function ouvrirGroupe(id) {
+    arreterConversation();
+    document.body.classList.add('conversation-ouverte');
+    panneau.replaceChildren();
+    const fini = chargement(panneau, 2);
+    let reponse;
+    try {
+      reponse = await api(`/messages/groupes/${id}`);
+    } catch (erreur) {
+      fini();
+      panneau.replaceChildren(etatVide('calme', 'Groupe introuvable', erreur.statut === 404 ? 'Il n\'existe pas, ou tu n\'en fais plus partie.' : erreur.message,
+        el('a', { classe: 'bouton bouton-principal', href: '/messages', texte: 'Toutes mes conversations' })));
+      return;
+    }
+    fini();
+    const { groupe } = reponse;
+    document.title = `${groupe.titre} – Messages – Palabre`;
+    const zone = el('div', { classe: 'fil-messages', role: 'log', 'aria-label': `Messages du groupe ${groupe.titre}`, tabindex: '0' });
+    const mentionVu = el('p', { classe: 'mention-vu', hidden: true });
+    ouverte = { id, estGroupe: true, donnees: groupe, zone, mentionVu, dernierId: 0, monDernierId: 0, dernierDeLAutre: 0, dernierJour: null, vuJusqua: 0 };
+
+    const menu = menuOptions(() => [
+      { texte: 'Membres', icone: 'amis', action: () => montrerMembres(groupe) },
+      groupe.demande ? { texte: 'Voir la demande', icone: 'demandes', action: () => { window.location.href = `/demande?id=${groupe.demande.id}`; } } : null,
+      groupe.jeSuisChef && !groupe.ferme ? { texte: 'Renommer le groupe', icone: 'modifier', action: () => renommer(groupe) } : null,
+      { texte: groupe.sourdine ? 'Réactiver les notifications' : 'Mettre en sourdine', icone: 'cloche', action: async () => {
+        try {
+          await api(`/messages/groupes/${id}/sourdine`, { methode: 'POST', donnees: { active: !groupe.sourdine } });
+          groupe.sourdine = !groupe.sourdine;
+          toast(groupe.sourdine ? 'Groupe en sourdine : plus de notification pour lui.' : 'Notifications du groupe réactivées.');
+        } catch (erreur) { toast(erreur.message, 'erreur'); }
+      } },
+      { texte: 'Signaler', icone: 'signaler', action: () => {
+        if (ouverte.dernierDeLAutre) signaler('message', ouverte.dernierDeLAutre);
+        else toast('Il n\'y a aucun message d\'un autre membre à signaler.', 'erreur');
+      } },
+      // Le chef ne quitte pas : il dissout l'équipe depuis la page de la demande.
+      groupe.jeSuisChef && !groupe.ferme ? null : { texte: 'Quitter le groupe', icone: 'deconnexion', danger: true, action: async () => {
+        const moiDansLeGroupe = groupe.membres.find((m) => m.estMoi);
+        const question = groupe.ferme || (moiDansLeGroupe && moiDansLeGroupe.estClient)
+          ? 'Quitter ce groupe ? Tu ne verras plus ses messages.'
+          : 'Quitter ce groupe ? Tu ne verras plus ses messages. Si le client n\'a pas encore choisi, tu quittes aussi l\'équipe.';
+        if (!(await confirmer(question, { bouton: 'Quitter', danger: true }))) return;
+        try {
+          const { quitteLEquipe } = await api(`/messages/groupes/${id}/quitter`, { methode: 'POST', donnees: {} });
+          toast(quitteLEquipe ? 'Tu as quitté l\'équipe et son groupe.' : 'Tu as quitté le groupe.');
+          chargerListe();
+          aller('/messages');
+        } catch (erreur) { toast(erreur.message, 'erreur'); }
+      } },
+    ]);
+
+    const retour = el('button', { classe: 'bouton-icone bouton-retour', type: 'button', 'aria-label': 'Retour à la liste des conversations' }, [icone('fleche-gauche')]);
+    retour.addEventListener('click', () => aller('/messages'));
+    const ouvrirMembres = el('button', { classe: 'entete-groupe', type: 'button', 'aria-label': `${groupe.titre}, ${groupe.membres.length} membres : voir les membres` }, [
+      avatarsEmpiles(groupe.membres.filter((m) => !m.estMoi).concat(groupe.membres.filter((m) => m.estMoi)), 'mini'),
+      el('span', { classe: 'conversation-qui' }, [
+        el('strong', { classe: 'conversation-titre', texte: groupe.titre }),
+        el('span', { classe: 'texte-discret', texte: `${groupe.membres.length} membre${groupe.membres.length > 1 ? 's' : ''}${groupe.ferme ? ', équipe dissoute' : ''}` }),
+      ]),
+    ]);
+    ouvrirMembres.addEventListener('click', () => montrerMembres(groupe));
+
+    const bas = groupe.peutEcrire
+      ? zoneEcriture({
+        envoyer: async (donnees) => {
+          const { message } = await api(`/messages/groupes/${id}`, { methode: 'POST', donnees });
+          ajouterMessages([message]);
+          allerEnBas();
+          chargerListe();
+        },
+      })
+      : el('p', { classe: 'zone-demande texte-discret', texte: groupe.raison });
+
+    const plusAnciens = el('button', { classe: 'bouton bouton-contour bouton-compact plus-anciens', type: 'button', texte: 'Voir les messages précédents', hidden: !reponse.precedent });
+    let precedent = reponse.precedent;
+    plusAnciens.addEventListener('click', async () => {
+      plusAnciens.disabled = true;
+      try {
+        const suite = await api(`/messages/groupes/${id}?avant=${precedent}`);
+        const hauteurAvant = zone.scrollHeight;
+        const morceau = document.createDocumentFragment();
+        let jour = null;
+        suite.messages.forEach((message) => {
+          if (!jour || !memeJour(new Date(jour), new Date(message.creeLe))) morceau.append(el('p', { classe: 'jour-messages', texte: nomDuJour(message.creeLe) }));
+          jour = message.creeLe;
+          morceau.append(bulle(message));
+        });
+        plusAnciens.after(morceau);
+        zone.scrollTop += zone.scrollHeight - hauteurAvant;
+        precedent = suite.precedent;
+        plusAnciens.hidden = !precedent;
+      } catch (erreur) {
+        toast(erreur.message, 'erreur');
+      }
+      plusAnciens.disabled = false;
+    });
+
+    zone.append(plusAnciens);
+    ajouterMessages(reponse.messages);
+    panneau.replaceChildren(...[
+      el('header', { classe: 'conversation-entete' }, [retour, ouvrirMembres, menu]),
+      groupe.demande
+        ? el('a', { classe: 'bandeau-demande', href: `/demande?id=${groupe.demande.id}` }, [icone('demandes'), el('span', {}, ['Équipe éclair pour la demande : ', el('strong', { texte: groupe.demande.titre })])])
+        : null,
+      zone,
+      bas,
+    ].filter(Boolean));
+    allerEnBas();
+    dessinerListe();
+    marquerLu();
+    demarrerConversation();
+  }
+
   // Écrire à un membre avec qui je n'ai pas encore de conversation (depuis son profil ou une proposition).
   async function ouvrirAvec(identifiant, demandeId) {
     arreterConversation();
@@ -449,6 +639,27 @@
     if (!ouverte || !ouverte.id || document.hidden) return;
     const { id } = ouverte;
     try {
+      if (ouverte.estGroupe) {
+        const reponse = await api(`/messages/groupes/${id}/nouveaux?apres=${ouverte.dernierId}`);
+        if (!ouverte || ouverte.id !== id) return;
+        // Le groupe vient d'être fermé (équipe dissoute) ou renommé : on redessine tout.
+        if (reponse.ferme !== ouverte.donnees.ferme || reponse.titre !== ouverte.donnees.titre) {
+          chargerListe();
+          ouvrirGroupe(id);
+          return;
+        }
+        const enBas = ouverte.zone.scrollHeight - ouverte.zone.scrollTop - ouverte.zone.clientHeight < 80;
+        const nouveaux = reponse.messages.filter((m) => m.id > ouverte.dernierId);
+        if (nouveaux.length) {
+          ajouterMessages(nouveaux);
+          if (enBas) allerEnBas();
+          if (nouveaux.some((m) => !m.estMoi)) {
+            marquerLu();
+            chargerListe();
+          }
+        }
+        return;
+      }
       const reponse = await api(`/messages/conversations/${id}/nouveaux?apres=${ouverte.dernierId}`);
       if (!ouverte || ouverte.id !== id) return; // on a changé de conversation pendant la requête
       // La demande que j'avais envoyée vient d'être acceptée (ou l'inverse) : on redessine pour montrer la zone d'écriture.
@@ -496,8 +707,10 @@
   // ---------- Navigation dans la page (sans rechargement) ----------
   function afficherSelonAdresse() {
     const numero = /^\/messages\/(\d+)$/.exec(window.location.pathname);
+    const groupe = /^\/messages\/groupe\/(\d+)$/.exec(window.location.pathname);
     const parametres = new URLSearchParams(window.location.search);
-    if (numero) ouvrir(Number(numero[1]));
+    if (groupe) ouvrirGroupe(Number(groupe[1]));
+    else if (numero) ouvrir(Number(numero[1]));
     else if (parametres.get('avec')) ouvrirAvec(parametres.get('avec'), parametres.get('demande'));
     else fermer();
   }

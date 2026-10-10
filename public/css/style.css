@@ -2165,6 +2165,21 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
   to { opacity: 1; }
 }
 
+/* ---------- Conversations de groupe (équipes éclair) ---------- */
+/* Avatars empilés : ils se chevauchent, chacun cerclé de la couleur du fond pour se détacher du voisin. */
+.avatars-empiles { display: inline-flex; flex: none; align-items: center; min-width: 44px; justify-content: center; }
+.avatars-empiles > * + * { margin-left: -14px; }
+.avatars-empiles > * { border-radius: 50%; box-shadow: 0 0 0 2px var(--surface); }
+.conversation-titre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 var(--t-15)/1.3 var(--titre); }
+.entete-groupe { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; min-height: 44px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.entete-groupe .conversation-qui { display: grid; min-width: 0; }
+.message-systeme { align-self: center; max-width: 90%; margin: 6px 0; padding: 4px 12px; border-radius: 12px; background: color-mix(in srgb, var(--gris) 12%, transparent); color: var(--gris); font-size: var(--t-13); text-align: center; }
+.bulle-auteur { display: block; margin-bottom: 2px; color: var(--action); font: 700 var(--t-13)/1.2 var(--titre); text-decoration: none; }
+.bulle-auteur:hover { text-decoration: underline; }
+.liste-membres-groupe { display: grid; gap: 4px; max-height: 50vh; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.liste-membres-groupe li { display: flex; align-items: center; gap: 12px; min-height: 56px; }
+.liste-membres-groupe p { margin: 0; font-size: var(--t-13); }
+
 /* ---------- Notifications push : encadré du fil et réglages (push.js) ---------- */
 .encadre-push { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 8px 12px; padding: 14px 16px; }
 .encadre-push[hidden] { display: none; }

@@ -55,6 +55,10 @@
       ? [
         el('h3', { texte: `Équipe éclair ${deNom(proposition.auteur.nom)}` }),
         el('ul', { classe: 'liste-equipe' }, proposition.equipe.membres.map((m) => ligneMembre(m, { avecReponse: avecReponses }))),
+        // Le groupe de discussion de l'équipe : montré seulement à ses membres (le serveur n'envoie le numéro qu'à eux).
+        proposition.equipe.groupeId
+          ? el('a', { classe: 'bouton bouton-contour', href: `/messages/groupe/${proposition.equipe.groupeId}` }, [icone('commentaire'), 'Discussion de l\'équipe'])
+          : null,
       ]
       : [
         el('div', { classe: 'publication-entete' }, [

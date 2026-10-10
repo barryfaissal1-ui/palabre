@@ -331,6 +331,14 @@ async function creer() {
     await poster(`/equipes/${equipe.corps.propositions.find((p) => p.equipe).equipe.id}/accepter`, 'yao');
     await proposer(livraison, 'cheick', 'Bonjour, je peux réaliser l\'application en Flutter pour Android et iPhone.', 800000);
     await poster(`/demandes/${livraison}/choisir`, 'esther', { propositionId: await propositionDe(livraison, 'esther', 'fatou') });
+    // Le groupe de discussion de l'équipe (créé avec elle) : la cheffe, Yao qui a accepté, puis Esther qui les a choisis.
+    const groupeLivraison = equipe.corps.propositions.find((p) => p.equipe).equipe.groupeId;
+    for (const [qui, texte] of [
+      ['fatou', 'Bienvenue Esther ! Voici l\'équipe : je m\'occupe du serveur et du paiement, Yao de l\'application.'],
+      ['esther', 'Merci à vous deux. Mes deux maquis ferment à 23 h : il faudrait que les commandes s\'arrêtent à 22 h 30.'],
+      ['yao', 'Noté. Je prévois un réglage « heure de la dernière commande » par maquis.'],
+      ['fatou', 'Première démonstration vendredi, sur un téléphone d\'entrée de gamme. On vous envoie le lien ici.'],
+    ]) await poster(`/messages/groupes/${groupeLivraison}`, qui, { texte });
 
     // Ouvertes : elles attendent des propositions
     const vitrine = await demander('salimata', { titre: 'Site vitrine pour une association de femmes', description: 'Notre association forme des jeunes filles à la couture. Nous voulons un site simple : qui nous sommes, nos activités, comment nous aider.', budgetFcfa: 100000, delai: '3 semaines', categorie: 'site-web' });

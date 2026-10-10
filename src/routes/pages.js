@@ -155,6 +155,12 @@ router.get(['/connexion', '/inscription'], (req, res) => {
 });
 
 // Une conversation : /messages/12 affiche la même page que /messages, qui lit le numéro dans l'adresse.
+// Un groupe d'équipe : /messages/groupe/12, la même page elle aussi.
+router.get('/messages/groupe/:id', (req, res, next) => {
+  if (!/^\d+$/.test(req.params.id)) return next();
+  res.set('Cache-Control', 'no-cache').type('html').send(lireModele('messages.html'));
+});
+
 router.get('/messages/:id', (req, res, next) => {
   if (!/^\d+$/.test(req.params.id)) return next();
   res.set('Cache-Control', 'no-cache').type('html').send(lireModele('messages.html'));

@@ -19,7 +19,9 @@ const CIBLES = {
   // Un message privé : on ne peut signaler que celui d'une conversation dont on fait partie ($2 est le membre connecté).
   message: (cible, moi) => [
     `SELECT m.id, m.auteur_id FROM messages m JOIN conversations c ON c.id = m.conversation_id
-      WHERE m.id = $1 AND $2 IN (c.membre_a, c.membre_b)`,
+      WHERE m.id = $1 AND m.systeme = FALSE
+        AND ($2 IN (c.membre_a, c.membre_b)
+          OR EXISTS (SELECT 1 FROM conversation_membres cm WHERE cm.conversation_id = c.id AND cm.membre_id = $2 AND cm.quitte_le IS NULL))`,
     v.idPositif(cible), moi.id,
   ],
   profil: (cible) => [

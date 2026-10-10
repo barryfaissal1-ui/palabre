@@ -396,6 +396,61 @@ ALTER TABLE signalements ADD CONSTRAINT signalements_cible_type_check
   CHECK (cible_type IN ('publication', 'commentaire', 'profil', 'demande', 'projet', 'message'));
 
 -- ============ Index ============
+-- ============ Conversations de groupe (équipes éclair) ============
+-- Une conversation est « privee » (deux membres : membre_a et membre_b, comme depuis le début) ou « groupe ».
+-- Un groupe n'a ni membre_a ni membre_b : ses membres sont dans conversation_membres. Les requêtes des
+-- conversations privées filtrent sur membre_a / membre_b : elles ne voient donc jamais un groupe, et rien n'y change.
+ALTER TABLE conversations ALTER COLUMN membre_a DROP NOT NULL;
+ALTER TABLE conversations ALTER COLUMN membre_b DROP NOT NULL;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'privee';
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS titre TEXT;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS equipe_id INTEGER REFERENCES equipes(id) ON DELETE SET NULL;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS ferme_le TIMESTAMPTZ; -- équipe dissoute : le groupe reste lisible, plus personne n'écrit
+ALTER TABLE conversations DROP CONSTRAINT IF EXISTS conversations_type_check;
+ALTER TABLE conversations ADD CONSTRAINT conversations_type_check CHECK (
+  (type = 'privee' AND membre_a IS NOT NULL AND membre_b IS NOT NULL)
+  OR (type = 'groupe' AND membre_a IS NULL AND membre_b IS NULL AND titre IS NOT NULL));
+CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_equipe ON conversations (equipe_id) WHERE equipe_id IS NOT NULL;
+
+-- Qui est dans quelle conversation. role : 'admin' (le chef de l'équipe) ou 'membre'.
+-- quitte_le : la personne est partie ; elle ne lit plus rien. sourdine : plus de cloche ni de push pour ce groupe.
+CREATE TABLE IF NOT EXISTS conversation_membres (
+  conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  membre_id       INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  role            TEXT NOT NULL DEFAULT 'membre' CHECK (role IN ('admin', 'membre')),
+  rejoint_le      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  quitte_le       TIMESTAMPTZ,
+  sourdine        BOOLEAN NOT NULL DEFAULT FALSE,
+  PRIMARY KEY (conversation_id, membre_id)
+);
+CREATE INDEX IF NOT EXISTS idx_conversation_membres_membre ON conversation_membres (membre_id) WHERE quitte_le IS NULL;
+-- Un message « système » (« Awa a rejoint l'équipe ») s'affiche au centre et ne compte pas comme non lu.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS systeme BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Reprise de l'existant, rejouable sans rien doubler (ON CONFLICT DO NOTHING, NOT EXISTS) :
+-- 1) les deux membres de chaque conversation privée ;
+INSERT INTO conversation_membres (conversation_id, membre_id, rejoint_le)
+SELECT c.id, m.membre, c.cree_le FROM conversations c CROSS JOIN LATERAL (VALUES (c.membre_a), (c.membre_b)) AS m(membre)
+ WHERE c.type = 'privee'
+ON CONFLICT DO NOTHING;
+-- 2) un groupe pour chaque équipe éclair créée avant cette fonction, avec son chef, ses membres qui ont accepté,
+--    et le client s'il a déjà choisi cette équipe.
+INSERT INTO conversations (type, titre, equipe_id, cree_par, statut)
+SELECT 'groupe', 'Équipe : ' || left(d.titre, 60), e.id, e.chef_id, 'acceptee'
+  FROM equipes e JOIN demandes d ON d.id = e.demande_id
+ WHERE NOT EXISTS (SELECT 1 FROM conversations c WHERE c.equipe_id = e.id);
+INSERT INTO conversation_membres (conversation_id, membre_id, role)
+SELECT c.id, em.dev_id, CASE WHEN em.dev_id = e.chef_id THEN 'admin' ELSE 'membre' END
+  FROM conversations c JOIN equipes e ON e.id = c.equipe_id
+  JOIN equipe_membres em ON em.equipe_id = e.id AND em.statut = 'accepte'
+ON CONFLICT DO NOTHING;
+INSERT INTO conversation_membres (conversation_id, membre_id, role)
+SELECT c.id, d.client_id, 'membre'
+  FROM conversations c JOIN equipes e ON e.id = c.equipe_id
+  JOIN propositions p ON p.equipe_id = e.id AND p.statut = 'acceptee'
+  JOIN demandes d ON d.id = e.demande_id
+ON CONFLICT DO NOTHING;
+
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages (conversation_id, id);
 CREATE INDEX IF NOT EXISTS idx_conversations_membre_b ON conversations (membre_b);
 CREATE INDEX IF NOT EXISTS idx_publications_date ON publications (cree_le DESC);

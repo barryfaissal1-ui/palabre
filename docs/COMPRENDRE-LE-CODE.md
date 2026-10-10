@@ -642,6 +642,35 @@ Ce qu'il faut savoir pour le défendre :
 
 Dans « Modifier mon profil », section « Notifications » : activer ou couper le push **sur cet appareil**, et choisir les familles reçues (messages, demandes et propositions, équipes, j'aime et commentaires, défis). Le choix est gardé en JSON dans `utilisateurs.preferences_notifications`. Une famille absente vaut « oui » : un nouveau type de notification est reçu sans rien migrer. **La cloche du site garde toujours tout** : les réglages ne concernent que le push.
 
+## 11 decies. Les conversations de groupe des équipes éclair
+
+Une équipe éclair qui répond ensemble à une demande a besoin d'un endroit pour se parler. Chaque équipe a donc son **groupe de discussion**, dans `/messages`.
+
+### Le groupe suit la vie de l'équipe
+
+| Dans l'équipe | Dans le groupe |
+| --- | --- |
+| Le chef crée l'équipe | Le groupe est créé, le chef en est l'administrateur |
+| Un invité accepte | Il entre dans le groupe (« Awa a rejoint l'équipe ») |
+| Un invité refuse | Il n'y entre pas |
+| Le client choisit l'équipe | Il entre dans le groupe, un message l'annonce |
+| Le chef dissout l'équipe | Le groupe est fermé : on peut le relire, plus personne n'y écrit |
+
+Ces changements sont faits **dans la même transaction** que ceux de l'équipe (`src/utils/groupes.js`) : il ne peut pas exister une équipe sans groupe, ni un membre du groupe qui ne serait pas dans l'équipe.
+
+### Sans casser les conversations privées
+
+La table `conversations` sert aux deux. Une conversation privée garde ses deux colonnes `membre_a` et `membre_b` ; un groupe ne les remplit pas, ses membres sont dans `conversation_membres`. Toutes les requêtes des conversations privées filtrent sur `membre_a` / `membre_b` : **elles ne voient jamais un groupe**, et aucune de leurs règles n'a bougé (amis, client et dev, demandes de message, blocages). Les tests de la messagerie privée sont restés tels quels et passent tous.
+
+Les groupes ont leur propre fichier (`src/routes/groupes.js`) et **une seule règle d'accès** : il faut être membre actuel (une ligne dans `conversation_membres`, sans date de départ). Pour tout autre, le groupe « n'existe pas » : 404 pour lire, écrire, renommer, et même pour une photo qui y a été envoyée (`src/routes/fichiers.js`). Celui qui quitte le groupe ne voit plus rien, y compris les nouveaux messages.
+
+### Quelques choix
+
+- **Messages « système »** (`messages.systeme`) : « Awa a rejoint l'équipe », au centre, sans bulle. Ils ne comptent pas comme messages non lus.
+- **Quitter** : avant le choix du client, quitter le groupe c'est quitter l'équipe ; après, seulement le groupe (on reste engagé envers le client). Le chef ne quitte pas : il dissout l'équipe.
+- **Notifications** : une seule par groupe et par membre, mise à jour tant qu'elle n'est pas lue (« 3 nouveaux messages dans « Équipe : … » »), push compris. Un membre peut mettre un groupe **en sourdine**.
+- **Reprise de l'existant** : la migration crée le groupe des équipes qui existaient déjà, et remplit `conversation_membres` pour les conversations privées. Elle peut être rejouée sans rien doubler.
+
 ## 12. Le système de design
 
 Un « système de design », c'est un petit nombre de règles visuelles appliquées partout, pour que le site ait l'air d'une seule et même application. Tout est écrit à la main : aucune bibliothèque d'interface, aucun framework, donc des pages qui restent légères en 3G (les icônes pèsent 8 Ko en tout, les illustrations 4 Ko).
@@ -858,6 +887,8 @@ Pour la date de naissance (`tests/date-naissance.test.js`, sans serveur) : la da
 Pour les emails (`tests/emails.test.js`) : le code figure dans la version texte et dans la version HTML, en gros ; l'email du code n'a aucun lien ; un prénom piégé (`<img onerror=…>`) reste du texte ; le logo est en adresse absolue ; « mot de passe oublié » utilise le même gabarit avec son lien ; le code enregistré en base est toujours haché.
 
 Pour les notifications (`tests/notifications.test.js`) : j'aime regroupés avec la dernière personne en premier, quatre j'aime au même instant qui ne font qu'une ligne, ne plus aimer, rien pour ses propres actions, commentaires et réponses, une seule notification par conversation, tout marquer comme lu. Pour le push (`tests/push.test.js`, sans appeler aucun vrai service) : le site sans clés VAPID, l'abonnement et ses refus (adresse interne, faux domaine), le message chiffré que seul l'appareil relit, la signature VAPID vérifiée, l'aperçu de 60 caractères, les préférences respectées, l'abonnement expiré supprimé, la panne qui ne casse rien.
+
+Pour les groupes (`tests/groupes.test.js`) : le groupe naît avec l'équipe ; accepter y fait entrer, refuser non ; seuls les membres lisent et écrivent (404 pour les autres, photos comprises) ; une seule notification par groupe ; la liste et la pastille comptent les groupes ; sourdine ; renommer réservé au chef ; le client entre quand il choisit l'équipe ; quitter avant ou après ce choix ; équipe dissoute, groupe fermé ; signalement d'un message de groupe.
 
 Les autres fichiers de tests ont besoin de comptes prêts à servir : `tests/aide.js` enveloppe leur fonction d'appel pour que chaque compte créé soit aussitôt confirmé et complet.
 

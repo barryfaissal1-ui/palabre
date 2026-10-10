@@ -15,16 +15,19 @@ const { exigerConnexion, profilDevIncomplet } = require('../middleware/auth');
 const { lireImageDataUrl } = require('../utils/images');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
 const { notifier, court } = require('../utils/notifications');
+const groupes = require('./groupes');
 
 const router = express.Router();
 const PAR_PAGE = 30;
 const MAX_CONVERSATIONS = 100;
 
-const limiteMessages = limiteParMembre(30, 1, 'Tu écris très vite. Attends une minute avant d\'envoyer d\'autres messages.');
+const { limiteMessages } = groupes; // la même limite pour les conversations privées et les groupes
 // Celle-ci n'est appliquée qu'au moment d'ouvrir une conversation avec quelqu'un qu'on ne connaît pas (voir ecrire()).
 const limiteInconnus = limiteParMembre(10, 24 * 60, 'Tu as déjà écrit aujourd\'hui à 10 personnes que tu ne connais pas. Réessaie demain.');
 
 router.use(exigerConnexion);
+// Les groupes (équipes éclair) ont leurs propres routes et leur propre règle d'accès : src/routes/groupes.js.
+router.use('/groupes', groupes);
 
 // ---------- Morceaux de SQL partagés ($1 est toujours le membre connecté, « u » l'autre membre) ----------
 
@@ -141,7 +144,8 @@ async function compterNonLus(moiId) {
     `SELECT COALESCE(sum(${NON_LUS}), 0)::int AS nb FROM conversations c ${AUTRE} WHERE ${VISIBLE}`,
     [moiId],
   );
-  return total.nb;
+  // Les groupes comptent aussi dans la pastille.
+  return total.nb + await groupes.compterNonLusGroupes(moiId);
 }
 
 // ---------- Envoi d'un message (commun aux deux routes d'envoi) ----------
@@ -176,6 +180,11 @@ async function ecrire(req, res, autreId, conversation) {
       );
       [conv] = rows;
       nouvelleDemande = conv.creee && conv.statut === 'demande';
+      // La table des membres est tenue à jour pour toutes les conversations, privées comprises.
+      await client.query(
+        'INSERT INTO conversation_membres (conversation_id, membre_id) VALUES ($1, $2), ($1, $3) ON CONFLICT DO NOTHING',
+        [conv.id, moi.id, autreId],
+      );
     }
     // Répondre à une demande de message, c'est l'accepter. Devenir amis entre-temps aussi.
     const accepte = conv.statut === 'demande' && (conv.cree_par !== moi.id || droit.libre);
@@ -237,7 +246,7 @@ router.get('/conversations', async (req, res) => {
   const moi = req.utilisateur;
   const demandes = req.query.onglet === 'demandes';
   const { rows } = await db.query(
-    `SELECT c.id, c.statut, c.cree_par, c.demande_id, d.titre AS demande_titre, ${COLONNES_MEMBRE},
+    `SELECT c.id, c.statut, c.cree_par, c.demande_id, c.dernier_message_le, d.titre AS demande_titre, ${COLONNES_MEMBRE},
             dernier.texte AS dernier_texte, dernier.cree_le AS dernier_le, dernier.auteur_id AS dernier_auteur,
             dernier.fichier_id IS NOT NULL AS dernier_image,
             ${NON_LUS} AS non_lus, ${JE_BLOQUE} AS je_bloque
@@ -262,8 +271,12 @@ router.get('/conversations', async (req, res) => {
   );
   res.json({
     nbDemandes: compte.nb,
+    // Mes groupes d'équipe, dans l'onglet principal : la page les mêle aux conversations, par date.
+    groupes: demandes ? [] : await groupes.listerGroupes(moi),
     conversations: rows.map((ligne) => ({
       id: ligne.id,
+      type: 'privee',
+      actifLe: ligne.dernier_message_le,
       statut: ligne.statut,
       enAttente: ligne.statut === 'demande' && ligne.cree_par === moi.id,
       autre: apercuMembre(ligne),

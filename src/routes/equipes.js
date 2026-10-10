@@ -6,6 +6,8 @@ const v = require('../utils/validation');
 const { exigerConnexion, exigerDev, exigerProfilComplet } = require('../middleware/auth');
 const { notifier, court, deNom } = require('../utils/notifications');
 
+const { entrerDansLeGroupe, fermerGroupeEquipe, groupeDeLEquipe } = require('../utils/groupes');
+
 const router = express.Router();
 
 router.use(exigerConnexion, exigerDev);
@@ -35,6 +37,8 @@ async function repondre(req, res, reponse) {
     ) : { rowCount: 0 };
     if (rowCount === 0) throw new v.ErreurHttp(404, 'Aucune invitation en attente pour cette équipe.');
     if (equipe.statut !== 'ouverte') throw new v.ErreurValidation('Cette demande n\'est plus ouverte.');
+    // Celui qui accepte entre dans le groupe de discussion de l'équipe ; celui qui refuse n'y entre pas.
+    if (reponse === 'accepte') await entrerDansLeGroupe(client, equipe.id, moi, `${moi.nom} a rejoint l'équipe.`);
 
     const { rows: [bilan] } = await client.query(
       `SELECT count(*) FILTER (WHERE statut = 'invite')::int AS en_attente,
@@ -57,7 +61,9 @@ async function repondre(req, res, reponse) {
     await notifier(client, equipe.client_id, 'nouvelle_proposition',
       `L'équipe ${deNom(equipe.nom_chef)} a envoyé une proposition pour « ${court(equipe.titre)} ».`, lien, { acteur: { id: equipe.chef_id } });
     await notifier(client, equipe.chef_id, 'equipe_reponses',
-      `Tous tes invités ont répondu : la proposition de ton équipe pour « ${court(equipe.titre)} » est partie.`, lien, { acteur: moi });
+      `Tous tes invités ont répondu : la proposition de ton équipe pour « ${court(equipe.titre)} » est partie.`,
+      // La notification mène à la discussion de l'équipe, s'il y en a une.
+      (await groupeDeLEquipe(client, equipe.id).then((id) => (id ? `/messages/groupe/${id}` : lien))), { acteur: moi });
     return true;
   });
 
@@ -71,12 +77,21 @@ router.post('/:id/refuser', (req, res) => repondre(req, res, 'refuse'));
 // Dissoudre son équipe, tant que le client ne l'a pas choisie : DELETE /api/equipes/:id
 // La proposition et les invitations partent avec l'équipe (ON DELETE CASCADE).
 router.delete('/:id', async (req, res) => {
-  const { rowCount } = await db.query(
-    `DELETE FROM equipes e
-      WHERE e.id = $1 AND e.chef_id = $2
-        AND NOT EXISTS (SELECT 1 FROM propositions p WHERE p.equipe_id = e.id AND p.statut = 'acceptee')`,
-    [v.idPositif(req.params.id), req.utilisateur.id],
-  );
+  const moi = req.utilisateur;
+  const equipeId = v.idPositif(req.params.id);
+  const rowCount = await db.transaction(async (client) => {
+    // Le groupe de discussion est fermé (lecture seule) AVANT la suppression : ensuite il n'est plus relié à l'équipe.
+    const { rows: [mienne] } = await client.query(
+      `SELECT e.id FROM equipes e
+        WHERE e.id = $1 AND e.chef_id = $2
+          AND NOT EXISTS (SELECT 1 FROM propositions p WHERE p.equipe_id = e.id AND p.statut = 'acceptee')
+        FOR UPDATE`,
+      [equipeId, moi.id],
+    );
+    if (!mienne) return 0;
+    await fermerGroupeEquipe(client, mienne.id, moi);
+    return (await client.query('DELETE FROM equipes WHERE id = $1', [mienne.id])).rowCount;
+  });
   if (rowCount === 0) throw new v.ErreurHttp(404, 'Seul le chef peut dissoudre son équipe, avant le choix du client.');
   res.json({ ok: true });
 });
