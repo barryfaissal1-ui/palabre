@@ -1,7 +1,7 @@
 // Tableau de bord administrateur : statistiques, signalements, projets pour Facebook, membres bloqués.
 // La page n'est qu'un affichage : c'est le serveur qui refuse tout à un membre qui n'est pas administrateur.
 (function () {
-  const { api, el, avatar, utilisateurConnecte, dateRelative, carteProjet, etatVide, confirmer } = window.Palabre;
+  const { api, el, avatar, utilisateurConnecte, dateRelative, carteProjet, etatVide, confirmer, icone, toast } = window.Palabre;
 
   const NOMS_CIBLES = { publication: 'Publication', commentaire: 'Commentaire', profil: 'Profil', projet: 'Projet', demande: 'Demande', message: 'Message privé' };
 
@@ -135,6 +135,51 @@
     ]);
   }
 
+  // ---------- À publier sur Facebook ----------
+  // Le serveur fournit le texte tout prêt et l'adresse de partage. L'administrateur retouche le texte s'il le veut,
+  // le copie, ouvre Facebook (la carte du projet s'y dessine toute seule), publie, puis revient cocher « publié ».
+  function carteAPublier(projet, complet) {
+    const idTexte = `texte-facebook-${projet.id}`;
+    const zone = el('textarea', { id: idTexte, rows: 8, classe: 'texte-facebook' });
+    zone.value = projet.texte; // .value (comme textContent) : le texte reste du texte, jamais du code
+    const copier = el('button', { classe: 'bouton bouton-contour', type: 'button' }, [icone('lien'), 'Copier le texte']);
+    copier.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(zone.value);
+        toast('Texte copié. Colle-le dans la publication Facebook.');
+      } catch {
+        // Presse-papiers refusé par le navigateur : le texte est sélectionné, il reste à faire « Copier ».
+        zone.focus();
+        zone.select();
+        toast('Le texte est sélectionné : copie-le avec ton clavier.', 'erreur');
+      }
+    });
+    const carte = carteProjet(projet);
+    carte.querySelector('.projet-corps').append(
+      el('div', { classe: 'champ' }, [el('label', { for: idTexte, texte: 'Texte de la publication (modifiable)' }), zone]),
+      el('div', { classe: 'profil-actions' }, [
+        copier,
+        // noopener : la page Facebook ouverte ne peut pas agir sur l'onglet de Palabre.
+        el('a', { classe: 'bouton bouton-contour', href: projet.lienPartage, target: '_blank', rel: 'noopener' }, [icone('facebook'), 'Ouvrir Facebook']),
+        complet ? null : boutonAction('Marquer comme publié', 'bouton-principal',
+          () => api(`/admin/projets/${projet.id}/facebook-publie`, { methode: 'POST', donnees: {} }),
+          { confirmation: `Marquer « ${projet.titre} » comme publié ? À faire seulement après l'avoir vraiment publié sur la page Facebook : le développeur sera prévenu.`, succes: `« ${projet.titre} » est marqué comme publié. Son développeur est prévenu.` }),
+      ]),
+    );
+    return carte;
+  }
+
+  function sectionAPublier({ projets, publiesAujourdhui, maxParJour }) {
+    const complet = publiesAujourdhui >= maxParJour;
+    return el('section', { classe: 'section-profil', id: 'a-publier' }, [
+      el('h2', { texte: projets.length ? `À publier sur Facebook (${projets.length})` : 'À publier sur Facebook' }),
+      el('p', { classe: `compteur-facebook${complet ? ' complet' : ''}` }, [el('strong', { texte: `Publiés aujourd'hui : ${publiesAujourdhui} / ${maxParJour}` }), complet ? ' Maximum atteint, reprends demain.' : null]),
+      projets.length
+        ? el('div', { classe: 'liste-publications' }, projets.map((projet) => carteAPublier(projet, complet)))
+        : el('p', { classe: 'texte-discret', texte: 'Aucun projet validé en attente de publication.' }),
+    ]);
+  }
+
   // ---------- Membres bloqués ----------
   function sectionBloques(membres) {
     if (membres.length === 0) return null;
@@ -186,13 +231,14 @@
   }
 
   async function afficher() {
-    const [{ statistiques }, { signalements }, { projets }, { membres }, { membres: recents }] = await Promise.all([
-      api('/admin/statistiques'), api('/admin/signalements'), api('/admin/projets-facebook'), api('/admin/membres-bloques'), api('/admin/membres-recents'),
+    const [{ statistiques }, { signalements }, { projets }, { membres }, { membres: recents }, aPublier] = await Promise.all([
+      api('/admin/statistiques'), api('/admin/signalements'), api('/admin/projets-facebook'), api('/admin/membres-bloques'), api('/admin/membres-recents'), api('/admin/facebook-a-publier'),
     ]);
     document.querySelector('[data-admin]').replaceChildren(...[
       sectionStatistiques(statistiques),
       sectionSignalements(signalements),
       sectionFacebook(projets),
+      sectionAPublier(aPublier),
       sectionBloques(membres),
       sectionRecents(recents),
     ].filter(Boolean));

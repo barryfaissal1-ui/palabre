@@ -58,6 +58,9 @@ CREATE TABLE IF NOT EXISTS projets (
 );
 -- Un administrateur peut masquer un projet signalé (colonne ajoutée après la création de la table).
 ALTER TABLE projets ADD COLUMN IF NOT EXISTS masque BOOLEAN NOT NULL DEFAULT FALSE;
+-- Date où un administrateur a marqué le projet « publié » sur la page Facebook (statut_facebook = 'publie').
+-- Sert aussi à compter les publications du jour : 5 au plus.
+ALTER TABLE projets ADD COLUMN IF NOT EXISTS publie_facebook_le TIMESTAMPTZ;
 -- Prénom et nom de famille, saisis séparément. La colonne « nom » reste : c'est le nom affiché (« Prénom Nom »),
 -- recalculé à chaque inscription ou modification du profil. Tout le reste du code continue de lire « nom ».
 ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS prenom TEXT;

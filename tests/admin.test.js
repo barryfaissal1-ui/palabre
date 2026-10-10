@@ -81,6 +81,7 @@ test('le tableau de bord est fermé aux visiteurs et aux membres ordinaires', as
   const routes = [
     ['GET', '/api/admin/statistiques'], ['GET', '/api/admin/signalements'], ['GET', '/api/admin/projets-facebook'],
     ['GET', '/api/admin/membres-bloques'], ['POST', '/api/admin/signalements/1/traiter'],
+    ['GET', '/api/admin/facebook-a-publier'], ['POST', '/api/admin/projets/1/facebook-publie'], ['GET', '/api/admin/membres-recents'],
     ['POST', '/api/admin/projets/1/facebook'], ['POST', `/api/admin/membres/${membres.awa.identifiant}/debloquer`],
   ];
   for (const [methode, chemin] of routes) {
@@ -260,4 +261,70 @@ test('projets pour Facebook : seuls ceux dont le dev a donné son accord, à val
   assert.equal(notifications.length, 2);
   assert.match(notifications[1].texte, /a été retenu/);
   assert.equal((await appel(`/api/projets/${autre.id}`)).statut, 200, 'un projet refusé pour Facebook reste visible sur Palabre');
+});
+
+test('à publier sur Facebook : texte prêt, valide → publie, notification, 5 par jour au plus', async () => {
+  // Sept projets de Bintou, validés pour Facebook (écrits directement en base : seul le plan B est testé ici).
+  const { rows: [{ id: bintouId }] } = await pool.query('SELECT id FROM utilisateurs WHERE email = $1', [membres.bintou.email]);
+  const { rows: crees } = await pool.query(
+    `INSERT INTO projets (dev_id, titre, description, secteur, publier_facebook, statut_facebook)
+     SELECT $1, 'Vitrine <b>FB</b> ' || n || ' ' || $2, 'Une boutique en ligne   avec paiement Mobile Money.', 'commerce', TRUE, 'valide'
+       FROM generate_series(1, 7) n RETURNING id`,
+    [bintouId, suffixe],
+  );
+  const ids = crees.map((p) => p.id);
+  const lire = async () => (await appel('/api/admin/facebook-a-publier', { qui: 'chef' })).corps;
+  const marquer = (id, qui = 'chef') => poster(qui, `/api/admin/projets/${id}/facebook-publie`);
+
+  const avant = await lire();
+  assert.equal(avant.maxParJour, 5);
+  const fiche = avant.projets.find((p) => p.id === ids[0]);
+  // Le texte est construit par le serveur : titre, description nettoyée, dev, secteur, lien public, hashtags.
+  assert.match(fiche.texte, new RegExp(`^« Vitrine <b>FB</b> 1 ${suffixe} », un projet réalisé par bintou Admin`));
+  assert.match(fiche.texte, /Une boutique en ligne avec paiement Mobile Money\./);
+  assert.match(fiche.texte, /Secteur : Commerce et boutiques/);
+  assert.ok(fiche.texte.includes(`/projets/${ids[0]}`));
+  assert.match(fiche.texte, /#Palabre #DevAfrique/);
+  assert.equal(fiche.adresse, `http://localhost:3000/projets/${ids[0]}`);
+  assert.equal(fiche.lienPartage, `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(fiche.adresse)}`);
+  assert.ok(!JSON.stringify(avant).includes(membres.bintou.email), 'jamais d\'email');
+  // Un projet seulement « en attente » ou refusé n'est pas dans cette liste.
+  const { rows: autres } = await pool.query('SELECT id FROM projets WHERE dev_id = $1 AND statut_facebook IN (\'en_attente\', \'refuse\', \'non\')', [bintouId]);
+  assert.ok(autres.every((a) => !avant.projets.some((p) => p.id === a.id)));
+
+  // Marquer comme publié, jusqu'à la limite du jour (d'autres publications d'aujourd'hui peuvent déjà compter).
+  const places = Math.max(0, 5 - avant.publiesAujourdhui);
+  for (let i = 0; i < places; i += 1) {
+    const r = await marquer(ids[i]);
+    assert.equal(r.statut, 200, JSON.stringify(r.corps));
+    assert.equal(r.corps.publiesAujourdhui, avant.publiesAujourdhui + i + 1);
+  }
+  const refus = await marquer(ids[places]);
+  assert.equal(refus.statut, 400);
+  assert.match(refus.corps.erreur, /5 publications aujourd'hui/);
+  const apres = await lire();
+  assert.equal(apres.publiesAujourdhui, 5);
+  assert.ok(apres.projets.some((p) => p.id === ids[places]), 'le projet refusé pour aujourd\'hui reste à publier');
+
+  if (places > 0) {
+    const { rows: [publie] } = await pool.query('SELECT statut_facebook, publie_facebook_le FROM projets WHERE id = $1', [ids[0]]);
+    assert.equal(publie.statut_facebook, 'publie');
+    assert.ok(Date.now() - publie.publie_facebook_le.getTime() < 60000);
+    assert.ok(!apres.projets.some((p) => p.id === ids[0]));
+    const notifications = (await appel('/api/notifications', { qui: 'bintou' })).corps.notifications.filter((n) => /partagé sur la page Facebook Palabre Dev/.test(n.texte));
+    assert.equal(notifications.length, places, 'une notification par projet publié');
+    assert.equal(notifications[notifications.length - 1].lien, `/projets/${ids[0]}`);
+  }
+
+  // Le lendemain, le compteur repart de zéro : on vieillit les publications du jour faites par ce test.
+  await pool.query('UPDATE projets SET publie_facebook_le = publie_facebook_le - interval \'1 day\' WHERE id = ANY($1)', [ids]);
+  const lendemain = await lire();
+  assert.equal(lendemain.publiesAujourdhui, avant.publiesAujourdhui);
+  if (lendemain.publiesAujourdhui < 5) {
+    assert.equal((await marquer(ids[5])).statut, 200);
+    assert.equal((await marquer(ids[5])).statut, 404, 'déjà publié : pas une seconde fois');
+  }
+  // Projet inconnu, projet non validé.
+  assert.equal((await marquer(999999999)).statut === 404 || (await lire()).publiesAujourdhui >= 5, true);
+  await pool.query('DELETE FROM projets WHERE id = ANY($1)', [ids]);
 });

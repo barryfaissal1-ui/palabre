@@ -93,7 +93,8 @@ tests/                 tests automatiques
 - [x] Photos de fond optimisées (accueil et connexion), chargées une par une et jamais sur connexion lente
 - [x] Pages Connexion et Inscription réunies en une seule, avec l'animation de la « lame »
 - [x] Refonte du design, étape C : qualité « réseau social » (anneau de preuve et badge feuille, en-tête compacte avec recherche de membres, « Disponibles maintenant », fil bord à bord avec preuve sociale et aperçu des commentaires, profil avec couverture et onglets)
-- [ ] Publication Facebook, défi de la semaine
+- [x] Publication Facebook depuis `/admin` : texte prêt, bouton de partage, « Marquer comme publié », 5 par jour au plus
+- [ ] Défi de la semaine
 
 ## Comprendre le code
 

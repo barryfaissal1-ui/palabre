@@ -7,6 +7,7 @@ const { exigerConnexion, exigerAdmin } = require('../middleware/auth');
 const { apercuMembre, COLONNES_MEMBRE } = require('../utils/membres');
 const { notifier, court } = require('../utils/notifications');
 const { SPECIALITES, EXPERIENCES } = require('../utils/profil-dev');
+const config = require('../config');
 
 const router = express.Router();
 const MAX_AFFICHES = 50;
@@ -242,6 +243,90 @@ router.post('/projets/:id/facebook', async (req, res) => {
       `/projets/${projet.id}`);
   });
   res.json({ ok: true });
+});
+
+// ---------- À publier sur Facebook (plan B : l'administrateur publie lui-même sur la page « Palabre Dev ») ----------
+// Le site prépare le texte et ouvre la fenêtre de partage de Facebook ; l'administrateur publie, puis marque le projet
+// « publié ». Aucun mot de passe ni jeton Facebook n'est donc gardé par Palabre.
+
+const MAX_FACEBOOK_PAR_JOUR = 5; // règle du plan : 3 à 5 publications par jour au plus, pour ne pas lasser les abonnés
+const VERROU_FACEBOOK = 20261026; // numéro arbitraire du verrou qui fait passer les « marquer comme publié » un par un
+// Les publications d'aujourd'hui, le jour étant compté en heure GMT (celle de Ouagadougou), quel que soit le réglage du serveur.
+const PUBLIES_AUJOURDHUI = `SELECT count(*)::int AS nb FROM projets
+  WHERE statut_facebook = 'publie' AND (publie_facebook_le AT TIME ZONE 'UTC')::date = (now() AT TIME ZONE 'UTC')::date`;
+
+// Le texte proposé pour la publication. Construit ici, avec les données du projet ; la page l'affiche avec textContent
+// dans une zone de texte, où l'administrateur peut le retoucher avant de le copier.
+function texteFacebook(projet, adresse) {
+  const description = String(projet.description || '').replace(/\s+/g, ' ').trim();
+  return [
+    `« ${projet.titre} », un projet réalisé par ${projet.nom} (${projet.ville}, ${projet.pays}).`,
+    description ? (description.length > 220 ? `${description.slice(0, 219)}…` : description) : null,
+    `Secteur : ${v.SECTEURS_PROJET[projet.secteur] || 'Autre'}`,
+    `À découvrir sur Palabre : ${adresse}`,
+    '#Palabre #DevAfrique #TechAfricaine',
+  ].filter(Boolean).join('\n\n');
+}
+
+// GET /api/admin/facebook-a-publier — les projets validés, avec leur texte prêt et le compteur du jour.
+router.get('/facebook-a-publier', async (req, res) => {
+  const [{ rows }, { rows: [jour] }] = await Promise.all([
+    db.query(
+      `SELECT p.id, p.titre, p.description, p.secteur, p.lien, p.image, p.lien_verifie_le, p.cree_le, ${COLONNES_MEMBRE}
+         FROM projets p
+         JOIN utilisateurs u ON u.id = p.dev_id
+        WHERE p.statut_facebook = 'valide' AND p.publier_facebook AND p.masque = FALSE AND u.bloque = FALSE
+        ORDER BY p.id
+        LIMIT $1`,
+      [MAX_AFFICHES],
+    ),
+    db.query(PUBLIES_AUJOURDHUI),
+  ]);
+  res.json({
+    publiesAujourdhui: jour.nb,
+    maxParJour: MAX_FACEBOOK_PAR_JOUR,
+    projets: rows.map((ligne) => {
+      // L'adresse publique du projet : c'est elle que Facebook visite pour dessiner la carte (titre, image, description).
+      const adresse = `${config.urlPublique}/projets/${ligne.id}`;
+      return {
+        id: ligne.id,
+        titre: ligne.titre,
+        description: ligne.description,
+        nomSecteur: v.SECTEURS_PROJET[ligne.secteur] || 'Autre',
+        lien: ligne.lien,
+        lienVerifie: Boolean(ligne.lien && ligne.lien_verifie_le),
+        image: ligne.image ? `/fichiers/${ligne.image}` : null,
+        creeLe: ligne.cree_le,
+        dev: apercuMembre(ligne),
+        adresse,
+        texte: texteFacebook(ligne, adresse),
+        lienPartage: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(adresse)}`,
+      };
+    }),
+  });
+});
+
+// POST /api/admin/projets/:id/facebook-publie — « Marquer comme publié » : valide → publie, avec la date.
+router.post('/projets/:id/facebook-publie', async (req, res) => {
+  const publies = await db.transaction(async (client) => {
+    // Verrou : deux clics au même instant passent l'un après l'autre, la limite du jour ne peut pas être dépassée.
+    await client.query('SELECT pg_advisory_xact_lock($1)', [VERROU_FACEBOOK]);
+    const { rows: [jour] } = await client.query(PUBLIES_AUJOURDHUI);
+    if (jour.nb >= MAX_FACEBOOK_PAR_JOUR) {
+      throw new v.ErreurValidation(`Déjà ${MAX_FACEBOOK_PAR_JOUR} publications aujourd'hui : c'est le maximum. Garde ce projet pour demain.`);
+    }
+    const { rows: [projet] } = await client.query(
+      `UPDATE projets SET statut_facebook = 'publie', publie_facebook_le = now()
+        WHERE id = $1 AND statut_facebook = 'valide' AND masque = FALSE
+        RETURNING id, dev_id, titre`,
+      [v.idPositif(req.params.id)],
+    );
+    if (!projet) throw new v.ErreurHttp(404, 'Ce projet n\'est pas (ou plus) en attente de publication.');
+    await notifier(client, projet.dev_id, 'projet_facebook',
+      `Ton projet « ${court(projet.titre)} » a été partagé sur la page Facebook Palabre Dev.`, `/projets/${projet.id}`);
+    return jour.nb + 1;
+  });
+  res.json({ ok: true, publiesAujourdhui: publies, maxParJour: MAX_FACEBOOK_PAR_JOUR });
 });
 
 module.exports = router;

@@ -255,7 +255,19 @@ Rien n'est supprimé de la base : masquer et bloquer sont réversibles. Une list
 
 ### Les projets proposés pour Facebook
 
-Seuls les projets dont le dev a coché son accord (`publier_facebook`) arrivent ici, avec le statut `en_attente`. L'administrateur les **valide** (`valide`) ou les **refuse** (`refuse`) ; le dev reçoit une notification. Un projet refusé pour Facebook reste visible sur Palabre. La publication elle-même sur la page Facebook viendra dans une étape suivante : elle ne prendra que les projets `valide`.
+Seuls les projets dont le dev a coché son accord (`publier_facebook`) arrivent ici, avec le statut `en_attente`. L'administrateur les **valide** (`valide`) ou les **refuse** (`refuse`) ; le dev reçoit une notification. Un projet refusé pour Facebook reste visible sur Palabre.
+
+### À publier sur Facebook (le « plan B »)
+
+Publier automatiquement sur une page Facebook demande une application validée par Meta et un jeton d'accès à garder secret : long à obtenir, et risqué à stocker. Palabre fait plus simple : **l'administrateur publie lui-même**, et le site lui prépare tout.
+
+Pour chaque projet `valide`, la section « À publier sur Facebook » montre :
+
+- un **texte tout prêt**, construit par le serveur (`texteFacebook()` : titre, description raccourcie, nom et ville du dev, secteur, lien public du projet, hashtags), dans une zone de texte modifiable. Il est posé avec `.value` : le titre d'un projet, même piégé, reste du texte ;
+- **« Copier le texte »** (presse-papiers) et **« Ouvrir Facebook »**, qui ouvre la fenêtre de partage de Facebook avec l'adresse du projet. Facebook visite cette adresse, lit ses balises Open Graph (chapitre 9) et dessine la carte tout seul ;
+- **« Marquer comme publié »** : le projet passe à `publie`, la date est notée dans `publie_facebook_le`, et le dev reçoit « Ton projet a été partagé sur la page Facebook Palabre Dev ».
+
+**5 publications par jour au plus** (règle du plan, pour ne pas lasser les abonnés) : le compteur « Publiés aujourd'hui : 3 / 5 » compte les projets marqués aujourd'hui, en heure GMT. Le contrôle et la mise à jour sont dans une transaction, derrière un verrou PostgreSQL : deux clics au même instant ne peuvent pas faire six.
 
 ## 11. Le calculateur « Combien coûte mon projet ? » (page `/calculateur`)
 
@@ -592,7 +604,7 @@ Pour les demandes (`tests/demandes.test.js`) : publication réservée aux client
 
 Pour le profil prouvé (`tests/preuves.test.js`) : une vingtaine de liens piégés refusés (localhost, IP privées, écritures déguisées, autres protocoles), un faux DNS qui mène à une adresse interne, une redirection vers une adresse interne, un vrai petit site local qui répond ; avis refusés dans tous les cas interdits (demande non terminée, autre client, dev non retenu, invité qui avait refusé, deuxième avis) ; recherche de devs ; balises de partage avec un nom piégé qui ne doit pas devenir du code.
 
-Pour l'administration (`tests/admin.test.js`) : chaque route refusée aux visiteurs (401) et aux membres ordinaires (403), impossibilité de se nommer administrateur en modifiant son profil, statistiques comparées au contenu réel de la base, les trois décisions sur un signalement et leurs effets visibles (contenu absent du fil, membre déconnecté), administrateur impossible à bloquer, contenu supprimé entre-temps, validation et refus des projets pour Facebook.
+Pour l'administration (`tests/admin.test.js`) : chaque route refusée aux visiteurs (401) et aux membres ordinaires (403), impossibilité de se nommer administrateur en modifiant son profil, statistiques comparées au contenu réel de la base, les trois décisions sur un signalement et leurs effets visibles (contenu absent du fil, membre déconnecté), administrateur impossible à bloquer, contenu supprimé entre-temps, validation et refus des projets pour Facebook, puis le plan B : texte construit par le serveur, passage de `valide` à `publie`, notification du dev, refus au-delà de 5 par jour, compteur qui repart le lendemain.
 
 Pour le calculateur (`tests/calculateur.test.js`) : cohérence de la grille (chaque type mène à une catégorie de demande qui existe), prix de base de chaque type, majorations de taille et de délai, options, un calcul complet vérifié à la main, tous les résultats possibles multiples de 5 000, refus d'un choix inconnu, page ouverte à tous avec ses balises de partage. Comme le calcul vit dans des fichiers du navigateur, ces fichiers sont écrits pour être aussi chargés par Node.js.
 
@@ -607,6 +619,8 @@ Les autres fichiers de tests ont besoin de comptes prêts à servir : `tests/aid
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
 
 ## 15. Questions probables du jury
+
+- **Pourquoi la publication sur Facebook n'est-elle pas automatique ?** L'API de Meta exige une application validée et un jeton secret. Le site prépare donc le texte et ouvre la fenêtre de partage ; un administrateur publie en deux clics. Aucun secret Facebook n'est stocké.
 
 - **Un membre peut-il afficher n'importe quelle page dans le fil avec un « lien vidéo » ?** Non. On n'enregistre pas son lien, seulement la plateforme et l'identifiant de la vidéo ; l'adresse du lecteur est reconstruite par le site, et la CSP n'autorise que trois lecteurs officiels.
 - **Les vidéos ne ruinent-elles pas le forfait des membres ?** Rien n'est chargé tant qu'on ne touche pas la vidéo : une miniature pour YouTube, une simple carte pour TikTok et Facebook.
