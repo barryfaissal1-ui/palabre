@@ -2256,7 +2256,11 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
 .choix-recherche { flex: none; width: auto; min-height: 44px; margin: 8px 8px 0; border-radius: 22px; background: color-mix(in srgb, var(--surface-2) 80%, transparent); }
 .choix-entete { display: none; }
 
-/* Ordinateur : un menu flottant accroché au bouton, qui s'ouvre en fondu avec un léger agrandissement. */
+/* Ordinateur : un menu flottant accroché au bouton, qui s'ouvre en fondu avec un léger agrandissement.
+   Presque opaque : avec un fond plus transparent, un bouton vert situé derrière se voyait à travers la liste et
+   donnait l'impression que le menu passait dessous. Le flou reste, pour l'effet verre sur les bords. */
+.choix-menu { background: color-mix(in srgb, var(--surface) 94%, transparent); }
+:where([data-theme="sombre"]) .choix-menu { background: color-mix(in srgb, var(--surface) 92%, transparent); }
 .choix-menu::backdrop { background: transparent; }
 .choix-menu[open] { animation: choix-apparait 0.15s ease; transform-origin: top center; }
 .choix-menu.vers-le-haut[open] { transform-origin: bottom center; }

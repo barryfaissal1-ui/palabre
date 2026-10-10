@@ -374,6 +374,7 @@
   const sansAccent = (texte) => texte.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const valeurNative = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
   let numeroListe = 0;
+  const HAUTEUR_MAX_MENU = 420; // au-delà, la liste défile à l'intérieur du menu
 
   function listeChoix(select) {
     if (!select || select.dataset.listeChoix || select.multiple) return;
@@ -443,9 +444,12 @@
         ? el('input', { classe: 'choix-recherche', type: 'search', placeholder: 'Chercher…', 'aria-label': `Chercher dans la liste ${titre()}`, autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false', role: 'combobox', 'aria-expanded': 'true', 'aria-controls': idListe, 'aria-autocomplete': 'list' })
         : null;
       const entete = el('div', { classe: 'choix-entete' }, [el('span', { classe: 'choix-poignee', 'aria-hidden': 'true' }), el('p', { classe: 'choix-titre', texte: titre() })]);
-      // Le clavier reste sur le champ de recherche ou sur la liste ; le choix « actif » est annoncé par aria-activedescendant.
-      const foyer = recherche || liste;
-      if (!recherche) liste.tabIndex = 0;
+      // Le clavier reste sur la liste ou sur le champ de recherche ; le choix « actif » est annoncé par aria-activedescendant.
+      // Sur téléphone, le focus va TOUJOURS sur la liste : le mettre dans la recherche ouvrirait le clavier de l'écran,
+      // qui cacherait la moitié des choix. La recherche reste là pour qui la touche. Sur ordinateur, on tape tout de suite.
+      liste.tabIndex = 0;
+      const foyer = recherche && !telephone ? recherche : liste;
+      const dansRecherche = () => Boolean(recherche) && document.activeElement === recherche;
       // Un <dialog> ouvert avec showModal() passe au-dessus de tout (même d'une autre fenêtre), garde le clavier,
       // se ferme avec Échap et rend le focus : le navigateur fait le travail.
       fenetre = el('dialog', { classe: `choix-fenetre ${telephone ? 'choix-feuille' : 'choix-menu'}` }, [
@@ -459,7 +463,8 @@
         if (lignes[actif]) lignes[actif].classList.remove('actif');
         actif = rang;
         lignes[actif].classList.add('actif');
-        foyer.setAttribute('aria-activedescendant', lignes[actif].id);
+        liste.setAttribute('aria-activedescendant', lignes[actif].id);
+        if (recherche) recherche.setAttribute('aria-activedescendant', lignes[actif].id);
         if (defiler) lignes[actif].scrollIntoView({ block: 'nearest' });
       }
       function deplacer(pas) {
@@ -499,12 +504,13 @@
       fenetre.addEventListener('keydown', (evenement) => {
         const { key } = evenement;
         if (key === 'ArrowDown' || key === 'ArrowUp') { evenement.preventDefault(); deplacer(key === 'ArrowDown' ? 1 : -1); }
-        else if (key === 'Home' && !recherche) { evenement.preventDefault(); deplacer('debut'); }
-        else if (key === 'End' && !recherche) { evenement.preventDefault(); deplacer('fin'); }
+        // Dans le champ de recherche, Début, Fin, Espace et les lettres servent à écrire ; ailleurs, à parcourir la liste.
+        else if (key === 'Home' && !dansRecherche()) { evenement.preventDefault(); deplacer('debut'); }
+        else if (key === 'End' && !dansRecherche()) { evenement.preventDefault(); deplacer('fin'); }
         else if (key === 'PageDown' || key === 'PageUp') { evenement.preventDefault(); deplacer(key === 'PageDown' ? 6 : -6); }
-        else if (key === 'Enter' || (key === ' ' && !recherche)) { evenement.preventDefault(); choisir(actif); }
+        else if (key === 'Enter' || (key === ' ' && !dansRecherche())) { evenement.preventDefault(); choisir(actif); }
         else if (key === 'Tab') { evenement.preventDefault(); fermer(); }
-        else if (!recherche && key.length === 1 && !evenement.ctrlKey && !evenement.metaKey && !evenement.altKey) parLettres(key);
+        else if (!dansRecherche() && key.length === 1 && !evenement.ctrlKey && !evenement.metaKey && !evenement.altKey) parLettres(key);
       });
       if (recherche) {
         recherche.addEventListener('input', () => {
@@ -514,7 +520,8 @@
           rien.hidden = rangs.length > 0;
           if (lignes[actif]) lignes[actif].classList.remove('actif');
           actif = -1;
-          foyer.removeAttribute('aria-activedescendant');
+          liste.removeAttribute('aria-activedescendant');
+          recherche.removeAttribute('aria-activedescendant');
           if (rangs.length) activer(rangs[0]);
         });
       }
@@ -557,15 +564,19 @@
       fenetre.showModal();
       bouton.setAttribute('aria-expanded', 'true');
       if (!telephone) {
-        // Menu flottant : sous le bouton s'il y a la place, sinon au-dessus ; jamais hors de l'écran.
+        // Menu flottant. La fenêtre est dans le « calque du dessus » du navigateur (showModal) : rien ne peut passer
+        // devant elle ni la couper, pas même une barre collée en bas de page.
+        // Elle s'ouvre sous le bouton si toute la liste y tient ; sinon du côté où il y a le plus de place, donc vers
+        // le HAUT quand le bouton est près du bas de l'écran. Trop de choix : la liste défile à l'intérieur.
         const cadre = bouton.getBoundingClientRect();
         const largeur = Math.max(cadre.width, 260);
+        const besoin = Math.min(HAUTEUR_MAX_MENU, liste.scrollHeight + (recherche ? 56 : 0) + 4);
         const dessous = window.innerHeight - cadre.bottom - 16;
         const dessus = cadre.top - 16;
-        const enBas = dessous >= 240 || dessous >= dessus;
+        const enBas = dessous >= besoin || dessous >= dessus;
         fenetre.style.width = `${largeur}px`;
         fenetre.style.left = `${Math.max(8, Math.min(cadre.left, window.innerWidth - largeur - 8))}px`;
-        fenetre.style.maxHeight = `${Math.min(380, enBas ? dessous : dessus)}px`;
+        fenetre.style.maxHeight = `${Math.max(120, Math.min(besoin, enBas ? dessous : dessus))}px`;
         if (enBas) fenetre.style.top = `${cadre.bottom + 6}px`;
         else fenetre.style.bottom = `${window.innerHeight - cadre.top + 6}px`;
         fenetre.classList.toggle('vers-le-haut', !enBas);
