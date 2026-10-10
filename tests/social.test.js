@@ -176,7 +176,10 @@ test('le fil est chargé par 10, du plus récent au plus ancien', async () => {
   for (let i = 1; i <= 12; i += 1) {
     assert.equal((await publier('bintou', `Publication numéro ${i}`)).statut, 201);
   }
-  const page1 = await appel('/api/publications', { qui: 'awa' });
+  // Le fil de Bintou seulement (?auteur=) : les autres fichiers de tests publient en même temps dans la même base,
+  // et une de leurs publications pouvait se glisser en tête du fil général et faire échouer ce test au hasard.
+  const filDeBintou = `/api/publications?auteur=${membres.bintou.identifiant}`;
+  const page1 = await appel(filDeBintou, { qui: 'awa' });
   assert.equal(page1.statut, 200);
   assert.equal(page1.corps.publications.length, 10);
   assert.equal(page1.corps.publications[0].texte, 'Publication numéro 12');
@@ -184,7 +187,7 @@ test('le fil est chargé par 10, du plus récent au plus ancien', async () => {
   assert.equal(page1.corps.publications[0].estMoi, false);
   assert.ok(page1.corps.suivant, 'il reste des publications');
 
-  const page2 = await appel(`/api/publications?avant=${page1.corps.suivant}`, { qui: 'awa' });
+  const page2 = await appel(`${filDeBintou}&avant=${page1.corps.suivant}`, { qui: 'awa' });
   assert.equal(page2.corps.publications[0].texte, 'Publication numéro 2');
   const ids = new Set([...page1.corps.publications, ...page2.corps.publications].map((p) => p.id));
   assert.equal(ids.size, page1.corps.publications.length + page2.corps.publications.length, 'aucun doublon entre les pages');
