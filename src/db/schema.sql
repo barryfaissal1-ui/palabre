@@ -279,6 +279,25 @@ ALTER TABLE notifications ADD COLUMN IF NOT EXISTS cible_id INTEGER;
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS acteurs INTEGER[] NOT NULL DEFAULT '{}';
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS nombre INTEGER NOT NULL DEFAULT 1;
 CREATE INDEX IF NOT EXISTS idx_notifications_groupe ON notifications (utilisateur_id, type, cible_type, cible_id) WHERE lue = FALSE;
+-- Notifications écrites AVANT la colonne acteur_id : on retrouve la personne quand c'est sûr, pour afficher son avatar.
+-- « acteur_id IS NULL » : chaque ligne n'est complétée qu'une fois, le fichier peut être rejoué sans rien changer.
+-- 1) « Awa a accepté ta demande d'ami » : le lien de la notification est le profil de cette personne.
+UPDATE notifications n SET acteur_id = u.id, acteurs = ARRAY[u.id]
+  FROM utilisateurs u
+ WHERE n.acteur_id IS NULL AND n.type = 'ami_accepte' AND n.lien = '/' || u.identifiant;
+-- 2) Les autres commencent par le nom de la personne (« Awa Ouédraogo veut t'ajouter en ami. »). On ne complète que
+--    si UN SEUL membre porte ce nom : avec deux homonymes on ne devine pas, la ligne garde son icône neutre.
+UPDATE notifications n SET acteur_id = trouve.membre, acteurs = ARRAY[trouve.membre]
+  FROM (SELECT n2.id, min(u.id) AS membre
+          FROM notifications n2
+          JOIN utilisateurs u ON u.id <> n2.utilisateur_id
+           AND (left(n2.texte, length(u.nom) + 1) = u.nom || ' '
+                OR left(n2.texte, length(u.nom) + 18) = 'Bonne nouvelle : ' || u.nom || ' ')
+         WHERE n2.acteur_id IS NULL
+           AND n2.type IN ('demande_ami', 'demande_message', 'nouvelle_proposition', 'invitation_equipe', 'avis_recu', 'proposition_acceptee')
+         GROUP BY n2.id
+        HAVING count(*) = 1) trouve
+ WHERE n.id = trouve.id;
 
 -- Notifications push : un abonnement par appareil (téléphone, ordinateur) du membre.
 -- endpoint : l'adresse donnée par le service de push du navigateur ; p256dh et auth : les clés de l'appareil,

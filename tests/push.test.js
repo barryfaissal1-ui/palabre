@@ -252,6 +252,60 @@ test('désabonnement : seulement le sien ; un appareil qui change de mains chang
   assert.equal((await appelBrut('/api/notifications/push', { methode: 'DELETE', donnees: { endpoint: 'x' } })).statut, 401);
 });
 
+// ---------- Les exemples officiels des normes ----------
+// Les tests plus haut déchiffrent avec notre propre code : ils prouvent que chiffrement et déchiffrement s'accordent,
+// pas qu'ils suivent la norme. Ici on rejoue les exemples publiés dans les RFC, avec leurs clés et leur sel fixés :
+// le résultat doit être identique OCTET PAR OCTET. C'est la preuve qu'un vrai téléphone saura lire nos messages.
+const b64 = (texte) => Buffer.from(texte, 'base64url');
+
+test('RFC 8188, section 3.1 : le format aes128gcm, exemple officiel', () => {
+  // « I am the walrus », clé et sel donnés par la norme, sans identifiant de clé.
+  const resultat = push.aes128gcm(b64('yqdlZ-tYemfogSmv7Ws5PQ'), b64('I1BsxtFttlv3u_Oo94xnmw'), Buffer.alloc(0), 'I am the walrus');
+  assert.equal(resultat.toString('base64url'), 'I1BsxtFttlv3u_Oo94xnmwAAEAAA-NAVub2qFgBEuQKRapoZu-IxkIva3MEB1PD-ly8Thjg');
+});
+
+test('RFC 8291, annexe A : le message push chiffré, exemple officiel, octet par octet', () => {
+  const norme = {
+    clair: 'When I grow up, I want to be a watermelon',
+    clePriveeServeur: 'yfWPiYE-n46HLnH0KqZOF1fJJU3MYrct3AELtAQ-oRw',
+    clePubliqueServeur: 'BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8',
+    clePriveeAppareil: 'q1dXpw3UpT5VOmu_cf_v6ih07Aems3njxI-JWgLcM94',
+    clePubliqueAppareil: 'BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4',
+    secretAppareil: 'BTBZMqHH6r4Tts7J_aSIgg',
+    sel: 'DGv6ra1nlYgDCS1FRnbzlw',
+    attendu: 'DGv6ra1nlYgDCS1FRnbzlwAAEABBBP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A_yl95bQpu6cVPTpK4Mqgkf1CXztLVBSt2Ks3oZwbuwXPXLWyouBWLVWGNWQexSgSxsj_Qulcy4a-fN',
+  };
+  // Les clés de l'exemple sont cohérentes entre elles (garde-fou contre une faute de recopie dans ce fichier).
+  for (const [privee, publique] of [[norme.clePriveeServeur, norme.clePubliqueServeur], [norme.clePriveeAppareil, norme.clePubliqueAppareil]]) {
+    const paire = crypto.createECDH('prime256v1');
+    paire.setPrivateKey(b64(privee));
+    assert.equal(paire.getPublicKey().toString('base64url'), publique);
+  }
+  // Notre chiffrement, avec la clé jetable et le sel de la norme, donne exactement le message de la norme.
+  const resultat = push.chiffrer({ p256dh: norme.clePubliqueAppareil, auth: norme.secretAppareil }, norme.clair, { clePrivee: b64(norme.clePriveeServeur), sel: b64(norme.sel) });
+  assert.equal(resultat.toString('base64url'), norme.attendu);
+
+  // Et le message de la norme, relu avec les clés de l'appareil, redonne le texte d'origine.
+  const telephone = { cles: crypto.createECDH('prime256v1'), auth: b64(norme.secretAppareil) };
+  telephone.cles.setPrivateKey(b64(norme.clePriveeAppareil));
+  const corps = b64(norme.attendu);
+  const sel = corps.subarray(0, 16);
+  const cleServeur = corps.subarray(21, 21 + corps[20]);
+  const hk = (s, m, info, taille) => Buffer.from(crypto.hkdfSync('sha256', m, s, info, taille));
+  const secret = telephone.cles.computeSecret(cleServeur);
+  assert.equal(secret.toString('base64url'), 'kyrL1jIIOHEzg3sM2ZWRHDRB62YACZhhSlknJ672kSs', 'secret commun (ECDH) de la norme');
+  const materiau = hk(telephone.auth, secret, Buffer.concat([Buffer.from('WebPush: info\0'), telephone.cles.getPublicKey(), cleServeur]), 32);
+  assert.equal(materiau.toString('base64url'), 'S4lYMb_L0FxCeq0WhDx813KgSYqU26kOyzWUdsXYyrg', 'matériau de clé (IKM) de la norme');
+  assert.equal(hk(sel, materiau, Buffer.from('Content-Encoding: aes128gcm\0'), 16).toString('base64url'), 'oIhVW04MRdy2XN9CiKLxTg', 'clé de chiffrement (CEK) de la norme');
+  assert.equal(hk(sel, materiau, Buffer.from('Content-Encoding: nonce\0'), 12).toString('base64url'), '4h_95klXJ5E_qnoN', 'nonce de la norme');
+  const dechiffre = crypto.createDecipheriv('aes-128-gcm', hk(sel, materiau, Buffer.from('Content-Encoding: aes128gcm\0'), 16), hk(sel, materiau, Buffer.from('Content-Encoding: nonce\0'), 12));
+  const chiffre = corps.subarray(21 + corps[20]);
+  dechiffre.setAuthTag(chiffre.subarray(-16));
+  const clair = Buffer.concat([dechiffre.update(chiffre.subarray(0, -16)), dechiffre.final()]);
+  assert.equal(clair.subarray(0, clair.length - 1).toString(), norme.clair);
+  assert.equal(clair[clair.length - 1], 2, 'le dernier octet est le marqueur « dernier bloc »');
+});
+
 test('familles : chaque type de notification appartient à une famille réglable', () => {
   assert.equal(push.familleDe('message'), 'messages');
   assert.equal(push.familleDe('nouvelle_proposition'), 'demandes');

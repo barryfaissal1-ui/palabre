@@ -66,28 +66,38 @@ function lireAbonnement(corps) {
   return { endpoint, p256dh: b64(point), auth: b64(depuisB64(cles.auth)) };
 }
 
+const hkdf = (sel, materiau, info, taille) => Buffer.from(crypto.hkdfSync('sha256', materiau, sel, info, taille));
+
+// Le format « aes128gcm » (RFC 8188) : un en-tête (sel, taille des blocs, identifiant de clé) puis le contenu chiffré.
+// materiau : le secret de départ ; la clé de chiffrement et le « nonce » en sont dérivés avec le sel.
+// Un seul bloc suffit : nos messages font quelques centaines d'octets, la norme en permet 4096.
+function aes128gcm(materiau, sel, identifiantCle, clair) {
+  const cle = hkdf(sel, materiau, Buffer.from('Content-Encoding: aes128gcm\0'), 16);
+  const nonce = hkdf(sel, materiau, Buffer.from('Content-Encoding: nonce\0'), 12);
+  const chiffre = crypto.createCipheriv('aes-128-gcm', cle, nonce);
+  // 0x02 : « dernier bloc », exigé par la norme.
+  const corps = Buffer.concat([chiffre.update(Buffer.concat([Buffer.from(clair), Buffer.from([2])])), chiffre.final(), chiffre.getAuthTag()]);
+  const entete = Buffer.alloc(21);
+  sel.copy(entete, 0);
+  entete.writeUInt32BE(4096, 16); // taille d'un bloc
+  entete[20] = identifiantCle.length;
+  return Buffer.concat([entete, identifiantCle, corps]);
+}
+
 // Chiffre le message pour UN appareil (RFC 8291). Seul cet appareil pourra le lire.
-function chiffrer(abonnement, texteClair) {
+// clePrivee et sel : tirés au hasard à chaque message. Ils ne sont fournis que par les tests, qui rejouent
+// l'exemple officiel de la norme (annexe A) pour vérifier le résultat octet par octet.
+function chiffrer(abonnement, texteClair, { clePrivee = null, sel = crypto.randomBytes(16) } = {}) {
   const cleAppareil = depuisB64(abonnement.p256dh);
   const secretAppareil = depuisB64(abonnement.auth);
   // Une paire de clés jetable par message : avec la clé publique de l'appareil, elle donne un secret commun (ECDH).
   const jetable = crypto.createECDH('prime256v1');
-  jetable.generateKeys();
+  if (clePrivee) jetable.setPrivateKey(clePrivee);
+  else jetable.generateKeys();
   const cleJetable = jetable.getPublicKey();
   const secretCommun = jetable.computeSecret(cleAppareil);
-  const hkdf = (sel, materiau, info, taille) => Buffer.from(crypto.hkdfSync('sha256', materiau, sel, info, taille));
   const materiau = hkdf(secretAppareil, secretCommun, Buffer.concat([Buffer.from('WebPush: info\0'), cleAppareil, cleJetable]), 32);
-  const sel = crypto.randomBytes(16);
-  const cle = hkdf(sel, materiau, Buffer.from('Content-Encoding: aes128gcm\0'), 16);
-  const nonce = hkdf(sel, materiau, Buffer.from('Content-Encoding: nonce\0'), 12);
-  const chiffre = crypto.createCipheriv('aes-128-gcm', cle, nonce);
-  // 0x02 : « dernier bloc », exigé par le format aes128gcm.
-  const corps = Buffer.concat([chiffre.update(Buffer.concat([Buffer.from(texteClair), Buffer.from([2])])), chiffre.final(), chiffre.getAuthTag()]);
-  const entete = Buffer.alloc(21);
-  sel.copy(entete, 0);
-  entete.writeUInt32BE(4096, 16); // taille d'un bloc
-  entete[20] = cleJetable.length;
-  return Buffer.concat([entete, cleJetable, corps]);
+  return aes128gcm(materiau, sel, cleJetable, texteClair);
 }
 
 // L'en-tête « Authorization » : un jeton signé avec notre clé privée, valable 12 heures, pour ce service de push.
@@ -135,7 +145,7 @@ async function envoyerPush(utilisateurId, type, message) {
 }
 
 module.exports = {
-  pushActif, genererCles, lireAbonnement, chiffrer, envoyerPush, familleDe, FAMILLES,
+  pushActif, genererCles, lireAbonnement, chiffrer, aes128gcm, envoyerPush, familleDe, FAMILLES,
   clePublique: () => (vapid ? vapid.publique : null),
   // Remplaçables par les tests : l'envoi lui-même, et les clés (pour essayer « avec » et « sans »).
   transport: (adresse, options) => fetch(adresse, options),

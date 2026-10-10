@@ -47,7 +47,7 @@ async function repondre(req, res, reponse) {
     const lien = `/demande?id=${equipe.demande_id}`;
     if (bilan.ont_accepte === 0) {
       await notifier(client, equipe.chef_id, 'equipe_reponses',
-        `Tous tes invités ont refusé pour « ${court(equipe.titre)} ». Dissous l'équipe pour proposer seul ou en former une autre.`, lien);
+        `Tous tes invités ont refusé pour « ${court(equipe.titre)} ». Dissous l'équipe pour proposer seul ou en former une autre.`, lien, { acteur: moi });
       return false;
     }
     await client.query(
@@ -55,9 +55,9 @@ async function repondre(req, res, reponse) {
       [equipe.id],
     );
     await notifier(client, equipe.client_id, 'nouvelle_proposition',
-      `L'équipe ${deNom(equipe.nom_chef)} a envoyé une proposition pour « ${court(equipe.titre)} ».`, lien);
+      `L'équipe ${deNom(equipe.nom_chef)} a envoyé une proposition pour « ${court(equipe.titre)} ».`, lien, { acteur: { id: equipe.chef_id } });
     await notifier(client, equipe.chef_id, 'equipe_reponses',
-      `Tous tes invités ont répondu : la proposition de ton équipe pour « ${court(equipe.titre)} » est partie.`, lien);
+      `Tous tes invités ont répondu : la proposition de ton équipe pour « ${court(equipe.titre)} » est partie.`, lien, { acteur: moi });
     return true;
   });
 

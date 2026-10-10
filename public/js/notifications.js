@@ -56,8 +56,8 @@
     const interne = typeof notification.lien === 'string' && /^\/(?!\/)/.test(notification.lien);
     const lien = el('a', { classe: 'notif', href: interne ? notification.lien : '/notifications' }, [
       el('span', { classe: 'notif-qui' }, [
-        // Sans personne (notification du site, compte supprimé) : un rond neutre avec l'icône du type.
-        notification.acteur ? avatar(notification.acteur, 'moyen') : el('span', { classe: 'notif-sans-avatar' }, [icone(nomIcone)]),
+        // Sans personne (notification du site lui-même : défi gagné, projet retenu… ou compte supprimé) : le logo de Palabre.
+        notification.acteur ? avatar(notification.acteur, 'moyen') : el('span', { classe: 'notif-sans-avatar' }, [el('img', { src: '/icons/logo-96.webp', alt: '', width: 44, height: 44 })]),
         el('span', { classe: `notif-pastille pastille-${couleur}` }, [icone(nomIcone)]),
       ]),
       el('span', { classe: 'notif-corps' }, [
