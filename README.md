@@ -85,6 +85,7 @@ tests/                 tests automatiques
 - [x] Calculateur « Combien coûte mon projet ? » `/calculateur` (grille de prix : `public/js/grille-prix.js`)
 - [x] Refonte du design, étape A : système de design (icônes Lucide, ombres, animations, toasts, états vides illustrés, squelettes de chargement, mode sombre)
 - [x] Prénom et nom saisis séparément (inscription et profil)
+- [x] Partage des publications : « Partager » dans le menu de chaque publication (menu du téléphone, ou WhatsApp / Facebook / X / copier le lien), page publique `/publication/12` lisible sans compte, avec sa carte de partage
 - [x] Vidéos dans le fil : un lien YouTube, TikTok ou Facebook par publication, lecteur chargé seulement au toucher (3G)
 - [x] Inscription en deux étapes : code à 6 chiffres reçu par email, champ piège et délai minimum contre les robots, puis « Ton profil de dev » (18 ans minimum, spécialité, expérience, liens vérifiés) avant de pouvoir répondre aux demandes
 - [x] Palabre Messages : messagerie privée (amis, client et dev, demandes de message, blocage, signalement, « Vu »), sans WebSocket

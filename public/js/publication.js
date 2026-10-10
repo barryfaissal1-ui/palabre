@@ -1,7 +1,8 @@
 // Une publication du fil : en-tête, texte, image, preuve sociale, j'aime, commentaires.
-// Partagé par le fil (/fil) et par l'onglet « Publications » d'un profil : le même code, le même rendu.
+// Partagé par le fil (/fil), l'onglet « Publications » d'un profil et la page publique /publication/12 :
+// le même code, le même rendu. Un visiteur sans compte la voit en lecture seule (option « visiteur »).
 (function () {
-  const { api, el, avatar, nomMembre, prenom, dateRelative, signaler, icone, chargement, toast, confirmer, menuOptions, copierLien, utilisateurConnecte } = window.Palabre;
+  const { api, el, avatar, nomMembre, prenom, dateRelative, signaler, icone, chargement, toast, confirmer, menuOptions, copierLien, partager, utilisateurConnecte } = window.Palabre;
 
   // Un administrateur peut supprimer le contenu des autres : le menu « … » le lui propose.
   // (Le serveur revérifie de toute façon : cacher un bouton n'est jamais une protection.)
@@ -30,7 +31,7 @@
   }
 
   // ---------- Commentaires ----------
-  function elementCommentaire(commentaire, publication, apresSuppression) {
+  function elementCommentaire(commentaire, publication, apresSuppression, visiteur) {
     async function supprimer() {
       if (!(await confirmer('Supprimer ce commentaire ?', { bouton: 'Supprimer', danger: true }))) return;
       try {
@@ -42,7 +43,8 @@
         toast(erreur.message, 'erreur');
       }
     }
-    const menu = menuOptions(() => [
+    // Un visiteur ne peut ni signaler ni supprimer : pas de menu « … » pour lui.
+    const menu = visiteur ? null : menuOptions(() => [
       commentaire.estMoi ? null : { texte: 'Signaler', icone: 'signaler', action: () => signaler('commentaire', commentaire.id) },
       commentaire.estMoi || estAdmin ? { texte: 'Supprimer', icone: 'supprimer', danger: true, action: supprimer } : null,
     ], { cote: 'gauche' });
@@ -60,7 +62,7 @@
   }
 
   // Les 2 derniers commentaires sont déjà là (envoyés avec le fil) ; « Voir les N commentaires » charge le reste.
-  function zoneCommentaires(publication, afficherCompteur) {
+  function zoneCommentaires(publication, afficherCompteur, visiteur) {
     const liste = el('ul', { classe: 'liste-commentaires' });
     const voirTout = el('button', { classe: 'bouton-discret voir-commentaires', type: 'button' });
     const champ = el('input', { type: 'text', maxlength: '1000', placeholder: 'Écrire un commentaire…', 'aria-label': 'Écrire un commentaire', required: true });
@@ -73,12 +75,12 @@
     function compter(variation = 0) {
       publication.nbCommentaires += variation;
       const caches = publication.nbCommentaires - liste.children.length;
-      voirTout.hidden = toutCharge || caches <= 0;
+      voirTout.hidden = visiteur || toutCharge || caches <= 0; // la liste complète demande un compte
       voirTout.textContent = `Voir les ${publication.nbCommentaires} commentaires`;
       zone.hidden = liste.children.length === 0 && formulaire.hidden && voirTout.hidden;
       afficherCompteur();
     }
-    const commentaire = (c) => elementCommentaire(c, publication, () => compter(-1));
+    const commentaire = (c) => elementCommentaire(c, publication, () => compter(-1), visiteur);
 
     async function toutVoir() {
       if (toutCharge) return;
@@ -199,7 +201,9 @@
 
   // ---------- Une publication ----------
   // « nouvelle » : la publication vient d'être écrite, elle apparaît en douceur en haut du fil.
-  function cartePublication(publication, { nouvelle = false } = {}) {
+  // « visiteur » : personne n'est connecté (page publique). Tout se lit, mais les actions sont remplacées par
+  //   un bouton « Rejoindre Palabre pour réagir ». « entiere » : le texte n'est pas coupé après 5 lignes.
+  function cartePublication(publication, { nouvelle = false, visiteur = false, entiere = false } = {}) {
     const type = TYPES[publication.type];
     const boutonJaime = el('button', { classe: 'bouton-action bouton-jaime', type: 'button' }, [icone('coeur'), 'J\'aime']);
     const boutonCommenter = el('button', { classe: 'bouton-action', type: 'button' }, [icone('commentaire'), 'Commenter']);
@@ -213,16 +217,21 @@
         toast(erreur.message, 'erreur');
       }
     }
+    // L'adresse partagée est la page publique /publication/12 (envoyée par le serveur), lisible sans compte.
+    const lien = publication.lien || `${window.location.origin}/publication/${publication.id}`;
+    const apercu = publication.texte.replace(/\s+/g, ' ').trim();
     const menu = menuOptions(() => [
-      { texte: 'Copier le lien', icone: 'lien', action: () => copierLien(`${window.location.origin}/fil?publication=${publication.id}`) },
-      publication.estMoi ? null : { texte: 'Signaler', icone: 'signaler', action: () => signaler('publication', publication.id) },
+      { texte: 'Partager', icone: 'partager', action: () => partager({ titre: `${publication.auteur.nom} sur Palabre`, texte: apercu.length > 120 ? `${apercu.slice(0, 119)}…` : apercu, url: lien }) },
+      { texte: 'Copier le lien', icone: 'lien', action: () => copierLien(lien) },
+      publication.estMoi || visiteur ? null : { texte: 'Signaler', icone: 'signaler', action: () => signaler('publication', publication.id) },
       publication.estMoi || estAdmin ? { texte: 'Supprimer', icone: 'supprimer', danger: true, action: supprimer } : null,
     ]);
     menu.classList.add('publication-menu');
 
     // Preuve sociale : qui a aimé à gauche, nombre de commentaires à droite.
     const aime = el('span', { classe: 'preuve-aime' });
-    const nbCommentaires = el('button', { classe: 'bouton-discret preuve-commentaires', type: 'button' });
+    // Pour un membre, le compteur est un bouton qui déplie tous les commentaires ; pour un visiteur, un simple texte.
+    const nbCommentaires = visiteur ? el('span', { classe: 'preuve-commentaires texte-discret' }) : el('button', { classe: 'bouton-discret preuve-commentaires', type: 'button' });
     const preuve = el('div', { classe: 'publication-preuve' }, [aime, nbCommentaires]);
 
     function afficherPreuve() {
@@ -234,11 +243,11 @@
       preuve.hidden = !texte && !n;
       boutonJaime.setAttribute('aria-pressed', String(publication.jaimeParMoi));
     }
-    const commentaires = zoneCommentaires(publication, afficherPreuve);
+    const commentaires = zoneCommentaires(publication, afficherPreuve, visiteur);
     commentaires.compter();
 
     // Texte coupé après 5 lignes (CSS) ; « Voir plus » n'apparaît que si le texte dépasse vraiment.
-    const texte = el('p', { classe: 'publication-texte coupe', texte: publication.texte });
+    const texte = el('p', { classe: `publication-texte${entiere ? '' : ' coupe'}`, texte: publication.texte });
     const voirPlus = el('button', { classe: 'bouton-discret voir-plus', type: 'button', texte: 'Voir plus', hidden: true });
     voirPlus.addEventListener('click', () => {
       texte.classList.remove('coupe');
@@ -265,7 +274,9 @@
       publication.image ? imagePublication(publication) : null,
       publication.video ? videoPublication(publication.video) : null,
       preuve,
-      el('div', { classe: 'publication-actions' }, [boutonJaime, boutonCommenter]),
+      visiteur
+        ? el('div', { classe: 'publication-rejoindre' }, [el('a', { classe: 'bouton bouton-principal bouton-plein', href: `/inscription?suite=${encodeURIComponent(`/publication/${publication.id}`)}`, texte: 'Rejoindre Palabre pour réagir' })])
+        : el('div', { classe: 'publication-actions' }, [boutonJaime, boutonCommenter]),
       commentaires.zone,
     ]);
 
@@ -293,7 +304,7 @@
     });
 
     boutonCommenter.addEventListener('click', commentaires.ecrire);
-    nbCommentaires.addEventListener('click', commentaires.toutVoir);
+    if (!visiteur) nbCommentaires.addEventListener('click', commentaires.toutVoir);
 
     return carte;
   }

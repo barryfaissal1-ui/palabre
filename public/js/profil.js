@@ -73,11 +73,13 @@
       }
     }
     const boutonPartage = el('button', { classe: 'bouton bouton-contour', type: 'button' }, [icone('partager'), 'Partager']);
-    boutonPartage.addEventListener('click', () => partager(`${window.location.origin}/${profil.identifiant}`, `${profil.nom} sur Palabre`, boutonPartage));
+    const partage = { titre: `${profil.nom} sur Palabre`, texte: `Le profil de ${profil.nom} sur Palabre, le réseau des développeurs africains.`, url: `${window.location.origin}/${profil.identifiant}` };
+    boutonPartage.addEventListener('click', () => partager(partage));
     zone.append(boutonPartage);
     // « amitie » n'est renseigné que pour un membre connecté qui regarde le profil de quelqu'un d'autre.
     if (profil.amitie) {
       zone.append(menuOptions(() => [
+        { texte: 'Partager', icone: 'partager', action: () => partager(partage) },
         { texte: 'Copier le lien', icone: 'lien', action: () => copierLien(`${window.location.origin}/${profil.identifiant}`) },
         { texte: 'Signaler', icone: 'signaler', action: () => signaler('profil', profil.identifiant) },
       ], { cote: 'gauche' }));

@@ -46,6 +46,10 @@ Chaque correction a son test dans `tests/securite.test.js`.
 
 **En-têtes** : Helmet (CSP stricte, pas de script ni de style en ligne, `X-Content-Type-Options`, HSTS en https), cookie de session `httpOnly`, `secure` en production, `SameSite=Lax`, requêtes de modification en JSON seulement.
 
+## Ajout du 10 octobre : une publication lisible sans compte
+
+Pour le partage, `GET /api/publications/:id` et la page `/publication/:id` répondent aux visiteurs. Ce qui a été vérifié (`tests/partage.test.js`) : c'est la seule route des publications ouverte ; elle ne renvoie ni email ni numéro WhatsApp ; une publication masquée ou d'un membre bloqué donne 404 ; le texte du membre est échappé dans les balises de partage ; la lecture est limitée à 150 par 10 minutes par adresse, pour qu'on ne puisse pas recopier le fil numéro par numéro. Les liens de partage (WhatsApp, Facebook, X) sont de simples liens : aucun script extérieur n'est chargé, la CSP n'a pas changé.
+
 ## Risques connus, acceptés pour le concours
 
 | Risque | Pourquoi il est accepté | Ce qu'on pourrait faire ensuite |

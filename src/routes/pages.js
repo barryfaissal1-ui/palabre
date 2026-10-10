@@ -1,4 +1,4 @@
-// Pages dont l'en-tête est préparé par le serveur : accueil, profil (lien court) et projet.
+// Pages dont l'en-tête est préparé par le serveur : accueil, profil (lien court), projet et publication.
 //
 // Pourquoi : quand on colle un lien dans Facebook ou WhatsApp, leur robot lit la page SANS exécuter
 // le JavaScript. Pour afficher une belle carte (titre, texte, image), il lui faut des balises
@@ -9,7 +9,7 @@ const path = require('node:path');
 const db = require('../db/pool');
 const config = require('../config');
 const v = require('../utils/validation');
-const { lirePage } = require('../utils/statique');
+const { lirePage, pageErreur } = require('../utils/statique');
 
 const router = express.Router();
 const DOSSIER_PUBLIC = path.join(__dirname, '..', '..', 'public');
@@ -49,6 +49,10 @@ function rendrePage(res, fichier, { titre, description, chemin, image, type = 'w
     // elles permettent à Facebook d'afficher la grande carte dès le premier partage, sans attendre de l'avoir analysée.
     ...(image ? [] : ['<meta property="og:image:width" content="1200">', '<meta property="og:image:height" content="630">']),
     '<meta name="twitter:card" content="summary_large_image">',
+    // X (Twitter) lit ses propres balises : les mêmes textes et la même image.
+    `<meta name="twitter:title" content="${echapper(titre)}">`,
+    `<meta name="twitter:description" content="${echapper(description)}">`,
+    `<meta name="twitter:image" content="${echapper(`${config.urlPublique}${image || IMAGE_PAR_DEFAUT}`)}">`,
   ].join('\n  ');
   // La fonction en second argument évite que « $ » dans un titre soit pris pour un code de remplacement.
   let html = lireModele(fichier).replace(/<title>[^<]*<\/title>/, () => balises);
@@ -174,6 +178,28 @@ router.get('/projets/:id', async (req, res, next) => {
     description: raccourcir(projet.description) || `Un projet réalisé par ${projet.nom}, à découvrir sur Palabre, le réseau des développeurs africains.`,
     chemin: `/projets/${id}`,
     image: projet.image ? `/fichiers/${projet.image}` : null,
+    type: 'article',
+  });
+});
+
+// Page publique d'une publication : /publication/12. C'est l'adresse qu'on partage (WhatsApp, Facebook, X).
+// Le serveur n'écrit ici que le nom de l'auteur, le début du texte et l'image ; la page demande le reste à l'API.
+// Publication supprimée, masquée par un administrateur, ou auteur bloqué : la page 404 du site, sans rien dire de plus.
+router.get('/publication/:id', async (req, res, next) => {
+  if (!/^\d+$/.test(req.params.id)) return next();
+  const id = v.idPositif(req.params.id);
+  const { rows: [publication] } = id ? await db.query(
+    `SELECT p.texte, p.image, u.nom FROM publications p
+       JOIN utilisateurs u ON u.id = p.auteur_id
+      WHERE p.id = $1 AND p.masque = FALSE AND u.bloque = FALSE`,
+    [id],
+  ) : { rows: [] };
+  if (!publication) return pageErreur(res, 404);
+  rendrePage(res, 'publication.html', {
+    titre: `${publication.nom} sur Palabre`,
+    description: raccourcir(publication.texte, 160) || `Une publication de ${publication.nom} sur Palabre, le réseau des développeurs africains.`,
+    chemin: `/publication/${id}`,
+    image: publication.image ? `/fichiers/${publication.image}` : null,
     type: 'article',
   });
 });

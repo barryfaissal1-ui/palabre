@@ -145,7 +145,7 @@ const IDENTIFIANTS_RESERVES = new Set([
   'confirmer-email', 'connexion',
   'css', 'defis', 'demande', 'demandes', 'equipes', 'fichiers', 'fil', 'fonts', 'icons', 'img', 'index', 'inscription',
   'js', 'manifest', 'messages', 'modifier-profil', 'moi', 'mot-de-passe-oublie', 'notifications', 'palabre', 'parametres',
-  'profil', 'projet', 'projets', 'reinitialiser', 'sw', 'vitrine',
+  'profil', 'projet', 'projets', 'publication', 'publications', 'reinitialiser', 'sw', 'vitrine',
 ]);
 
 function identifiant(valeur) {

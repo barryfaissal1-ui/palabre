@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0F3D22">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Palabre">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <script src="/js/theme.js"></script>
+  <link rel="stylesheet" href="/css/style.css">
+  <title>Publication – Palabre</title>
+  <script src="/js/app.js" defer></script>
+  <script src="/js/publication.js" defer></script>
+  <script src="/js/page-publication.js" defer></script>
+</head>
+<!-- Page publique d'une publication (/publication/12), lisible sans compte : c'est l'adresse qu'on partage.
+     Le serveur remplace le <title> par le titre et les balises de partage de cette publication (src/routes/pages.js) ;
+     la carte est dessinée par page-publication.js avec cartePublication(), comme dans le fil. -->
+<body>
+  <div class="bande"></div>
+  <header class="entete"><div class="conteneur entete-interieur">
+    <a class="marque" href="/"><img src="/icons/logo-96.webp" alt="" width="32" height="32">Palabre</a>
+    <nav data-nav></nav>
+  </div></header>
+  <main class="conteneur page-fil page-publication">
+    <h1 class="visuellement-cache">Publication</h1>
+    <div class="fil-social" data-publication aria-live="polite">
+      <div class="squelettes" aria-hidden="true">
+        <div class="squelette"><div class="squelette-entete"><span class="os os-rond"></span><span class="os os-court"></span></div><span class="os"></span><span class="os os-moyen"></span></div>
+      </div>
+      <p class="visuellement-cache">Chargement…</p>
+    </div>
+  </main>
+</body>
+</html>

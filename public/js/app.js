@@ -282,13 +282,52 @@
     }
   }
 
-  // Partage d'une page : menu de partage du téléphone s'il existe, sinon copie du lien.
-  async function partager(url, titre) {
-    if (navigator.share) {
-      try { await navigator.share({ title: titre, url }); } catch { /* partage annulé par la personne */ }
-      return;
+  // ---------- Partager ----------
+  // LA fonction de partage du site (publications, projets, profils) : partager({ titre, texte, url }).
+  //  - sur un téléphone, le menu de partage de l'appareil (WhatsApp, Facebook, Messenger, SMS…) : navigator.share ;
+  //  - ailleurs, une petite fenêtre avec WhatsApp, Facebook, X et « Copier le lien ».
+  // Rien n'est envoyé à ces sites tant que la personne n'a pas touché un choix : ce ne sont que des liens.
+  async function partager({ titre, texte = '', url }) {
+    // « pointer: coarse » : un écran qu'on touche du doigt. Sur ordinateur, le menu du système est pauvre : on préfère la fenêtre.
+    if (navigator.share && window.matchMedia('(pointer: coarse)').matches) {
+      try {
+        await navigator.share({ title: titre, text: texte, url });
+        return;
+      } catch (erreur) {
+        if (erreur.name === 'AbortError') return; // la personne a refermé le menu : on ne dit rien
+      }
     }
-    await copierLien(url);
+    fenetrePartage({ titre, texte, url });
+  }
+
+  function fenetrePartage({ titre, texte, url }) {
+    const u = encodeURIComponent(url);
+    const phrase = texte || titre;
+    const choix = [
+      ['whatsapp', 'WhatsApp', `https://wa.me/?text=${encodeURIComponent(`${phrase} ${url}`)}`],
+      ['facebook', 'Facebook', `https://www.facebook.com/sharer/sharer.php?u=${u}`],
+      ['x-reseau', 'X', `https://twitter.com/intent/tweet?url=${u}&text=${encodeURIComponent(phrase)}`],
+    ];
+    const copier = el('button', { classe: 'choix-partage', type: 'button' }, [el('span', { classe: 'choix-partage-rond' }, [icone('lien')]), 'Copier le lien']);
+    const fermer = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': 'Fermer', title: 'Fermer' }, [icone('fermer')]);
+    const dialogue = el('dialog', { classe: 'dialogue dialogue-partage', 'aria-labelledby': 'partage-titre' }, [
+      el('div', { classe: 'partage-entete' }, [el('h2', { id: 'partage-titre', texte: 'Partager' }), fermer]),
+      el('div', { classe: 'liste-partage' }, [
+        // noopener : le site ouvert n'a aucun accès à la page Palabre ; l'adresse est construite ici, jamais par un membre.
+        ...choix.map(([nom, libelle, lien]) => el('a', { classe: 'choix-partage', href: lien, target: '_blank', rel: 'noopener' }, [el('span', { classe: 'choix-partage-rond' }, [icone(nom)]), libelle])),
+        copier,
+      ]),
+    ]);
+    copier.addEventListener('click', () => {
+      dialogue.close();
+      copierLien(url);
+    });
+    fermer.addEventListener('click', () => dialogue.close());
+    // Toucher à côté de la fenêtre la ferme (le clic arrive alors sur le <dialog> lui-même, pas sur son contenu).
+    dialogue.addEventListener('click', (evenement) => { if (evenement.target === dialogue) dialogue.close(); });
+    dialogue.addEventListener('close', () => dialogue.remove());
+    document.body.append(dialogue);
+    dialogue.showModal();
   }
 
   // ---------- Menu « … » (Plus d'options) ----------

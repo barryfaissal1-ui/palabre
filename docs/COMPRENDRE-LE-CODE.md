@@ -469,6 +469,35 @@ Piège évité : deux lectures au même instant ne doivent pas désigner (ni pr�
 
 La page `/defis`, un encadré dans la colonne de droite sur ordinateur, et une carte en haut du fil sur téléphone. La carte se ferme : le numéro du défi fermé est gardé dans le navigateur (`localStorage`), et un nouveau défi la fait revenir. Les deux utilisent une route légère, `GET /api/defis/resume`, qui n'envoie ni l'énoncé ni les réponses.
 
+## 11 quinquies. Le partage des publications
+
+Un réseau social grandit quand ses contenus sortent du site. Chaque publication a donc **une adresse publique**, `/publication/12`, qu'on peut envoyer à quelqu'un qui n'a pas de compte.
+
+### Une seule fonction : `partager()`
+
+Dans le menu « … » d'une publication, « Partager » appelle `partager({ titre, texte, url })` de `public/js/app.js`. La même fonction sert aux profils et aux projets.
+
+- **Sur un téléphone**, elle ouvre le menu de partage de l'appareil (`navigator.share`) : WhatsApp, Facebook, Messenger, SMS… Le site ne choisit pas la liste, c'est le téléphone. Si la personne referme le menu, rien ne s'affiche.
+- **Sur un ordinateur**, elle ouvre une petite fenêtre avec WhatsApp, Facebook, X et « Copier le lien ». Ce sont de simples liens (`wa.me`, `sharer.php`, `twitter.com/intent/tweet`) ouverts dans un nouvel onglet avec `rel="noopener"` : **aucun script de ces sites n'est chargé dans Palabre**, donc ils ne suivent personne et la page ne s'alourdit pas.
+
+Comment distinguer les deux ? Par `(pointer: coarse)`, « un écran qu'on touche du doigt ». Un ordinateur sous Windows connaît aussi `navigator.share`, mais son menu est pauvre : on lui préfère la fenêtre.
+
+### La page publique, lisible sans compte
+
+`/publication/12` montre l'auteur, le texte, l'image ou la vidéo, le nombre de j'aime et de commentaires, et les 3 derniers commentaires. Deux étapes, comme pour un profil ou un projet :
+
+1. **Le serveur** (`src/routes/pages.js`) écrit dans la page le titre « Prénom Nom sur Palabre », les 160 premiers caractères du texte et l'image : ce sont les balises Open Graph et Twitter que lisent WhatsApp, Facebook et X pour dessiner la carte. Leurs robots n'exécutent pas le JavaScript : sans ces balises écrites d'avance, le lien partagé n'aurait ni titre ni image. Le texte d'un membre passe par `echapper()` : `<script>` devient `&lt;script&gt;`, du texte et non du code.
+2. **Le navigateur** (`public/js/page-publication.js`) demande la publication à l'API et l'affiche avec `cartePublication()`, la même carte que dans le fil.
+
+Un **visiteur** voit tout mais ne peut rien faire : à la place de « J'aime » et « Commenter », un bouton « Rejoindre Palabre pour réagir » mène à l'inscription, qui le ramènera sur cette publication (paramètre `suite`). Un **membre connecté** a les vraies actions.
+
+### Ce qui reste protégé
+
+- `GET /api/publications/:id` est **la seule** route des publications ouverte sans compte. Le fil, la liste complète des commentaires, aimer et commenter demandent toujours une session : le serveur le vérifie, cacher les boutons ne suffirait pas.
+- Elle n'envoie rien de privé : l'aperçu d'un membre (`apercuMembre()`) ne contient ni email ni numéro WhatsApp.
+- Publication supprimée, masquée par un administrateur, ou auteur bloqué : la page 404 du site, sans autre précision.
+- **Contre l'aspiration** : 150 lectures par 10 minutes, par membre ou par adresse pour un visiteur (la même règle que pour les profils), en plus des 300 appels par minute des visiteurs. Un robot ne peut pas recopier tout le fil en demandant les numéros un par un.
+
 ## 12. Le système de design
 
 Un « système de design », c'est un petit nombre de règles visuelles appliquées partout, pour que le site ait l'air d'une seule et même application. Tout est écrit à la main : aucune bibliothèque d'interface, aucun framework, donc des pages qui restent légères en 3G (les icônes pèsent 8 Ko en tout, les illustrations 4 Ko).
@@ -512,6 +541,7 @@ Une icône seule ne suffit pas pour un lecteur d'écran : les boutons sans texte
 | --- | --- |
 | `avatar(personne, taille)` | la photo ou les initiales d'un membre, avec son anneau de preuve |
 | `nomMembre(membre)` | son nom, suivi du badge feuille s'il a un projet vérifié |
+| `partager({ titre, texte, url })` | LE partage du site : menu du téléphone, ou fenêtre WhatsApp / Facebook / X / Copier le lien |
 | `menuOptions(lister)` | le bouton « … » (« Plus d'options ») et son petit menu : Copier le lien, Signaler, Supprimer |
 | `toast(texte, type)` | petit message qui apparaît en bas de l'écran puis disparaît (« Publié ! », ou une erreur) |
 | `confirmer(question, options)` | fenêtre de confirmation ; renvoie une promesse, donc on écrit `if (await confirmer('Supprimer ?'))` |
@@ -524,7 +554,7 @@ Une icône seule ne suffit pas pour un lecteur d'écran : les boutons sans texte
 
 En haut de chaque publication, sous chaque commentaire et sur le profil d'un autre membre, un bouton « … » ouvre un petit menu : « Copier le lien » (publications et profils), « Signaler », et « Supprimer » si le contenu est à moi ou si je suis administrateur. Le menu se ferme avec la touche Échap, en touchant à côté, ou après un choix ; les flèches du clavier passent d'un choix à l'autre. Montrer « Supprimer » à un administrateur n'est qu'un confort : c'est le serveur qui vérifie le droit de supprimer.
 
-Le lien copié d'une publication est `/fil?publication=12` : le fil n'affiche alors que celle-là (`GET /api/publications/:id`).
+Le premier choix du menu d'une publication est « Partager » ; le lien partagé ou copié est la page publique `/publication/12` (chapitre 11 quinquies). L'ancienne adresse `/fil?publication=12` marche toujours pour les liens déjà envoyés.
 
 ### Les avatars sans photo
 
@@ -673,11 +703,16 @@ Pour la mise en ligne (`tests/production.test.js`) : le serveur lancé comme che
 
 Pour le défi de la semaine (`tests/defis.test.js`) : création réservée à l'administrateur, dates contrôlées, un seul défi à la fois ; une seule réponse par dev (la seconde la modifie), dev au profil incomplet et cliente refusés ; vote refusé avant l'heure, pour soi-même et pour une réponse inconnue ; un seul vote par membre même en changeant d'avis ; compteurs cachés pendant le vote ; à la fin, gagnant désigné une seule fois malgré quatre lectures simultanées, égalité tranchée par l'ancienneté, notification et badge ; défi sans vote sans gagnant ; suppression. Les tests « avancent l'horloge » en reculant les dates du défi dans la base.
 
+Pour le partage (`tests/partage.test.js`) : page publique visible sans compte ; balises Open Graph et Twitter exactes, avec un texte piégé (`<script>`, `&`, guillemets) neutralisé et coupé à 160 caractères ; ni email ni numéro WhatsApp dans la page ni dans l'API ; les 3 derniers commentaires ; sans compte, impossible de lire le fil, d'aimer ou de commenter ; page 404 pour une publication inconnue, masquée ou d'un membre bloqué ; le commentaire d'un membre bloqué ne sort pas ; l'image jointe devient l'image de la carte.
+
 Les autres fichiers de tests ont besoin de comptes prêts à servir : `tests/aide.js` enveloppe leur fonction d'appel pour que chaque compte créé soit aussitôt confirmé et complet.
 
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
 
 ## 15. Questions probables du jury
+
+- **Pourquoi une publication est-elle lisible sans compte ?** Pour qu'un lien partagé sur WhatsApp montre quelque chose et donne envie de s'inscrire. Mais une seule route est ouverte, en lecture, limitée à 150 par 10 minutes, et elle ne contient ni email ni numéro.
+- **Vous chargez les boutons de partage de Facebook ?** Non. Ce sont de simples liens : aucun script d'un réseau social n'entre dans Palabre.
 
 - **Qu'est-ce qui empêche de voter deux fois au défi ?** La base elle-même : la clé primaire de la table des votes est le couple (défi, membre). Un second vote remplace le premier.
 - **Comment le gagnant est-il désigné sans tâche programmée ?** À la première lecture du défi après la fin du vote, dans une transaction qui verrouille le défi (`FOR UPDATE SKIP LOCKED`) : il ne peut pas être désigné deux fois.

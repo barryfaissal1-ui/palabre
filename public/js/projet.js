@@ -7,7 +7,7 @@
   function page(projet, moi) {
     const lieu = [projet.dev.ville, projet.dev.pays].filter(Boolean).join(', ');
     const boutonPartage = el('button', { classe: 'bouton bouton-contour', type: 'button' }, [icone('partager'), 'Partager']);
-    boutonPartage.addEventListener('click', () => partager(window.location.href, `${projet.titre} – Palabre`, boutonPartage));
+    boutonPartage.addEventListener('click', () => partager({ titre: `${projet.titre} – Palabre`, texte: `${projet.titre}, un projet réalisé par ${projet.dev.nom}.`, url: `${window.location.origin}/projets/${projet.id}` }));
 
     const actions = el('div', { classe: 'profil-actions' }, [
       projet.lien

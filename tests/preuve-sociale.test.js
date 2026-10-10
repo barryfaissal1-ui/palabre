@@ -257,11 +257,13 @@ test('fil par auteur, aperçu des j\'aime et des 2 derniers commentaires', async
   assert.notEqual(vueDao.aimePar.identifiant, membres.dao.identifiant);
   assert.equal(vueDao.derniersCommentaires[1].estMoi, true);
 
-  // Une seule publication, par son numéro (le lien « Copier le lien »).
-  assert.equal((await appel(`/api/publications/${p1.id}`)).statut, 401);
+  // Une seule publication, par son numéro : lisible sans compte depuis le partage (voir tests/partage.test.js),
+  // alors que le fil reste réservé aux membres.
+  assert.equal((await appel(`/api/publications/${p1.id}`)).statut, 200);
+  assert.equal((await appel('/api/publications')).statut, 401);
   const seule = await appel(`/api/publications/${p1.id}`, { qui: 'awa' });
   assert.equal(seule.corps.publication.texte, 'Première de Bintou');
-  assert.equal(seule.corps.publication.derniersCommentaires.length, 2);
+  assert.equal(seule.corps.publication.derniersCommentaires.length, 3); // 3 sur cette route (page publique), 2 dans le fil
   assert.equal((await appel('/api/publications/2147483000', { qui: 'awa' })).statut, 404);
   assert.equal((await appel('/api/publications/abc', { qui: 'awa' })).statut, 404);
 

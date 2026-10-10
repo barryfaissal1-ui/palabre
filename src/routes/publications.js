@@ -1,6 +1,9 @@
 // Fil d'actualité : publications (idée, question, projet), j'aime et commentaires.
-// Tout est réservé aux membres connectés.
+// Tout est réservé aux membres connectés, sauf la lecture d'UNE publication (GET /:id), ouverte aux visiteurs :
+// c'est elle qui alimente la page publique /publication/12, celle qu'on partage sur WhatsApp ou Facebook.
 const express = require('express');
+const rateLimit = require('express-rate-limit');
+const config = require('../config');
 const db = require('../db/pool');
 const v = require('../utils/validation');
 const { exigerConnexion } = require('../middleware/auth');
@@ -13,19 +16,18 @@ const PAR_PAGE = 10;
 const TYPES = ['idee', 'question', 'projet'];
 const MAX_COMMENTAIRES_AFFICHES = 200;
 const COMMENTAIRES_APERCU = 2; // derniers commentaires montrés directement sous chaque publication
+const COMMENTAIRES_PAGE = 3;   // sur la page publique d'une publication
 
 const limitePublications = limiteParMembre(30, 15, 'Tu publies très vite. Réessaie dans quelques minutes.');
 const limiteCommentaires = limiteParMembre(60, 15, 'Tu commentes très vite. Réessaie dans quelques minutes.');
 const limiteJaime = limiteParMembre(300, 15, 'Doucement sur les j\'aime. Réessaie dans quelques minutes.');
-
-router.use(exigerConnexion);
 
 // Une publication avec son auteur et ses compteurs. $1 est toujours le membre connecté.
 // Les publications masquées par un administrateur et celles des comptes bloqués n'apparaissent jamais.
 // Tout ce qu'il faut pour afficher le fil arrive en UNE requête (sous-requêtes et LATERAL), jamais une par publication :
 //  - « aime » : une personne qui a aimé, autre que moi, un de mes amis en priorité (« Aimé par Awa et 12 autres ») ;
 //  - « apercu » : les 2 derniers commentaires, avec leur auteur.
-const SELECTION = `
+const selection = (nbCommentaires = COMMENTAIRES_APERCU) => `
   SELECT p.id, p.type, p.texte, p.image, p.image_largeur, p.image_hauteur, p.video_plateforme, p.video_id, p.cree_le, p.auteur_id, ${COLONNES_MEMBRE},
          aime.nom AS aime_nom, aime.prenom AS aime_prenom, aime.identifiant AS aime_identifiant, apercu.liste AS apercu_commentaires,
          (SELECT count(*)::int FROM jaime j WHERE j.publication_id = p.id) AS nb_jaime,
@@ -54,9 +56,10 @@ const SELECTION = `
                 JOIN utilisateurs u ON u.id = c.auteur_id -- ici « u » est l'auteur du commentaire
                WHERE c.publication_id = p.id AND c.masque = FALSE AND u.bloque = FALSE
                ORDER BY c.id DESC
-               LIMIT ${COMMENTAIRES_APERCU}) d
+               LIMIT ${nbCommentaires}) d
     ) apercu ON TRUE
    WHERE p.masque = FALSE AND u.bloque = FALSE`;
+const SELECTION = selection();
 
 function versPublication(ligne, moi) {
   return {
@@ -76,6 +79,8 @@ function versPublication(ligne, moi) {
     nbCommentaires: ligne.nb_commentaires,
     jaimeParMoi: ligne.jaime_par_moi,
     estMoi: ligne.auteur_id === moi.id,
+    // L'adresse à partager : la page publique, lisible sans compte.
+    lien: `${config.urlPublique}/publication/${ligne.id}`,
   };
 }
 
@@ -114,6 +119,32 @@ async function compteurJaime(publicationId, moiId) {
   return { nbJaime: rows[0].nb, jaimeParMoi: rows[0].moi };
 }
 
+// Lecture d'une publication : 150 par 10 minutes, par membre ou par adresse IP pour un visiteur (la même règle que
+// pour les profils). Sans elle, un robot pourrait recopier tout le fil en demandant les numéros un par un.
+const limiteLecture = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 150,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => (req.utilisateur ? `membre-${req.utilisateur.id}` : rateLimit.ipKeyGenerator(req.ip)),
+  message: { erreur: 'Tu consultes beaucoup de publications. Réessaie dans quelques minutes.' },
+});
+
+// Une seule publication : GET /api/publications/:id (la page publique /publication/12 et le lien partagé y mènent).
+// SEULE route de ce fichier ouverte aux visiteurs : elle est placée avant exigerConnexion.
+// Un visiteur reçoit la même chose qu'un membre (auteur, texte, image ou vidéo, compteurs, 3 derniers commentaires) :
+// rien de privé n'y figure, apercuMembre() ne contient ni email ni numéro WhatsApp.
+router.get('/:id', (req, res, next) => (/^\d+$/.test(req.params.id) ? next() : next('route')), limiteLecture, async (req, res) => {
+  const moi = req.utilisateur || { id: 0 }; // 0 : aucun membre n'a ce numéro, donc « pas moi », « pas aimé par moi »
+  const id = v.idPositif(req.params.id);
+  const { rows } = id ? await db.query(`${selection(COMMENTAIRES_PAGE)} AND p.id = $2`, [moi.id, id]) : { rows: [] };
+  if (!rows[0]) return res.status(404).json({ erreur: 'Cette publication n\'existe plus.' });
+  res.json({ publication: versPublication(rows[0], moi) });
+});
+
+// Tout le reste demande un compte.
+router.use(exigerConnexion);
+
 // Le fil : GET /api/publications?avant=<id>&amis=1&auteur=<identifiant>
 // « auteur » ne garde que les publications d'un membre (onglet « Publications » de son profil).
 // Les publications sont chargées par 10, de la plus récente à la plus ancienne.
@@ -150,14 +181,6 @@ router.get('/video', (req, res) => {
   const video = lireLienVideo(req.query.lien);
   if (!video) throw new v.ErreurValidation('Colle le lien de la vidéo.', 'video');
   res.json({ video });
-});
-
-// Une seule publication : GET /api/publications/:id (le lien « Copier le lien » y mène)
-router.get('/:id', async (req, res) => {
-  const id = v.idPositif(req.params.id);
-  const { rows } = id ? await db.query(`${SELECTION} AND p.id = $2`, [req.utilisateur.id, id]) : { rows: [] };
-  if (!rows[0]) return res.status(404).json({ erreur: 'Cette publication n\'existe plus.' });
-  res.json({ publication: versPublication(rows[0], req.utilisateur) });
 });
 
 // Publier : POST /api/publications  { type, texte, image?, video? }  (video = le lien collé par le membre)

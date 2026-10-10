@@ -56,4 +56,7 @@
   <symbol id="oeil-barre" viewBox="0 0 24 24"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></symbol><!-- eye-off -->
   <symbol id="soleil" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol><!-- sun -->
   <symbol id="lune" viewBox="0 0 24 24"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></symbol><!-- moon -->
+  <!-- Icônes maison, pas chez Lucide et pas les logos officiels : une bulle avec un combiné, deux traits croisés. -->
+  <symbol id="whatsapp" viewBox="0 0 24 24"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/><path d="M9.2 8.6c-.3 3.1 3.1 6.5 6.2 6.2"/></symbol><!-- maison : message-circle de Lucide + un combiné -->
+  <symbol id="x-reseau" viewBox="0 0 24 24"><path d="M5 4l14 16"/><path d="M19 4 5 20"/></symbol><!-- maison -->
 </svg>
