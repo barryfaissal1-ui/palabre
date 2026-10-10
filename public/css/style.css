@@ -2165,6 +2165,15 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
   to { opacity: 1; }
 }
 
+/* ---------- Défilement infini (chargementInfini() dans app.js) ---------- */
+/* Le repère est invisible : c'est lui que le navigateur guette pour charger la page suivante. */
+.repere-infini { height: 1px; }
+.pied-infini { display: grid; gap: 8px; }
+.pied-infini:not(:empty) { margin-top: 8px; }
+.fin-liste { margin: 0; padding: 20px 16px 28px; text-align: center; font-size: var(--t-13); }
+.erreur-infini { display: grid; justify-items: center; gap: 8px; padding: 16px; text-align: center; }
+.erreur-infini p { margin: 0; }
+
 /* ---------- Partager (fenêtre de partager(), page publique d'une publication) ---------- */
 /* Effet verre : un fond à moitié transparent, et ce qui est derrière est flouté. Sans flou (vieux navigateur),
    le fond reste assez opaque pour que le texte se lise. */

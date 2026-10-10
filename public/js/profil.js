@@ -210,16 +210,19 @@
     const zone = el('div', { classe: 'fil-social' });
     const etat = el('div', { role: 'status', hidden: true });
     const boutonPlus = el('button', { classe: 'bouton bouton-contour bouton-plein charger-plus', type: 'button', hidden: true, texte: 'Voir plus de publications' });
+    // Le bloc est créé AVANT le fil : chargementInfini() pose son repère juste après « zone », il lui faut un parent.
+    const bloc = el('div', {}, [zone, etat, boutonPlus]);
     const fil = filPublications({
       zone, etat, boutonPlus,
+      fin: 'Tu as vu toutes ses publications.',
       parametres: () => ({ auteur: profil.identifiant }),
       vide: () => (profil.estMoi
         ? etatVide('palabre', 'Tu n\'as encore rien publié', 'Partage une idée, pose une question ou montre un projet.',
           el('a', { classe: 'bouton bouton-principal', href: '/fil' }, [icone('plus'), 'Publier dans le fil']))
         : etatVide('palabre', 'Pas encore de publication', `${prenom(profil)} n'a encore rien publié.`)),
     });
-    fil.charger({ depuisLeDebut: true });
-    return el('div', {}, [zone, etat, boutonPlus]);
+    fil.charger();
+    return bloc;
   }
 
   function ongletProjets(profil) {

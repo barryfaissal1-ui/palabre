@@ -498,6 +498,28 @@ Un **visiteur** voit tout mais ne peut rien faire : à la place de « J'aime » 
 - Publication supprimée, masquée par un administrateur, ou auteur bloqué : la page 404 du site, sans autre précision.
 - **Contre l'aspiration** : 150 lectures par 10 minutes, par membre ou par adresse pour un visiteur (la même règle que pour les profils), en plus des 300 appels par minute des visiteurs. Un robot ne peut pas recopier tout le fil en demandant les numéros un par un.
 
+## 11 sexies. Les listes qui se chargent en défilant
+
+Le fil, les demandes, la recherche de développeurs, les notifications et l'onglet « Publications » d'un profil chargent **10 éléments à la fois**. Avant, il fallait toucher « Voir plus ». Maintenant la suite arrive toute seule quand on approche de la fin, comme sur les réseaux sociaux.
+
+### Une seule fonction pour tout le site
+
+`chargementInfini(liste, chargerSuite, { fin, bouton })` est dans `public/js/app.js`. Chaque page lui donne seulement sa façon de demander la page suivante (`chargerSuite`, qui répond « il en reste » ou « c'est fini »). Tout le reste est écrit une fois :
+
+- **Guetter la fin.** Un repère invisible est posé sous la liste. Un `IntersectionObserver` (un outil du navigateur) prévient quand ce repère arrive à moins de 800 px du bas de l'écran. C'est le navigateur qui surveille : aucun calcul à chaque mouvement du doigt, donc pas de saccade sur un petit téléphone.
+- **Un seul chargement à la fois** (`enCours`) : défiler vite ne lance pas deux fois la même page.
+- **Pendant le chargement** : deux squelettes en bas de la liste.
+- **À la fin** : une phrase discrète (« Tu as tout vu ») et on arrête d'observer. Plus aucun appel ne part.
+- **En cas de panne de réseau** : on arrête d'observer et on montre « Réessayer ». Sans cela, chaque défilement relancerait l'appel en boucle et viderait le forfait pour rien.
+- **Changement de filtre** : `infini.reprendre()` augmente un compteur (`tour`) ; la réponse d'un ancien filtre, arrivée en retard, est ignorée.
+- **Vieux navigateur** sans `IntersectionObserver` : le bouton « Voir plus » réapparaît.
+
+### Côté serveur : rien n'a changé, sauf les notifications
+
+Le serveur envoyait déjà les listes par 10, avec le numéro du dernier élément (`suivant`) ; la page redemande « ceux d'avant ce numéro » (`?avant=`). Cette méthode ne saute et ne répète jamais un élément, même si quelqu'un publie pendant qu'on défile (ce qui arrive avec « page 2, page 3 »). Les notifications, elles, arrivaient par 30 d'un coup : elles suivent maintenant la même règle (`GET /api/notifications?avant=`).
+
+La vitrine de l'accueil garde son bouton « Voir plus de réalisations » : sous elle il y a un bouton et le pied de page, qu'un défilement infini rendrait impossibles à atteindre.
+
 ## 12. Le système de design
 
 Un « système de design », c'est un petit nombre de règles visuelles appliquées partout, pour que le site ait l'air d'une seule et même application. Tout est écrit à la main : aucune bibliothèque d'interface, aucun framework, donc des pages qui restent légères en 3G (les icônes pèsent 8 Ko en tout, les illustrations 4 Ko).
@@ -541,6 +563,7 @@ Une icône seule ne suffit pas pour un lecteur d'écran : les boutons sans texte
 | --- | --- |
 | `avatar(personne, taille)` | la photo ou les initiales d'un membre, avec son anneau de preuve |
 | `nomMembre(membre)` | son nom, suivi du badge feuille s'il a un projet vérifié |
+| `chargementInfini(liste, chargerSuite)` | la page suivante d'une liste, chargée toute seule en défilant (chapitre 11 sexies) |
 | `partager({ titre, texte, url })` | LE partage du site : menu du téléphone, ou fenêtre WhatsApp / Facebook / X / Copier le lien |
 | `menuOptions(lister)` | le bouton « … » (« Plus d'options ») et son petit menu : Copier le lien, Signaler, Supprimer |
 | `toast(texte, type)` | petit message qui apparaît en bas de l'écran puis disparaît (« Publié ! », ou une erreur) |
@@ -705,11 +728,16 @@ Pour le défi de la semaine (`tests/defis.test.js`) : création réservée à l'
 
 Pour le partage (`tests/partage.test.js`) : page publique visible sans compte ; balises Open Graph et Twitter exactes, avec un texte piégé (`<script>`, `&`, guillemets) neutralisé et coupé à 160 caractères ; ni email ni numéro WhatsApp dans la page ni dans l'API ; les 3 derniers commentaires ; sans compte, impossible de lire le fil, d'aimer ou de commenter ; page 404 pour une publication inconnue, masquée ou d'un membre bloqué ; le commentaire d'un membre bloqué ne sort pas ; l'image jointe devient l'image de la carte.
 
+Pour les listes (`tests/listes.test.js`) : les notifications arrivent par 10, de la plus récente à la plus ancienne, sans doublon ni oubli sur 23, et chacun ne voit que les siennes.
+
 Les autres fichiers de tests ont besoin de comptes prêts à servir : `tests/aide.js` enveloppe leur fonction d'appel pour que chaque compte créé soit aussitôt confirmé et complet.
 
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
 
 ## 15. Questions probables du jury
+
+- **Le défilement infini ne consomme-t-il pas trop de données ?** Non : 10 éléments à la fois, un seul chargement en cours, et en cas de panne on s'arrête sur « Réessayer » au lieu de rappeler le serveur en boucle.
+- **Pourquoi `IntersectionObserver` plutôt qu'écouter le défilement ?** Écouter le défilement fait travailler la page des dizaines de fois par seconde ; ici le navigateur prévient une seule fois, quand le repère approche.
 
 - **Pourquoi une publication est-elle lisible sans compte ?** Pour qu'un lien partagé sur WhatsApp montre quelque chose et donne envie de s'inscrire. Mais une seule route est ouverte, en lecture, limitée à 150 par 10 minutes, et elle ne contient ni email ni numéro.
 - **Vous chargez les boutons de partage de Facebook ?** Non. Ce sont de simples liens : aucun script d'un réseau social n'entre dans Palabre.

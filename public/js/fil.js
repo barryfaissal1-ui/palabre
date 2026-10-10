@@ -218,7 +218,7 @@
         if (filtre === bouton.dataset.filtre) return;
         filtre = bouton.dataset.filtre;
         boutons.forEach((b) => b.setAttribute('aria-pressed', String(b === bouton)));
-        fil.charger({ depuisLeDebut: true });
+        fil.charger();
       });
     });
   }
@@ -248,6 +248,6 @@
     }
     afficherCarteDefi();
     afficherDisponibles();
-    fil.charger({ depuisLeDebut: true });
+    fil.charger();
   });
 })();

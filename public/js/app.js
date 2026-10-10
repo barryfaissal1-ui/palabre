@@ -95,6 +95,86 @@
     };
   }
 
+  // ---------- Défilement infini ----------
+  // Charge la page suivante d'une liste TOUTE SEULE quand on approche de la fin, sans bouton « Voir plus ».
+  //   const infini = chargementInfini(liste, chargerSuite, { fin: 'Tu as tout vu.', bouton });
+  //   infini.reprendre(resteIlDesPages);   // après le premier chargement, ou après un changement de filtre
+  // chargerSuite() ajoute la page suivante à la liste et répond true s'il en reste encore ; en cas de panne, elle
+  // lève une erreur. La page garde donc sa requête ; tout le reste (guetter, squelettes, fin, erreur) est ici.
+  //
+  // Comment : un repère invisible est posé sous la liste. Un IntersectionObserver prévient quand ce repère arrive à
+  // moins de 800 px du bas de l'écran. C'est le navigateur qui surveille : rien ne tourne pendant le défilement.
+  // « bouton » : le « Voir plus » de la page, montré seulement si le navigateur ne connaît pas IntersectionObserver.
+  function chargementInfini(liste, chargerSuite, { fin = 'Tu as tout vu.', bouton = null } = {}) {
+    const pied = el('div', { classe: 'pied-infini' });               // squelettes, phrase de fin ou « Réessayer »
+    const repere = el('div', { classe: 'repere-infini', 'aria-hidden': 'true' });
+    liste.after(pied, repere);
+    const guetteur = 'IntersectionObserver' in window
+      ? new IntersectionObserver((entrees) => { if (entrees.some((e) => e.isIntersecting)) suite(); }, { rootMargin: '0px 0px 800px 0px' })
+      : null;
+    let reste = false;    // y a-t-il une page suivante ?
+    let enCours = false;  // un seul chargement à la fois
+    let tour = 0;         // augmente à chaque reprise : la réponse d'un ancien filtre est ignorée
+    if (bouton) {
+      bouton.hidden = true;
+      bouton.addEventListener('click', suite);
+    }
+
+    // (Re)commence à guetter. Cesser puis reprendre l'observation fait redemander l'état du repère : si la page
+    // chargée était courte et que le repère est toujours en vue, la suivante part aussitôt.
+    function guetter() {
+      if (!guetteur) {
+        if (bouton) bouton.hidden = !reste;
+        return;
+      }
+      guetteur.unobserve(repere);
+      if (reste) guetteur.observe(repere);
+    }
+
+    function finir() {
+      reste = false;
+      guetter(); // plus rien à charger : on arrête d'observer
+      // La phrase de fin n'a de sens qu'au bout d'une vraie liste, pas sous deux ou trois éléments.
+      pied.replaceChildren(...(liste.children.length > 3 ? [el('p', { classe: 'fin-liste texte-discret', texte: fin })] : []));
+    }
+
+    async function suite() {
+      if (enCours || !reste) return;
+      enCours = true;
+      const monTour = tour;
+      if (bouton) bouton.hidden = true;
+      pied.replaceChildren();
+      const fini = chargement(pied, 2);
+      try {
+        const encore = await chargerSuite();
+        fini();
+        if (monTour !== tour) return; // la liste a été reprise entre-temps (autre filtre)
+        enCours = false;
+        if (encore) guetter();
+        else finir();
+      } catch (erreur) {
+        fini();
+        if (monTour !== tour) return;
+        enCours = false;
+        // Panne : on arrête de guetter (sinon le défilement relancerait l'appel en boucle) et on laisse la main.
+        if (guetteur) guetteur.unobserve(repere);
+        const reessayer = el('button', { classe: 'bouton bouton-contour', type: 'button' }, [icone('recharger'), 'Réessayer']);
+        reessayer.addEventListener('click', suite);
+        pied.replaceChildren(el('div', { classe: 'erreur-infini', role: 'alert' }, [el('p', { classe: 'texte-discret', texte: erreur.message }), reessayer]));
+      }
+    }
+
+    function reprendre(encore) {
+      tour += 1;
+      enCours = false;
+      reste = Boolean(encore);
+      pied.replaceChildren();
+      if (reste) guetter();
+      else finir();
+    }
+    return { reprendre };
+  }
+
   // ---------- Petits messages (« toasts ») et fenêtre de confirmation ----------
   // Ils remplacent alert() et confirm() du navigateur, qui bloquent la page et ne suivent pas le style du site.
   function toast(texte, type = 'succes') {
@@ -864,5 +944,5 @@
 
   document.addEventListener('DOMContentLoaded', remplirNavigation);
 
-  window.Palabre = { tempsRestant, etatDefi, api, utilisateurConnecte, el, avatar, nomMembre, badgeFeuille, prenom, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, copierLien, menuOptions, majPastilleMessages, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
+  window.Palabre = { chargementInfini, tempsRestant, etatDefi, api, utilisateurConnecte, el, avatar, nomMembre, badgeFeuille, prenom, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, copierLien, menuOptions, majPastilleMessages, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
 })();

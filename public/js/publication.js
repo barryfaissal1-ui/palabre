@@ -2,7 +2,7 @@
 // Partagé par le fil (/fil), l'onglet « Publications » d'un profil et la page publique /publication/12 :
 // le même code, le même rendu. Un visiteur sans compte la voit en lecture seule (option « visiteur »).
 (function () {
-  const { api, el, avatar, nomMembre, prenom, dateRelative, deNom, signaler, icone, chargement, toast, confirmer, menuOptions, copierLien, partager, utilisateurConnecte } = window.Palabre;
+  const { chargementInfini, api, el, avatar, nomMembre, prenom, dateRelative, deNom, signaler, icone, chargement, toast, confirmer, menuOptions, copierLien, partager, utilisateurConnecte } = window.Palabre;
 
   // Un administrateur peut supprimer le contenu des autres : le menu « … » le lui propose.
   // (Le serveur revérifie de toute façon : cacher un bouton n'est jamais une protection.)
@@ -314,44 +314,52 @@
     return carte;
   }
 
-  // ---------- Un fil chargé 10 par 10 ----------
-  // zone : où vont les publications ; etat : zone du message (fil vide, erreur) ; boutonPlus : « Voir plus » ;
-  // parametres() : les filtres de la requête (amis=1, auteur=…) ; vide() : ce qu'on montre quand il n'y a rien.
-  function filPublications({ zone, etat, boutonPlus, parametres, vide }) {
+  // ---------- Un fil chargé 10 par 10, tout seul en défilant ----------
+  // zone : où vont les publications ; etat : zone du message (fil vide, erreur) ;
+  // boutonPlus : « Voir plus », gardé pour les rares navigateurs sans IntersectionObserver ;
+  // parametres() : les filtres de la requête (amis=1, auteur=…) ; vide() : ce qu'on montre quand il n'y a rien ;
+  // fin : la phrase affichée au bout du fil.
+  function filPublications({ zone, etat, boutonPlus = null, parametres, vide, fin = 'Tu as tout vu. Reviens plus tard pour la suite.' }) {
     let suivant = null; // numéro à partir duquel charger la page suivante
     let numero = 0;     // si un filtre change pendant un chargement, l'ancienne réponse est ignorée
 
-    async function charger({ depuisLeDebut = false } = {}) {
-      numero += 1;
+    // Demande une page et l'ajoute au fil. Répond true s'il en reste. « avantAjout » retire les squelettes du début.
+    async function page(avantAjout = () => {}) {
       const demande = numero;
-      if (depuisLeDebut) {
-        suivant = null;
-        zone.replaceChildren();
-      }
-      boutonPlus.hidden = true;
-      etat.hidden = true;
-      const fini = chargement(zone, depuisLeDebut ? 3 : 1); // squelettes à la place du vide
-
       const requete = new URLSearchParams(parametres());
       if (suivant) requete.set('avant', suivant);
+      const reponse = await api(`/publications?${requete}`);
+      if (demande !== numero) return false;
+      avantAjout();
+      zone.append(...reponse.publications.map((p) => cartePublication(p)));
+      suivant = reponse.suivant;
+      return Boolean(suivant);
+    }
+    // Les pages suivantes : chargementInfini() les demande quand on approche de la fin.
+    const infini = chargementInfini(zone, () => page(), { fin, bouton: boutonPlus });
+
+    // Le fil depuis le début (ouverture de la page, changement de filtre).
+    async function charger() {
+      numero += 1;
+      const demande = numero;
+      suivant = null;
+      zone.replaceChildren();
+      etat.hidden = true;
+      infini.reprendre(false);
+      const fini = chargement(zone, 3); // squelettes à la place du vide
       try {
-        const reponse = await api(`/publications?${requete}`);
-        fini();
+        const encore = await page(fini);
         if (demande !== numero) return;
-        zone.append(...reponse.publications.map((p) => cartePublication(p)));
-        suivant = reponse.suivant;
-        boutonPlus.hidden = !suivant;
         if (zone.children.length === 0) {
           etat.replaceChildren(vide());
           etat.hidden = false;
         }
+        infini.reprendre(encore);
       } catch (erreur) {
-        fini();
         if (demande !== numero) return;
+        fini();
         etat.replaceChildren(window.Palabre.etatVide('calme', 'Les publications ne chargent pas', erreur.message));
-        etat.hidden = zone.children.length > 0;
-        if (zone.children.length > 0) toast(erreur.message, 'erreur');
-        boutonPlus.hidden = !suivant;
+        etat.hidden = false;
       }
     }
 
@@ -360,7 +368,6 @@
       etat.hidden = true;
     }
 
-    boutonPlus.addEventListener('click', () => charger());
     return { charger, ajouterEnTete };
   }
 

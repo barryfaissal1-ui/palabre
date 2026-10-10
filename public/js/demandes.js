@@ -1,6 +1,6 @@
 // Page « Demandes » : liste par 10, filtres, et formulaire de publication pour les clients.
 (function () {
-  const { api, el, utilisateurConnecte, dateRelative, fcfa, icone, etatVide, chargement } = window.Palabre;
+  const { api, el, utilisateurConnecte, dateRelative, fcfa, icone, etatVide, chargement, chargementInfini } = window.Palabre;
 
   const NOMS_STATUTS = { ouverte: 'Ouverte', attribuee: 'Attribuée', terminee: 'Terminée', annulee: 'Annulée' };
 
@@ -28,30 +28,38 @@
     ]);
   }
 
-  async function chargerPage({ depuisLeDebut = false } = {}) {
-    const liste = document.querySelector('[data-liste]');
-    const etat = document.querySelector('[data-etat]');
-    const boutonPlus = document.querySelector('[data-charger-plus]');
-    if (depuisLeDebut) {
-      suivant = null;
-      liste.replaceChildren();
-    }
-    boutonPlus.hidden = true;
-    etat.hidden = true;
-    const fini = chargement(liste, depuisLeDebut ? 3 : 1); // squelettes à la place du vide
-
+  // Demande une page de demandes et l'ajoute à la liste. Répond true s'il en reste.
+  async function pageSuivante(avantAjout = () => {}) {
     const parametres = new URLSearchParams();
     if (suivant) parametres.set('avant', suivant);
     if (categorie) parametres.set('categorie', categorie);
     if (filtre === 'miennes') parametres.set('miennes', '1');
     const demandeEnCours = `${filtre}|${categorie}`;
+    const reponse = await api(`/demandes?${parametres}`);
+    if (demandeEnCours !== `${filtre}|${categorie}`) return false; // le filtre a changé pendant le chargement
+    avantAjout();
+    document.querySelector('[data-liste]').append(...reponse.demandes.map(carteDemande));
+    suivant = reponse.suivant;
+    return Boolean(suivant);
+  }
+
+  // La liste depuis le début (ouverture, changement d'onglet ou de catégorie). Les pages suivantes arrivent toutes
+  // seules en défilant : voir chargementInfini() dans app.js.
+  let infini = null;
+  async function chargerPage() {
+    const liste = document.querySelector('[data-liste]');
+    const etat = document.querySelector('[data-etat]');
+    if (!infini) infini = chargementInfini(liste, () => pageSuivante(), { fin: 'Tu as vu toutes les demandes.', bouton: document.querySelector('[data-charger-plus]') });
+    suivant = null;
+    liste.replaceChildren();
+    etat.hidden = true;
+    infini.reprendre(false);
+    const fini = chargement(liste, 3); // squelettes à la place du vide
+    const demandeEnCours = `${filtre}|${categorie}`;
     try {
-      const reponse = await api(`/demandes?${parametres}`);
-      fini();
-      if (demandeEnCours !== `${filtre}|${categorie}`) return; // le filtre a changé pendant le chargement
-      liste.append(...reponse.demandes.map(carteDemande));
-      suivant = reponse.suivant;
-      boutonPlus.hidden = !suivant;
+      const encore = await pageSuivante(fini);
+      if (demandeEnCours !== `${filtre}|${categorie}`) return;
+      infini.reprendre(encore);
       if (liste.children.length === 0) {
         etat.replaceChildren(filtre === 'miennes'
           ? etatVide('demandes', 'Rien ici pour l\'instant', 'Les demandes où tu es concerné apparaîtront dans cet onglet.')
@@ -62,7 +70,6 @@
       fini();
       etat.replaceChildren(etatVide('calme', 'Les demandes ne chargent pas', erreur.message));
       etat.hidden = false;
-      boutonPlus.hidden = !suivant;
     }
   }
 
@@ -147,12 +154,12 @@
         if (filtre === bouton.dataset.filtre) return;
         filtre = bouton.dataset.filtre;
         boutons.forEach((b) => b.setAttribute('aria-pressed', String(b === bouton)));
-        chargerPage({ depuisLeDebut: true });
+        chargerPage();
       });
     });
     document.querySelector('[data-filtre-categorie]').addEventListener('change', (evenement) => {
       categorie = evenement.target.value;
-      chargerPage({ depuisLeDebut: true });
+      chargerPage();
     });
   }
 
@@ -172,7 +179,6 @@
     else document.querySelector('[data-onglet-miennes]').textContent = 'Mes propositions';
     reprendreCalculateur(moi, categories);
     brancherFiltres();
-    document.querySelector('[data-charger-plus]').addEventListener('click', () => chargerPage());
-    chargerPage({ depuisLeDebut: true });
+    chargerPage();
   });
 })();

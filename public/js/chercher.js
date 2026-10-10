@@ -1,6 +1,6 @@
 // Recherche de développeurs par compétence, pays, ville et disponibilité. Visible sans compte.
 (function () {
-  const { api, el, avatar, etoiles, icone, etatVide, chargement, nomMembre } = window.Palabre;
+  const { api, el, avatar, etoiles, icone, etatVide, chargement, chargementInfini, nomMembre } = window.Palabre;
 
   const MAX_COMPETENCES_AFFICHEES = 5;
   let pageSuivante = null;
@@ -35,27 +35,40 @@
     ]);
   }
 
-  async function chercher(page = 1) {
+  // Demande une page de résultats et l'ajoute. Répond true s'il en reste.
+  let recherche = 0; // une nouvelle recherche pendant un chargement : l'ancienne réponse est ignorée
+  async function page(numero, avantAjout = () => {}) {
     const formulaire = document.querySelector('[data-recherche]');
-    const resultats = document.querySelector('[data-resultats]');
-    const etat = document.querySelector('[data-etat]');
-    const boutonPlus = document.querySelector('[data-charger-plus]');
-    if (page === 1) resultats.replaceChildren();
-    boutonPlus.hidden = true;
-    etat.hidden = true;
-    const fini = chargement(resultats, page === 1 ? 3 : 1);
-
-    const parametres = new URLSearchParams({ page });
+    const maRecherche = recherche;
+    const parametres = new URLSearchParams({ page: numero });
     if (formulaire.elements.competence.value) parametres.set('competence', formulaire.elements.competence.value);
     if (formulaire.elements.pays.value) parametres.set('pays', formulaire.elements.pays.value);
     if (formulaire.elements.ville.value.trim()) parametres.set('ville', formulaire.elements.ville.value.trim());
     if (formulaire.elements.disponible.checked) parametres.set('disponible', '1');
+    const reponse = await api(`/devs?${parametres}`);
+    if (maRecherche !== recherche) return false;
+    avantAjout();
+    document.querySelector('[data-resultats]').append(...reponse.devs.map(carteDev));
+    pageSuivante = reponse.pageSuivante;
+    return Boolean(pageSuivante);
+  }
+
+  // Une recherche depuis le début. Les pages suivantes arrivent en défilant (chargementInfini() dans app.js).
+  let infini = null;
+  async function chercher() {
+    const resultats = document.querySelector('[data-resultats]');
+    const etat = document.querySelector('[data-etat]');
+    if (!infini) infini = chargementInfini(resultats, () => page(pageSuivante), { fin: 'Tu as vu tous les développeurs trouvés.', bouton: document.querySelector('[data-charger-plus]') });
+    recherche += 1;
+    const maRecherche = recherche;
+    resultats.replaceChildren();
+    etat.hidden = true;
+    infini.reprendre(false);
+    const fini = chargement(resultats, 3);
     try {
-      const reponse = await api(`/devs?${parametres}`);
-      fini();
-      resultats.append(...reponse.devs.map(carteDev));
-      pageSuivante = reponse.pageSuivante;
-      boutonPlus.hidden = !pageSuivante;
+      const encore = await page(1, fini);
+      if (maRecherche !== recherche) return;
+      infini.reprendre(encore);
       etat.hidden = resultats.children.length > 0;
       etat.replaceChildren(etatVide('recherche', 'Aucun développeur ne correspond', 'Essaie avec moins de critères, ou une autre ville.'));
     } catch (erreur) {
@@ -69,10 +82,9 @@
     const formulaire = document.querySelector('[data-recherche]');
     formulaire.addEventListener('submit', (evenement) => {
       evenement.preventDefault();
-      chercher(1);
+      chercher();
     });
-    document.querySelector('[data-charger-plus]').addEventListener('click', () => chercher(pageSuivante));
-    chercher(1);
+    chercher();
     try {
       const [{ competences }, { pays }] = await Promise.all([api('/competences'), api('/pays')]);
       formulaire.elements.competence.append(...competences.map((c) => el('option', { value: c.id, texte: c.nom })));
