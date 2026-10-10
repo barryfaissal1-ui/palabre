@@ -596,6 +596,52 @@ Pour une personne qui a demandé à son téléphone de **réduire les animations
 
 `src/utils/gabarit-email.js` fabrique le code de confirmation et le « mot de passe oublié » avec le même gabarit, en deux versions : texte et HTML. Un email n'est pas une page web : Gmail et Outlook retirent les feuilles de style. On écrit donc avec des **tableaux** et des **styles sur chaque balise**, 600 px de large au plus. C'est le seul endroit du projet où les styles en ligne sont permis. Le prénom du membre est échappé (`echapperHtml()`), le logo est appelé par son adresse complète, et l'email du code ne contient **aucun lien** : quelqu'un qui le lirait par-dessus l'épaule n'a rien à cliquer.
 
+## 11 nonies. Les notifications : la cloche, le regroupement et le push
+
+### Une seule porte d'entrée : `notifier()`
+
+Tout ce qui prévient un membre passe par `notifier()` (`src/utils/notifications.js`) : une demande d'ami, une proposition, un j'aime, un commentaire, un message, un avis. Trois règles y sont écrites une fois pour toutes :
+
+- **jamais pour soi** : si la personne qui agit est le membre à prévenir, rien n'est écrit ;
+- **la personne est jointe** (`acteur`) : la page affiche son avatar à côté du texte ;
+- **le regroupement**.
+
+### Le regroupement : « Awa et 3 autres ont aimé ta publication »
+
+Sans regroupement, dix j'aime feraient dix lignes. Tant qu'une notification du même type sur la même publication **n'est pas lue**, la suivante la remplace : l'ancienne est retirée, une nouvelle est écrite avec la liste des personnes (`acteurs`, la dernière en premier) et leur `nombre`. Elle remonte ainsi en tête de liste.
+
+Deux façons de compter : les **personnes** pour les j'aime et les commentaires, les **messages** pour une conversation (« Awa t'a envoyé 3 messages » : une notification par conversation, jamais une par message).
+
+Deux pièges évités :
+
+- **deux j'aime au même instant** pourraient créer deux notifications. Un verrou (`pg_advisory_xact_lock`) fait passer les écritures l'une après l'autre ; un test en envoie quatre en même temps et vérifie qu'il reste une seule ligne de quatre personnes ;
+- **aimer, ne plus aimer, aimer…** pourrait servir à harceler. Celui qui retire son j'aime sort de la notification tant qu'elle n'est pas lue (`retirerActeur()`).
+
+Ouvrir une conversation marque sa notification comme lue. Le texte d'un message n'est jamais copié dans la cloche.
+
+### La page `/notifications`
+
+Trois groupes (« Aujourd'hui », « Cette semaine », « Plus ancien »), et sur chaque ligne l'avatar de la personne avec une petite pastille qui dit de quoi il s'agit (cœur, bulle, valise, équipe, trophée, ami). Une notification non lue a un fond vert très léger et un point vert. La toucher la marque lue et ouvre le bon endroit. Le nom en gras est posé avec `textContent`, comme tout texte venu d'un membre.
+
+### Le push : prévenir un téléphone, même site fermé
+
+Le navigateur du membre s'abonne auprès du **service de push de son fabricant** (Google pour Chrome, Mozilla pour Firefox, Apple pour Safari) et donne au serveur une adresse et deux clés. Pour le prévenir, Palabre envoie à cette adresse un message **chiffré avec ses clés** : le service de push le transporte sans pouvoir le lire, le téléphone le déchiffre et l'affiche (`public/sw.js`, événements `push` et `notificationclick`).
+
+Ce qu'il faut savoir pour le défendre :
+
+- **Aucune bibliothèque.** `web-push`, la plus connue, est sous licence MPL-2.0, absente de la liste permise par le concours. Le chiffrement (RFC 8291) et la signature du serveur (VAPID, RFC 8292) sont écrits dans `src/utils/push.js` avec le module `crypto` de Node.js. Un test joue le rôle du téléphone : il déchiffre le message avec les clés de l'appareil et retrouve le texte.
+- **Les clés VAPID** identifient Palabre auprès des services de push. Elles sont dans les variables d'environnement (`npm run cles-push` les fabrique). **Sans elles, le site marche normalement**, sans push.
+- **La permission n'est jamais demandée au chargement d'une page.** Seulement quand la personne touche « Activer » (encadré du fil, proposé une fois, ou réglages du profil). Un navigateur à qui l'on pose la question trop tôt la refuse, et ce refus est définitif. Sur iPhone, le push n'existe que pour un site ajouté à l'écran d'accueil : la page l'explique.
+- **Le serveur n'écrit qu'aux vrais services de push** (une liste de domaines). Sinon un membre pourrait s'« abonner » avec l'adresse d'une machine interne et faire envoyer des requêtes par notre serveur (attaque dite SSRF).
+- **Rien de privé dans le push** : le nom de la personne et, pour un message, un aperçu de 60 caractères au plus.
+- **Le push ne bloque rien** : il part après la réponse du site, et une panne du service de push n'apparaît que dans le journal du serveur. Un abonnement qui n'existe plus (réponse 404 ou 410) est supprimé.
+- **Le « tag »** : sur le téléphone, la notification suivante du même sujet remplace la précédente au lieu de s'empiler.
+- Se déconnecter coupe le push sur l'appareil ; un appareil sur lequel quelqu'un d'autre s'abonne devient le sien.
+
+### Les réglages
+
+Dans « Modifier mon profil », section « Notifications » : activer ou couper le push **sur cet appareil**, et choisir les familles reçues (messages, demandes et propositions, équipes, j'aime et commentaires, défis). Le choix est gardé en JSON dans `utilisateurs.preferences_notifications`. Une famille absente vaut « oui » : un nouveau type de notification est reçu sans rien migrer. **La cloche du site garde toujours tout** : les réglages ne concernent que le push.
+
 ## 12. Le système de design
 
 Un « système de design », c'est un petit nombre de règles visuelles appliquées partout, pour que le site ait l'air d'une seule et même application. Tout est écrit à la main : aucune bibliothèque d'interface, aucun framework, donc des pages qui restent légères en 3G (les icônes pèsent 8 Ko en tout, les illustrations 4 Ko).
@@ -811,6 +857,8 @@ Pour la date de naissance (`tests/date-naissance.test.js`, sans serveur) : la da
 
 Pour les emails (`tests/emails.test.js`) : le code figure dans la version texte et dans la version HTML, en gros ; l'email du code n'a aucun lien ; un prénom piégé (`<img onerror=…>`) reste du texte ; le logo est en adresse absolue ; « mot de passe oublié » utilise le même gabarit avec son lien ; le code enregistré en base est toujours haché.
 
+Pour les notifications (`tests/notifications.test.js`) : j'aime regroupés avec la dernière personne en premier, quatre j'aime au même instant qui ne font qu'une ligne, ne plus aimer, rien pour ses propres actions, commentaires et réponses, une seule notification par conversation, tout marquer comme lu. Pour le push (`tests/push.test.js`, sans appeler aucun vrai service) : le site sans clés VAPID, l'abonnement et ses refus (adresse interne, faux domaine), le message chiffré que seul l'appareil relit, la signature VAPID vérifiée, l'aperçu de 60 caractères, les préférences respectées, l'abonnement expiré supprimé, la panne qui ne casse rien.
+
 Les autres fichiers de tests ont besoin de comptes prêts à servir : `tests/aide.js` enveloppe leur fonction d'appel pour que chaque compte créé soit aussitôt confirmé et complet.
 
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
@@ -832,6 +880,10 @@ C'est aussi mieux pour le site en ligne : un redémarrage ne bloque plus les tab
 Deux tests dépendaient en plus de ce qui se trouvait dans la base : la liste « Derniers inscrits » ne montre que 50 comptes (les autres fichiers en créent en même temps) et l'API des notifications n'en envoie plus que 10 à la fois. Ils lisent maintenant ce qu'ils vérifient directement en base, ou datent leurs comptes de « maintenant ».
 
 ## 15. Questions probables du jury
+
+- **Comment marche le push, et le service de Google peut-il lire les messages ?** Non : le message est chiffré avec les clés du téléphone avant de partir (RFC 8291). Google ne fait que le transporter.
+- **Pourquoi avoir écrit le push vous-mêmes ?** La bibliothèque habituelle est sous licence MPL-2.0, que le règlement ne permet pas. Les normes sont publiques ; tout tient dans un fichier, testé.
+- **Dix j'aime font-ils dix notifications ?** Non : une seule, « Awa et 9 autres », tant qu'elle n'est pas lue.
 
 - **L'animation du code ne ralentit-elle pas les petits téléphones ?** Elle n'anime que `transform` et `opacity`, que le navigateur gère sans recalculer la page : 60 images par seconde avec le processeur ralenti quatre fois. Et elle se coupe pour qui a demandé de réduire les animations.
 - **Six champs pour un code, est-ce accessible ?** Chaque champ a son libellé, le code peut être collé ou proposé par le téléphone, le clavier seul suffit, et les erreurs sont annoncées aux lecteurs d'écran.

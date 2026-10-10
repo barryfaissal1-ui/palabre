@@ -47,6 +47,18 @@ Ne démarre pas encore : il manque les variables.
 | `SMTP_PASS` | le mot de passe de cette boîte | |
 | `SMTP_FROM` | `Palabre <no-reply@ton-domaine>` | Le nom affiché comme expéditeur. L'adresse doit être celle de `SMTP_USER`. |
 
+### Notifications push (facultatif)
+
+Pour prévenir les membres sur leur téléphone, même site fermé, ajoute trois variables. Sans elles, Palabre marche normalement, simplement sans push.
+
+| Variable | Valeur | À quoi elle sert |
+| --- | --- | --- |
+| `VAPID_PUBLIQUE` | donnée par `npm run cles-push` | La clé que les téléphones voient : elle identifie Palabre auprès de Google, Mozilla et Apple. |
+| `VAPID_PRIVEE` | donnée par `npm run cles-push` | La clé qui signe les envois. **Ne la montre à personne, ne la mets jamais sur GitHub.** |
+| `VAPID_SUJET` | `mailto:` suivi d'un email de l'équipe | Permet au service de push de vous joindre en cas de problème. |
+
+Lance `npm run cles-push` **une seule fois**, sur ton ordinateur, et copie les trois lignes affichées. Garde-les en lieu sûr : changer de clés plus tard désabonnerait tous les appareils. Le push exige le https (Systalink le fournit) ; sur iPhone, il faut en plus que le membre ait ajouté Palabre à son écran d'accueil.
+
 ### Générer `JWT_SECRET`
 
 Sur ton ordinateur, dans un terminal :

@@ -8,6 +8,9 @@ Déclaration exigée par l'article 6 du règlement CADEV 2026. Aucun composant s
 | --- | --- | --- |
 | bcryptjs | 3.0.3 | BSD-3-Clause |
 | compression | 1.8.2 | MIT |
+
+Les notifications push n'utilisent **aucune bibliothèque** : `web-push`, la plus répandue, est sous licence MPL-2.0, qui n'est pas dans la liste permise par le concours. Le chiffrement et la signature sont écrits dans `src/utils/push.js` avec le module `crypto` de Node.js, d'après les normes publiques RFC 8291, RFC 8188 et RFC 8292.
+
 | cookie-parser | 1.4.7 | MIT |
 | dotenv | 18.0.6 | BSD-2-Clause |
 | express | 5.2.1 | MIT |

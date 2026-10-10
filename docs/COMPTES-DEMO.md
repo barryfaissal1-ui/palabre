@@ -21,7 +21,7 @@ Si tu ne dois en retenir que deux, ce sont ceux-là. Dès la connexion, ils ont 
 
 | Fonction | Ce qui l'attend |
 | --- | --- |
-| Notifications | 11 non lues : demandes d'amis, invitation d'équipe, proposition acceptée, avis reçu, demande de message |
+| Notifications | 17, étalées sur dix jours, dont 12 non lues : j'aime et commentaires regroupés (« Rasmata Ilboudo et 4 autres ont aimé ta publication »), messages, invitation d'équipe, proposition acceptée, avis, demandes d'amis |
 | Amis (`/amis`) | 5 amis, **2 demandes reçues** (Mariam, Aminata) à accepter ou refuser, 1 demande envoyée (Oumar) à annuler |
 | Fil | 2 publications à lui avec j'aime et commentaires ; publier une idée, une question, un projet, une photo, une vidéo ; aimer, commenter, signaler |
 | Demandes | une proposition **en attente** (l'auberge), une **acceptée** sur une demande terminée (la caisse), une **non retenue** (la paie) ; proposer seul sur une demande ouverte |
