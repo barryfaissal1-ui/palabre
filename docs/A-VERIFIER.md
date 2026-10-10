@@ -9,8 +9,8 @@
 | 2. Réactions, réponses, suppression | Faite | `baf1dbc` |
 | 3. « Écrit… », « Vu par », « En ligne » | Faite | `aa23f91` |
 | 4. Messages vocaux | Faite | `31057be` |
-| 5. Appels audio et vidéo | Faite pour l'essentiel, voir « Pas fait » | commit « Appels audio et vidéo » |
-| 6. Style « arbre à palabres » des appels et des notifications | **Partielle**, voir « Pas fait » | dans le même commit que la partie 5 |
+| 5. Appels audio et vidéo | Faite pour l'essentiel, voir « Pas fait » | `6d16e60` |
+| 6. Style « arbre à palabres » des appels et des notifications | **Partielle**, voir « Pas fait » | `6d16e60` (le même) |
 
 Les parties 5 et 6 sont dans un seul commit : l'écran d'appel a été écrit directement dans le style demandé.
 
