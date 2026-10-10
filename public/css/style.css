@@ -2165,6 +2165,62 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
   to { opacity: 1; }
 }
 
+/* ---------- Page des notifications ---------- */
+/* Sur téléphone, la liste est bord à bord comme le fil ; chaque ligne : avatar + pastille, texte, date. */
+.liste-notifications { gap: 0; margin-inline: -16px; }
+.notif-periode { padding: 18px 16px 6px; }
+.notif-periode h2 { margin: 0; font: 800 var(--t-17)/1.2 var(--titre); }
+.notif {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 16px;
+  background: var(--surface);
+  color: var(--encre);
+  text-decoration: none;
+  font-size: var(--t-15);
+  line-height: 1.35;
+}
+.notif-ligne + .notif-ligne .notif { border-top: 1px solid var(--ligne); }
+.notif:hover { background: color-mix(in srgb, var(--gris) 8%, var(--surface)); }
+/* Non lue : un fond vert très léger et un point vert à droite. */
+.non-lue .notif { background: color-mix(in srgb, var(--action) 8%, var(--surface)); }
+.non-lue .notif:hover { background: color-mix(in srgb, var(--action) 13%, var(--surface)); }
+.notif-qui { position: relative; flex: none; }
+.notif-sans-avatar { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--surface-2); color: var(--gris); }
+.notif-sans-avatar .icone { width: 22px; height: 22px; }
+/* La pastille du type, posée en bas à droite de l'avatar. */
+.notif-pastille {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--action);
+  color: #FFFFFF;
+}
+.notif-pastille .icone { width: 12px; height: 12px; stroke-width: 2.6; }
+.pastille-rouge { background: #D93A3A; }
+.pastille-rouge .icone { fill: currentColor; }
+.pastille-bleu { background: var(--teinte-5); }
+.pastille-terre { background: var(--accent); }
+.pastille-prune { background: var(--teinte-1); }
+.pastille-ocre { background: var(--teinte-2); }
+.notif-corps { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.notif-texte { overflow-wrap: anywhere; }
+.notif-texte strong { font-weight: 700; }
+.notif-date { font-size: var(--t-13); }
+.non-lue .notif-date { color: var(--action); font-weight: 600; }
+.notif-point { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--action); }
+@media (min-width: 640px) {
+  .liste-notifications { margin-inline: 0; border-radius: var(--rayon); box-shadow: var(--ombre-1); overflow: hidden; background: var(--surface); }
+}
+
 /* ---------- Listes de choix (listeChoix() dans app.js) ---------- */
 /* Le <select> d'origine reste dans la page pour porter la valeur, mais on ne le voit plus et on n'y passe plus au clavier. */
 .liste-native { position: absolute; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; clip: rect(0 0 0 0); }

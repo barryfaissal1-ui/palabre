@@ -680,6 +680,21 @@ async function creerComptesComplets(avecAdmin) {
     await ecrire('awa', 'dev', 'Oui ! Tu peux prendre la partie « réparer une erreur » : revert, reset, tout ça ?');
     await ecrire('ibrahim', 'dev', 'Bonjour Moussa, je fais des sites pour les associations à Niamey. Je peux vous poser une question sur le paiement Mobile Money ?');
 
+    // 8. Les notifications de Moussa (j'aime et commentaires regroupés, messages, amis, équipe, avis…) sont nées
+    //    toutes en même temps : on les étale sur une semaine, pour montrer les trois groupes de la page
+    //    (« Aujourd'hui », « Cette semaine », « Plus ancien »). Les trois plus récentes restent d'aujourd'hui.
+    await pool.query(
+      `UPDATE notifications n SET cree_le = now() - make_interval(hours => ((t.rang - 3) * 17)::int)
+         FROM (SELECT id, row_number() OVER (ORDER BY id DESC) AS rang FROM notifications WHERE utilisateur_id = $1) t
+        WHERE n.id = t.id AND t.rang > 3`,
+      [m.dev.id],
+    );
+    // Les demandes d'amis déjà acceptées sont lues : la page montre ainsi des lignes lues et non lues.
+    await pool.query(
+      `UPDATE notifications SET lue = TRUE WHERE utilisateur_id = $1 AND type = 'demande_ami' AND acteur_id = ANY($2)`,
+      [m.dev.id, ['awa', 'bintou', 'fatou', 'kofi', 'yao'].map((cle) => m[cle].id)],
+    );
+
     return { dev: email('dev'), client: email('client'), admin: avecAdmin };
   } finally {
     serveur.close();
