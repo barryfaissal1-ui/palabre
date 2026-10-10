@@ -2165,6 +2165,79 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
   to { opacity: 1; }
 }
 
+/* ---------- Réactions, réponses, suppression ---------- */
+.bulle { position: relative; }
+/* Le bouton « … » d'un message : à côté de la bulle. Visible au survol ou au clavier sur ordinateur ;
+   sur téléphone il reste invisible, c'est l'appui long sur la bulle qui l'ouvre. */
+.bulle-menu { position: absolute; top: 50%; margin-top: -22px; opacity: 0; }
+.bulle-moi .bulle-menu { right: 100%; }
+.bulle-autre .bulle-menu { left: 100%; }
+.bulle:hover .bulle-menu, .bulle-menu:focus-within, .bulle-menu:has([aria-expanded="true"]) { opacity: 1; }
+.bulle-menu .menu-liste { color: var(--encre); }
+@media (hover: none) { .bulle-menu > button { pointer-events: none; } }
+.bulle-supprimee .bulle-texte { font-style: italic; opacity: 0.75; }
+.bulle-eclairee { box-shadow: 0 0 0 3px var(--feuille-vive); }
+.bulle-citation {
+  display: grid;
+  gap: 1px;
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: 4px;
+  padding: 6px 10px;
+  border: 0;
+  border-left: 3px solid currentColor;
+  border-radius: 8px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: var(--t-13);
+  text-align: left;
+  cursor: pointer;
+}
+.bulle-citation span { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; opacity: 0.9; }
+.bulle-reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.reaction {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--ligne);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--encre);
+  font: 600 var(--t-13)/1 var(--texte);
+  cursor: pointer;
+}
+/* La zone tactile fait 44 px même si la pastille est plus petite. */
+.reaction::after { content: ""; position: absolute; }
+.reaction { position: relative; }
+.reaction::before { content: ""; position: absolute; inset: -8px -2px; }
+.reaction-moi { border-color: var(--action); background: color-mix(in srgb, var(--action) 14%, var(--surface)); }
+.barre-reactions {
+  position: absolute;
+  z-index: 13;
+  bottom: calc(100% + 6px);
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--ligne);
+  border-radius: 28px;
+  background: var(--surface);
+  box-shadow: var(--ombre-3);
+}
+.bulle-moi .barre-reactions { right: 0; }
+.bulle-autre .barre-reactions { left: 0; }
+.barre-reactions button { width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: transparent; font-size: 24px; line-height: 1; cursor: pointer; }
+.barre-reactions button:hover, .barre-reactions button[aria-pressed="true"] { background: color-mix(in srgb, var(--action) 16%, transparent); }
+.liste-reactions { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.liste-reactions li { display: flex; align-items: center; gap: 12px; }
+.reaction-emoji { font-size: 24px; }
+.reponse-en-cours { display: flex; align-items: center; gap: 8px; padding: 4px 8px 4px 12px; border-left: 3px solid var(--action); border-radius: 8px; background: var(--surface-2); }
+.reponse-en-cours[hidden] { display: none; }
+.reponse-en-cours > .icone { flex: none; width: 18px; height: 18px; color: var(--action); }
+.reponse-texte { flex: 1; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-13); }
+
 /* ---------- Conversations de groupe (équipes éclair) ---------- */
 /* Avatars empilés : ils se chevauchent, chacun cerclé de la couleur du fond pour se détacher du voisin. */
 .avatars-empiles { display: inline-flex; flex: none; align-items: center; min-width: 44px; justify-content: center; }

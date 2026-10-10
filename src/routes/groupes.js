@@ -11,9 +11,9 @@ const { lireImageDataUrl } = require('../utils/images');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
 const { notifier, court } = require('../utils/notifications');
 const { messageSysteme } = require('../utils/groupes');
+const { lireMessages, lireMessage, messagesModifies, origineValide } = require('../utils/messages');
 
 const router = express.Router();
-const PAR_PAGE = 30;
 // La même limite pour les conversations privées et les groupes : 30 messages par minute et par membre.
 const limiteMessages = limiteParMembre(30, 1, 'Tu écris très vite. Attends une minute avant d\'envoyer d\'autres messages.');
 
@@ -25,21 +25,6 @@ const NON_LUS = `(SELECT count(*)::int FROM messages m
     WHERE m.conversation_id = c.id AND m.auteur_id <> $1 AND m.masque = FALSE AND m.systeme = FALSE
       AND m.id > COALESCE((SELECT l.dernier_lu_id FROM conversation_lectures l
                             WHERE l.conversation_id = c.id AND l.membre_id = $1), 0))`;
-
-function versMessage(ligne, moi) {
-  return {
-    id: ligne.id,
-    texte: ligne.texte,
-    image: ligne.fichier_id ? `/fichiers/${ligne.fichier_id}` : null,
-    creeLe: ligne.cree_le,
-    estMoi: ligne.auteur_id === moi.id,
-    systeme: ligne.systeme,
-    auteur: apercuMembre(ligne), // dans un groupe, chaque bulle dit de qui elle vient
-  };
-}
-const MESSAGES = `SELECT m.id, m.texte, m.fichier_id, m.cree_le, m.auteur_id, m.systeme, ${COLONNES_MEMBRE}
-                    FROM messages m JOIN utilisateurs u ON u.id = m.auteur_id
-                   WHERE m.conversation_id = $1 AND m.masque = FALSE`;
 
 // Le groupe de l'adresse, seulement si j'en suis membre actuel. Sinon 404.
 async function monGroupe(valeurId, moi) {
@@ -146,24 +131,25 @@ async function compterNonLusGroupes(moiId) {
 router.get('/:id', async (req, res) => {
   const moi = req.utilisateur;
   const groupe = await monGroupe(req.params.id, moi);
-  const [{ rows }, membres] = await Promise.all([
-    db.query(`${MESSAGES} AND ($2::int IS NULL OR m.id < $2) ORDER BY m.id DESC LIMIT $3`, [groupe.id, v.idPositif(req.query.avant), PAR_PAGE + 1]),
+  const [{ rows: [{ maintenant }] }, page, membres] = await Promise.all([
+    db.query('SELECT now() AS maintenant'),
+    lireMessages(groupe.id, moi, { avant: v.idPositif(req.query.avant) }),
     membresDuGroupe(groupe, moi),
   ]);
-  const page = rows.slice(0, PAR_PAGE);
-  res.json({
-    groupe: versGroupe(groupe, membres),
-    messages: page.reverse().map((m) => versMessage(m, moi)),
-    precedent: rows.length > PAR_PAGE ? page[0].id : null,
-  });
+  res.json({ groupe: versGroupe(groupe, membres), messages: page.messages, precedent: page.precedent, maintenant });
 });
 
 // Ce qui est arrivé depuis le message « apres » (interrogé toutes les 5 secondes quand le groupe est ouvert).
 router.get('/:id/nouveaux', async (req, res) => {
   const moi = req.utilisateur;
   const groupe = await monGroupe(req.params.id, moi);
-  const { rows } = await db.query(`${MESSAGES} AND m.id > $2 ORDER BY m.id LIMIT 100`, [groupe.id, v.idPositif(req.query.apres) || 0]);
-  res.json({ messages: rows.map((m) => versMessage(m, moi)), ferme: Boolean(groupe.ferme_le), titre: groupe.titre });
+  const apres = v.idPositif(req.query.apres) || 0;
+  const { rows: [{ maintenant }] } = await db.query('SELECT now() AS maintenant');
+  const [nouveaux, modifies] = await Promise.all([
+    lireMessages(groupe.id, moi, { apres }),
+    messagesModifies(groupe.id, moi, req.query.depuis, apres),
+  ]);
+  res.json({ messages: nouveaux.messages, modifies, maintenant, ferme: Boolean(groupe.ferme_le), titre: groupe.titre });
 });
 
 // ---------- Écrire ----------
@@ -185,12 +171,10 @@ router.post('/:id', limiteMessages, async (req, res) => {
       );
       fichierId = rows[0].id;
     }
+    const reponseA = await origineValide(client, groupe.id, req.body?.reponseA);
     const { rows: [cree] } = await client.query(
-      `WITH nouveau AS (
-         INSERT INTO messages (conversation_id, auteur_id, texte, fichier_id) VALUES ($1, $2, $3, $4)
-         RETURNING id, texte, fichier_id, cree_le, auteur_id, systeme)
-       SELECT nouveau.*, ${COLONNES_MEMBRE} FROM nouveau JOIN utilisateurs u ON u.id = nouveau.auteur_id`,
-      [groupe.id, moi.id, texte, fichierId],
+      'INSERT INTO messages (conversation_id, auteur_id, texte, fichier_id, reponse_a) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+      [groupe.id, moi.id, texte, fichierId, reponseA],
     );
     await client.query('UPDATE conversations SET dernier_message_le = now() WHERE id = $1', [groupe.id]);
     await client.query(
@@ -215,9 +199,9 @@ router.post('/:id', limiteMessages, async (req, res) => {
           push: { titre: court(groupe.titre, 50), texte: `${moi.prenom || moi.nom} : ${image && !texte ? 'Photo' : court(texte, 60)}` },
         });
     }
-    return cree;
+    return lireMessage(groupe.id, cree.id, moi, client);
   });
-  res.status(201).json({ message: versMessage(message, moi) });
+  res.status(201).json({ message });
 });
 
 // J'ai lu jusqu'ici : POST /api/messages/groupes/:id/lu
@@ -285,5 +269,6 @@ router.post('/:id/quitter', async (req, res) => {
 
 module.exports = router;
 module.exports.limiteMessages = limiteMessages;
+module.exports.monGroupe = monGroupe;
 module.exports.listerGroupes = listerGroupes;
 module.exports.compterNonLusGroupes = compterNonLusGroupes;

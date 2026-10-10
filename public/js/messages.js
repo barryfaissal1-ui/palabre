@@ -120,20 +120,202 @@
   }
 
   // ---------- Les messages d'une conversation ----------
+  // Les six réactions (la même liste que le serveur, qui refuse toute autre valeur).
+  const REACTIONS = ['❤️', '😂', '👍', '😮', '😢', '🙏'];
+
+  // Remplace la bulle d'un message par sa nouvelle version (réaction ajoutée, message supprimé…).
+  function redessiner(message) {
+    const ancienne = ouverte && ouverte.zone.querySelector(`[data-message="${message.id}"]`);
+    if (!ancienne) return;
+    // La personne est en train de choisir dans le menu de cette bulle (ou une réaction) : on ne la lui retire pas
+    // des mains, on redessinera juste après.
+    if (ancienne.querySelector('[aria-expanded="true"], .barre-reactions')) {
+      setTimeout(() => redessiner(message), 1500);
+      return;
+    }
+    ancienne.replaceWith(bulle(message));
+  }
+
+  // La petite barre des six réactions, posée au-dessus de la bulle. Toucher la sienne une seconde fois l'enlève.
+  function choisirReaction(message, element) {
+    document.querySelectorAll('.barre-reactions').forEach((b) => b.remove());
+    const mienne = (message.reactions.find((r) => r.moi) || {}).emoji;
+    const barre = el('div', { classe: 'barre-reactions', role: 'group', 'aria-label': 'Réagir à ce message' }, REACTIONS.map((emoji) => {
+      const bouton = el('button', { type: 'button', texte: emoji, 'aria-pressed': String(emoji === mienne), 'aria-label': `Réagir avec ${emoji}` });
+      bouton.addEventListener('click', async () => {
+        fermer();
+        try {
+          const reponse = emoji === mienne
+            ? await api(`/messages/message/${message.id}/reaction`, { methode: 'DELETE', donnees: {} })
+            : await api(`/messages/message/${message.id}/reaction`, { methode: 'POST', donnees: { emoji } });
+          redessiner(reponse.message);
+        } catch (erreur) {
+          toast(erreur.message, 'erreur');
+        }
+      });
+      return bouton;
+    }));
+    function dehors(evenement) { if (!barre.contains(evenement.target)) fermer(); }
+    function clavier(evenement) { if (evenement.key === 'Escape') fermer(); }
+    function fermer() {
+      barre.remove();
+      document.removeEventListener('pointerdown', dehors, true);
+      document.removeEventListener('keydown', clavier);
+    }
+    element.append(barre);
+    barre.querySelector(mienne ? '[aria-pressed="true"]' : 'button').focus();
+    // Au prochain tour : sinon le toucher qui a ouvert la barre la refermerait aussitôt.
+    setTimeout(() => {
+      document.addEventListener('pointerdown', dehors, true);
+      document.addEventListener('keydown', clavier);
+    });
+  }
+
+  // Qui a réagi : une petite fenêtre, ouverte en touchant le compteur sous la bulle.
+  function montrerReactions(message) {
+    const fermer = el('button', { classe: 'bouton bouton-principal', type: 'button', texte: 'Fermer' });
+    const dialogue = el('dialog', { classe: 'dialogue', 'aria-labelledby': 'reactions-titre' }, [
+      el('h2', { id: 'reactions-titre', texte: 'Réactions' }),
+      el('ul', { classe: 'liste-reactions' }, message.reactions.map((r) => el('li', {}, [
+        el('span', { classe: 'reaction-emoji', texte: r.emoji, 'aria-hidden': 'true' }),
+        el('span', { texte: r.qui.join(', ') + (r.nombre > r.qui.length ? ` et ${r.nombre - r.qui.length} autres` : '') }),
+      ]))),
+      el('div', { classe: 'dialogue-actions' }, [fermer]),
+    ]);
+    fermer.addEventListener('click', () => dialogue.close());
+    dialogue.addEventListener('close', () => dialogue.remove());
+    document.body.append(dialogue);
+    dialogue.showModal();
+  }
+
+  async function supprimerMessage(message, pourTous) {
+    const question = pourTous
+      ? 'Supprimer ce message pour tout le monde ? Son texte et sa photo seront effacés. Il restera la mention « Message supprimé ».'
+      : 'Supprimer ce message pour toi ? Les autres le garderont.';
+    if (!(await confirmer(question, { bouton: 'Supprimer', danger: true }))) return;
+    try {
+      const reponse = await api(`/messages/message/${message.id}`, { methode: 'DELETE', donnees: { pourTous } });
+      if (reponse.message) redessiner(reponse.message);
+      else {
+        const element = ouverte && ouverte.zone.querySelector(`[data-message="${message.id}"]`);
+        if (element) element.remove();
+      }
+      chargerListe();
+    } catch (erreur) {
+      toast(erreur.message, 'erreur');
+    }
+  }
+
+  function repondreA(message) {
+    if (ouverte && ouverte.ecriture && ouverte.ecriture.repondreA) ouverte.ecriture.repondreA(message);
+  }
+
   function bulle(message) {
     // Message « système » d'un groupe (« Awa a rejoint l'équipe ») : une ligne discrète au centre, pas une bulle.
     if (message.systeme) return el('p', { classe: 'message-systeme', 'data-message': message.id, texte: message.texte });
     // Dans un groupe, la bulle d'un autre dit de qui elle vient.
     const signee = ouverte && ouverte.estGroupe && !message.estMoi && message.auteur;
-    return el('div', { classe: `bulle ${message.estMoi ? 'bulle-moi' : 'bulle-autre'}${signee ? ' bulle-signee' : ''}`, 'data-message': message.id }, [
+    const peutAgir = ouverte && ouverte.donnees.peutEcrire && !message.supprime;
+
+    // La citation du message auquel celui-ci répond : la toucher y ramène.
+    let citation = null;
+    if (message.reponse) {
+      citation = el('button', { classe: 'bulle-citation', type: 'button' }, [
+        el('strong', { texte: message.reponse.prenom }),
+        el('span', { texte: message.reponse.texte === null ? 'Message supprimé' : message.reponse.texte }),
+      ]);
+      citation.addEventListener('click', () => {
+        const origine = ouverte.zone.querySelector(`[data-message="${message.reponse.id}"]`);
+        if (!origine) {
+          toast('Ce message est plus haut : touche « Voir les messages précédents ».');
+          return;
+        }
+        origine.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        origine.classList.add('bulle-eclairee');
+        setTimeout(() => origine.classList.remove('bulle-eclairee'), 1600);
+      });
+    }
+
+    // Les réactions, regroupées : « 👍 2 ». Toucher le compteur montre qui a réagi.
+    let reactions = null;
+    if (message.reactions && message.reactions.length) {
+      reactions = el('div', { classe: 'bulle-reactions' }, message.reactions.map((r) => {
+        const bouton = el('button', { classe: `reaction${r.moi ? ' reaction-moi' : ''}`, type: 'button', 'aria-label': `${r.nombre} réaction${r.nombre > 1 ? 's' : ''} ${r.emoji} : voir qui` }, [
+          el('span', { texte: r.emoji, 'aria-hidden': 'true' }), el('span', { texte: String(r.nombre) }),
+        ]);
+        bouton.addEventListener('click', () => montrerReactions(message));
+        return bouton;
+      }));
+    }
+
+    const menu = menuOptions(() => [
+      peutAgir ? { texte: 'Répondre', icone: 'repondre', action: () => repondreA(message) } : null,
+      peutAgir ? { texte: 'Réagir', icone: 'sourire', action: () => choisirReaction(message, element) } : null,
+      message.supprime ? null : { texte: 'Copier', icone: 'copier', action: async () => {
+        try {
+          await navigator.clipboard.writeText(message.texte);
+          toast('Message copié.');
+        } catch {
+          toast('Ton navigateur n\'a pas permis la copie.', 'erreur');
+        }
+      } },
+      message.supprimable ? { texte: 'Supprimer pour tout le monde', icone: 'supprimer', danger: true, action: () => supprimerMessage(message, true) } : null,
+      { texte: 'Supprimer pour moi', icone: 'supprimer', danger: true, action: () => supprimerMessage(message, false) },
+      message.estMoi || message.supprime ? null : { texte: 'Signaler', icone: 'signaler', action: () => signaler('message', message.id) },
+    ], { cote: message.estMoi ? 'droite' : 'gauche' });
+    menu.classList.add('bulle-menu');
+    menu.querySelector('button').setAttribute('aria-label', 'Actions sur ce message');
+
+    const element = el('div', {
+      classe: `bulle ${message.estMoi ? 'bulle-moi' : 'bulle-autre'}${signee ? ' bulle-signee' : ''}${message.supprime ? ' bulle-supprimee' : ''}`,
+      'data-message': message.id,
+    }, [
       signee ? el('a', { classe: 'bulle-auteur', href: `/${message.auteur.identifiant}`, texte: message.auteur.nom }) : null,
+      citation,
       message.image
         ? el('a', { href: message.image, target: '_blank', rel: 'noopener', 'aria-label': 'Ouvrir la photo' }, [el('img', { src: message.image, alt: 'Photo jointe au message', loading: 'lazy', decoding: 'async' })])
         : null,
       // textContent : le texte d'un membre n'est jamais interprété. Un lien écrit dans un message reste du simple texte.
-      el('span', { classe: 'bulle-texte', texte: message.texte }),
+      el('span', { classe: 'bulle-texte', texte: message.supprime ? 'Message supprimé' : message.texte }),
       el('span', { classe: 'bulle-heure', texte: heure(message.creeLe) }),
+      reactions,
+      menu,
     ]);
+
+    // Sur téléphone : un appui long ouvre le menu, glisser la bulle vers la droite répond.
+    let depart = null;
+    let appuiLong = 0;
+    const annuler = () => { clearTimeout(appuiLong); appuiLong = 0; };
+    element.addEventListener('pointerdown', (evenement) => {
+      if (evenement.pointerType === 'mouse' || evenement.target.closest('button, a')) return;
+      depart = { x: evenement.clientX, y: evenement.clientY, glisse: false };
+      appuiLong = setTimeout(() => {
+        depart = null;
+        menu.querySelector('button').click();
+      }, 500);
+    });
+    element.addEventListener('pointermove', (evenement) => {
+      if (!depart) return;
+      const dx = evenement.clientX - depart.x;
+      const dy = evenement.clientY - depart.y;
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) annuler();
+      if (!peutAgir || Math.abs(dy) > 30 || dx < 0) return;
+      depart.glisse = dx > 12;
+      if (depart.glisse) element.style.transform = `translateX(${Math.min(dx, 72)}px)`;
+    });
+    const relacher = (evenement) => {
+      annuler();
+      if (!depart) return;
+      const assez = depart.glisse && evenement.clientX - depart.x > 56;
+      depart = null;
+      element.style.transform = '';
+      if (assez) repondreA(message);
+    };
+    element.addEventListener('pointerup', relacher);
+    element.addEventListener('pointercancel', relacher);
+    // L'appui long ne doit pas ouvrir en plus le menu du téléphone (copier / coller).
+    element.addEventListener('contextmenu', (evenement) => { if (evenement.pointerType !== 'mouse' && !evenement.target.closest('a')) evenement.preventDefault(); });
+    return element;
   }
 
   // Ajoute des messages en bas, avec un titre de jour quand la date change.
@@ -180,6 +362,7 @@
   // ---------- Zone d'écriture ----------
   function zoneEcriture({ envoyer, avertissement = null }) {
     let image = null;
+    let reponse = null; // le message auquel on répond (sa citation s'affiche au-dessus du champ)
     const champ = el('textarea', { rows: '1', maxlength: '2000', placeholder: 'Écrire un message…', 'aria-label': 'Écrire un message' });
     const choisir = el('input', { type: 'file', accept: 'image/*', classe: 'visuellement-cache', 'aria-label': 'Joindre une photo' });
     const boutonPhoto = el('label', { classe: 'bouton-icone', title: 'Joindre une photo' }, [icone('image'), choisir]);
@@ -187,8 +370,12 @@
     const retirer = el('button', { classe: 'bouton-discret', type: 'button', texte: 'Retirer la photo' });
     const apercu = el('div', { classe: 'apercu-photo', hidden: true }, [el('img', { alt: 'Photo à envoyer' }), retirer]);
     const erreurZone = el('p', { classe: 'erreur-champ', role: 'alert' });
+    const annulerReponse = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': 'Ne plus répondre à ce message' }, [icone('fermer')]);
+    const citationReponse = el('p', { classe: 'reponse-texte' });
+    const barreReponse = el('div', { classe: 'reponse-en-cours', hidden: true }, [icone('repondre'), citationReponse, annulerReponse]);
     const formulaire = el('form', { classe: 'zone-ecriture', novalidate: true }, [
       avertissement ? el('p', { classe: 'texte-discret avertissement-message', texte: avertissement }) : null,
+      barreReponse,
       apercu,
       erreurZone,
       el('div', { classe: 'ligne-ecriture' }, [boutonPhoto, champ, boutonEnvoyer]),
@@ -200,6 +387,18 @@
       apercu.querySelector('img').removeAttribute('src');
     }
     retirer.addEventListener('click', retirerPhoto);
+    function oublierReponse() {
+      reponse = null;
+      barreReponse.hidden = true;
+    }
+    annulerReponse.addEventListener('click', oublierReponse);
+    // Appelée par le menu d'un message ou par le glissement de sa bulle.
+    formulaire.repondreA = (message) => {
+      reponse = message;
+      citationReponse.replaceChildren(el('strong', { texte: message.estMoi ? 'Toi' : message.auteur.prenom }), ` ${message.texte}`);
+      barreReponse.hidden = false;
+      champ.focus();
+    };
     choisir.addEventListener('change', async () => {
       const fichier = choisir.files[0];
       choisir.value = '';
@@ -236,10 +435,11 @@
       }
       boutonEnvoyer.disabled = true;
       try {
-        await envoyer({ texte: champ.value, ...(image ? { image } : {}) });
+        await envoyer({ texte: champ.value, ...(image ? { image } : {}), ...(reponse ? { reponseA: reponse.id } : {}) });
         champ.value = '';
         champ.style.height = 'auto';
         retirerPhoto();
+        oublierReponse();
       } catch (erreur) {
         erreurZone.textContent = erreur.message;
       }
@@ -409,6 +609,8 @@
       zone,
       bas,
     ].filter(Boolean));
+    ouverte.ecriture = bas;
+    ouverte.maintenant = reponse.maintenant;
     allerEnBas();
     dessinerListe(); // met en avant la conversation ouverte dans la liste
     marquerLu();
@@ -577,6 +779,8 @@
       zone,
       bas,
     ].filter(Boolean));
+    ouverte.ecriture = bas;
+    ouverte.maintenant = reponse.maintenant;
     allerEnBas();
     dessinerListe();
     marquerLu();
@@ -638,10 +842,15 @@
   async function actualiserConversation() {
     if (!ouverte || !ouverte.id || document.hidden) return;
     const { id } = ouverte;
+    // « depuis » : l'heure du serveur à notre dernière lecture. Il renvoie les messages déjà affichés qui ont changé
+    // (réaction, suppression) : la même requête qu'avant, toutes les 5 secondes, sans appel de plus.
+    const depuis = ouverte.maintenant ? `&depuis=${encodeURIComponent(ouverte.maintenant)}` : '';
     try {
       if (ouverte.estGroupe) {
-        const reponse = await api(`/messages/groupes/${id}/nouveaux?apres=${ouverte.dernierId}`);
+        const reponse = await api(`/messages/groupes/${id}/nouveaux?apres=${ouverte.dernierId}${depuis}`);
         if (!ouverte || ouverte.id !== id) return;
+        ouverte.maintenant = reponse.maintenant;
+        (reponse.modifies || []).forEach(redessiner);
         // Le groupe vient d'être fermé (équipe dissoute) ou renommé : on redessine tout.
         if (reponse.ferme !== ouverte.donnees.ferme || reponse.titre !== ouverte.donnees.titre) {
           chargerListe();
@@ -660,8 +869,10 @@
         }
         return;
       }
-      const reponse = await api(`/messages/conversations/${id}/nouveaux?apres=${ouverte.dernierId}`);
+      const reponse = await api(`/messages/conversations/${id}/nouveaux?apres=${ouverte.dernierId}${depuis}`);
       if (!ouverte || ouverte.id !== id) return; // on a changé de conversation pendant la requête
+      ouverte.maintenant = reponse.maintenant;
+      (reponse.modifies || []).forEach(redessiner);
       // La demande que j'avais envoyée vient d'être acceptée (ou l'inverse) : on redessine pour montrer la zone d'écriture.
       if (reponse.statut !== ouverte.donnees.statut) {
         ouvrir(id);

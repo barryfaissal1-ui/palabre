@@ -671,6 +671,33 @@ Les groupes ont leur propre fichier (`src/routes/groupes.js`) et **une seule rè
 - **Notifications** : une seule par groupe et par membre, mise à jour tant qu'elle n'est pas lue (« 3 nouveaux messages dans « Équipe : … » »), push compris. Un membre peut mettre un groupe **en sourdine**.
 - **Reprise de l'existant** : la migration crée le groupe des équipes qui existaient déjà, et remplit `conversation_membres` pour les conversations privées. Elle peut être rejouée sans rien doubler.
 
+## 11 undecies. Réagir, répondre, supprimer un message
+
+Ces trois actions marchent de la même façon dans une conversation privée et dans un groupe. Le code est donc écrit une fois : `src/utils/messages.js` (lire les messages avec leurs réactions et leur citation) et `src/routes/messages-actions.js` (réagir, supprimer).
+
+**L'accès n'est pas réinventé.** Pour agir sur un message, le serveur retrouve sa conversation puis applique la règle de cette conversation (`maConversation()` ou `monGroupe()`). Qui ne peut pas la lire reçoit 404.
+
+### Réactions
+
+Six émojis, et pas un de plus : le serveur refuse toute autre valeur. La table `message_reactions` a pour clé primaire le couple (message, membre) : **une réaction par personne et par message**, garantie par la base. En choisir une autre remplace la précédente. Sous la bulle, un compteur par émoji ; le toucher montre qui a réagi.
+
+### Réponses
+
+Un message peut en citer un autre (`messages.reponse_a`). Le serveur vérifie que le message cité est **dans la même conversation** : sinon on pourrait, en devinant un numéro, faire afficher le début d'un message d'une conversation où l'on n'est pas. Une citation invalide est simplement ignorée.
+
+### Suppression
+
+- **Pour tout le monde** : l'auteur seulement, pendant 15 minutes. Le texte et la photo sont **effacés de la base** (la ligne du fichier est supprimée), pas seulement cachés ; il reste une bulle « Message supprimé ».
+- **Pour moi** : à tout moment ; le message disparaît de mon écran, les autres le gardent (table `messages_masques`).
+
+### Voir les changements sans recharger
+
+La page demandait déjà toutes les 5 secondes « quoi de neuf après le message n° X ? ». Mais une réaction ou une suppression touche un **ancien** message. Chaque message a donc une date `modifie_le` ; la page envoie l'heure du serveur de sa dernière lecture (`depuis`) et reçoit en plus les messages déjà affichés qui ont changé. **Aucune requête de plus** : la même, un peu plus bavarde. L'heure est celle de la base, lue avant les messages, pour ne rien perdre entre deux tours.
+
+### Sur l'écran
+
+Sur ordinateur, un bouton « … » apparaît à côté de la bulle au survol. Sur téléphone, un **appui long** ouvre le même menu (Répondre, Réagir, Copier, Supprimer, Signaler), et **glisser la bulle vers la droite** répond. Le menu est celui de tout le site (`menuOptions()`).
+
 ## 12. Le système de design
 
 Un « système de design », c'est un petit nombre de règles visuelles appliquées partout, pour que le site ait l'air d'une seule et même application. Tout est écrit à la main : aucune bibliothèque d'interface, aucun framework, donc des pages qui restent légères en 3G (les icônes pèsent 8 Ko en tout, les illustrations 4 Ko).
@@ -889,6 +916,8 @@ Pour les emails (`tests/emails.test.js`) : le code figure dans la version texte 
 Pour les notifications (`tests/notifications.test.js`) : j'aime regroupés avec la dernière personne en premier, quatre j'aime au même instant qui ne font qu'une ligne, ne plus aimer, rien pour ses propres actions, commentaires et réponses, une seule notification par conversation, tout marquer comme lu. Pour le push (`tests/push.test.js`, sans appeler aucun vrai service) : le site sans clés VAPID, l'abonnement et ses refus (adresse interne, faux domaine), le message chiffré que seul l'appareil relit, la signature VAPID vérifiée, l'aperçu de 60 caractères, les préférences respectées, l'abonnement expiré supprimé, la panne qui ne casse rien.
 
 Pour les groupes (`tests/groupes.test.js`) : le groupe naît avec l'équipe ; accepter y fait entrer, refuser non ; seuls les membres lisent et écrivent (404 pour les autres, photos comprises) ; une seule notification par groupe ; la liste et la pastille comptent les groupes ; sourdine ; renommer réservé au chef ; le client entre quand il choisit l'équipe ; quitter avant ou après ce choix ; équipe dissoute, groupe fermé ; signalement d'un message de groupe.
+
+Pour les actions sur les messages (`tests/messages-actions.test.js`) : une réaction par personne, changée ou retirée, six émojis seulement ; les changements arrivent par « modifies » ; une réponse ne peut citer qu'un message de la même conversation ; suppression pour tout le monde par l'auteur seul, pendant 15 minutes, avec le texte et la photo réellement effacés ; suppression pour soi ; les mêmes actions dans un groupe, refusées aux extérieurs et dans un groupe fermé.
 
 Les autres fichiers de tests ont besoin de comptes prêts à servir : `tests/aide.js` enveloppe leur fonction d'appel pour que chaque compte créé soit aussitôt confirmé et complet.
 

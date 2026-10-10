@@ -16,9 +16,9 @@ const { lireImageDataUrl } = require('../utils/images');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
 const { notifier, court } = require('../utils/notifications');
 const groupes = require('./groupes');
+const { lireMessages, lireMessage, messagesModifies, origineValide } = require('../utils/messages');
 
 const router = express.Router();
-const PAR_PAGE = 30;
 const MAX_CONVERSATIONS = 100;
 
 const { limiteMessages } = groupes; // la même limite pour les conversations privées et les groupes
@@ -44,16 +44,6 @@ const NON_LUS = `(SELECT count(*)::int FROM messages m
       AND m.id > COALESCE((SELECT l.dernier_lu_id FROM conversation_lectures l
                             WHERE l.conversation_id = c.id AND l.membre_id = $1), 0))`;
 const JE_BLOQUE = 'EXISTS (SELECT 1 FROM blocages b WHERE b.bloqueur_id = $1 AND b.bloque_id = u.id)';
-
-function versMessage(ligne, moi) {
-  return {
-    id: ligne.id,
-    texte: ligne.texte,
-    image: ligne.fichier_id ? `/fichiers/${ligne.fichier_id}` : null,
-    creeLe: ligne.cree_le,
-    estMoi: ligne.auteur_id === moi.id,
-  };
-}
 
 // ---------- Règles ----------
 
@@ -199,10 +189,12 @@ async function ecrire(req, res, autreId, conversation) {
       );
       fichierId = rows[0].id;
     }
+    // Réponse à un message : il doit être dans cette conversation (sinon la citation est simplement ignorée).
+    const reponseA = await origineValide(client, conv.id, corps.reponseA);
     const { rows: [message] } = await client.query(
-      `INSERT INTO messages (conversation_id, auteur_id, texte, fichier_id) VALUES ($1, $2, $3, $4)
+      `INSERT INTO messages (conversation_id, auteur_id, texte, fichier_id, reponse_a) VALUES ($1, $2, $3, $4, $5)
        RETURNING id, texte, fichier_id, cree_le, auteur_id`,
-      [conv.id, moi.id, texte, fichierId],
+      [conv.id, moi.id, texte, fichierId, reponseA],
     );
     await client.query(
       'UPDATE conversations SET dernier_message_le = now(), statut = $2, demande_id = $3 WHERE id = $1',
@@ -232,7 +224,7 @@ async function ecrire(req, res, autreId, conversation) {
           push: { titre: moi.nom, texte: texte ? court(texte, 60) : 'Photo' },
         });
     }
-    return { conversationId: conv.id, statut: accepte ? 'acceptee' : conv.statut, message: versMessage(message, moi) };
+    return { conversationId: conv.id, statut: accepte ? 'acceptee' : conv.statut, message: await lireMessage(conv.id, message.id, moi, client) };
   });
 }
 
@@ -353,21 +345,16 @@ function parametresConversation(ligne, moi, droit) {
 router.get('/conversations/:id', async (req, res) => {
   const moi = req.utilisateur;
   const ligne = await maConversation(req.params.id, moi);
-  const avant = v.idPositif(req.query.avant);
-  const [{ rows }, droit] = await Promise.all([
-    db.query(
-      `SELECT id, texte, fichier_id, cree_le, auteur_id FROM messages
-        WHERE conversation_id = $1 AND masque = FALSE AND ($2::int IS NULL OR id < $2)
-        ORDER BY id DESC LIMIT $3`,
-      [ligne.id, avant, PAR_PAGE + 1],
-    ),
+  const [{ rows: [{ maintenant }] }, page, droit] = await Promise.all([
+    db.query('SELECT now() AS maintenant'),
+    lireMessages(ligne.id, moi, { avant: v.idPositif(req.query.avant) }),
     droitDEcrire(db, moi, ligne.autre_id, ligne),
   ]);
-  const page = rows.slice(0, PAR_PAGE);
   res.json({
     conversation: parametresConversation(ligne, moi, droit),
-    messages: page.reverse().map((m) => versMessage(m, moi)), // rendus dans l'ordre de lecture, du plus ancien au plus récent
-    precedent: rows.length > PAR_PAGE ? page[0].id : null,
+    messages: page.messages, // rendus dans l'ordre de lecture, du plus ancien au plus récent
+    precedent: page.precedent,
+    maintenant, // l'heure du serveur : la page la renverra pour demander « qu'est-ce qui a changé depuis ? »
   });
 });
 
@@ -376,12 +363,14 @@ router.get('/conversations/:id', async (req, res) => {
 router.get('/conversations/:id/nouveaux', async (req, res) => {
   const moi = req.utilisateur;
   const ligne = await maConversation(req.params.id, moi);
-  const { rows } = await db.query(
-    `SELECT id, texte, fichier_id, cree_le, auteur_id FROM messages
-      WHERE conversation_id = $1 AND masque = FALSE AND id > $2 ORDER BY id LIMIT 100`,
-    [ligne.id, v.idPositif(req.query.apres) || 0],
-  );
-  res.json({ messages: rows.map((m) => versMessage(m, moi)), vuJusqua: ligne.vu_jusqua, statut: ligne.statut });
+  const apres = v.idPositif(req.query.apres) || 0;
+  // L'heure est lue AVANT les messages : une réaction posée pendant la lecture sera vue au tour suivant, pas perdue.
+  const { rows: [{ maintenant }] } = await db.query('SELECT now() AS maintenant');
+  const [nouveaux, modifies] = await Promise.all([
+    lireMessages(ligne.id, moi, { apres }),
+    messagesModifies(ligne.id, moi, req.query.depuis, apres),
+  ]);
+  res.json({ messages: nouveaux.messages, modifies, maintenant, vuJusqua: ligne.vu_jusqua, statut: ligne.statut });
 });
 
 // Envoyer un message : POST /api/messages/conversations/:id  { texte, image? }
@@ -462,6 +451,9 @@ router.delete('/blocages/:identifiant', async (req, res) => {
   await db.query('DELETE FROM blocages WHERE bloqueur_id = $1 AND bloque_id = $2', [moi.id, autre.id]);
   res.json({ bloque: false });
 });
+
+// Réagir à un message, le supprimer : les mêmes routes pour les conversations privées et les groupes.
+router.use('/message', require('./messages-actions')({ maConversation, monGroupe: groupes.monGroupe }));
 
 module.exports = router;
 module.exports.compterNonLus = compterNonLus;

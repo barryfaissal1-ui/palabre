@@ -85,6 +85,7 @@ tests/                 tests automatiques
 - [x] Calculateur « Combien coûte mon projet ? » `/calculateur` (grille de prix : `public/js/grille-prix.js`)
 - [x] Refonte du design, étape A : système de design (icônes Lucide, ombres, animations, toasts, états vides illustrés, squelettes de chargement, mode sombre)
 - [x] Prénom et nom saisis séparément (inscription et profil)
+- [x] Messages : réactions, réponse avec citation, suppression pour tout le monde (15 minutes) ou pour soi
 - [x] Conversations de groupe pour les équipes éclair : le groupe naît avec l'équipe, le client y entre quand il la choisit, il se ferme si elle est dissoute
 - [x] Notifications : j'aime, commentaires et messages regroupés (« Awa et 3 autres ont aimé ta publication »), page par périodes avec avatars, et notifications push sur le téléphone même site fermé (sans bibliothèque), avec réglages par famille
 - [x] Page du code de confirmation « les feuilles de l'arbre à palabres » (six feuilles, tourbillon, arbre qui se forme) et emails HTML aux couleurs de Palabre

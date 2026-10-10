@@ -427,6 +427,28 @@ CREATE INDEX IF NOT EXISTS idx_conversation_membres_membre ON conversation_membr
 -- Un message « système » (« Awa a rejoint l'équipe ») s'affiche au centre et ne compte pas comme non lu.
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS systeme BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- ============ Réactions, réponses, suppression ============
+-- Une réaction par personne et par message (clé primaire) : en choisir une autre remplace la précédente.
+CREATE TABLE IF NOT EXISTS message_reactions (
+  message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  membre_id  INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  emoji      TEXT NOT NULL,
+  cree_le    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (message_id, membre_id)
+);
+-- « Supprimer pour moi » : le message reste chez les autres, il disparaît seulement pour ce membre.
+CREATE TABLE IF NOT EXISTS messages_masques (
+  message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  membre_id  INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  PRIMARY KEY (message_id, membre_id)
+);
+-- reponse_a : le message cité. supprime_le : supprimé pour tout le monde (texte et photo effacés).
+-- modifie_le : touché à chaque réaction ou suppression, pour que les pages ouvertes redessinent ce message.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS reponse_a INTEGER REFERENCES messages(id) ON DELETE SET NULL;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS supprime_le TIMESTAMPTZ;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS modifie_le TIMESTAMPTZ NOT NULL DEFAULT now();
+CREATE INDEX IF NOT EXISTS idx_messages_modifie ON messages (conversation_id, modifie_le);
+
 -- Reprise de l'existant, rejouable sans rien doubler (ON CONFLICT DO NOTHING, NOT EXISTS) :
 -- 1) les deux membres de chaque conversation privée ;
 INSERT INTO conversation_membres (conversation_id, membre_id, rejoint_le)
