@@ -365,9 +365,10 @@ a { color: var(--lien); text-underline-offset: 3px; }
 }
 .carte-formulaire .sous-titre { margin: 0 0 24px; color: var(--gris); }
 
-form { display: grid; gap: 16px; }
+/* minmax(0, 1fr) : une colonne ne s'élargit jamais pour un texte long (sinon la page dépasse sur téléphone). */
+form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 
-.champ { display: grid; gap: 6px; }
+.champ { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
 .champ label, .champ legend { font-weight: 600; font-size: var(--t-15); }
 .champ .aide { font-size: var(--t-13); color: var(--gris); }
 
@@ -2072,7 +2073,9 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
 .ligne-saisie:focus-within .trait { transform: scaleX(1); }
 .ligne-saisie:focus-within > .icone { color: var(--accent); }
 .ligne-saisie:has([aria-invalid="true"]) { border-bottom-color: var(--erreur); }
-.champs-cote-a-cote { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.champs-cote-a-cote { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+/* Deux listes au texte long (spécialité, expérience) : l'une sous l'autre tant qu'il n'y a pas 220 px pour chacune. */
+.champs-cote-a-cote.champs-larges { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
 
 /* Développeur / Client : deux grandes tuiles avec icône */
 .tuiles-type label { justify-items: start; gap: 4px; padding: 14px; border-width: 1.5px; border-radius: var(--rayon); transition: border-color 0.15s ease, background-color 0.15s ease; }
