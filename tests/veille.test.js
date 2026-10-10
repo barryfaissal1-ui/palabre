@@ -95,6 +95,23 @@ test('pas d\'annonce pour une demande de message non acceptée, un membre bloqu�
   await appel(`/api/messages/blocages/${membres.cheick.identifiant}`, { methode: 'DELETE', qui: 'awa', donnees: {} });
 });
 
+test('réglage « Son des messages » : activé par défaut, gardé côté serveur', async () => {
+  const son = async (qui) => (await appel('/api/auth/moi', { qui })).corps.utilisateur.sonMessages;
+  const regler = (qui, actif) => appel('/api/profils/moi/son-messages', { methode: 'PUT', qui, donnees: { actif } });
+  assert.equal(await son('awa'), true);
+  assert.deepEqual((await regler('awa', false)).corps, { sonMessages: false });
+  assert.equal(await son('awa'), false);
+  assert.equal(await son('bintou'), true, 'le réglage d\'Awa ne touche pas Bintou');
+  assert.equal((await regler('awa', 'non')).statut, 400);
+  assert.equal((await appelBrut('/api/profils/moi/son-messages', { methode: 'PUT', donnees: { actif: false } })).statut, 401);
+  // Il n'efface pas les autres réglages de notifications (ceux du push), et inversement.
+  await appel('/api/notifications/push/preferences', { methode: 'PUT', qui: 'awa', donnees: { messages: true, demandes: false, equipes: true, social: true, defis: true } });
+  assert.equal(await son('awa'), false);
+  await regler('awa', true);
+  assert.equal((await appel('/api/notifications/push', { qui: 'awa' })).corps.preferences.demandes, false);
+  assert.equal(await son('awa'), true);
+});
+
 test('groupe : annoncé à ses membres avec son titre, sauf s\'il est en sourdine ; vocal et photo ont leur mot', async () => {
   const demande = (await poster('kadi', '/api/demandes', { titre: 'Site pour une librairie', description: 'Un catalogue, la réservation des livres et le paiement Mobile Money.', budgetFcfa: 300000, delai: '1 mois', categorie: 'site-web' })).corps.demande.id;
   const equipe = (await poster('awa', `/api/demandes/${demande}/equipes`, { message: 'À deux, en un mois.', montantFcfa: 280000, roleChef: 'Serveur', membres: [{ identifiant: membres.bintou.identifiant, role: 'Interface' }] })).corps.propositions.find((p) => p.equipe).equipe;

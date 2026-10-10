@@ -35,7 +35,7 @@ async function chargerUtilisateur(req, res, next) {
               email_confirme_le, profil_complete_le, specialite, experience,
               lien_github, lien_github_verifie_le, lien_gitlab, lien_gitlab_verifie_le,
               lien_portfolio, lien_portfolio_verifie_le, lien_linkedin, lien_linkedin_verifie_le, sessions_depuis,
-              vu_le, masquer_presence
+              vu_le, masquer_presence, preferences_notifications
          FROM utilisateurs WHERE id = $1 AND bloque = FALSE`,
       [id],
     );

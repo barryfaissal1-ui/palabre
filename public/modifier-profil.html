@@ -105,7 +105,7 @@
 
       <section class="bloc-formulaire" data-seulement-dev>
         <h2>Profil de dev</h2>
-        <div class="champs-cote-a-cote">
+        <div class="champs-cote-a-cote champs-larges">
           <div class="champ">
             <label for="specialite">Spécialité principale</label>
             <select id="specialite" name="specialite">
@@ -175,13 +175,19 @@
 
     <!-- Statut « en ligne » dans la messagerie : enregistré tout de suite (modifier-profil.js). -->
     <section class="bloc-formulaire reglages-push" data-reglage-presence hidden>
-      <h2>Confidentialité</h2>
+      <h2>Messagerie</h2>
       <label class="interrupteur">
         <input type="checkbox" name="montrer-presence">
         <span class="interrupteur-piste" aria-hidden="true"></span>
         <span>Montrer quand je suis en ligne</span>
       </label>
       <p class="aide">Dans la messagerie, tes contacts voient un point vert quand tu es là. Si tu le caches, tu ne vois plus le leur non plus.</p>
+      <label class="interrupteur">
+        <input type="checkbox" name="son-messages">
+        <span class="interrupteur-piste" aria-hidden="true"></span>
+        <span>Son des messages</span>
+      </label>
+      <p class="aide">Deux petites notes quand un message arrive pendant que Palabre est ouvert, sauf dans la conversation que tu regardes.</p>
     </section>
 
     <!-- Notifications sur le téléphone : rempli par push.js. Ces réglages s'enregistrent tout de suite,

@@ -225,7 +225,19 @@
 
     // « Montrer quand je suis en ligne » : enregistré dès qu'on touche l'interrupteur, sans le bouton « Enregistrer ».
     const zonePresence = document.querySelector('[data-reglage-presence]');
-    const casePresence = zonePresence.querySelector('input');
+    const casePresence = zonePresence.querySelector('[name="montrer-presence"]');
+    // « Son des messages » : le même principe, gardé côté serveur pour tous les appareils du membre.
+    const caseSon = zonePresence.querySelector('[name="son-messages"]');
+    caseSon.checked = moi.sonMessages !== false;
+    caseSon.addEventListener('change', async () => {
+      try {
+        await api('/profils/moi/son-messages', { methode: 'PUT', donnees: { actif: caseSon.checked } });
+        window.Palabre.toast(caseSon.checked ? 'Le son des messages est activé.' : 'Le son des messages est coupé.');
+      } catch (erreur) {
+        caseSon.checked = !caseSon.checked;
+        window.Palabre.toast(erreur.message, 'erreur');
+      }
+    });
     casePresence.checked = !moi.presenceMasquee;
     zonePresence.hidden = false;
     casePresence.addEventListener('change', async () => {

@@ -1154,7 +1154,35 @@
     const ailleurs = (reponse.messages || []).filter((message) => window.Palabre.conversationOuverte !== message.conversationId);
     if (ailleurs.length === 0) return;
     ailleurs.forEach(toastMessage);
+    // Un petit son, une fois pour l'ensemble, si le membre ne l'a pas coupé (réglage « Son des messages » du profil).
+    utilisateurConnecte().then((moi) => { if (moi && moi.sonMessages && !document.hidden) sonMessage(); });
     api('/messages/non-lus').then(({ nonLus }) => majPastilleMessages(nonLus)).catch(() => {});
+  }
+
+  // Le son d'arrivée d'un message : deux notes douces fabriquées par le navigateur (Web Audio). Aucun fichier son,
+  // rien de copié. Si le navigateur refuse de jouer (aucun geste de la personne sur cette page), on se tait.
+  let contexteSon = null;
+  function sonMessage() {
+    try {
+      contexteSon = contexteSon || new (window.AudioContext || window.webkitAudioContext)();
+      const jouer = () => {
+        if (contexteSon.state !== 'running') return;
+        [[784, 0, 0.22], [1047, 0.13, 0.32]].forEach(([frequence, quand, duree]) => { // sol puis do, très courts
+          const debut = contexteSon.currentTime + quand;
+          const oscillateur = contexteSon.createOscillator();
+          const volume = contexteSon.createGain();
+          oscillateur.type = 'sine';
+          oscillateur.frequency.value = frequence;
+          volume.gain.setValueAtTime(0, debut);
+          volume.gain.linearRampToValueAtTime(0.09, debut + 0.02);
+          volume.gain.exponentialRampToValueAtTime(0.0001, debut + duree);
+          oscillateur.connect(volume).connect(contexteSon.destination);
+          oscillateur.start(debut);
+          oscillateur.stop(debut + duree + 0.05);
+        });
+      };
+      contexteSon.resume().then(jouer).catch(() => {});
+    } catch { /* pas de son sur ce navigateur : la carte suffit */ }
   }
 
   // La carte d'arrivée d'un message : en verre, aux coins en feuille, elle glisse depuis le haut et s'en va au bout

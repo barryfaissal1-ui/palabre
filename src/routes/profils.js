@@ -228,6 +228,17 @@ router.put('/moi', exigerConnexion, async (req, res) => {
 
 // Page 2 de l'inscription des devs, « Ton profil de dev » : PUT /api/profils/moi/profil-dev
 // { dateNaissance, specialite, experience, liens: { github, gitlab, portfolio, linkedin }, sansLien, whatsapp, bio }
+// Le son à l'arrivée d'un message : PUT /api/profils/moi/son-messages  { actif }
+// Gardé côté serveur (dans les réglages de notifications du membre) : il le retrouve sur tous ses appareils.
+router.put('/moi/son-messages', exigerConnexion, async (req, res) => {
+  if (typeof req.body?.actif !== 'boolean') throw new v.ErreurValidation('Choix illisible.', 'actif');
+  await db.query(
+    `UPDATE utilisateurs SET preferences_notifications = jsonb_set(preferences_notifications, '{sonMessages}', $2::jsonb) WHERE id = $1`,
+    [req.utilisateur.id, JSON.stringify(req.body.actif)],
+  );
+  res.json({ sonMessages: req.body.actif });
+});
+
 // Montrer ou cacher son statut « en ligne » : PUT /api/profils/moi/presence  { masquer }
 // Qui le cache ne voit pas non plus celui des autres (src/utils/presence.js).
 router.put('/moi/presence', exigerConnexion, async (req, res) => {

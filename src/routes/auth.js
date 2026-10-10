@@ -41,6 +41,8 @@ const limiteCodes = rateLimit({
 function profilPrive(u) {
   return {
     presenceMasquee: Boolean(u.masquer_presence),
+    // Le petit son à l'arrivée d'un message : activé tant que le membre ne l'a pas coupé dans son profil.
+    sonMessages: (u.preferences_notifications || {}).sonMessages !== false,
     id: u.id,
     type: u.type,
     estAdmin: u.est_admin,
