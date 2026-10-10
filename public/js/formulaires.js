@@ -17,16 +17,38 @@
     } catch { /* l'animation est un plus */ }
   }
 
+  // Heure d'ouverture de la page, signée par le serveur (protection contre les robots, voir src/utils/inscription.js).
+  // Elle est demandée à l'API et non écrite dans la page : la page peut venir du cache du téléphone, pas elle.
+  let jetonOuverture = null;
+  async function demanderJeton() {
+    try {
+      jetonOuverture = (await api('/auth/jeton-inscription')).jeton;
+    } catch { /* sans réseau : on redemandera au moment de l'envoi */ }
+  }
+
+  // Adresse d'une étape de l'inscription, en gardant la destination finale (« suite »).
+  function etape(page) {
+    const suite = suiteDemandee();
+    return suite ? `${page}?suite=${encodeURIComponent(suite)}` : page;
+  }
+
   const actions = {
-    async inscription(donnees) {
-      await api('/auth/inscription', { methode: 'POST', donnees });
+    async inscription(donnees, formulaire) {
+      if (!jetonOuverture) await demanderJeton();
+      // Le numéro WhatsApp n'est demandé ici qu'aux clients (les devs le donnent à l'étape 2).
+      if (formulaire.querySelector('[data-seulement-client]')?.hidden) delete donnees.whatsapp;
+      await api('/auth/inscription', { methode: 'POST', donnees: { ...donnees, jeton: jetonOuverture } });
       await celebrer();
-      window.location.href = suiteDemandee() || '/fil';
+      // Étape suivante pour tout le monde : le code reçu par email.
+      window.location.href = etape('/confirmer-email');
     },
     async connexion(donnees) {
-      await api('/auth/connexion', { methode: 'POST', donnees });
+      const { utilisateur } = await api('/auth/connexion', { methode: 'POST', donnees });
       await celebrer();
-      window.location.href = suiteDemandee() || '/fil';
+      // Une inscription laissée en route reprend là où elle s'était arrêtée.
+      if (!utilisateur.emailConfirme) window.location.href = etape('/confirmer-email');
+      else if (!utilisateur.profilComplet) window.location.href = etape('/bienvenue');
+      else window.location.href = suiteDemandee() || '/fil';
     },
     async 'mot-de-passe-oublie'(donnees, formulaire) {
       const { message } = await api('/auth/mot-de-passe-oublie', { methode: 'POST', donnees });
@@ -95,6 +117,7 @@
     }
 
     document.querySelectorAll('[data-liste-pays]').forEach(remplirPays);
+    if (document.querySelector('form[data-formulaire="inscription"]')) demanderJeton();
 
     document.querySelectorAll('form[data-formulaire]').forEach((formulaire) => {
       formulaire.addEventListener('submit', async (evenement) => {

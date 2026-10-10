@@ -3,7 +3,7 @@
 const express = require('express');
 const db = require('../db/pool');
 const v = require('../utils/validation');
-const { exigerConnexion, exigerDev } = require('../middleware/auth');
+const { exigerConnexion, exigerDev, exigerProfilComplet } = require('../middleware/auth');
 const { notifier, court, deNom } = require('../utils/notifications');
 
 const router = express.Router();
@@ -64,7 +64,8 @@ async function repondre(req, res, reponse) {
   res.json({ reponse, propositionEnvoyee: envoyee });
 }
 
-router.post('/:id/accepter', (req, res) => repondre(req, res, 'accepte'));
+// Rejoindre une équipe demande un profil de dev complet ; refuser une invitation reste toujours possible.
+router.post('/:id/accepter', exigerProfilComplet, (req, res) => repondre(req, res, 'accepte'));
 router.post('/:id/refuser', (req, res) => repondre(req, res, 'refuse'));
 
 // Dissoudre son équipe, tant que le client ne l'a pas choisie : DELETE /api/equipes/:id

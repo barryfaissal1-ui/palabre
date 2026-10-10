@@ -139,7 +139,8 @@
               </div>
             </div>
 
-            <div class="champ">
+            <!-- Seulement pour un client : un dev donne son numéro à l'étape 2 (/bienvenue). acces.js montre ou cache ce champ. -->
+            <div class="champ" data-seulement-client hidden>
               <label for="whatsapp">Numéro WhatsApp <span class="aide">(facultatif)</span></label>
               <div class="ligne-saisie">
                 <input id="whatsapp" name="whatsapp" type="tel" autocomplete="tel" inputmode="tel" placeholder="+226 70 00 00 00">
@@ -147,6 +148,13 @@
                 <span class="trait"></span>
               </div>
               <p class="erreur-champ" data-erreur="whatsapp"></p>
+            </div>
+
+            <!-- Champ piège contre les robots : invisible (CSS), hors du parcours au clavier et ignoré des lecteurs d'écran.
+                 Une personne ne le remplit jamais ; un robot qui remplit tout, si. Le serveur refuse alors l'inscription. -->
+            <div class="champ-piege" aria-hidden="true">
+              <label for="site-web">Site web (laisse ce champ vide)</label>
+              <input id="site-web" name="siteWeb" type="text" tabindex="-1" autocomplete="off">
             </div>
 
             <p class="message" role="alert" data-message></p>

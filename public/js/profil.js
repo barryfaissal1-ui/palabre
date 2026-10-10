@@ -128,6 +128,23 @@
     return zone;
   }
 
+  // ---------- Liens du dev (GitHub, GitLab, portfolio, LinkedIn) ----------
+  // Chaque lien que le serveur a pu visiter porte le badge « Lien vérifié ». Sans aucun lien : « Profil à confirmer ».
+  function liensDev(profil) {
+    if (profil.type !== 'dev') return null;
+    if (profil.aConfirmer) {
+      return el('p', { classe: 'profil-a-confirmer' }, [
+        el('span', { classe: 'pastille pastille-confirmer', texte: 'Profil à confirmer' }),
+        profil.estMoi ? el('a', { href: profil.specialite ? '/modifier-profil' : '/bienvenue', texte: 'Ajouter un lien' }) : null,
+      ]);
+    }
+    return el('ul', { classe: 'profil-liens' }, profil.liens.map((lien) => el('li', {}, [
+      // noopener : le site ouvert ne peut pas agir sur la page Palabre ; nofollow : pas de coup de pouce au référencement.
+      el('a', { classe: 'avec-icone', href: lien.url, target: '_blank', rel: 'noopener nofollow' }, [icone('lien'), lien.nom]),
+      lien.verifie ? el('span', { classe: 'badge-verifie' }, [icone('verifie'), 'Lien vérifié']) : null,
+    ])));
+  }
+
   // ---------- Haut du profil ----------
   function teteProfil(profil) {
     const estDev = profil.type === 'dev';
@@ -154,6 +171,11 @@
     const presentation = el('section', { classe: 'profil-presentation', 'aria-labelledby': 'titre-presentation' }, [
       el('h2', { id: 'titre-presentation', texte: 'Présentation' }),
       profil.bio ? el('p', { classe: 'profil-bio', texte: profil.bio }) : null,
+      // Profil de dev : « Développement web, 3 à 5 ans d'expérience ».
+      estDev && profil.specialiteNom
+        ? el('p', { classe: 'profil-metier avec-icone' }, [icone('devs'), [profil.specialiteNom, profil.experienceNom ? `${profil.experienceNom.toLowerCase()} d'expérience` : null].filter(Boolean).join(', ')])
+        : null,
+      liensDev(profil),
       estDev
         ? el('span', { classe: `pastille ${profil.disponible ? 'pastille-dispo' : 'pastille-occupe'}`, texte: profil.disponible ? 'Disponible pour des projets' : 'Occupé en ce moment' })
         : null,

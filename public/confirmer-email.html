@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0F3D22">
+  <meta name="robots" content="noindex">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <script src="/js/theme.js"></script>
+  <link rel="stylesheet" href="/css/style.css">
+  <title>Confirme ton email – Palabre</title>
+  <script src="/js/app.js" defer></script>
+  <script src="/js/confirmer-email.js" defer></script>
+</head>
+<!-- Étape 1 de l'inscription, pour tout le monde : saisir le code à 6 chiffres reçu par email.
+     Tant que ce n'est pas fait, le serveur refuse tout le reste (src/middleware/auth.js, exigerEmailConfirme). -->
+<body class="page-acces">
+  <main class="acces etape">
+    <div class="etape-carte etape-etroite">
+      <a class="etape-marque" href="/"><img src="/icons/logo-256.png" alt="" width="36" height="36">Palabre</a>
+      <h1 class="acces-titre">Confirme ton email</h1>
+      <p class="etape-texte">Nous avons envoyé un code à 6 chiffres à <strong data-email>ton adresse</strong>. Il est valable 15 minutes.</p>
+
+      <form data-code novalidate>
+        <div class="champ">
+          <label for="code">Code de confirmation</label>
+          <div class="ligne-saisie">
+            <input class="saisie-code" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*" required placeholder="000000">
+            <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#cadenas"></use></svg>
+            <span class="trait"></span>
+          </div>
+          <p class="erreur-champ" data-erreur="code"></p>
+        </div>
+        <p class="message" role="alert" data-message></p>
+        <button class="bouton bouton-principal bouton-plein" type="submit">Confirmer</button>
+      </form>
+
+      <div class="liens-formulaire">
+        <p><button class="bouton bouton-lien" type="button" data-renvoyer>Renvoyer le code</button></p>
+        <p><button class="bouton bouton-lien" type="button" data-deconnexion>Mauvaise adresse ? Se déconnecter</button></p>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

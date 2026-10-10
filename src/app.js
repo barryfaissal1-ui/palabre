@@ -4,7 +4,7 @@ const express = require('express');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const config = require('./config');
-const { chargerUtilisateur } = require('./middleware/auth');
+const { chargerUtilisateur, exigerEmailConfirme } = require('./middleware/auth');
 
 const DOSSIER_PUBLIC = path.join(__dirname, '..', 'public');
 
@@ -47,6 +47,8 @@ function creerApp() {
   });
 
   app.use('/api', chargerUtilisateur);
+  // Tant que l'email n'est pas confirmé, seul /api/auth répond (le code, le renvoi, la déconnexion).
+  app.use('/api', exigerEmailConfirme);
   app.use('/api/auth', require('./routes/auth'));
   app.use('/api/profils', require('./routes/profils'));
   app.use('/api/publications', require('./routes/publications'));
@@ -83,8 +85,8 @@ function creerApp() {
   // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, next) => {
     // Erreurs prévues (ErreurValidation, ErreurHttp) : le message est destiné à la personne.
-    if ([400, 403, 404].includes(err.statut)) {
-      return res.status(err.statut).json({ erreur: err.message, champ: err.champ });
+    if ([400, 403, 404, 429].includes(err.statut)) {
+      return res.status(err.statut).json({ erreur: err.message, champ: err.champ, suite: err.suite });
     }
     if (err.type === 'entity.parse.failed') {
       return res.status(400).json({ erreur: 'Données illisibles.' });

@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const { creerApp } = require('../src/app');
 const { migrer } = require('../src/db/migrate');
 const { pool } = require('../src/db/pool');
+const { avecComptesPrets } = require('./aide');
 
 let serveur;
 let base;
@@ -13,7 +14,7 @@ const suffixe = Date.now();
 const lettres = String(suffixe).replace(/\d/g, (chiffre) => 'abcdefghij'[chiffre]);
 const membres = {}; // awa, bintou, cheick (devs) et dao (client) : { cookie, identifiant, email, id }
 
-async function appel(chemin, { methode = 'GET', donnees, qui } = {}) {
+async function appelBrut(chemin, { methode = 'GET', donnees, qui } = {}) {
   const headers = {};
   if (donnees) headers['Content-Type'] = 'application/json';
   if (qui) headers.Cookie = membres[qui].cookie;
@@ -23,6 +24,8 @@ async function appel(chemin, { methode = 'GET', donnees, qui } = {}) {
   try { corps = JSON.parse(texte); } catch { corps = texte; }
   return { statut: r.status, corps, entetes: r.headers };
 }
+// Les comptes créés par ces tests sont aussitôt « prêts » : email confirmé, profil de dev complet (voir tests/aide.js).
+const appel = avecComptesPrets(appelBrut);
 
 // Une vraie petite image JPEG (1 × 1 pixel), encodée en base64.
 const JPEG_1PX = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';

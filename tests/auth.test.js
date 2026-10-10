@@ -5,19 +5,22 @@ const assert = require('node:assert/strict');
 const { creerApp } = require('../src/app');
 const { migrer } = require('../src/db/migrate');
 const { pool } = require('../src/db/pool');
+const { avecComptesPrets } = require('./aide');
 
 let serveur;
 let base;
 const email = `test-${Date.now()}@palabre.test`;
 const autresEmails = []; // comptes créés par les tests du prénom et du nom
 
-async function appel(chemin, { methode = 'GET', donnees, cookie } = {}) {
+async function appelBrut(chemin, { methode = 'GET', donnees, cookie } = {}) {
   const headers = {};
   if (donnees) headers['Content-Type'] = 'application/json';
   if (cookie) headers.Cookie = cookie;
   const r = await fetch(`${base}/api${chemin}`, { method: methode, headers, body: donnees ? JSON.stringify(donnees) : undefined });
   return { statut: r.status, corps: await r.json(), cookie: r.headers.get('set-cookie') };
 }
+// Les comptes créés par ces tests sont aussitôt « prêts » : email confirmé, profil de dev complet (voir tests/aide.js).
+const appel = avecComptesPrets(appelBrut);
 
 test.before(async () => {
   await migrer();

@@ -11,7 +11,7 @@
 const express = require('express');
 const db = require('../db/pool');
 const v = require('../utils/validation');
-const { exigerConnexion } = require('../middleware/auth');
+const { exigerConnexion, profilDevIncomplet } = require('../middleware/auth');
 const { lireImageDataUrl } = require('../utils/images');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
 const { notifier } = require('../utils/notifications');
@@ -152,6 +152,11 @@ async function ecrire(req, res, autreId, conversation) {
   const image = corps.image ? lireImageDataUrl(corps.image) : null;
   const demandePrecise = v.idPositif(corps.demandeId);
 
+  // Un dev qui n'a pas terminé son profil peut écrire à d'autres devs, mais pas à un client.
+  if (profilDevIncomplet(moi)) {
+    const { rows: [autre] } = await db.query('SELECT type FROM utilisateurs WHERE id = $1', [autreId]);
+    if (autre && autre.type === 'client') throw new v.ErreurHttp(403, 'Termine ton profil de dev pour écrire à un client.', '/bienvenue');
+  }
   const droit = await droitDEcrire(db, moi, autreId, conversation, demandePrecise);
   if (!droit.peutEcrire) throw new v.ErreurHttp(403, droit.raison);
   // Première prise de contact avec quelqu'un que je ne connais pas : 10 par jour au plus.

@@ -6,6 +6,7 @@
 
   let profil = null;
   let competencesChoisies = new Set();
+  const LIENS_DEV = ['github', 'gitlab', 'portfolio', 'linkedin'];
 
   // ---------- Messages et erreurs ----------
   function message(zone, texte, type) {
@@ -134,6 +135,13 @@
     formulaire.elements.whatsapp.value = profil.whatsapp || '';
     formulaire.elements.bio.value = profil.bio || '';
     formulaire.elements.disponible.checked = profil.disponible;
+    // Profil de dev : spécialité, expérience et liens.
+    formulaire.elements.specialite.value = profil.specialite || '';
+    formulaire.elements.experience.value = profil.experience || '';
+    LIENS_DEV.forEach((nom) => {
+      const lien = (profil.liens || []).find((l) => l.type === nom);
+      formulaire.elements[nom].value = lien ? lien.url : '';
+    });
     document.querySelector('[data-compteur-bio]').textContent = `${(profil.bio || '').length} / 500`;
   }
 
@@ -171,6 +179,12 @@
           disponible: formulaire.elements.disponible.checked,
           competences: [...competencesChoisies],
         };
+        if (profil.type === 'dev') {
+          // Une liste laissée sur « Choisir » n'est pas envoyée : le serveur garde alors ce qu'il a.
+          if (formulaire.elements.specialite.value) donnees.specialite = formulaire.elements.specialite.value;
+          if (formulaire.elements.experience.value) donnees.experience = formulaire.elements.experience.value;
+          donnees.liens = Object.fromEntries(LIENS_DEV.map((nom) => [nom, formulaire.elements[nom].value]));
+        }
         const resultat = await api('/profils/moi', { methode: 'PUT', donnees });
         profil = resultat.profil;
         message(zoneMessage, 'Profil enregistré.', 'succes');

@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0F3D22">
+  <meta name="robots" content="noindex">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <script src="/js/theme.js"></script>
+  <link rel="stylesheet" href="/css/style.css">
+  <title>Ton profil de dev – Palabre</title>
+  <script src="/js/app.js" defer></script>
+  <script src="/js/bienvenue.js" defer></script>
+</head>
+<!-- Étape 2 de l'inscription, pour les développeurs seulement : « Ton profil de dev ».
+     Tant qu'elle n'est pas remplie, le dev peut regarder le site mais pas répondre aux demandes
+     (src/middleware/auth.js, exigerProfilComplet). Les listes doivent rester les mêmes que dans src/utils/profil-dev.js. -->
+<body class="page-acces">
+  <main class="acces etape">
+    <div class="etape-carte">
+      <a class="etape-marque" href="/"><img src="/icons/logo-256.png" alt="" width="36" height="36">Palabre</a>
+      <p class="etape-indicateur"><span class="etape-barre" aria-hidden="true"><span class="faite"></span><span class="faite"></span></span>Étape 2 sur 2</p>
+      <h1 class="acces-titre">Ton profil de dev</h1>
+      <p class="etape-texte">Quelques informations pour montrer aux clients que tu es un vrai développeur. Tu pourras les modifier plus tard.</p>
+
+      <form data-profil-dev novalidate>
+        <div class="champ">
+          <label for="date-naissance">Date de naissance</label>
+          <div class="ligne-saisie">
+            <input id="date-naissance" name="dateNaissance" type="date" autocomplete="bday" required aria-describedby="aide-naissance">
+            <span class="trait"></span>
+          </div>
+          <span class="aide" id="aide-naissance">Elle n'est jamais affichée sur le site. Il faut avoir 18 ans.</span>
+          <p class="erreur-champ" data-erreur="dateNaissance"></p>
+        </div>
+
+        <div class="etape-deux-colonnes">
+          <div class="champ">
+            <label for="specialite">Spécialité principale</label>
+            <div class="ligne-saisie">
+              <select id="specialite" name="specialite" required>
+                <option value="">Choisir</option>
+                <option value="web">Développement web</option>
+                <option value="mobile">Mobile</option>
+                <option value="back-end">Back-end</option>
+                <option value="front-end">Front-end</option>
+                <option value="design">Design UI/UX</option>
+                <option value="data-ia">Data et IA</option>
+                <option value="devops">DevOps et cloud</option>
+                <option value="jeux">Jeux vidéo</option>
+                <option value="autre">Autre</option>
+              </select>
+              <span class="trait"></span>
+            </div>
+            <p class="erreur-champ" data-erreur="specialite"></p>
+          </div>
+          <div class="champ">
+            <label for="experience">Années d'expérience</label>
+            <div class="ligne-saisie">
+              <select id="experience" name="experience" required>
+                <option value="">Choisir</option>
+                <option value="moins-1">Moins d'1 an</option>
+                <option value="1-2">1 à 2 ans</option>
+                <option value="3-5">3 à 5 ans</option>
+                <option value="plus-5">Plus de 5 ans</option>
+              </select>
+              <span class="trait"></span>
+            </div>
+            <p class="erreur-champ" data-erreur="experience"></p>
+          </div>
+        </div>
+
+        <fieldset class="etape-groupe">
+          <legend>Tes liens <span class="aide">(au moins un)</span></legend>
+          <p class="aide">Palabre visite chaque lien : s'il répond, il reçoit le badge « Lien vérifié » sur ton profil.</p>
+          <div class="etape-deux-colonnes" data-liens>
+            <div class="champ">
+              <label for="lien-github">GitHub</label>
+              <div class="ligne-saisie">
+                <input id="lien-github" name="github" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="github.com/ton-nom">
+                <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#lien"></use></svg>
+                <span class="trait"></span>
+              </div>
+              <p class="erreur-champ" data-erreur="github"></p>
+            </div>
+            <div class="champ">
+              <label for="lien-gitlab">GitLab</label>
+              <div class="ligne-saisie">
+                <input id="lien-gitlab" name="gitlab" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="gitlab.com/ton-nom">
+                <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#lien"></use></svg>
+                <span class="trait"></span>
+              </div>
+              <p class="erreur-champ" data-erreur="gitlab"></p>
+            </div>
+            <div class="champ">
+              <label for="lien-portfolio">Portfolio ou site</label>
+              <div class="ligne-saisie">
+                <input id="lien-portfolio" name="portfolio" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="monsite.com">
+                <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#lien"></use></svg>
+                <span class="trait"></span>
+              </div>
+              <p class="erreur-champ" data-erreur="portfolio"></p>
+            </div>
+            <div class="champ">
+              <label for="lien-linkedin">LinkedIn</label>
+              <div class="ligne-saisie">
+                <input id="lien-linkedin" name="linkedin" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="linkedin.com/in/ton-nom">
+                <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#lien"></use></svg>
+                <span class="trait"></span>
+              </div>
+              <p class="erreur-champ" data-erreur="linkedin"></p>
+            </div>
+          </div>
+          <label class="etape-case">
+            <input type="checkbox" name="sansLien">
+            <span>Je n'ai pas encore de lien<span class="aide">Ton profil portera la mention « Profil à confirmer » jusqu'à ce que tu en ajoutes un.</span></span>
+          </label>
+          <p class="erreur-champ" data-erreur="liens"></p>
+        </fieldset>
+
+        <div class="champ">
+          <label for="whatsapp">Numéro WhatsApp <span class="aide">(facultatif)</span></label>
+          <div class="ligne-saisie">
+            <input id="whatsapp" name="whatsapp" type="tel" autocomplete="tel" inputmode="tel" placeholder="+226 70 00 00 00" aria-describedby="aide-whatsapp">
+            <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#commentaire"></use></svg>
+            <span class="trait"></span>
+          </div>
+          <span class="aide" id="aide-whatsapp">Visible seulement par les membres connectés.</span>
+          <p class="erreur-champ" data-erreur="whatsapp"></p>
+        </div>
+
+        <div class="champ">
+          <label for="bio">Courte présentation</label>
+          <div class="ligne-saisie">
+            <textarea id="bio" name="bio" rows="3" minlength="20" maxlength="300" required placeholder="Ce que tu sais faire, ce que tu aimes construire…" aria-describedby="compteur-bio"></textarea>
+            <span class="trait"></span>
+          </div>
+          <span class="aide" id="compteur-bio" data-compteur-bio>0 / 300 (20 au moins)</span>
+          <p class="erreur-champ" data-erreur="bio"></p>
+        </div>
+
+        <p class="message" role="alert" data-message></p>
+        <button class="bouton bouton-principal bouton-plein" type="submit">Terminer mon profil</button>
+      </form>
+
+      <div class="liens-formulaire">
+        <p><a href="/fil" data-plus-tard>Plus tard, je regarde d'abord le site</a></p>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

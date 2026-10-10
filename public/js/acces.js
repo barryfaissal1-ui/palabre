@@ -274,6 +274,8 @@
   function ecrireSelonType({ fondu = false } = {}) {
     const coche = carte.querySelector('input[name="type"]:checked');
     const type = coche && coche.value === 'client' ? 'client' : 'dev';
+    // Le numéro WhatsApp n'est demandé ici qu'au client ; le dev le donnera à l'étape 2.
+    carte.querySelectorAll('[data-seulement-client]').forEach((champ) => { champ.hidden = type !== 'client'; });
     textesSelonType.forEach((element) => {
       const texte = element.dataset[type];
       if (element.textContent === texte) return;

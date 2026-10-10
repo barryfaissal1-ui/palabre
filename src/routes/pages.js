@@ -147,6 +147,7 @@ router.get(['/connexion', '/inscription'], (req, res) => {
     html = html
       .replace('id="type-dev" value="dev" checked', 'id="type-dev" value="dev"')
       .replace('id="type-client" value="client"', 'id="type-client" value="client" checked')
+      .replace('data-seulement-client hidden', 'data-seulement-client') // le client donne son numéro WhatsApp dès la page 1
       // Chaque texte marqué data-selon-type est remplacé par sa version « client », lue dans son propre attribut.
       .replace(/(data-selon-type data-dev="[^"]*" data-client="([^"]*)">)[^<]*/g, '$1$2');
   }

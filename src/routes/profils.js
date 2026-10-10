@@ -3,11 +3,12 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const db = require('../db/pool');
 const v = require('../utils/validation');
-const { exigerConnexion } = require('../middleware/auth');
+const { exigerConnexion, exigerDev } = require('../middleware/auth');
 const { lireImageDataUrl } = require('../utils/images');
 const { etatAmitie, apercuMembre, COLONNES_MEMBRE, NB_PROJETS_VERIFIES } = require('../utils/membres');
 const { projetsDe } = require('./projets');
 const { avisDe } = require('./avis');
+const profilDev = require('../utils/profil-dev');
 
 const router = express.Router();
 const MAX_COMPETENCES = 15;
@@ -39,6 +40,15 @@ function profilVisible(u, competences, visiteur, amitie = null) {
     avatar: urlFichier(u.avatar),
     couverture: urlFichier(u.couverture),
     disponible: u.disponible,
+    // Profil de dev : spécialité, expérience et liens (GitHub, GitLab, portfolio, LinkedIn).
+    // La date de naissance, elle, n'est JAMAIS mise ici : elle ne sort pas de la base par cette route.
+    specialite: u.specialite || null,
+    specialiteNom: profilDev.SPECIALITES[u.specialite] || null,
+    experience: u.experience || null,
+    experienceNom: profilDev.EXPERIENCES[u.experience] || null,
+    liens: profilDev.liensPublics(u),
+    // « Profil à confirmer » : un dev qui n'a donné aucun lien vers son travail.
+    aConfirmer: u.type === 'dev' && profilDev.liensPublics(u).length === 0,
     competences,
     whatsapp: visiteur ? u.whatsapp : null,
     whatsappMasque: !visiteur && Boolean(u.whatsapp),
@@ -47,6 +57,17 @@ function profilVisible(u, competences, visiteur, amitie = null) {
     // Lien d'amitié avec le visiteur connecté ('aucune', 'envoyee', 'recue', 'amis') ; null sinon.
     amitie,
   };
+}
+
+// Requête (texte + valeurs) qui enregistre les quatre liens d'un dev et leur date de vérification.
+// Les noms de colonnes viennent de LIENS_DEV, écrit dans le code : jamais de ce qu'envoie un membre.
+function requeteLiens(utilisateurId, liens, dates) {
+  const valeurs = [utilisateurId];
+  const morceaux = Object.entries(profilDev.LIENS_DEV).map(([cle, { colonne }]) => {
+    valeurs.push(liens[cle], dates[cle]);
+    return `${colonne} = $${valeurs.length - 1}, ${colonne}_verifie_le = $${valeurs.length}`;
+  });
+  return [`UPDATE utilisateurs SET ${morceaux.join(', ')} WHERE id = $1`, valeurs];
 }
 
 async function competencesDe(utilisateurId) {
@@ -133,6 +154,18 @@ router.put('/moi', exigerConnexion, async (req, res) => {
     disponible: corps.disponible !== false,
   };
 
+  // Spécialité, expérience et liens : seulement pour un dev, et seulement si le formulaire les envoie
+  // (sinon on garde ce qui est en base). Les liens modifiés sont revisités ; les autres gardent leur badge.
+  const dev = { specialite: moi.specialite, experience: moi.experience, liens: null, dates: null };
+  if (moi.type === 'dev') {
+    if (corps.specialite !== undefined) dev.specialite = v.parmi(corps.specialite, Object.keys(profilDev.SPECIALITES), 'specialite');
+    if (corps.experience !== undefined) dev.experience = v.parmi(corps.experience, Object.keys(profilDev.EXPERIENCES), 'experience');
+    if (corps.liens !== undefined) {
+      dev.liens = profilDev.liensSaisis(corps.liens);
+      dev.dates = await profilDev.verifierLiens(dev.liens, moi);
+    }
+  }
+
   // Les compétences ne concernent que les développeurs.
   let competences = [];
   if (moi.type === 'dev') {
@@ -149,11 +182,12 @@ router.put('/moi', exigerConnexion, async (req, res) => {
     await client.query(
       `UPDATE utilisateurs
           SET nom = $1, identifiant = $2, pays = $3, ville = $4, whatsapp = $5, bio = $6, disponible = $7,
-              prenom = $9, nom_famille = $10
+              prenom = $9, nom_famille = $10, specialite = $11, experience = $12
         WHERE id = $8`,
       // Le nom affiché (« Prénom Nom ») est recalculé en même temps que les deux champs.
-      [`${donnees.prenom} ${donnees.nomFamille}`, donnees.identifiant, donnees.pays, donnees.ville, donnees.whatsapp, donnees.bio, donnees.disponible, moi.id, donnees.prenom, donnees.nomFamille],
+      [`${donnees.prenom} ${donnees.nomFamille}`, donnees.identifiant, donnees.pays, donnees.ville, donnees.whatsapp, donnees.bio, donnees.disponible, moi.id, donnees.prenom, donnees.nomFamille, dev.specialite, dev.experience],
     );
+    if (dev.liens) await client.query(...requeteLiens(moi.id, dev.liens, dev.dates));
     await client.query('DELETE FROM utilisateur_competences WHERE utilisateur_id = $1', [moi.id]);
     if (competences.length) {
       // Seuls les identifiants qui existent vraiment dans la table competences sont gardés.
@@ -176,6 +210,42 @@ router.put('/moi', exigerConnexion, async (req, res) => {
 
   const { rows } = await db.query('SELECT * FROM utilisateurs WHERE id = $1', [moi.id]);
   res.json({ profil: profilVisible(rows[0], await competencesDe(moi.id), moi) });
+});
+
+// Page 2 de l'inscription des devs, « Ton profil de dev » : PUT /api/profils/moi/profil-dev
+// { dateNaissance, specialite, experience, liens: { github, gitlab, portfolio, linkedin }, sansLien, whatsapp, bio }
+router.put('/moi/profil-dev', exigerConnexion, exigerDev, async (req, res) => {
+  const corps = req.body || {};
+  const moi = req.utilisateur;
+  const donnees = {
+    dateNaissance: profilDev.dateNaissance(corps.dateNaissance),
+    specialite: v.parmi(corps.specialite, Object.keys(profilDev.SPECIALITES), 'specialite'),
+    experience: v.parmi(corps.experience, Object.keys(profilDev.EXPERIENCES), 'experience'),
+    liens: profilDev.liensSaisis(corps.liens),
+    whatsapp: v.whatsapp(corps.whatsapp),
+    bio: v.texte(corps.bio, 'bio', { min: 20, max: 300 }),
+  };
+  // Au moins un lien, sauf si le dev coche « Je n'ai pas encore de lien » (son profil sera « à confirmer »).
+  const aUnLien = Object.values(donnees.liens).some(Boolean);
+  if (!aUnLien && corps.sansLien !== true) {
+    throw new v.ErreurValidation('Ajoute au moins un lien, ou coche « Je n\'ai pas encore de lien ».', 'liens');
+  }
+  // Le serveur visite chaque lien (adresses internes refusées, voir utils/liens.js) : un lien qui répond est « vérifié ».
+  const dates = await profilDev.verifierLiens(donnees.liens, moi);
+
+  await db.transaction(async (client) => {
+    await client.query(
+      `UPDATE utilisateurs
+          SET date_naissance = $2, specialite = $3, experience = $4, whatsapp = $5, bio = $6,
+              profil_complete_le = COALESCE(profil_complete_le, now())
+        WHERE id = $1`,
+      [moi.id, donnees.dateNaissance, donnees.specialite, donnees.experience, donnees.whatsapp, donnees.bio],
+    );
+    await client.query(...requeteLiens(moi.id, donnees.liens, dates));
+  });
+
+  const { rows } = await db.query('SELECT * FROM utilisateurs WHERE id = $1', [moi.id]);
+  res.json({ profil: profilVisible(rows[0], await competencesDe(moi.id), rows[0]) });
 });
 
 // Changer sa photo : POST /api/profils/moi/avatar  { image: "data:image/jpeg;base64,..." }

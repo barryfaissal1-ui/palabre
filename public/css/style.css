@@ -391,6 +391,7 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--er
 
 .erreur-champ { color: var(--erreur); font-size: var(--t-13); min-height: 0; }
 .erreur-champ:empty { display: none; }
+:where([data-theme="sombre"]) .erreur-champ { color: #FF8A80; }
 
 /* Choix du type de compte */
 .choix-type {
@@ -1705,6 +1706,10 @@ body.conversation-ouverte .messages-conversation {
   body.avec-barre .entete-interieur { max-width: none; }
   body.avec-barre > main { grid-column: 1; grid-row: 3; width: 100%; max-width: none; min-width: 0; margin: 0; padding: 16px 0 48px; }
   body.avec-barre > main.page-large { grid-column: 1 / -1; }
+  /* Bandeau « Termine ton profil de dev » : il prend la rangée sous l'en-tête ; la page et les colonnes descendent d'une rangée */
+  body.avec-barre > .bandeau-profil { grid-row: 3; margin-inline: -16px; justify-content: center; }
+  body.avec-barre > .bandeau-profil span { flex: none; }
+  body.avec-barre.avec-bandeau > :is(main, .colonne-gauche, .colonne-droite) { grid-row: 4; }
   body.avec-barre > main > .titre-page:first-child { margin-top: 0; }
   .page-fil { padding-top: 16px; }
 
@@ -2131,6 +2136,62 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* ==========================================================================
+   Inscription en deux étapes : /confirmer-email (le code reçu par email) et /bienvenue (« Ton profil de dev »)
+   Même style que la page de connexion : champs soulignés (.ligne-saisie), titre au trait terre cuite.
+   ========================================================================== */
+/* Champ piège contre les robots : hors de l'écran. (Pas « display: none » : certains robots sautent ces champs-là.) */
+.champ-piege { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+.etape-carte { display: grid; align-content: start; gap: 20px; width: 100%; max-width: 440px; margin: 0 auto; padding: 32px 24px 48px; }
+.etape-carte form { gap: 18px; }
+.etape-marque { justify-self: start; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: var(--encre); text-decoration: none; font: 800 var(--t-20)/1 var(--titre); }
+.etape-texte { margin: 0; color: var(--gris); }
+.etape-texte strong { color: var(--encre); overflow-wrap: anywhere; }
+/* « Étape 2 sur 2 » et ses deux petits traits */
+.etape-indicateur { display: flex; align-items: center; gap: 10px; margin: 0; color: var(--action); font-size: var(--t-13); font-weight: 700; }
+.etape-barre { display: inline-flex; gap: 4px; }
+.etape-barre span { width: 28px; height: 4px; border-radius: 2px; background: var(--ligne); }
+.etape-barre .faite { background: var(--action); }
+/* Une seule colonne sur téléphone ; deux sur ordinateur (plus bas) */
+.etape-deux-colonnes { display: grid; gap: 18px; align-items: start; } /* start : une erreur sous un champ ne décale pas son voisin */
+.etape-groupe { display: grid; gap: 14px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.etape-groupe legend { padding: 0; margin-bottom: 6px; font: 700 var(--t-17)/1.3 var(--titre); }
+.etape-groupe .aide, .etape .champ > .aide { margin: 0; color: var(--gris); font-size: var(--t-13); font-weight: 400; }
+.etape-case { display: flex; align-items: flex-start; gap: 12px; min-height: 44px; cursor: pointer; font-weight: 600; }
+.etape-case input { flex: none; width: 22px; height: 22px; min-height: 0; margin: 1px 0 0; padding: 0; accent-color: var(--action); }
+.etape-case .aide { display: block; }
+.ligne-saisie textarea { flex: 1; min-width: 0; min-height: 88px; padding: 8px 0; border: 0; border-radius: 0; background: transparent; resize: vertical; }
+.ligne-saisie textarea:focus { outline: none; box-shadow: none; }
+.ligne-saisie :is(input, select, textarea):disabled { opacity: 0.45; }
+/* Le code à 6 chiffres : grand et espacé, pour le relire d'un coup d'œil */
+.saisie-code { font: 800 var(--t-24)/1 var(--titre); letter-spacing: 0.3em; }
+.saisie-code::placeholder { color: var(--ligne); }
+@media (max-width: 767px) { .etape { background: var(--surface); } }
+@media (min-width: 768px) {
+  .etape-carte { max-width: 720px; padding: 40px 48px; border-radius: var(--rayon-grand); background: var(--surface); box-shadow: var(--ombre-3); }
+  .etape-carte.etape-etroite { max-width: 440px; }
+  .etape-deux-colonnes { grid-template-columns: 1fr 1fr; column-gap: 24px; }
+}
+
+/* Bandeau « Termine ton profil de dev » : sous l'en-tête, tant qu'un dev n'a pas rempli /bienvenue (posé par app.js) */
+.bandeau-profil { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px var(--gouttiere); border-bottom: 1px solid var(--ligne); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--encre); text-decoration: none; font-size: var(--t-13); }
+.bandeau-profil .icone { flex: none; width: 18px; height: 18px; color: var(--terre); }
+.bandeau-profil span { flex: 1; min-width: 0; }
+.bandeau-profil strong { flex: none; color: var(--action); }
+:where([data-theme="sombre"]) .bandeau-profil .icone { color: #F0A283; }
+
+/* Profil public d'un dev : spécialité, liens vérifiés, mention « Profil à confirmer » */
+.profil-metier { margin: 0; color: var(--gris); }
+.profil-liens { list-style: none; margin: 0; padding: 0; display: grid; }
+.profil-liens li { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; }
+.profil-liens a { min-height: 44px; font-weight: 600; }
+.profil-a-confirmer { display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; margin: 0; }
+.profil-a-confirmer a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; }
+.pastille-confirmer, .etat-inscription { color: var(--terre); }
+.pastille-confirmer { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+:where([data-theme="sombre"]) :is(.pastille-confirmer, .etat-inscription) { color: #F0A283; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }

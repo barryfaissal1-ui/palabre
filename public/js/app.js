@@ -19,6 +19,9 @@
       const erreur = new Error(corps.erreur || 'Une erreur est survenue. Réessaie.');
       erreur.statut = reponse.status;
       erreur.champ = corps.champ;
+      erreur.suite = corps.suite; // page où régler le problème (/bienvenue, /confirmer-email)
+      // Email pas encore confirmé : le serveur refuse tout, on ramène la personne à la page du code.
+      if (corps.suite === '/confirmer-email' && window.location.pathname !== '/confirmer-email') window.location.replace('/confirmer-email');
       throw erreur;
     }
     return corps;
@@ -651,6 +654,19 @@
     if (!page.classList.contains('page-large')) page.after(colonneDroite(moi));
   }
 
+  // Bandeau « Termine ton profil de dev » : sous l'en-tête, tant qu'un dev n'a pas rempli la page /bienvenue.
+  // (Pas sur la messagerie, dont la page occupe exactement la hauteur de l'écran.)
+  function poserBandeauProfil(moi) {
+    const entete = document.querySelector('body > .entete');
+    if (moi.profilComplet || !entete || window.location.pathname.startsWith('/messages')) return;
+    document.body.classList.add('avec-bandeau');
+    entete.after(el('a', { classe: 'bandeau-profil', href: '/bienvenue' }, [
+      icone('utilisateur'),
+      el('span', { texte: 'Termine ton profil de dev pour répondre aux demandes.' }),
+      el('strong', { texte: 'Terminer' }),
+    ]));
+  }
+
   // Bouton soleil / lune : passe du mode clair au mode sombre (voir public/js/theme.js, qui retient le choix).
   function boutonTheme() {
     const theme = window.PalabreTheme;
@@ -711,6 +727,8 @@
     const nav = document.querySelector('[data-nav]');
     if (!nav) return;
     const moi = await utilisateurConnecte();
+    // Tant que l'email n'est pas confirmé, le membre ne voit que la page du code.
+    if (moi && !moi.emailConfirme) return window.location.replace('/confirmer-email');
     nav.replaceChildren();
     const loupe = el('button', { classe: 'nav-cloche nav-loupe', type: 'button', 'aria-label': 'Chercher un membre', title: 'Chercher un membre' }, [icone('recherche')]);
     loupe.addEventListener('click', ouvrirRecherche);
@@ -753,6 +771,7 @@
         el('a', { classe: 'nav-profil', href: monProfil, 'aria-label': 'Mon profil' }, [avatar(moi, 'mini')]),
       ].filter(Boolean));
       poserColonnes(moi);
+      poserBandeauProfil(moi);
       majPastilleMessages(moi.messagesNonLus || 0);
       surveillerMessages();
     } else {

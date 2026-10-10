@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const { creerApp } = require('../src/app');
 const { migrer } = require('../src/db/migrate');
 const { pool } = require('../src/db/pool');
+const { avecComptesPrets } = require('./aide');
 
 let serveur;
 let base;
@@ -13,7 +14,7 @@ const lettres = String(suffixe).replace(/\d/g, (chiffre) => 'abcdefghij'[chiffre
 const membres = {}; // cle → { cookie, identifiant, email, id }
 const emailsDirects = []; // comptes créés directement en base (destinataires du test des limites)
 
-async function appel(chemin, { methode = 'GET', donnees, qui } = {}) {
+async function appelBrut(chemin, { methode = 'GET', donnees, qui } = {}) {
   const headers = {};
   if (donnees) headers['Content-Type'] = 'application/json';
   if (qui) headers.Cookie = membres[qui].cookie;
@@ -23,6 +24,8 @@ async function appel(chemin, { methode = 'GET', donnees, qui } = {}) {
   try { corps = JSON.parse(texte); } catch { corps = texte; }
   return { statut: r.status, corps, entetes: r.headers };
 }
+// Les comptes créés par ces tests sont aussitôt « prêts » : email confirmé, profil de dev complet (voir tests/aide.js).
+const appel = avecComptesPrets(appelBrut);
 const poster = (qui, chemin, donnees = {}) => appel(chemin, { methode: 'POST', qui, donnees });
 const ecrireA = (qui, a, texte, extra = {}) => poster(qui, `/api/messages/avec/${membres[a].identifiant}`, { texte, ...extra });
 const liste = async (qui, onglet = 'principal') => (await appel(`/api/messages/conversations?onglet=${onglet}`, { qui })).corps;

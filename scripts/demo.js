@@ -16,6 +16,8 @@ const config = require('../src/config');
 const { pool } = require('../src/db/pool');
 const { migrer } = require('../src/db/migrate');
 const { creerApp } = require('../src/app');
+const mailer = require('../src/utils/mailer');
+const { jetonOuverture } = require('../src/utils/inscription');
 
 const MOT_DE_PASSE = 'Palabre-Jury-2026'; // le même que dans docs/COMPTES-DEMO.md
 const MOTIF_EMAIL = '%@demo.palabre.dev';
@@ -40,6 +42,13 @@ const MEMBRES = [
   ['pascal', 'client', 'Pascal Zongo', 'Koudougou', 'Burkina Faso', true, 'Directeur d\'un collège privé.', [], 0],
   ['esther', 'client', 'Esther Akakpo', 'Cotonou', 'Bénin', true, 'Restauratrice, deux maquis et bientôt un troisième.', [], 0],
 ];
+
+// Profil de dev de chaque compte (l'étape 2 de l'inscription) : spécialité, expérience, année de naissance inventée.
+const PROFILS_DEV = {
+  awa: ['web', '3-5', 1996], bintou: ['web', 'plus-5', 1992], cheick: ['mobile', '3-5', 1995], fatou: ['back-end', 'plus-5', 1988],
+  idrissa: ['front-end', 'moins-1', 2004], mariam: ['design', '3-5', 1994], kofi: ['back-end', 'plus-5', 1990], oumar: ['back-end', '3-5', 1993],
+  aminata: ['web', '3-5', 1997], yao: ['mobile', '1-2', 1999], nadege: ['data-ia', '1-2', 1998], ibrahim: ['front-end', 'moins-1', 2003],
+};
 
 const AMITIES = [
   ['awa', 'bintou'], ['awa', 'cheick'], ['awa', 'kofi'], ['awa', 'mariam'], ['bintou', 'cheick'], ['bintou', 'fatou'], ['bintou', 'aminata'],
@@ -179,6 +188,30 @@ async function retirer() {
   return rowCount;
 }
 
+// Les comptes de démonstration sont « confirmés et complets » : email confirmé, profil de dev rempli.
+// Écrit directement en base (aucun email à envoyer, aucun lien à visiter) et sans risque d'être rejoué :
+// seuls les profils encore incomplets sont touchés. Sert aussi aux comptes créés par une version précédente du script.
+// ATTENTION : comme pour les projets, le lien de portfolio est inventé et marqué « vérifié » pour la démonstration.
+// Les devs sans projet vérifié (Idrissa, Ibrahim) n'ont pas de lien : ils montrent la mention « Profil à confirmer ».
+async function completerProfils() {
+  await pool.query('UPDATE utilisateurs SET email_confirme_le = now() WHERE email LIKE $1 AND email_confirme_le IS NULL', [MOTIF_EMAIL]);
+  let nombre = 0;
+  for (const [cle, type, , , , , , , verifies] of MEMBRES) {
+    if (type !== 'dev') continue;
+    const [specialite, experience, annee] = PROFILS_DEV[cle];
+    const { rowCount } = await pool.query(
+      `UPDATE utilisateurs
+          SET specialite = $2, experience = $3, date_naissance = make_date($4, 5, 15), profil_complete_le = now(),
+              lien_portfolio = CASE WHEN $5 THEN 'https://demo.palabre.dev/' || identifiant END,
+              lien_portfolio_verifie_le = CASE WHEN $5 THEN now() END
+        WHERE email = $1 AND profil_complete_le IS NULL`,
+      [email(cle), specialite, experience, annee, verifies > 0],
+    );
+    nombre += rowCount;
+  }
+  return nombre;
+}
+
 async function creer() {
   await migrer();
   // Déjà fait ? On ne touche à rien : relancer le script ne crée jamais de doublons.
@@ -208,14 +241,17 @@ async function creer() {
       // « Fatoumata Koné » → prénom « Fatoumata », nom de famille « Koné » : les deux champs de l'inscription.
       const [prenom, ...reste] = nom.split(' ');
       const nomFamille = reste.join(' ');
-      const inscription = await appel('/auth/inscription', { methode: 'POST', donnees: { type, prenom, nomFamille, email: email(cle), motDePasse: MOT_DE_PASSE, pays, ville } });
-      const { rows } = await pool.query('SELECT id FROM utilisateurs WHERE email = $1', [email(cle)]);
+      // jeton : l'heure d'ouverture du formulaire, signée, que l'inscription exige (ici datée de 10 secondes plus tôt).
+      const inscription = await appel('/auth/inscription', { methode: 'POST', donnees: { type, prenom, nomFamille, email: email(cle), motDePasse: MOT_DE_PASSE, pays, ville, jeton: jetonOuverture(Date.now() - 10000) } });
+      // Pas de code à saisir pour ces comptes : leur email est confirmé tout de suite.
+      const { rows } = await pool.query('UPDATE utilisateurs SET email_confirme_le = now() WHERE email = $1 RETURNING id', [email(cle)]);
       m[cle] = { cookie: inscription.entetes.get('set-cookie').split(';')[0], identifiant: inscription.corps.utilisateur.identifiant, id: rows[0].id };
       await appel('/profils/moi', {
         methode: 'PUT', qui: cle,
         donnees: { prenom, nomFamille, identifiant: m[cle].identifiant, pays, ville, bio, disponible, whatsapp: null, competences: competences.filter((c) => noms.includes(c.nom)).map((c) => c.id) },
       });
     }
+    await completerProfils(); // avant les propositions : un dev au profil incomplet ne peut pas répondre aux demandes
     // Une couverture différente pour chaque développeur ; les clients gardent le motif tissé du site.
     for (const [rangMembre, [cle, type]] of MEMBRES.entries()) {
       if (type === 'dev') await poster('/profils/moi/couverture', cle, { image: dataUrl(rangMembre, { large: true }) });
@@ -421,7 +457,11 @@ async function main() {
     console.log(`${await retirer()} compte(s) de démonstration retiré(s), avec tout leur contenu.`);
     return;
   }
+  // Ces comptes n'ont pas de vraie boîte email : le code de confirmation n'est ni envoyé ni affiché.
+  mailer.envoyerEmail = async () => {};
   const bilan = await creer();
+  const completes = bilan ? 0 : await completerProfils();
+  if (completes) console.log(`${completes} profil(s) de dev de démonstration complété(s).`);
   const conversations = await creerConversations(bilan ? bilan.sessions : null);
   if (conversations) console.log(`${conversations} conversations privées de démonstration ajoutées (dont une demande de message en attente).`);
   if (!bilan) {

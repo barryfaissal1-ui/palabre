@@ -6,6 +6,7 @@ const v = require('../utils/validation');
 const { exigerConnexion, exigerAdmin } = require('../middleware/auth');
 const { apercuMembre, COLONNES_MEMBRE } = require('../utils/membres');
 const { notifier, court } = require('../utils/notifications');
+const { SPECIALITES, EXPERIENCES } = require('../utils/profil-dev');
 
 const router = express.Router();
 const MAX_AFFICHES = 50;
@@ -154,6 +155,34 @@ router.get('/membres-bloques', async (req, res) => {
     [MAX_AFFICHES],
   );
   res.json({ membres: rows.map(apercuMembre) });
+});
+
+// ---------- Derniers inscrits ----------
+
+// GET /api/admin/membres-recents — les 50 derniers comptes, avec ce que seul l'administrateur peut voir :
+// l'âge des devs (calculé par la base à partir de la date de naissance, qui elle-même ne sort pas) et où en est leur inscription.
+router.get('/membres-recents', async (req, res) => {
+  const { rows } = await db.query(
+    `SELECT ${COLONNES_MEMBRE}, u.cree_le, u.specialite, u.experience,
+            date_part('year', age(current_date, u.date_naissance))::int AS age,
+            u.email_confirme_le IS NOT NULL AS email_confirme,
+            u.profil_complete_le IS NOT NULL AS profil_complet,
+            num_nonnulls(u.lien_github, u.lien_gitlab, u.lien_portfolio, u.lien_linkedin) AS nb_liens
+       FROM utilisateurs u WHERE u.bloque = FALSE ORDER BY u.id DESC LIMIT $1`,
+    [MAX_AFFICHES],
+  );
+  res.json({
+    membres: rows.map((ligne) => ({
+      ...apercuMembre(ligne),
+      inscritLe: ligne.cree_le,
+      age: ligne.age,
+      specialite: SPECIALITES[ligne.specialite] || null,
+      experience: EXPERIENCES[ligne.experience] || null,
+      emailConfirme: ligne.email_confirme,
+      profilComplet: ligne.type_compte === 'client' || ligne.profil_complet,
+      sansLien: ligne.type_compte === 'dev' && ligne.profil_complet && ligne.nb_liens === 0,
+    })),
+  });
 });
 
 // POST /api/admin/membres/:identifiant/debloquer

@@ -155,15 +155,46 @@
     ]);
   }
 
+  // ---------- Derniers inscrits ----------
+  // Ce que seul l'administrateur voit : l'âge des devs et où en est chaque inscription.
+  function sectionRecents(membres) {
+    if (membres.length === 0) return null;
+    const etat = (membre) => {
+      if (!membre.emailConfirme) return 'Email non confirmé';
+      if (!membre.profilComplet) return 'Profil de dev à compléter';
+      if (membre.sansLien) return 'Profil à confirmer (aucun lien)';
+      return null;
+    };
+    return el('section', { classe: 'section-profil', id: 'recents' }, [
+      el('h2', { texte: 'Derniers inscrits' }),
+      el('ul', { classe: 'liste-membres' }, membres.map((membre) => el('li', { classe: 'ligne-membre' }, [
+        avatar(membre, 'moyen'),
+        el('div', { classe: 'ligne-membre-infos' }, [
+          lienMembre(membre),
+          el('p', { classe: 'texte-discret', texte: [
+            membre.type === 'dev' ? 'Développeur' : 'Client',
+            membre.age !== null ? `${membre.age} ans` : null,
+            membre.specialite,
+            membre.experience,
+            [membre.ville, membre.pays].filter(Boolean).join(', '),
+            `inscrit ${dateRelative(membre.inscritLe)}`,
+          ].filter(Boolean).join(', ') }),
+          etat(membre) ? el('p', { classe: 'texte-discret etat-inscription', texte: etat(membre) }) : null,
+        ]),
+      ]))),
+    ]);
+  }
+
   async function afficher() {
-    const [{ statistiques }, { signalements }, { projets }, { membres }] = await Promise.all([
-      api('/admin/statistiques'), api('/admin/signalements'), api('/admin/projets-facebook'), api('/admin/membres-bloques'),
+    const [{ statistiques }, { signalements }, { projets }, { membres }, { membres: recents }] = await Promise.all([
+      api('/admin/statistiques'), api('/admin/signalements'), api('/admin/projets-facebook'), api('/admin/membres-bloques'), api('/admin/membres-recents'),
     ]);
     document.querySelector('[data-admin]').replaceChildren(...[
       sectionStatistiques(statistiques),
       sectionSignalements(signalements),
       sectionFacebook(projets),
       sectionBloques(membres),
+      sectionRecents(recents),
     ].filter(Boolean));
   }
 

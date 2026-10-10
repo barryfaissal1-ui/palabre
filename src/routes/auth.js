@@ -7,7 +7,9 @@ const db = require('../db/pool');
 const config = require('../config');
 const v = require('../utils/validation');
 const { envoyerEmail } = require('../utils/mailer');
-const { ouvrirSession, fermerSession } = require('../middleware/auth');
+const { ouvrirSession, fermerSession, exigerConnexion, profilDevIncomplet } = require('../middleware/auth');
+const { jetonOuverture, verifierOuverture, envoyerCode, confirmerCode } = require('../utils/inscription');
+const { liensPublics } = require('../utils/profil-dev');
 const { compterNonLus } = require('./messages');
 
 const router = express.Router();
@@ -20,6 +22,15 @@ const HASH_FACTICE = bcrypt.hashSync('mot-de-passe-factice', COUT_BCRYPT);
 const limiteSensible = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { erreur: 'Trop de tentatives. Réessaie dans quelques minutes.' },
+});
+
+// La saisie du code a sa propre limite par adresse IP, en plus des 5 essais permis par code.
+const limiteCodes = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { erreur: 'Trop de tentatives. Réessaie dans quelques minutes.' },
@@ -42,6 +53,12 @@ function profilPrive(u) {
     bio: u.bio,
     avatar: u.avatar ? `/fichiers/${u.avatar}` : null,
     disponible: u.disponible,
+    // Les deux étapes de l'inscription : le site s'en sert pour envoyer vers /confirmer-email ou afficher le bandeau.
+    emailConfirme: Boolean(u.email_confirme_le),
+    profilComplet: !profilDevIncomplet(u), // toujours vrai pour un client : il n'a pas de page 2
+    specialite: u.specialite || null,
+    experience: u.experience || null,
+    liens: liensPublics(u),
   };
 }
 
@@ -56,8 +73,21 @@ async function identifiantLibre(nom) {
   return `${base}-${crypto.randomInt(1000, 9999)}`;
 }
 
+// Heure d'ouverture du formulaire, signée : GET /api/auth/jeton-inscription (demandée par la page à son ouverture).
+router.get('/jeton-inscription', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ jeton: jetonOuverture() });
+});
+
 router.post('/inscription', limiteSensible, async (req, res) => {
   const corps = req.body || {};
+  // Champ piège : invisible pour une personne, mais un robot qui remplit tous les champs le remplit aussi.
+  // La réponse reste vague, pour ne pas lui expliquer ce qui l'a trahi.
+  if (corps.siteWeb !== undefined && corps.siteWeb !== '') {
+    throw new v.ErreurValidation('Inscription impossible pour le moment. Réessaie plus tard.');
+  }
+  // Formulaire envoyé moins de 3 secondes après l'ouverture de la page : ce n'est pas une personne.
+  verifierOuverture(corps.jeton);
   const donnees = {
     type: v.typeCompte(corps.type),
     prenom: v.nomPropre(corps.prenom, 'prenom'),
@@ -66,7 +96,8 @@ router.post('/inscription', limiteSensible, async (req, res) => {
     motDePasse: v.motDePasse(corps.motDePasse),
     pays: v.pays(corps.pays),
     ville: v.texte(corps.ville, 'ville', { min: 2, max: 60 }),
-    whatsapp: v.whatsapp(corps.whatsapp),
+    // Le dev donne son numéro à l'étape 2 (« Ton profil de dev ») ; le client, ici.
+    whatsapp: corps.type === 'client' ? v.whatsapp(corps.whatsapp) : null,
   };
 
   const existe = await db.query('SELECT 1 FROM utilisateurs WHERE email = $1', [donnees.email]);
@@ -85,8 +116,31 @@ router.post('/inscription', limiteSensible, async (req, res) => {
     [donnees.type, nom, donnees.prenom, donnees.nomFamille, identifiant, donnees.email, hash, donnees.pays, donnees.ville, donnees.whatsapp],
   );
 
+  // Le compte existe, mais il ne sert à rien tant que le code envoyé par email n'a pas été saisi.
+  try {
+    await envoyerCode(rows[0]);
+  } catch (err) {
+    console.error('Envoi du code de confirmation impossible :', err.message); // « Renvoyer le code » reste possible
+  }
   ouvrirSession(res, rows[0]);
   res.status(201).json({ utilisateur: profilPrive(rows[0]) });
+});
+
+// Saisir le code reçu par email : POST /api/auth/confirmer-email  { code }
+router.post('/confirmer-email', exigerConnexion, limiteCodes, async (req, res) => {
+  const moi = req.utilisateur;
+  if (!moi.email_confirme_le) {
+    const { erreur } = await confirmerCode(moi, req.body?.code);
+    if (erreur) return res.status(400).json({ erreur, champ: 'code' });
+  }
+  res.json({ ok: true, profilComplet: !profilDevIncomplet(moi) });
+});
+
+// Bouton « Renvoyer le code » : POST /api/auth/renvoyer-code (1 par minute, 5 par heure)
+router.post('/renvoyer-code', exigerConnexion, async (req, res) => {
+  if (req.utilisateur.email_confirme_le) throw new v.ErreurValidation('Ton email est déjà confirmé.');
+  await envoyerCode(req.utilisateur, { renvoi: true });
+  res.json({ message: 'Un nouveau code vient de partir. Regarde ta boîte de réception.' });
 });
 
 router.post('/connexion', limiteSensible, async (req, res) => {
@@ -175,7 +229,11 @@ router.post('/reinitialiser', limiteSensible, async (req, res) => {
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
-    await client.query('UPDATE utilisateurs SET mot_de_passe_hash = $1 WHERE id = $2', [hash, rows[0].utilisateur_id]);
+    // Avoir reçu ce lien prouve que la boîte email est bien la sienne : l'email est confirmé du même coup.
+    await client.query(
+      'UPDATE utilisateurs SET mot_de_passe_hash = $1, email_confirme_le = COALESCE(email_confirme_le, now()) WHERE id = $2',
+      [hash, rows[0].utilisateur_id],
+    );
     await client.query('UPDATE reinitialisations_mdp SET utilise_le = now() WHERE utilisateur_id = $1 AND utilise_le IS NULL', [rows[0].utilisateur_id]);
     await client.query('COMMIT');
   } catch (err) {

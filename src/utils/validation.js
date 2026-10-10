@@ -81,9 +81,11 @@ function typeCompte(valeur) {
 
 // Erreur « normale » à renvoyer telle quelle au navigateur (403 interdit, 404 introuvable…).
 class ErreurHttp extends Error {
-  constructor(statut, message) {
+  // `suite` (facultatif) : la page où envoyer la personne pour régler le problème (/bienvenue, /confirmer-email).
+  constructor(statut, message, suite) {
     super(message);
     this.statut = statut;
+    this.suite = suite;
   }
 }
 
@@ -139,7 +141,8 @@ function idPositif(valeur) {
 
 // Mots réservés : ils servent d'adresses de pages (palabre.dev/connexion…) et ne peuvent pas être des identifiants.
 const IDENTIFIANTS_RESERVES = new Set([
-  'a-propos', 'admin', 'aide', 'amis', 'api', 'calculateur', 'chercher', 'conditions', 'confidentialite', 'connexion',
+  'a-propos', 'admin', 'aide', 'amis', 'api', 'bienvenue', 'calculateur', 'chercher', 'conditions', 'confidentialite',
+  'confirmer-email', 'connexion',
   'css', 'defis', 'demande', 'demandes', 'equipes', 'fichiers', 'fil', 'fonts', 'icons', 'img', 'index', 'inscription',
   'js', 'manifest', 'messages', 'modifier-profil', 'moi', 'mot-de-passe-oublie', 'notifications', 'palabre', 'parametres',
   'profil', 'projet', 'projets', 'reinitialiser', 'sw', 'vitrine',

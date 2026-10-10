@@ -3,7 +3,7 @@
 const express = require('express');
 const db = require('../db/pool');
 const v = require('../utils/validation');
-const { exigerConnexion, exigerClient, exigerDev } = require('../middleware/auth');
+const { exigerConnexion, exigerClient, exigerDev, exigerProfilComplet } = require('../middleware/auth');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
 const { notifier, court } = require('../utils/notifications');
 
@@ -233,7 +233,7 @@ async function demandeOuverte(client, valeurId) {
 }
 
 // Proposer seul : POST /api/demandes/:id/propositions  { message, montantFcfa? }
-router.post('/:id/propositions', exigerDev, limitePropositions, async (req, res) => {
+router.post('/:id/propositions', exigerDev, exigerProfilComplet, limitePropositions, async (req, res) => {
   const moi = req.utilisateur;
   const donnees = lireProposition(req.body || {});
 
@@ -270,7 +270,7 @@ router.delete('/:id/propositions/mienne', exigerDev, async (req, res) => {
 // Créer une équipe éclair : POST /api/demandes/:id/equipes
 //   { message, montantFcfa?, roleChef, membres: [{ identifiant, role }] }
 // La proposition reste en « brouillon » tant que tous les invités n'ont pas répondu (voir routes/equipes.js).
-router.post('/:id/equipes', exigerDev, limitePropositions, async (req, res) => {
+router.post('/:id/equipes', exigerDev, exigerProfilComplet, limitePropositions, async (req, res) => {
   const corps = req.body || {};
   const moi = req.utilisateur;
   const donnees = lireProposition(corps);

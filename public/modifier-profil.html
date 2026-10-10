@@ -103,6 +103,60 @@
       </section>
 
       <section class="bloc-formulaire" data-seulement-dev>
+        <h2>Profil de dev</h2>
+        <div class="champs-cote-a-cote">
+          <div class="champ">
+            <label for="specialite">Spécialité principale</label>
+            <select id="specialite" name="specialite">
+              <option value="">Choisir</option>
+              <option value="web">Développement web</option>
+              <option value="mobile">Mobile</option>
+              <option value="back-end">Back-end</option>
+              <option value="front-end">Front-end</option>
+              <option value="design">Design UI/UX</option>
+              <option value="data-ia">Data et IA</option>
+              <option value="devops">DevOps et cloud</option>
+              <option value="jeux">Jeux vidéo</option>
+              <option value="autre">Autre</option>
+            </select>
+            <p class="erreur-champ" data-erreur="specialite"></p>
+          </div>
+          <div class="champ">
+            <label for="experience">Années d'expérience</label>
+            <select id="experience" name="experience">
+              <option value="">Choisir</option>
+              <option value="moins-1">Moins d'1 an</option>
+              <option value="1-2">1 à 2 ans</option>
+              <option value="3-5">3 à 5 ans</option>
+              <option value="plus-5">Plus de 5 ans</option>
+            </select>
+            <p class="erreur-champ" data-erreur="experience"></p>
+          </div>
+        </div>
+        <p class="aide">Tes liens : Palabre les visite à l'enregistrement. Un lien qui répond reçoit le badge « Lien vérifié ».</p>
+        <div class="champ">
+          <label for="lien-github">GitHub</label>
+          <input id="lien-github" name="github" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="github.com/ton-nom">
+          <p class="erreur-champ" data-erreur="github"></p>
+        </div>
+        <div class="champ">
+          <label for="lien-gitlab">GitLab</label>
+          <input id="lien-gitlab" name="gitlab" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="gitlab.com/ton-nom">
+          <p class="erreur-champ" data-erreur="gitlab"></p>
+        </div>
+        <div class="champ">
+          <label for="lien-portfolio">Portfolio ou site</label>
+          <input id="lien-portfolio" name="portfolio" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="monsite.com">
+          <p class="erreur-champ" data-erreur="portfolio"></p>
+        </div>
+        <div class="champ">
+          <label for="lien-linkedin">LinkedIn</label>
+          <input id="lien-linkedin" name="linkedin" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="linkedin.com/in/ton-nom">
+          <p class="erreur-champ" data-erreur="linkedin"></p>
+        </div>
+      </section>
+
+      <section class="bloc-formulaire" data-seulement-dev>
         <div class="titre-avec-compteur">
           <h2>Compétences</h2>
           <span class="aide" data-compteur-competences>0 / 15</span>

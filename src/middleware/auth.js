@@ -30,7 +30,10 @@ async function chargerUtilisateur(req, res, next) {
   try {
     const { id } = jwt.verify(jeton, config.jwtSecret);
     const { rows } = await db.query(
-      `SELECT id, type, est_admin, nom, prenom, nom_famille, identifiant, email, pays, ville, whatsapp, bio, avatar, couverture, disponible
+      `SELECT id, type, est_admin, nom, prenom, nom_famille, identifiant, email, pays, ville, whatsapp, bio, avatar, couverture, disponible,
+              email_confirme_le, profil_complete_le, specialite, experience,
+              lien_github, lien_github_verifie_le, lien_gitlab, lien_gitlab_verifie_le,
+              lien_portfolio, lien_portfolio_verifie_le, lien_linkedin, lien_linkedin_verifie_le
          FROM utilisateurs WHERE id = $1 AND bloque = FALSE`,
       [id],
     );
@@ -45,6 +48,25 @@ async function chargerUtilisateur(req, res, next) {
 function exigerConnexion(req, res, next) {
   if (!req.utilisateur) return res.status(401).json({ erreur: 'Connecte-toi pour continuer.' });
   next();
+}
+
+// Un membre qui n'a pas encore saisi le code reçu par email ne peut rien faire d'autre que le saisir.
+// Placé sur tout /api : seules les routes /api/auth (code, renvoi, « moi », déconnexion) restent ouvertes.
+function exigerEmailConfirme(req, res, next) {
+  if (!req.utilisateur || req.utilisateur.email_confirme_le || req.path.startsWith('/auth/')) return next();
+  res.status(403).json({ erreur: 'Confirme d\'abord ton email avec le code reçu.', suite: '/confirmer-email' });
+}
+
+// Un dev qui n'a pas rempli « Ton profil de dev » peut regarder le site, mais pas répondre aux demandes.
+// La date de naissance n'est jamais chargée dans req.utilisateur : seule compte la date où le profil a été complété.
+function profilDevIncomplet(utilisateur) {
+  return utilisateur.type === 'dev' && !utilisateur.profil_complete_le;
+}
+const MESSAGE_PROFIL_INCOMPLET = 'Termine ton profil de dev pour répondre aux demandes.';
+
+function exigerProfilComplet(req, res, next) {
+  if (!profilDevIncomplet(req.utilisateur)) return next();
+  res.status(403).json({ erreur: MESSAGE_PROFIL_INCOMPLET, suite: '/bienvenue' });
 }
 
 function exigerAdmin(req, res, next) {
@@ -63,4 +85,5 @@ function exigerDev(req, res, next) {
   next();
 }
 
-module.exports = { ouvrirSession, fermerSession, chargerUtilisateur, exigerConnexion, exigerAdmin, exigerClient, exigerDev };
+module.exports = { ouvrirSession, fermerSession, chargerUtilisateur, exigerConnexion, exigerAdmin, exigerClient, exigerDev,
+  exigerEmailConfirme, exigerProfilComplet, profilDevIncomplet, MESSAGE_PROFIL_INCOMPLET };

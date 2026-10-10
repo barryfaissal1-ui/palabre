@@ -74,6 +74,46 @@ ALTER TABLE utilisateurs ADD CONSTRAINT utilisateurs_nom_check CHECK (char_lengt
 -- Photo de couverture du profil (numéro du fichier, comme avatar).
 ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS couverture TEXT;
 
+-- ============ Inscription en deux étapes ============
+-- Confirmation de l'email. La colonne est créée dans un bloc DO pour que les comptes qui existaient AVANT
+-- soient marqués « confirmés » une seule fois : au premier passage seulement, quand la colonne n'existe pas encore.
+-- (Un simple « UPDATE … WHERE email_confirme_le IS NULL » confirmerait tous les nouveaux comptes à chaque démarrage.)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                  WHERE table_schema = current_schema() AND table_name = 'utilisateurs' AND column_name = 'email_confirme_le') THEN
+    ALTER TABLE utilisateurs ADD COLUMN email_confirme_le TIMESTAMPTZ;
+    UPDATE utilisateurs SET email_confirme_le = cree_le;
+  END IF;
+END $$;
+
+-- Codes à 6 chiffres envoyés par email. Le code n'est jamais gardé en clair : seulement son empreinte.
+-- Une ligne par envoi (elles servent aussi à limiter « Renvoyer le code ») ; seule la plus récente est valable.
+CREATE TABLE IF NOT EXISTS confirmations_email (
+  id             SERIAL PRIMARY KEY,
+  utilisateur_id INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  code_hash      TEXT NOT NULL,
+  expire_le      TIMESTAMPTZ NOT NULL,
+  essais         INTEGER NOT NULL DEFAULT 0,
+  cree_le        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_confirmations_email_membre ON confirmations_email (utilisateur_id, id DESC);
+
+-- Page 2 des développeurs (« Ton profil de dev »). La date de naissance ne sort jamais par l'API publique.
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS date_naissance DATE;
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS specialite TEXT;
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS experience TEXT;
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS lien_github TEXT;
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS lien_github_verifie_le TIMESTAMPTZ;
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS lien_gitlab TEXT;
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS lien_gitlab_verifie_le TIMESTAMPTZ;
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS lien_portfolio TEXT;
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS lien_portfolio_verifie_le TIMESTAMPTZ;
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS lien_linkedin TEXT;
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS lien_linkedin_verifie_le TIMESTAMPTZ;
+-- Vide tant que le dev n'a pas rempli la page 2 : il peut regarder le site, mais pas répondre aux demandes.
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS profil_complete_le TIMESTAMPTZ;
+
 -- ============ Réseau social ============
 CREATE TABLE IF NOT EXISTS publications (
   id        SERIAL PRIMARY KEY,
