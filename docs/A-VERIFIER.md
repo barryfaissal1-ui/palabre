@@ -10,24 +10,43 @@
 | 3. « Écrit… », « Vu par », « En ligne » | Faite | `aa23f91` |
 | 4. Messages vocaux | Faite | `31057be` |
 | 5. Appels audio et vidéo | Faite pour l'essentiel, voir « Pas fait » | `6d16e60` |
-| 6. Style « arbre à palabres » des appels et des notifications | **Partielle**, voir « Pas fait » | `6d16e60` (le même) |
+| 6. Style « arbre à palabres » des appels et des notifications | Faite (complétée par les finitions ci-dessous) | `6d16e60` (le même) |
 
 Les parties 5 et 6 sont dans un seul commit : l'écran d'appel a été écrit directement dans le style demandé.
+
+## Finitions du 10 octobre 2026 (toutes faites)
+
+| Point | Commit |
+| --- | --- |
+| 1. Le menu « … » d'une bulle reste dans la conversation (ordinateur, tablette, téléphone) | `b08f5ff` |
+| 2. Carte d'arrivée d'un message sur les autres pages | `11e9269` |
+| 3. Son à l'arrivée d'un message et réglage « Son des messages » | `04068e8` |
+| 4. Un titre clair pour chaque push | `6a2083f` |
+| 5. Appel entrant vérifié toutes les 5 secondes par la veille | `201ddda` |
+| 6. Captures du toast et de l'appel entrant en 360 px | avec ce document |
+| En plus : `/modifier-profil` ne dépasse plus à droite sur téléphone | `c10cbf0` |
+
+À essayer toi-même pour ces finitions :
+
+- [ ] **Le son sur un vrai téléphone.** Je l'ai vérifié en comptant les notes lancées dans Chrome (784 Hz puis 1047 Hz), pas à l'oreille. Dis-moi s'il est trop fort, trop faible ou trop aigu : le volume et les notes sont deux nombres dans `sonMessage()`.
+- [ ] **Le son après un changement de page sur iPhone.** Safari ne laisse jouer un son qu'après un toucher sur la page : la première carte après avoir ouvert une page sans la toucher peut arriver en silence. C'est voulu (on se tait sans erreur), mais à constater.
+- [ ] **Les titres des push sur un vrai téléphone**, quand le push marchera en ligne : le titre doit tenir sur une ligne de l'écran verrouillé.
+- [ ] **Relire les titres** dans `TITRES_PUSH` (`src/utils/notifications.js`) : ce sont mes mots, change ceux qui ne sonnent pas juste.
+- [ ] **La spécialité et l'expérience sont maintenant l'une sous l'autre** sur téléphone dans `/modifier-profil` (elles étaient coupées par « … »). Dis-moi si tu préférais côte à côte.
 
 ## Pas fait, ou fait autrement
 
 **Partie 5**
 - **Pas de WebSocket** (bibliothèque `ws`). On ne sait pas si Systalink les accepte : j'ai écrit seulement la version « de secours » demandée, une requête par seconde pendant un appel. Elle marche partout. À décider après le premier essai en ligne.
 - **Le bouton haut-parleur n'existe pas.** Un site web ne peut pas basculer entre l'écouteur et le haut-parleur d'un téléphone ; le navigateur choisit seul.
-- **L'appel entrant met jusqu'à 20 secondes à s'afficher** sur une page autre que la messagerie (5 secondes dans une conversation ouverte). Pour cela, la requête de la pastille des messages est passée de 60 à 20 secondes sur tout le site. La sonnerie dure 30 secondes.
+- L'appel entrant s'affiche maintenant **en 5 secondes au plus** sur toutes les pages (la veille), tant que l'onglet est visible ; la pastille des messages est revenue à 60 secondes. La sonnerie dure 30 secondes.
 - **Appel de groupe à trois ou quatre : non vérifié dans le navigateur.** Le serveur est testé (quatre présents au plus, chacun parle à chacun), le code du navigateur est le même que pour deux, mais je n'ai essayé qu'à deux.
 - **Reconnexion après un changement de réseau : non vérifiée.** Le code est là (« Reconnexion… », 15 secondes) ; je n'ai pas pu couper le réseau au milieu d'un appel dans mon navigateur de test.
 
 **Partie 6**
-- **Pas de carte « toast » en verre** quand un message arrive sur une autre page.
-- **Pas de son à l'arrivée d'un message**, ni de réglage « son des messages » dans le profil. Seule la sonnerie des appels existe.
-- **Les titres des push ne sont pas tous refaits** : « Awa t'appelle » et le nom de la personne pour un message, oui ; les autres gardent « Palabre » en titre et la phrase en dessous.
-- **Captures** : elles sont dans `docs/captures/`, pour le téléphone 390 px et l'ordinateur, en clair et en sombre (appel entrant, sortant, audio en cours, vidéo en cours, terminé, manqué). **Pas de capture en 360 px, pas de capture du toast** (il n'existe pas).
+- La carte d'arrivée, le son des messages et les titres des push sont faits (voir « Finitions »).
+- **Push d'un groupe** : son titre est le nom du groupe, et le texte « Kofi : … ». Je l'ai laissé ainsi, c'est plus utile que « Nouveau message de Kofi » quand on est dans plusieurs équipes.
+- **Captures** : elles sont dans `docs/captures/`, pour le téléphone 390 px et l'ordinateur, en clair et en sombre (appel entrant, sortant, audio en cours, vidéo en cours, terminé, manqué). S'y ajoutent la carte d'arrivée (`toast-message-…`, téléphone 390 px et ordinateur) et l'appel entrant sur un petit téléphone de 360 × 640 px, audio et vidéo (`appel-entrant-telephone-360-…`, `appel-video-entrant-telephone-360-…`).
 - Les boutons « Décrocher » et « Refuser » dans la notification du téléphone sont écrits, mais **aucun vrai push n'a pu être envoyé** depuis mon navigateur de test (voir plus bas).
 
 ## Ce que tu dois essayer toi-même

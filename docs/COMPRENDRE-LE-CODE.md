@@ -765,7 +765,7 @@ Le son et l'image vont **directement d'un téléphone à l'autre**. Le serveur d
 
 Pendant un appel, **et seulement pendant un appel**, la page interroge le serveur chaque seconde : c'est ainsi qu'elle reçoit les messages techniques et qu'elle dit « je suis toujours là ». Dès qu'on raccroche, ces requêtes s'arrêtent. Un WebSocket serait plus élégant, mais on ne sait pas encore si l'hébergeur les accepte ; la version actuelle marche partout.
 
-Un appel qui arrive est annoncé par la requête que toutes les pages font déjà pour la pastille des messages (toutes les 20 secondes ; une sonnerie en dure 30), par celle de la conversation ouverte (toutes les 5 secondes), et par une notification push si le site est fermé.
+Un appel qui arrive est annoncé par la **veille** (une petite requête que toutes les pages font toutes les 5 secondes quand l'onglet est visible, voir la section 11 quindecies ; une sonnerie dure 30 secondes), par la requête de la conversation ouverte (toutes les 5 secondes aussi), et par une notification push si le site est fermé.
 
 ### Qui peut appeler qui
 
@@ -792,6 +792,49 @@ Un relais TURN demande un nom et un mot de passe. Donner le même à tout le mon
 ### L'écran d'appel
 
 Il reprend la page du code de confirmation : vert profond, grandes courbes, crème, touches de terre cuite. Autour de l'avatar, trois anneaux de petites feuilles tournent lentement ; ils « respirent » pendant la sonnerie, puis grossissent avec la voix de l'autre (`AnalyserNode`). Décrocher est une feuille verte, Refuser une feuille terre cuite. La sonnerie est fabriquée par le navigateur (deux notes, Web Audio) : aucun fichier son. Tout ce qui bouge n'utilise que `transform` et `opacity`, et s'arrête si l'appareil demande moins d'animations.
+
+## 11 quindecies. Les finitions de la messagerie : veille, carte d'arrivée, son, titres des push
+
+Fichiers : `src/routes/messages.js` (route `/veille`), `public/js/app.js` (`veiller()`, `recevoirVeille()`, `toastMessage()`, `sonMessage()`), `src/utils/notifications.js` (`TITRES_PUSH`), `tests/veille.test.js`, `tests/push.test.js`.
+
+### La veille : une seule petite requête pour deux besoins
+
+Palabre n'a pas de WebSocket. Pour savoir vite qu'on m'appelle ou qu'on m'écrit, chaque page pose la même question au serveur toutes les 5 secondes : `GET /api/messages/veille?apres=412`. La réponse est minuscule : l'appel qui sonne pour moi (ou rien), les messages arrivés après le numéro 412 (5 au plus), et le nouveau numéro à retenir.
+
+- **Seulement quand l'onglet est visible.** Onglet caché ou téléphone verrouillé : plus aucune requête, le forfait n'est pas touché. C'est le push qui prend le relais.
+- **La pastille des messages ne change pas de rythme** (une fois par minute). On avait d'abord accéléré la pastille à 20 secondes pour voir les appels : c'était plus lourd pour le serveur et plus lent pour l'appel.
+- **Le numéro « apres » est gardé dans `sessionStorage`**, le temps de l'onglet. Changer de page ne fait donc ni oublier ni répéter un message. À la première visite, il n'y a pas de numéro : le serveur ne renvoie aucun message, seulement le point de départ. On n'annonce jamais les vieux messages.
+- **Les mêmes règles que pour lire.** La requête SQL de la veille reprend les conditions de la messagerie : conversation privée acceptée, non masquée, sans blocage ; ou groupe dont je suis encore membre. Un groupe **en sourdine** n'annonce rien, une demande de message d'un inconnu non plus, un message supprimé non plus. Et l'aperçu fait 60 caractères au plus : le message entier ne sort jamais par cette route.
+
+### La carte d'arrivée
+
+Quand la veille rapporte un message et que je ne suis pas dans sa conversation, `toastMessage()` pose une carte en haut de l'écran : avatar, nom, aperçu. Elle est en verre (`backdrop-filter`), avec les coins en feuille (8 px et 28 px) comme le reste de Palabre, glisse depuis le haut, s'en va seule après 5 secondes, et la toucher ouvre la conversation. Trois cartes au plus à la fois.
+
+Comment la page sait-elle que la conversation est ouverte ? `public/js/messages.js` écrit son numéro dans `window.Palabre.conversationOuverte` en l'ouvrant, et l'efface en la fermant. `recevoirVeille()` écarte les messages de cette conversation : ils s'affichent déjà dans le fil, une carte en plus serait du bruit.
+
+Le nom, le titre du groupe et l'aperçu viennent des membres : ils sont écrits avec `textContent` (par `el()`), jamais avec `innerHTML`.
+
+### Le son
+
+Deux notes douces (un sol, puis un do) accompagnent la carte. Elles sont **fabriquées par le navigateur** avec Web Audio : un oscillateur par note, un volume qui monte en 20 millisecondes puis s'éteint. Aucun fichier son, donc rien à télécharger et rien de copié d'ailleurs.
+
+Le son suit la carte : pas de carte (conversation ouverte, sourdine, onglet caché), pas de son. Si le navigateur refuse de jouer parce que la personne n'a encore rien touché sur la page, on se tait sans erreur.
+
+Le réglage « Son des messages » est dans `/modifier-profil`. Il est **gardé sur le serveur** (`PUT /api/profils/moi/son-messages`, dans la colonne JSON `preferences_notifications`, à côté des réglages du push) : le membre le retrouve sur tous ses appareils. `jsonb_set` ne change que cette clé, les réglages du push ne bougent pas (un test le vérifie).
+
+### Les titres des push
+
+Sur un écran verrouillé, on ne lit souvent que le titre. Il ne dit donc plus « Palabre » mais ce qui se passe : « Nouveau message de Kofi », « Bintou et 2 autres ont aimé ta publication », « Nouvelle proposition pour ta demande », « Fatoumata t'invite dans son équipe ».
+
+Tout est dans une seule table, `TITRES_PUSH`, une ligne par type de notification. `notifier()` y prend le titre ; quand le titre dit déjà tout (un j'aime), le texte du dessous ne le répète pas (« Touche pour voir ta publication. »). Le test `tests/push.test.js` lit les fichiers de `src/routes/`, relève tous les types passés à `notifier()` et vérifie que chacun a sa ligne : **ajouter un type sans titre fait échouer les tests**.
+
+### Le menu d'une bulle reste dans la conversation
+
+Sur ordinateur, le menu « … » d'une bulle s'ouvrait parfois hors de la conversation (sous l'en-tête, ou derrière la liste de gauche). À l'ouverture, `public/js/messages.js` mesure maintenant le menu et la zone de la conversation, choisit le côté (classes `menu-vers-la-droite`, `menu-vers-la-gauche`, `menu-vers-le-haut`), puis le décale de ce qui manque avec `transform`.
+
+### Un défaut trouvé en vérifiant
+
+En prenant la capture du réglage, la page `/modifier-profil` dépassait à droite sur téléphone (429 px au lieu de 390). La cause : dans une grille CSS, une colonne `1fr` ne descend jamais sous la largeur de son contenu, et deux listes au texte long (« Développement web », « Plus de 5 ans ») ne tenaient pas côte à côte. Les colonnes des formulaires sont maintenant en `minmax(0, 1fr)` (le 0 autorise la colonne à rétrécir), et ces deux listes se placent l'une sous l'autre sur téléphone (classe `champs-larges`).
 
 ## 12. Le système de design
 
