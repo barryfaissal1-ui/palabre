@@ -78,13 +78,13 @@ router.post('/demandes', limiteDemandes, async (req, res) => {
         'UPDATE amities SET statut = \'acceptee\' WHERE demandeur_id = $1 AND receveur_id = $2',
         [autre.id, moi.id],
       );
-      await notifier(client, autre.id, 'ami_accepte', `${moi.nom} et toi êtes maintenant amis.`, `/${moi.identifiant}`);
+      await notifier(client, autre.id, 'ami_accepte', `${moi.nom} et toi êtes maintenant amis.`, `/${moi.identifiant}`, { acteur: moi });
       etat = 'amis';
     } else {
       // Aucune ligne, ou une ancienne demande de l'autre que j'avais refusée : je peux demander à mon tour.
       await client.query('DELETE FROM amities WHERE demandeur_id = $1 AND receveur_id = $2', [autre.id, moi.id]);
       await client.query('INSERT INTO amities (demandeur_id, receveur_id) VALUES ($1, $2)', [moi.id, autre.id]);
-      await notifier(client, autre.id, 'demande_ami', `${moi.nom} veut t'ajouter en ami.`, '/amis');
+      await notifier(client, autre.id, 'demande_ami', `${moi.nom} veut t'ajouter en ami.`, '/amis', { acteur: moi });
       etat = 'envoyee';
     }
     await client.query('COMMIT');
@@ -114,7 +114,7 @@ async function repondre(req, res, statut) {
   );
   if (rowCount === 0) return res.status(404).json({ erreur: 'Aucune demande en attente de ce membre.' });
   if (statut === 'acceptee') {
-    await notifier(db, autre.id, 'ami_accepte', `${moi.nom} a accepté ta demande d'ami.`, `/${moi.identifiant}`);
+    await notifier(db, autre.id, 'ami_accepte', `${moi.nom} a accepté ta demande d'ami.`, `/${moi.identifiant}`, { acteur: moi });
   }
   res.json({ amitie: statut === 'acceptee' ? 'amis' : 'aucune' });
 }

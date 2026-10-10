@@ -10,6 +10,7 @@ const { exigerConnexion } = require('../middleware/auth');
 const { lireImageDataUrl } = require('../utils/images');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
 const { lireLienVideo } = require('../utils/videos');
+const { notifier, retirerActeur, avecLesAutres } = require('../utils/notifications');
 
 const router = express.Router();
 const PAR_PAGE = 10;
@@ -254,22 +255,36 @@ router.delete('/:id', async (req, res) => {
 router.post('/:id/jaime', limiteJaime, async (req, res) => {
   const publication = await publicationDeLaRoute(req, res);
   if (!publication) return;
-  await db.query(
+  const moi = req.utilisateur;
+  const { rowCount } = await db.query(
     'INSERT INTO jaime (publication_id, utilisateur_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-    [publication.id, req.utilisateur.id],
+    [publication.id, moi.id],
   );
-  res.json(await compteurJaime(publication.id, req.utilisateur.id));
+  // Un vrai nouveau j'aime (pas un second clic) : l'auteur est prévenu. Plusieurs j'aime non lus sur la même
+  // publication ne font qu'une notification : « Awa et 3 autres ont aimé ta publication ».
+  if (rowCount) {
+    await notifier(db, publication.auteur_id, 'jaime', (n) => avecLesAutres(moi.nom, n, 'a aimé ta publication.', 'ont aimé ta publication.'),
+      `/publication/${publication.id}`, { acteur: moi, cible: { type: 'publication', id: publication.id }, groupe: 'acteurs' });
+  }
+  res.json(await compteurJaime(publication.id, moi.id));
 });
 
 // Je n'aime plus : DELETE /api/publications/:id/jaime
 router.delete('/:id/jaime', limiteJaime, async (req, res) => {
   const publication = await publicationDeLaRoute(req, res);
   if (!publication) return;
-  await db.query(
+  const moi = req.utilisateur;
+  const { rowCount } = await db.query(
     'DELETE FROM jaime WHERE publication_id = $1 AND utilisateur_id = $2',
-    [publication.id, req.utilisateur.id],
+    [publication.id, moi.id],
   );
-  res.json(await compteurJaime(publication.id, req.utilisateur.id));
+  // Tant que l'auteur n'a pas lu la notification, celui qui n'aime plus en sort (sinon aimer / ne plus aimer
+  // en boucle servirait à harceler quelqu'un de notifications).
+  if (rowCount) {
+    await retirerActeur(publication.auteur_id, 'jaime', { type: 'publication', id: publication.id }, moi.id,
+      (nom, n) => avecLesAutres(nom, n, 'a aimé ta publication.', 'ont aimé ta publication.'));
+  }
+  res.json(await compteurJaime(publication.id, moi.id));
 });
 
 // Commentaires d'une publication, du plus ancien au plus récent : GET /api/publications/:id/commentaires
@@ -302,6 +317,23 @@ router.post('/:id/commentaires', limiteCommentaires, async (req, res) => {
      SELECT nouveau.*, ${COLONNES_MEMBRE} FROM nouveau JOIN utilisateurs u ON u.id = nouveau.auteur_id`,
     [publication.id, moi.id, texte],
   );
+  // L'auteur de la publication est prévenu (une seule notification pour plusieurs commentateurs non lus)…
+  const cible = { type: 'publication', id: publication.id };
+  const lien = `/publication/${publication.id}`;
+  await notifier(db, publication.auteur_id, 'commentaire', (n) => avecLesAutres(moi.nom, n, 'a commenté ta publication.', 'ont commenté ta publication.'),
+    lien, { acteur: moi, cible, groupe: 'acteurs' });
+  // … ainsi que ceux qui ont commenté avant moi : la discussion continue (les 10 derniers, sans l'auteur ni moi).
+  const { rows: autres } = await db.query(
+    `SELECT c.auteur_id FROM commentaires c
+       JOIN utilisateurs u ON u.id = c.auteur_id
+      WHERE c.publication_id = $1 AND c.masque = FALSE AND u.bloque = FALSE AND c.auteur_id NOT IN ($2, $3)
+      GROUP BY c.auteur_id ORDER BY max(c.id) DESC LIMIT 10`,
+    [publication.id, moi.id, publication.auteur_id],
+  );
+  for (const autre of autres) {
+    await notifier(db, autre.auteur_id, 'reponse_commentaire', (n) => avecLesAutres(moi.nom, n, 'a répondu sous une publication que tu as commentée.', 'ont répondu sous une publication que tu as commentée.'),
+      lien, { acteur: moi, cible, groupe: 'acteurs' });
+  }
   res.status(201).json({ commentaire: versCommentaire(rows[0], moi) });
 });
 

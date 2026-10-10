@@ -3,6 +3,7 @@ const express = require('express');
 const db = require('../db/pool');
 const v = require('../utils/validation');
 const { exigerConnexion } = require('../middleware/auth');
+const { apercuMembre, COLONNES_MEMBRE } = require('../utils/membres');
 
 const router = express.Router();
 const PAR_PAGE = 10;
@@ -15,8 +16,12 @@ router.get('/', async (req, res) => {
   const moi = req.utilisateur;
   const avant = v.idPositif(req.query.avant);
   const { rows: toutes } = await db.query(
-    `SELECT id, type, texte, lien, lue, cree_le FROM notifications
-      WHERE utilisateur_id = $1 AND ($3::int IS NULL OR id < $3) ORDER BY id DESC LIMIT $2`,
+    // « u » est la personne qui a fait l'action (la dernière, pour une notification regroupée) : son avatar
+    // s'affiche à côté. Un compte bloqué ou supprimé n'est pas montré.
+    `SELECT n.id, n.type, n.texte, n.lien, n.lue, n.cree_le, n.nombre, n.cible_type, u.id AS acteur_present, ${COLONNES_MEMBRE}
+       FROM notifications n
+       LEFT JOIN utilisateurs u ON u.id = n.acteur_id AND u.bloque = FALSE
+      WHERE n.utilisateur_id = $1 AND ($3::int IS NULL OR n.id < $3) ORDER BY n.id DESC LIMIT $2`,
     [moi.id, PAR_PAGE + 1, avant], // une de plus pour savoir s'il en reste
   );
   const rows = toutes.slice(0, PAR_PAGE);
@@ -25,7 +30,10 @@ router.get('/', async (req, res) => {
     [moi.id],
   );
   res.json({
-    notifications: rows.map((n) => ({ id: n.id, type: n.type, texte: n.texte, lien: n.lien, lue: n.lue, creeLe: n.cree_le })),
+    notifications: rows.map((n) => ({
+      id: n.id, type: n.type, texte: n.texte, lien: n.lien, lue: n.lue, creeLe: n.cree_le, nombre: n.nombre,
+      acteur: n.acteur_present ? apercuMembre(n) : null,
+    })),
     nonLues: compte.rows[0].nb,
     suivant: toutes.length > PAR_PAGE ? rows[rows.length - 1].id : null,
   });

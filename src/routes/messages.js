@@ -14,7 +14,7 @@ const v = require('../utils/validation');
 const { exigerConnexion, profilDevIncomplet } = require('../middleware/auth');
 const { lireImageDataUrl } = require('../utils/images');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
-const { notifier } = require('../utils/notifications');
+const { notifier, avecLesAutres } = require('../utils/notifications');
 
 const router = express.Router();
 const PAR_PAGE = 30;
@@ -207,9 +207,15 @@ async function ecrire(req, res, autreId, conversation) {
     );
     // Une conversation supprimée d'un côté réapparaît quand un nouveau message arrive.
     await client.query('DELETE FROM conversation_masquees WHERE conversation_id = $1', [conv.id]);
-    // On ne prévient par la cloche que pour une nouvelle demande de message, jamais pour chaque message.
+    // La cloche : une demande de message d'un inconnu est annoncée une fois. Dans une conversation ouverte,
+    // UNE notification par conversation, mise à jour tant qu'elle n'est pas lue (« Awa t'a envoyé 3 messages »),
+    // jamais une par message. Une demande encore en attente ne prévient plus après le premier message.
+    const ouverte = (accepte ? 'acceptee' : conv.statut) === 'acceptee';
     if (nouvelleDemande) {
-      await notifier(client, autreId, 'demande_message', `${moi.nom} t'a envoyé une demande de message.`, '/messages?onglet=demandes');
+      await notifier(client, autreId, 'demande_message', `${moi.nom} t'a envoyé une demande de message.`, '/messages?onglet=demandes', { acteur: moi });
+    } else if (ouverte) {
+      await notifier(client, autreId, 'message', (n) => (n === 1 ? `${moi.nom} t'a envoyé un message.` : `${moi.nom} t'a envoyé ${n} messages.`),
+        `/messages/${conv.id}`, { acteur: moi, cible: { type: 'conversation', id: conv.id }, groupe: 'compteur' });
     }
     return { conversationId: conv.id, statut: accepte ? 'acceptee' : conv.statut, message: versMessage(message, moi) };
   });
@@ -377,6 +383,12 @@ router.post('/conversations/:id/lu', async (req, res) => {
        SELECT $1, $2, COALESCE(max(id), 0) FROM messages WHERE conversation_id = $1
        ON CONFLICT (conversation_id, membre_id) DO UPDATE SET dernier_lu_id = GREATEST(conversation_lectures.dernier_lu_id, EXCLUDED.dernier_lu_id)`,
       [ligne.id, moi.id],
+    );
+    // La conversation est lue : sa notification dans la cloche l'est aussi.
+    await db.query(
+      `UPDATE notifications SET lue = TRUE
+        WHERE utilisateur_id = $1 AND type = 'message' AND cible_type = 'conversation' AND cible_id = $2 AND lue = FALSE`,
+      [moi.id, ligne.id],
     );
   }
   res.json({ nonLus: await compterNonLus(moi.id) });

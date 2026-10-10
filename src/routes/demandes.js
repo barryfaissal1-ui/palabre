@@ -250,7 +250,7 @@ router.post('/:id/propositions', exigerDev, exigerProfilComplet, limitePropositi
       throw err;
     }
     await notifier(client, demande.client_id, 'nouvelle_proposition',
-      `${moi.nom} a envoyé une proposition pour « ${court(demande.titre)} ».`, `/demande?id=${demande.id}`);
+      `${moi.nom} a envoyé une proposition pour « ${court(demande.titre)} ».`, `/demande?id=${demande.id}`, { acteur: moi });
   });
 
   const { ligne, demande } = await lireDemande(req.params.id, moi);
@@ -325,7 +325,7 @@ router.post('/:id/equipes', exigerDev, exigerProfilComplet, limitePropositions, 
         [equipeId, ami.id, role],
       );
       await notifier(client, ami.id, 'invitation_equipe',
-        `${moi.nom} t'invite dans son équipe éclair (rôle : ${role}) pour « ${court(demande.titre)} ».`, `/demande?id=${demande.id}`);
+        `${moi.nom} t'invite dans son équipe éclair (rôle : ${role}) pour « ${court(demande.titre)} ».`, `/demande?id=${demande.id}`, { acteur: moi });
     }
     await client.query(
       'INSERT INTO propositions (demande_id, equipe_id, message, montant_fcfa, statut) VALUES ($1, $2, $3, $4, \'brouillon\')',
@@ -379,7 +379,7 @@ router.post('/:id/choisir', exigerClient, async (req, res) => {
     for (const gagnant of gagnants) {
       await notifier(client, gagnant.dev_id, 'proposition_acceptee',
         `Bonne nouvelle : ${moi.nom} a choisi ${choisie.dev_id ? 'ta proposition' : 'la proposition de ton équipe'} pour « ${court(demande.titre)} ».`,
-        `/demande?id=${demande.id}`);
+        `/demande?id=${demande.id}`, { acteur: moi });
     }
   });
 

@@ -270,6 +270,16 @@ CREATE TABLE IF NOT EXISTS notifications (
   cree_le        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Notifications enrichies : qui a fait l'action (pour afficher son avatar), de quoi elle parle, et le regroupement
+-- (« Awa et 3 autres ont aimé ta publication » : une seule ligne tant qu'elle n'est pas lue).
+-- acteurs : les numéros des personnes regroupées, la plus récente en premier ; nombre : combien (ou combien de messages).
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS acteur_id INTEGER REFERENCES utilisateurs(id) ON DELETE SET NULL;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS cible_type TEXT;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS cible_id INTEGER;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS acteurs INTEGER[] NOT NULL DEFAULT '{}';
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS nombre INTEGER NOT NULL DEFAULT 1;
+CREATE INDEX IF NOT EXISTS idx_notifications_groupe ON notifications (utilisateur_id, type, cible_type, cible_id) WHERE lue = FALSE;
+
 CREATE TABLE IF NOT EXISTS signalements (
   id          SERIAL PRIMARY KEY,
   auteur_id   INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,

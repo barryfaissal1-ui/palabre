@@ -71,7 +71,7 @@ router.post('/', exigerConnexion, exigerClient, limiteAvis, async (req, res) => 
         [cible.demande_id, moi.id, cible.dev_id, note, commentaire],
       );
       await notifier(client, cible.dev_id, 'avis_recu',
-        `${moi.nom} t'a laissé un avis (${note}/5) pour « ${court(cible.titre)} ».`, `/${cible.identifiant}`);
+        `${moi.nom} t'a laissé un avis (${note}/5) pour « ${court(cible.titre)} ».`, `/${cible.identifiant}`, { acteur: moi });
     });
   } catch (err) {
     // Contrainte UNIQUE (demande, dev) : un seul avis par dev et par demande.
