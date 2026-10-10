@@ -257,7 +257,8 @@ test('projets pour Facebook : seuls ceux dont le dev a donné son accord, à val
   const restants = await enAttente();
   assert.ok(!restants.includes(avecAccord.id) && !restants.includes(autre.id));
 
-  const notifications = (await appel('/api/notifications', { qui: 'bintou' })).corps.notifications.filter((n) => n.type === 'projet_facebook');
+  // Lu en base : l'API n'envoie que les 10 dernières notifications.
+  const { rows: notifications } = await pool.query('SELECT n.texte FROM notifications n JOIN utilisateurs u ON u.id = n.utilisateur_id WHERE u.email = $1 AND n.type = \'projet_facebook\' ORDER BY n.id DESC', [membres.bintou.email]);
   assert.equal(notifications.length, 2);
   assert.match(notifications[1].texte, /a été retenu/);
   assert.equal((await appel(`/api/projets/${autre.id}`)).statut, 200, 'un projet refusé pour Facebook reste visible sur Palabre');
@@ -311,7 +312,8 @@ test('à publier sur Facebook : texte prêt, valide → publie, notification, 5 
     assert.equal(publie.statut_facebook, 'publie');
     assert.ok(Date.now() - publie.publie_facebook_le.getTime() < 60000);
     assert.ok(!apres.projets.some((p) => p.id === ids[0]));
-    const notifications = (await appel('/api/notifications', { qui: 'bintou' })).corps.notifications.filter((n) => /partagé sur la page Facebook Palabre Dev/.test(n.texte));
+    // Lu en base, pas par l'API : elle n'envoie que 10 notifications à la fois, et Bintou en a reçu d'autres.
+    const { rows: notifications } = await pool.query('SELECT lien FROM notifications WHERE utilisateur_id = $1 AND texte LIKE $2 ORDER BY id DESC', [bintouId, '%partagé sur la page Facebook Palabre Dev%']);
     assert.equal(notifications.length, places, 'une notification par projet publié');
     assert.equal(notifications[notifications.length - 1].lien, `/projets/${ids[0]}`);
   }

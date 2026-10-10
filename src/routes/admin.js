@@ -170,7 +170,7 @@ router.get('/membres-recents', async (req, res) => {
             u.email_confirme_le IS NOT NULL AS email_confirme,
             u.profil_complete_le IS NOT NULL AS profil_complet,
             num_nonnulls(u.lien_github, u.lien_gitlab, u.lien_portfolio, u.lien_linkedin) AS nb_liens
-       FROM utilisateurs u WHERE u.bloque = FALSE ORDER BY u.id DESC LIMIT $1`,
+       FROM utilisateurs u WHERE u.bloque = FALSE ORDER BY u.cree_le DESC, u.id DESC LIMIT $1`,
     [MAX_AFFICHES],
   );
   res.json({

@@ -363,6 +363,9 @@ test('date de naissance : absente de toutes les réponses publiques ; seul l\'ad
 
   // L'administrateur voit l'âge (pas la date) et où en est chaque inscription.
   await changerRole(adresse('kadi'), true);
+  // La liste montre les 50 derniers inscrits, et les autres fichiers de tests créent des comptes en même temps :
+  // on date ces deux comptes de maintenant pour qu'ils y soient à coup sûr.
+  await pool.query('UPDATE utilisateurs SET cree_le = now() WHERE email = ANY($1)', [[adresse('awa'), adresse('kadi')]]);
   const admin = await appel('/api/admin/membres-recents', { qui: 'kadi' });
   assert.equal(admin.statut, 200);
   const ligne = admin.corps.membres.find((m) => m.identifiant === membres.awa.identifiant);

@@ -42,7 +42,7 @@ Attirer les visiteurs : vitrine des réalisations par secteur (page d'accueil), 
 server.js              démarrage (migration automatique puis écoute)
 src/app.js             application Express : sécurité, routes, lien court /:identifiant
 src/config.js          variables d'environnement (.env)
-src/db/schema.sql      toutes les tables (idempotent, relancé à chaque démarrage)
+src/db/schema.sql      toutes les tables (idempotent ; appliqué au démarrage seulement s'il a changé, voir src/db/migrate.js)
 src/routes/            auth.js (inscription, code de confirmation de l'email, connexion), profils.js, fichiers.js, references.js, publications.js, amis.js, signalements.js, demandes.js, equipes.js, notifications.js, projets.js, avis.js, devs.js, messages.js, defis.js, pages.js (accueil, profil, projet et publication avec balises de partage), admin.js
 src/middleware/auth.js session (cookie httpOnly + JWT), exigerConnexion, exigerAdmin, exigerEmailConfirme, exigerProfilComplet
 src/vues/              404.html et 500.html (pages d'erreur, envoyées par pageErreur())
@@ -83,7 +83,8 @@ Sans SMTP configuré, les emails (mot de passe oublié, code de confirmation à 
 - Fichiers de l'interface : dans une page HTML, écrire les adresses simplement (`/css/style.css`, `/js/app.js`) ; le serveur y ajoute lui-même l'empreinte `?v=…` (`versionner()` de `src/utils/statique.js`) qui permet le cache d'un an. Une nouvelle page servie par une route passe donc par `lirePage()`, jamais par `fs.readFileSync` seul. Logo dans les pages : `/icons/logo-96.webp` (3 Ko), jamais `logo-256.png`. Toute image qui n'est pas visible à l'ouverture de la page porte `loading="lazy"`.
 - Une image privée (photo d'un message) ne doit jamais être servie sans contrôle : voir `src/routes/fichiers.js`.
 - Modifications multiples en base : utiliser une **transaction** (`BEGIN` / `COMMIT` / `ROLLBACK`).
-- Nouvelle table ou colonne : l'ajouter dans `src/db/schema.sql` de façon idempotente (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE … ADD COLUMN IF NOT EXISTS`).
+- Nouvelle table ou colonne : l'ajouter dans `src/db/schema.sql` de façon idempotente (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE … ADD COLUMN IF NOT EXISTS`). `migrer()` n'applique le fichier que si son empreinte a changé (table `schema_applique`) : le rejouer à chaque démarrage verrouillait toutes les tables et provoquait des interblocages avec les tests et le serveur de dev. Base modifiée à la main : `npm run migrate` (applique toujours).
+- Tests : ils tournent en parallèle sur la même base, avec la démo et parfois le serveur de dev. Ne jamais compter sur une liste limitée (50 derniers inscrits, 10 notifications) ni sur un total global : chercher ses propres lignes, ou lire en base.
 - Toute nouvelle page ou nouveau script de l'interface : l'ajouter à la liste de `public/sw.js` et **augmenter `VERSION`** (sinon les téléphones gardent l'ancienne version).
 - Nouvelles adresses de pages : ajouter le mot à `IDENTIFIANTS_RESERVES` pour qu'aucun membre ne puisse le prendre comme identifiant.
 - Dans `public/css/style.css`, une règle qui doit valoir sur téléphone se place **hors** de tout `@media (min-width: …)` : avant d'ajouter un bloc, vérifier qu'on n'est pas à l'intérieur du bloc « Version ordinateur et tablette » (c'est déjà arrivé : les styles ne s'appliquaient plus sur téléphone).

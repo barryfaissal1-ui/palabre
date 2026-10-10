@@ -19,7 +19,7 @@ Le navigateur ne parle jamais directement à la base : tout passe par le serveur
 
 ## 2. Le démarrage (`server.js`)
 
-1. `migrer()` lit `src/db/schema.sql` et crée les tables qui n'existent pas encore. Le script peut être relancé sans risque (`CREATE TABLE IF NOT EXISTS`).
+1. `migrer()` lit `src/db/schema.sql` et crée les tables qui n'existent pas encore. Le script peut être relancé sans risque (`CREATE TABLE IF NOT EXISTS`), mais il n'est appliqué **que s'il a changé** : son empreinte (SHA-256) est gardée dans la table `schema_applique`. Sans changement, le démarrage ne touche à aucune table.
 2. `creerApp()` (dans `src/app.js`) construit l'application avec ses protections et ses routes.
 3. Le serveur écoute sur le port indiqué par `PORT`.
 
@@ -526,9 +526,9 @@ La vitrine de l'accueil garde son bouton « Voir plus de réalisations » : sous
 
 Un `<select>` s'affiche différemment sur chaque téléphone, et on ne peut presque pas le styler. `listeChoix(select)` (dans `public/js/app.js`) le remplace par un bouton et une fenêtre de choix « effet verre » : un fond à moitié transparent, et ce qui est derrière est flouté (`backdrop-filter: blur(16px) saturate(140%)`).
 
-- **Sur ordinateur** : un menu flottant accroché au bouton, placé dessous s'il y a la place, sinon au-dessus, jamais hors de l'écran.
+- **Sur ordinateur** : un menu flottant accroché au bouton. Il s'ouvre dessous si toute la liste y tient, sinon du côté où il y a le plus de place (donc vers le haut près du bas de l'écran), jamais hors de l'écran ; au-delà de 420 px, la liste défile à l'intérieur. Il est presque opaque : plus transparent, un bouton vert situé derrière se voyait à travers et donnait l'impression que le menu passait dessous.
 - **Sur téléphone** : une feuille qui monte du bas de l'écran, avec une poignée, le nom du champ et des choix de 52 px de haut, faciles à toucher. On la ferme en touchant le fond, en glissant la poignée vers le bas, ou avec Échap.
-- **Plus de 12 choix** (les pays, les années) : un champ de recherche en haut, qui ignore les accents et les majuscules.
+- **Plus de 12 choix** (les pays, les années) : un champ de recherche en haut, qui ignore les accents et les majuscules. Sur téléphone, il ne reçoit pas le focus à l'ouverture : le clavier de l'écran s'ouvrirait et cacherait la liste. Le focus va sur le choix sélectionné.
 
 ### Le `<select>` reste dans la page
 
@@ -765,7 +765,25 @@ Les autres fichiers de tests ont besoin de comptes prêts à servir : `tests/aid
 
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
 
+### Un piège rencontré : des tests qui échouaient « parfois », au premier lancement
+
+Symptôme : après un `git pull`, avec le serveur de développement allumé, des tests échouaient au premier `npm test`, puis passaient au suivant.
+
+Cause : pour ajouter une colonne ou une contrainte, PostgreSQL **verrouille la table entière**, même quand il n'y a finalement rien à faire (`ADD COLUMN IF NOT EXISTS`). Le schéma était rejoué en entier à chaque démarrage : il verrouillait donc presque toutes les tables, l'une après l'autre, dans une seule transaction. Si, au même moment, le site écrivait (un autre fichier de tests déjà lancé, ou le serveur de développement), chacun pouvait attendre un verrou tenu par l'autre. PostgreSQL détecte ce blocage mutuel (« interblocage », `deadlock`) et arrête l'un des deux : soit la migration (tout le fichier de tests échoue), soit une requête du site (un test échoue au hasard). Reproduit volontairement : 132 interblocages en 25 secondes.
+
+Correction, dans `src/db/migrate.js` :
+
+- l'empreinte du schéma appliqué est gardée en base ; même empreinte, rien n'est rejoué et **aucune table n'est verrouillée** ;
+- quand le schéma a vraiment changé, il est appliqué une seule fois, et si un interblocage survient pendant cette unique fois, la migration réessaie (jusqu'à 5 fois) ;
+- `npm run migrate` applique toujours, pour le cas où la base aurait été modifiée à la main.
+
+C'est aussi mieux pour le site en ligne : un redémarrage ne bloque plus les tables pendant que des membres écrivent.
+
+Deux tests dépendaient en plus de ce qui se trouvait dans la base : la liste « Derniers inscrits » ne montre que 50 comptes (les autres fichiers en créent en même temps) et l'API des notifications n'en envoie plus que 10 à la fois. Ils lisent maintenant ce qu'ils vérifient directement en base, ou datent leurs comptes de « maintenant ».
+
 ## 15. Questions probables du jury
+
+- **Vos tests échouaient parfois : qu'avez-vous fait ?** On a cherché la cause au lieu de relancer : un interblocage entre la mise à jour du schéma et les écritures du site. Le schéma n'est plus rejoué que s'il a changé.
 
 - **Pourquoi ne pas utiliser le `<select>` du navigateur ?** Il est toujours là, caché, et c'est lui qui porte la valeur. On a seulement remplacé son apparence, pour avoir la même sur tous les téléphones et de grandes zones tactiles.
 - **Votre liste maison est-elle accessible ?** Oui : clavier seul (flèches, Entrée, Échap, première lettre), rôles ARIA, focus rendu au bouton. C'est un `<dialog>` du navigateur qui gère le clavier et Échap.
