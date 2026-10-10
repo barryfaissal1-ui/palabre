@@ -749,6 +749,50 @@ Comme pour les images (`src/utils/audio.js`) : type annoncé parmi trois, **prem
 - « Glisser pour annuler » puis relâcher le doigt demandait l'annulation **puis** l'envoi : le message partait quand même. Un enregistrement ne peut plus se terminer qu'une fois.
 - Un message qu'on venait d'écrire était redessiné cinq secondes plus tard pour rien, ce qui remettait à zéro le lecteur en train de jouer. Le serveur ne signale plus que les messages réellement retouchés, et une bulle dont le son joue n'est jamais redessinée.
 
+## 11 quaterdecies. Les appels audio et vidéo
+
+On appelle depuis une conversation, sans sortir de Palabre et sans WhatsApp : audio ou vidéo à deux, audio jusqu'à quatre dans le groupe d'une équipe éclair. La technique s'appelle WebRTC ; elle est dans tous les navigateurs, aucune bibliothèque n'est ajoutée.
+
+### Le serveur ne transporte pas l'appel
+
+Le son et l'image vont **directement d'un téléphone à l'autre**. Le serveur de Palabre (`src/routes/appels.js`) fait seulement la mise en relation :
+
+- dire qui appelle qui, qui a décroché, qui a raccroché (tables `appels` et `appel_participants`) ;
+- porter les petits messages techniques que les navigateurs s'échangent pour se trouver : une « offre », une « réponse », des « candidats » (table `appel_signaux`). Il les transporte sans les lire ;
+- donner la liste des serveurs qui aident à trouver un chemin (STUN, et notre relais TURN s'il existe : `docs/APPELS-TURN.md`).
+
+### Sans WebSocket
+
+Pendant un appel, **et seulement pendant un appel**, la page interroge le serveur chaque seconde : c'est ainsi qu'elle reçoit les messages techniques et qu'elle dit « je suis toujours là ». Dès qu'on raccroche, ces requêtes s'arrêtent. Un WebSocket serait plus élégant, mais on ne sait pas encore si l'hébergeur les accepte ; la version actuelle marche partout.
+
+Un appel qui arrive est annoncé par la requête que toutes les pages font déjà pour la pastille des messages (toutes les 20 secondes ; une sonnerie en dure 30), par celle de la conversation ouverte (toutes les 5 secondes), et par une notification push si le site est fermé.
+
+### Qui peut appeler qui
+
+Exactement ceux qui peuvent s'écrire. En privé, c'est la fonction `droitDEcrire()` de la messagerie qui décide : jamais un inconnu, jamais un membre bloqué. Dans un groupe, il faut en être membre. Le code ne réécrit pas ces règles, il les réutilise.
+
+### Les cas qui fâchent
+
+- **Personne ne décroche** : au bout de 30 secondes, « Appel manqué », avec une notification.
+- **Déjà en appel** : un seul appel à la fois par membre. L'appelant voit « déjà en appel », l'autre aura un appel manqué.
+- **Deux personnes s'appellent au même instant** : un verrou par conversation ; un seul appel est créé, le second le rejoint.
+- **Quelqu'un ferme la page ou perd le réseau** : sans nouvelles de lui pendant 20 secondes, il est considéré parti ; s'il reste moins de deux personnes, l'appel se termine.
+- **Changement de réseau** (Wi-Fi vers 4G) : « Reconnexion… », la liaison est renégociée pendant 15 secondes, puis on raccroche.
+
+Il n'y a pas de tâche programmée : ces vérifications sont faites à chaque lecture (`entretenir()`), avec `FOR UPDATE SKIP LOCKED` pour que deux lectures simultanées ne traitent pas le même appel deux fois.
+
+### Pensé pour la 3G
+
+Voix en Opus à 24 kb/s environ ; vidéo en 640 × 360, limitée à 350 kb/s ; en 3G ou en économie de données, la caméra démarre éteinte. Le micro et la caméra ne sont demandés qu'au moment d'appeler ou de décrocher. Le script et la feuille de style des appels (`public/js/appels.js`, `public/css/appels.css`) ne sont téléchargés que lorsqu'un appel commence.
+
+### L'identifiant TURN temporaire
+
+Un relais TURN demande un nom et un mot de passe. Donner le même à tout le monde reviendrait à le publier. Palabre calcule donc, pour chaque membre, un identifiant valable **une heure** : le nom contient la date limite, le mot de passe est sa signature (HMAC) avec un secret que seuls Palabre et le relais connaissent. Le secret ne quitte jamais le serveur.
+
+### L'écran d'appel
+
+Il reprend la page du code de confirmation : vert profond, grandes courbes, crème, touches de terre cuite. Autour de l'avatar, trois anneaux de petites feuilles tournent lentement ; ils « respirent » pendant la sonnerie, puis grossissent avec la voix de l'autre (`AnalyserNode`). Décrocher est une feuille verte, Refuser une feuille terre cuite. La sonnerie est fabriquée par le navigateur (deux notes, Web Audio) : aucun fichier son. Tout ce qui bouge n'utilise que `transform` et `opacity`, et s'arrête si l'appareil demande moins d'animations.
+
 ## 12. Le système de design
 
 Un « système de design », c'est un petit nombre de règles visuelles appliquées partout, pour que le site ait l'air d'une seule et même application. Tout est écrit à la main : aucune bibliothèque d'interface, aucun framework, donc des pages qui restent légères en 3G (les icônes pèsent 8 Ko en tout, les illustrations 4 Ko).
@@ -974,6 +1018,8 @@ Pour la présence (`tests/presence.test.js`) : « écrit… » vu par l'autre se
 
 Pour les messages vocaux (`tests/vocaux.test.js`) : le contrôle du fichier (type annoncé, premiers octets, taille, durée) ; l'envoi sans texte ; le son servi aux seuls membres de la conversation, entier ou par morceaux (206), jamais à un extérieur ; la suppression pour tout le monde qui efface le son ; un vocal dans un groupe.
 
+Pour les appels (`tests/appels.test.js`) : les identifiants TURN temporaires (signature vérifiée, secret jamais envoyé) ; qui peut appeler (ami oui ; inconnu, bloqué, extérieur non) ; un appel de bout en bout (sonnerie, décrocher, messages techniques remis à leur seul destinataire, raccrocher, ligne dans la conversation) ; appel manqué après 30 secondes, refusé, ou abandonné ; « occupé » ; deux appels croisés qui n'en font qu'un ; participant disparu ; groupe en audio, quatre au plus ; 20 appels par heure. Le son lui-même ne passe pas par le serveur : il est vérifié dans le navigateur, entre deux sessions.
+
 Les autres fichiers de tests ont besoin de comptes prêts à servir : `tests/aide.js` enveloppe leur fonction d'appel pour que chaque compte créé soit aussitôt confirmé et complet.
 
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
@@ -995,6 +1041,10 @@ C'est aussi mieux pour le site en ligne : un redémarrage ne bloque plus les tab
 Deux tests dépendaient en plus de ce qui se trouvait dans la base : la liste « Derniers inscrits » ne montre que 50 comptes (les autres fichiers en créent en même temps) et l'API des notifications n'en envoie plus que 10 à la fois. Ils lisent maintenant ce qu'ils vérifient directement en base, ou datent leurs comptes de « maintenant ».
 
 ## 15. Questions probables du jury
+
+- **Vos appels passent par votre serveur ?** Non. Le son va d'un téléphone à l'autre ; le serveur met seulement en relation. Un relais (TURN) n'intervient que si le réseau interdit la liaison directe.
+- **Pourquoi pas de WebSocket ?** On ne sait pas si l'hébergeur les accepte. La page interroge le serveur chaque seconde, mais seulement pendant un appel.
+- **Un inconnu peut-il m'appeler ?** Non : on ne peut appeler que ceux à qui on peut écrire, et c'est la même fonction qui décide.
 
 - **Comment marche le push, et le service de Google peut-il lire les messages ?** Non : le message est chiffré avec les clés du téléphone avant de partir (RFC 8291). Google ne fait que le transporter.
 - **Pourquoi avoir écrit le push vous-mêmes ?** La bibliothèque habituelle est sous licence MPL-2.0, que le règlement ne permet pas. Les normes sont publiques ; tout tient dans un fichier, testé.

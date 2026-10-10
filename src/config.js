@@ -49,6 +49,13 @@ module.exports = {
     pass: process.env.SMTP_PASS || '',
     expediteur: process.env.SMTP_FROM || 'Palabre <no-reply@palabre.dev>',
   },
+  // Appels audio et vidéo. STUN : serveurs publics par défaut. TURN (facultatif) : notre relais, pour les réseaux
+  // qui bloquent la liaison directe (docs/APPELS-TURN.md). Sans TURN, les appels marchent là où le réseau le permet.
+  appels: {
+    stun: (process.env.STUN_URLS || 'stun:stun.l.google.com:19302,stun:stun.cloudflare.com:3478').split(',').map((u) => u.trim()).filter(Boolean),
+    turnUrls: (process.env.TURN_URL || '').split(',').map((u) => u.trim()).filter(Boolean),
+    turnSecret: (process.env.TURN_SECRET || '').trim(),
+  },
   // Notifications push (facultatif) : sans ces clés, le site marche normalement, simplement sans push.
   // Pour les fabriquer : npm run cles-push
   vapid: {

@@ -9,6 +9,8 @@ Déclaration exigée par l'article 6 du règlement CADEV 2026. Aucun composant s
 | bcryptjs | 3.0.3 | BSD-3-Clause |
 | compression | 1.8.2 | MIT |
 
+Les appels audio et vidéo n'utilisent **aucune bibliothèque** non plus : WebRTC est dans les navigateurs, et la mise en relation est faite par des requêtes ordinaires (pas de `ws`). Le relais TURN conseillé, coturn (licence BSD), est un logiciel à installer sur un serveur à part : il n'est pas dans ce dépôt.
+
 Les notifications push n'utilisent **aucune bibliothèque** : `web-push`, la plus répandue, est sous licence MPL-2.0, qui n'est pas dans la liste permise par le concours. Le chiffrement et la signature sont écrits dans `src/utils/push.js` avec le module `crypto` de Node.js, d'après les normes publiques RFC 8291, RFC 8188 et RFC 8292.
 
 | cookie-parser | 1.4.7 | MIT |

@@ -22,7 +22,7 @@ const HOTES_PERMIS = [/^fcm\.googleapis\.com$/, /^android\.googleapis\.com$/, /^
 // Ce qu'on peut couper dans les réglages : chaque type de notification appartient à une famille.
 // La cloche du site, elle, garde toujours tout.
 const FAMILLES = {
-  messages: ['message', 'demande_message'],
+  messages: ['message', 'demande_message', 'appel', 'appel_manque'],
   demandes: ['nouvelle_proposition', 'proposition_acceptee', 'avis_recu'],
   equipes: ['invitation_equipe', 'equipe_reponses'],
   social: ['jaime', 'commentaire', 'reponse_commentaire', 'demande_ami', 'ami_accepte', 'projet_facebook'],
@@ -117,7 +117,7 @@ async function envoyerPush(utilisateurId, type, message) {
     const { rows: [membre] } = await db.query('SELECT preferences_notifications AS preferences FROM utilisateurs WHERE id = $1 AND bloque = FALSE', [utilisateurId]);
     if (!membre || ((membre.preferences || {}).push || {})[familleDe(type)] === false) return 0;
     const { rows: abonnements } = await db.query('SELECT id, endpoint, p256dh, auth FROM abonnements_push WHERE utilisateur_id = $1', [utilisateurId]);
-    const charge = JSON.stringify({ titre: message.titre || 'Palabre', texte: message.texte, lien: message.lien || '/notifications', tag: message.tag || type });
+    const charge = JSON.stringify({ titre: message.titre || 'Palabre', texte: message.texte, lien: message.lien || '/notifications', tag: message.tag || type, ...(message.appel ? { appel: message.appel } : {}) });
     // « Topic » : le service de push remplace un message pas encore remis par le suivant du même sujet.
     const sujet = crypto.createHash('sha256').update(message.tag || type).digest('base64url').slice(0, 32);
     const resultats = await Promise.all(abonnements.map(async (abonnement) => {

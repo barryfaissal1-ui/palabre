@@ -47,6 +47,10 @@ Ne démarre pas encore : il manque les variables.
 | `SMTP_PASS` | le mot de passe de cette boîte | |
 | `SMTP_FROM` | `Palabre <no-reply@ton-domaine>` | Le nom affiché comme expéditeur. L'adresse doit être celle de `SMTP_USER`. |
 
+### Appels audio et vidéo (facultatif)
+
+Les appels marchent sans rien régler. Pour qu'ils passent aussi sur les réseaux qui bloquent la liaison directe (certaines connexions mobiles, Wi-Fi d'université), il faut un relais TURN à nous et deux variables, `TURN_URL` et `TURN_SECRET` : tout est expliqué pas à pas dans `docs/APPELS-TURN.md`.
+
 ### Notifications push (facultatif)
 
 Pour prévenir les membres sur leur téléphone, même site fermé, ajoute trois variables. Sans elles, Palabre marche normalement, simplement sans push.

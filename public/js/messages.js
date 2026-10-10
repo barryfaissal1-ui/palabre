@@ -402,6 +402,22 @@
 
   function bulle(message) {
     // Message « système » d'un groupe (« Awa a rejoint l'équipe ») : une ligne discrète au centre, pas une bulle.
+    // La ligne laissée par un appel : « Appel audio, 4 min » (feuille verte) ou « Appel manqué » (terre cuite, avec « Rappeler »).
+    if (message.appel) {
+      const manque = message.appel.statut !== 'termine';
+      const nomType = message.appel.type === 'video' ? 'Appel vidéo' : 'Appel audio';
+      let texte = `${nomType}, ${message.appel.duree < 60 ? `${Math.max(1, message.appel.duree)} s` : `${Math.round(message.appel.duree / 60)} min`}`;
+      if (manque) texte = message.appel.parMoi ? `${nomType} sans réponse` : 'Appel manqué';
+      const rappeler = manque && ouverte && ouverte.donnees.peutEcrire
+        ? el('button', { classe: 'bouton bouton-contour bouton-compact', type: 'button', texte: 'Rappeler' })
+        : null;
+      if (rappeler) rappeler.addEventListener('click', () => lancerAppel(message.appel.type));
+      return el('div', { classe: `ligne-appel${manque ? ' appel-manque' : ''}`, 'data-message': message.id }, [
+        el('span', { classe: `appel-feuille-icone${manque ? ' manque' : ''}` }, [icone('telephone')]),
+        el('span', { classe: 'ligne-appel-texte' }, [el('strong', { texte }), el('span', { classe: 'texte-discret', texte: heure(message.creeLe) })]),
+        rappeler,
+      ]);
+    }
     if (message.systeme) return el('p', { classe: 'message-systeme', 'data-message': message.id, texte: message.texte });
     // Dans un groupe, la bulle d'un autre dit de qui elle vient.
     const signee = ouverte && ouverte.estGroupe && !message.estMoi && message.auteur;
@@ -522,6 +538,27 @@
       else ouverte.dernierDeLAutre = message.id;
     });
   }
+
+  // ---------- Appels ----------
+  // Lance un appel dans la conversation ouverte. Le micro (et la caméra) ne sont demandés qu'à ce moment-là.
+  function lancerAppel(type) {
+    if (!ouverte || !ouverte.id) return;
+    window.Palabre.appeler({ id: ouverte.id, groupe: Boolean(ouverte.estGroupe), titre: ouverte.estGroupe ? ouverte.donnees.titre : null }, type);
+  }
+  // Téléphone et caméra en privé ; téléphone seulement dans le groupe d'une équipe (appel audio à quatre au plus).
+  function boutonsAppel({ video }) {
+    const audio = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': 'Appel audio', title: 'Appel audio' }, [icone('telephone')]);
+    audio.addEventListener('click', () => lancerAppel('audio'));
+    if (!video) return [audio];
+    const camera = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': 'Appel vidéo', title: 'Appel vidéo' }, [icone('video')]);
+    camera.addEventListener('click', () => lancerAppel('video'));
+    return [audio, camera];
+  }
+  // Un appel vient de se terminer : sa ligne (« Appel audio, 4 min ») apparaît tout de suite dans la conversation.
+  document.addEventListener('palabre:appel-termine', () => {
+    if (ouverte && ouverte.id) actualiserConversation();
+    chargerListe();
+  });
 
   // ---------- « Awa écrit… », « En ligne », « Vu par » ----------
   // Tout arrive par la requête déjà faite toutes les 5 secondes (route « nouveaux ») : aucun appel de plus.
@@ -855,6 +892,8 @@
     ajouterMessages(reponse.messages);
     dessinerVu();
     ouverte.entete = enteteConversation(autre, { menu });
+    // On peut appeler qui on peut écrire : conversation acceptée, pas de blocage.
+    if (conversation.statut === 'acceptee' && conversation.peutEcrire) menu.before(...boutonsAppel({ video: true }));
     ouverte.entete.majPresence(conversation.presence);
     panneau.replaceChildren(...[
       ouverte.entete,
@@ -1030,7 +1069,7 @@
     zone.append(plusAnciens);
     ajouterMessages(reponse.messages);
     panneau.replaceChildren(...[
-      el('header', { classe: 'conversation-entete' }, [retour, ouvrirMembres, menu]),
+      el('header', { classe: 'conversation-entete' }, [retour, ouvrirMembres, ...(groupe.peutEcrire && groupe.membres.length > 1 ? boutonsAppel({ video: false }) : []), menu]),
       groupe.demande
         ? el('a', { classe: 'bandeau-demande', href: `/demande?id=${groupe.demande.id}` }, [icone('demandes'), el('span', {}, ['Équipe éclair pour la demande : ', el('strong', { texte: groupe.demande.titre })])])
         : null,
@@ -1142,6 +1181,7 @@
       (reponse.modifies || []).forEach(redessiner);
       dessinerEcriture(reponse.ecrivent || []);
       if (ouverte.entete) ouverte.entete.majPresence(reponse.presence);
+      if (reponse.appel) window.Palabre.appelEntrant(reponse.appel); // ça sonne : l'écran d'appel s'ouvre
       // La demande que j'avais envoyée vient d'être acceptée (ou l'inverse) : on redessine pour montrer la zone d'écriture.
       if (reponse.statut !== ouverte.donnees.statut) {
         ouvrir(id);

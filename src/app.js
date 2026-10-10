@@ -107,7 +107,8 @@ function creerApp() {
   // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, next) => {
     // Erreurs prévues (ErreurValidation, ErreurHttp) : le message est destiné à la personne.
-    if ([400, 403, 404, 429].includes(err.statut)) {
+    // 409 : l'action entre en conflit avec l'état actuel (déjà en appel) ; 410 : la chose n'existe plus (appel terminé).
+    if ([400, 403, 404, 409, 410, 429].includes(err.statut)) {
       return res.status(err.statut).json({ erreur: err.message, champ: err.champ, suite: err.suite });
     }
     if (err.type === 'entity.parse.failed') {

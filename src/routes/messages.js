@@ -15,6 +15,7 @@ const { exigerConnexion, profilDevIncomplet } = require('../middleware/auth');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
 const { notifier, court } = require('../utils/notifications');
 const groupes = require('./groupes');
+const appels = require('./appels');
 const { lireMessages, lireMessage, messagesModifies, origineValide, lireContenu, enregistrerPiece } = require('../utils/messages');
 const { presenceVue, signalerEcriture, finEcriture, quiEcrit } = require('../utils/presence');
 
@@ -278,8 +279,11 @@ router.get('/conversations', async (req, res) => {
 });
 
 // La pastille de l'en-tête : GET /api/messages/non-lus
+// Elle dit aussi si un appel sonne pour moi : toutes les pages du site l'interrogent, l'écran d'appel peut donc
+// s'ouvrir où que je sois.
 router.get('/non-lus', async (req, res) => {
-  res.json({ nonLus: await compterNonLus(req.utilisateur.id) });
+  await appels.entretenir();
+  res.json({ nonLus: await compterNonLus(req.utilisateur.id), appel: await appels.appelEntrant(req.utilisateur.id) });
 });
 
 // ---------- Écrire à un membre depuis son profil ou depuis une proposition ----------
@@ -372,6 +376,7 @@ router.get('/conversations/:id/nouveaux', async (req, res) => {
   res.json({
     messages: nouveaux.messages, modifies, maintenant, vuJusqua: ligne.vu_jusqua, statut: ligne.statut,
     ecrivent, presence: ouverte ? presenceVue(moi, ligne) : null,
+    appel: await appels.appelEntrant(moi.id),
   });
 });
 
@@ -462,6 +467,9 @@ router.delete('/blocages/:identifiant', async (req, res) => {
   await db.query('DELETE FROM blocages WHERE bloqueur_id = $1 AND bloque_id = $2', [moi.id, autre.id]);
   res.json({ bloque: false });
 });
+
+// Appels audio et vidéo : mêmes règles que pour écrire (droitDEcrire() en privé, membres pour un groupe).
+router.use('/appels', appels({ maConversation, droitDEcrire, monGroupe: groupes.monGroupe }));
 
 // Réagir à un message, le supprimer : les mêmes routes pour les conversations privées et les groupes.
 router.use('/message', require('./messages-actions')({ maConversation, monGroupe: groupes.monGroupe }));

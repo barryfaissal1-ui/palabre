@@ -1102,13 +1102,40 @@
   }
   // Pas de WebSocket : la pastille est redemandée toutes les 60 secondes, seulement quand l'onglet est visible.
   // Onglet caché : plus aucune requête ; de retour au premier plan, on rattrape tout de suite.
+  // ---------- Appels ----------
+  // Le script des appels (liaison WebRTC, écran d'appel) est lourd : il n'est chargé que si un appel commence.
+  let scriptAppels = null;
+  function chargerAppels() {
+    if (window.Palabre.appels) return Promise.resolve(window.Palabre.appels);
+    scriptAppels = scriptAppels || new Promise((pret, echec) => {
+      const script = el('script', { src: '/js/appels.js' });
+      script.addEventListener('load', () => pret(window.Palabre.appels));
+      script.addEventListener('error', () => { scriptAppels = null; echec(new Error('Les appels ne sont pas disponibles pour le moment.')); });
+      document.head.append(script);
+    });
+    return scriptAppels;
+  }
+  // Un appel sonne pour moi (signalé par le serveur) : on montre l'écran « on t'appelle ».
+  function appelEntrant(appel) {
+    chargerAppels().then((appels) => appels.recevoir(appel)).catch(() => {});
+  }
+  // Lancer un appel depuis une conversation : { id, groupe, titre }, 'audio' ou 'video'.
+  function appeler(conversation, type) {
+    chargerAppels().then((appels) => appels.lancer(conversation, type)).catch((erreur) => toast(erreur.message, 'erreur'));
+  }
+
   function surveillerMessages() {
     let minuterie = 0;
-    const demander = () => api('/messages/non-lus').then(({ nonLus }) => majPastilleMessages(nonLus)).catch(() => {});
+    // La même requête dit si un appel sonne pour moi. Elle part toutes les 20 secondes (une sonnerie en dure 30) :
+    // c'est ce qui permet de décrocher depuis n'importe quelle page. Site fermé, c'est le push qui prévient.
+    const demander = () => api('/messages/non-lus').then(({ nonLus, appel }) => {
+      majPastilleMessages(nonLus);
+      if (appel) appelEntrant(appel);
+    }).catch(() => {});
     const regler = () => {
       clearInterval(minuterie);
       if (document.hidden) return;
-      minuterie = setInterval(demander, 60000);
+      minuterie = setInterval(demander, 20000);
     };
     document.addEventListener('visibilitychange', () => {
       regler();
@@ -1184,5 +1211,5 @@
 
   document.addEventListener('DOMContentLoaded', remplirNavigation);
 
-  window.Palabre = { listeChoix, chargementInfini, tempsRestant, etatDefi, api, utilisateurConnecte, el, avatar, nomMembre, badgeFeuille, prenom, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, copierLien, menuOptions, majPastilleMessages, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
+  window.Palabre = { appeler, appelEntrant, listeChoix, chargementInfini, tempsRestant, etatDefi, api, utilisateurConnecte, el, avatar, nomMembre, badgeFeuille, prenom, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, copierLien, menuOptions, majPastilleMessages, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
 })();

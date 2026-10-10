@@ -1,6 +1,6 @@
 // Service worker : met en cache les fichiers de l'interface pour un chargement rapide, même en 3G.
 // Les données (/api) ne sont jamais mises en cache.
-const VERSION = 'palabre-v36';
+const VERSION = 'palabre-v37';
 const FICHIERS = [
   '/',
   '/connexion',
@@ -22,6 +22,8 @@ const FICHIERS = [
   '/bienvenue',
   '/js/publication.js',
   '/js/push.js',
+  '/js/appels.js',
+  '/css/appels.css',
   '/js/page-publication.js',
   '/publication.html',
   '/js/fil.js',
@@ -111,18 +113,28 @@ self.addEventListener('push', (evenement) => {
   evenement.waitUntil(self.registration.showNotification(message.titre || 'Palabre', {
     body: message.texte || 'Tu as une nouvelle notification.',
     icon: '/icons/icon-192.png',
-    badge: '/icons/favicon-32.png',
+    badge: '/icons/badge-96.png', // une feuille blanche : Android n'en garde que la forme, dans la barre d'état
     // Même « tag » : la nouvelle notification remplace la précédente du même sujet au lieu de s'empiler.
     tag: message.tag || 'palabre',
     renotify: true,
-    data: { lien: lienInterne(message.lien) },
+    vibrate: message.appel ? [200, 100, 200, 100, 200] : [120],
+    // Un appel : la notification reste affichée tant qu'on n'y a pas touché, avec deux boutons quand le téléphone le permet.
+    requireInteraction: Boolean(message.appel),
+    actions: message.appel ? [{ action: 'decrocher', title: 'Décrocher' }, { action: 'refuser', title: 'Refuser' }] : [],
+    data: { lien: lienInterne(message.lien), appel: message.appel || null },
   }));
 });
 
 // Toucher la notification : on réutilise un onglet Palabre déjà ouvert (mis au premier plan), sinon on en ouvre un.
 self.addEventListener('notificationclick', (evenement) => {
   evenement.notification.close();
-  const adresse = new URL(lienInterne(evenement.notification.data && evenement.notification.data.lien), self.location.origin).href;
+  const donnees = evenement.notification.data || {};
+  // « Refuser » un appel depuis la notification : on le dit au serveur, sans ouvrir le site.
+  if (evenement.action === 'refuser' && donnees.appel) {
+    evenement.waitUntil(fetch(`/api/messages/appels/${donnees.appel}/refuser`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', credentials: 'same-origin' }).catch(() => {}));
+    return;
+  }
+  const adresse = new URL(lienInterne(donnees.lien), self.location.origin).href;
   evenement.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((onglets) => {
     const ouvert = onglets.find((onglet) => new URL(onglet.url).origin === self.location.origin);
     if (!ouvert) return self.clients.openWindow(adresse);

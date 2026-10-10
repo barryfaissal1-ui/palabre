@@ -2165,6 +2165,18 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
   to { opacity: 1; }
 }
 
+/* ---------- Appels : la ligne laissée dans la conversation ---------- */
+/* (L'écran d'appel lui-même est dans css/appels.css, chargé seulement pendant un appel.) */
+.ligne-appel { align-self: center; display: flex; align-items: center; gap: 10px; max-width: 92%; margin: 6px 0; padding: 8px 14px 8px 10px; border: 1px solid var(--ligne); border-radius: 8px 24px 8px 24px; background: var(--surface); }
+.ligne-appel-texte { display: grid; gap: 1px; font-size: var(--t-15); }
+.ligne-appel-texte .texte-discret { font-size: var(--t-13); }
+.appel-feuille-icone { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 0 60% 0 60%; background: var(--feuille); color: #FFFFFF; }
+.appel-feuille-icone .icone { width: 18px; height: 18px; }
+.appel-feuille-icone.manque { background: var(--accent); }
+.appel-feuille-icone.manque .icone { transform: rotate(135deg); }
+.appel-manque strong { color: var(--accent); }
+.bouton-compact { min-height: 44px; }
+
 /* ---------- Messages vocaux ---------- */
 /* Le lecteur dans la bulle : lecture / pause, barre d'avancement, durée restante, vitesse. */
 .bulle-vocale { min-width: min(240px, 70vw); }

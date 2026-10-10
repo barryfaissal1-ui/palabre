@@ -471,6 +471,43 @@ ALTER TABLE fichiers ADD CONSTRAINT fichiers_type_mime_check
 -- Durée du message vocal, en secondes. Renseignée : le fichier joint est un son, pas une photo.
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS vocal_duree INTEGER CHECK (vocal_duree BETWEEN 1 AND 60);
 
+-- ============ Appels audio et vidéo ============
+-- statut : sonne → en_cours → termine ; ou manque (personne n'a décroché en 30 secondes, refus, appelant parti).
+CREATE TABLE IF NOT EXISTS appels (
+  id              SERIAL PRIMARY KEY,
+  conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  appelant_id     INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  type            TEXT NOT NULL CHECK (type IN ('audio', 'video')),
+  statut          TEXT NOT NULL DEFAULT 'sonne' CHECK (statut IN ('sonne', 'en_cours', 'termine', 'manque')),
+  cree_le         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  debut_le        TIMESTAMPTZ, -- quand quelqu'un a décroché
+  fin_le          TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_appels_actifs ON appels (conversation_id) WHERE statut IN ('sonne', 'en_cours');
+-- etat : invite (ça sonne chez lui), present, refuse, parti. vu_le : son dernier signe de vie pendant l'appel.
+CREATE TABLE IF NOT EXISTS appel_participants (
+  appel_id  INTEGER NOT NULL REFERENCES appels(id) ON DELETE CASCADE,
+  membre_id INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  etat      TEXT NOT NULL DEFAULT 'invite' CHECK (etat IN ('invite', 'present', 'refuse', 'parti')),
+  vu_le     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (appel_id, membre_id)
+);
+CREATE INDEX IF NOT EXISTS idx_appel_participants_membre ON appel_participants (membre_id);
+-- Les messages techniques que les navigateurs s'échangent pour se relier (offre, réponse, candidats ICE).
+-- Ils ne servent que quelques secondes et sont effacés à la fin de l'appel : table UNLOGGED.
+CREATE UNLOGGED TABLE IF NOT EXISTS appel_signaux (
+  id       BIGSERIAL PRIMARY KEY,
+  appel_id INTEGER NOT NULL REFERENCES appels(id) ON DELETE CASCADE,
+  de_id    INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  pour_id  INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  type     TEXT NOT NULL,
+  contenu  JSONB,
+  cree_le  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_appel_signaux_pour ON appel_signaux (appel_id, pour_id, id);
+-- La ligne que l'appel laisse dans la conversation (« Appel audio, 4 min », « Appel manqué »).
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS appel_id INTEGER REFERENCES appels(id) ON DELETE SET NULL;
+
 -- Reprise de l'existant, rejouable sans rien doubler (ON CONFLICT DO NOTHING, NOT EXISTS) :
 -- 1) les deux membres de chaque conversation privée ;
 INSERT INTO conversation_membres (conversation_id, membre_id, rejoint_le)

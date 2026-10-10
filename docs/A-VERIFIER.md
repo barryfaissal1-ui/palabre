@@ -1,3 +1,55 @@
+# À vérifier : messagerie et appels (travail en 7 parties du 10 octobre 2026)
+
+## Où en est chaque partie
+
+| Partie | État | Commit |
+| --- | --- | --- |
+| 0. Avatars dans toutes les notifications, exemples officiels des normes du push | Faite | `a9b067d` |
+| 1. Conversations de groupe des équipes éclair | Faite | `e20f8d8` |
+| 2. Réactions, réponses, suppression | Faite | `baf1dbc` |
+| 3. « Écrit… », « Vu par », « En ligne » | Faite | `aa23f91` |
+| 4. Messages vocaux | Faite | `31057be` |
+| 5. Appels audio et vidéo | Faite pour l'essentiel, voir « Pas fait » | commit « Appels audio et vidéo » |
+| 6. Style « arbre à palabres » des appels et des notifications | **Partielle**, voir « Pas fait » | dans le même commit que la partie 5 |
+
+Les parties 5 et 6 sont dans un seul commit : l'écran d'appel a été écrit directement dans le style demandé.
+
+## Pas fait, ou fait autrement
+
+**Partie 5**
+- **Pas de WebSocket** (bibliothèque `ws`). On ne sait pas si Systalink les accepte : j'ai écrit seulement la version « de secours » demandée, une requête par seconde pendant un appel. Elle marche partout. À décider après le premier essai en ligne.
+- **Le bouton haut-parleur n'existe pas.** Un site web ne peut pas basculer entre l'écouteur et le haut-parleur d'un téléphone ; le navigateur choisit seul.
+- **L'appel entrant met jusqu'à 20 secondes à s'afficher** sur une page autre que la messagerie (5 secondes dans une conversation ouverte). Pour cela, la requête de la pastille des messages est passée de 60 à 20 secondes sur tout le site. La sonnerie dure 30 secondes.
+- **Appel de groupe à trois ou quatre : non vérifié dans le navigateur.** Le serveur est testé (quatre présents au plus, chacun parle à chacun), le code du navigateur est le même que pour deux, mais je n'ai essayé qu'à deux.
+- **Reconnexion après un changement de réseau : non vérifiée.** Le code est là (« Reconnexion… », 15 secondes) ; je n'ai pas pu couper le réseau au milieu d'un appel dans mon navigateur de test.
+
+**Partie 6**
+- **Pas de carte « toast » en verre** quand un message arrive sur une autre page.
+- **Pas de son à l'arrivée d'un message**, ni de réglage « son des messages » dans le profil. Seule la sonnerie des appels existe.
+- **Les titres des push ne sont pas tous refaits** : « Awa t'appelle » et le nom de la personne pour un message, oui ; les autres gardent « Palabre » en titre et la phrase en dessous.
+- **Captures** : elles sont dans `docs/captures/`, pour le téléphone 390 px et l'ordinateur, en clair et en sombre (appel entrant, sortant, audio en cours, vidéo en cours, terminé, manqué). **Pas de capture en 360 px, pas de capture du toast** (il n'existe pas).
+- Les boutons « Décrocher » et « Refuser » dans la notification du téléphone sont écrits, mais **aucun vrai push n'a pu être envoyé** depuis mon navigateur de test (voir plus bas).
+
+## Ce que tu dois essayer toi-même
+
+- [ ] **Un vrai appel entre deux téléphones**, en données mobiles (Orange, Moov, Telecel), puis l'un en Wi-Fi. C'est le point le plus important : je n'ai vérifié qu'entre deux navigateurs du même ordinateur, là où la liaison directe marche toujours. Si l'appel sonne mais qu'on ne s'entend pas, il faut le relais TURN : `docs/APPELS-TURN.md`.
+- [ ] **Le guide TURN** : je n'ai pas eu de serveur pour le jouer. Il suit la documentation de coturn, mais aucune commande n'a été exécutée.
+- [ ] **Passer du Wi-Fi à la 4G pendant un appel** : « Reconnexion… » doit s'afficher, puis l'appel reprendre.
+- [ ] **Un appel à trois ou quatre** dans le groupe de l'équipe de Fatoumata.
+- [ ] **Les messages vocaux sur un iPhone** (format MP4) et sur un vrai Android : enregistrer, envoyer, écouter. J'ai utilisé le micro factice de Chrome.
+- [ ] **L'appui long et le glissement** sur une bulle, avec un vrai doigt (menu, répondre).
+- [ ] **Le push**, toujours pas vérifié de bout en bout (voir la section du push plus bas).
+- [ ] **Les tracés d'icônes** ajoutés de mémoire : téléphone, micro, pause, répondre, sourire, copier.
+
+## Ce qui a surpris
+
+- **Un test échouait parfois au premier lancement** (« le fil est chargé par 10 ») : il lisait le fil général pendant que d'autres tests publiaient. Corrigé (`76846c7`). Une fois, il a échoué pendant que je commitais la partie 1 : ce commit est parti avec un test instable, corrigé dans le commit suivant. Depuis, je ne commite que si la suite passe deux fois de suite.
+- **Un test du défi a échoué une fois**, juste après un changement de schéma, puis plus jamais sur huit lancements. Je n'ai pas trouvé la cause. Si tu le revois, garde le message d'erreur.
+- **Trois défauts trouvés dans le navigateur, pas par les tests** : le menu d'une bulle se refermait tout seul toutes les 5 secondes ; « glisser pour annuler » envoyait quand même le message vocal ; les réponses « occupé » et « appel terminé » sortaient en erreur 500. Tous corrigés.
+- **Les comptes de démonstration ont été recréés deux fois** pendant ce travail (notifications, puis discussion de groupe).
+
+---
+
 # À vérifier après le travail de nuit du 10 octobre 2026
 
 Les 4 parties sont faites, testées et poussées. **137 tests automatiques passent.** Chaque partie a été vérifiée dans Chrome en téléphone 390 px et ordinateur 1280 px, en clair et en sombre.

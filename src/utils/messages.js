@@ -26,6 +26,9 @@ const SELECTION = `
                    WHERE mr.message_id = m.id
                    GROUP BY mr.emoji
                    ORDER BY min(mr.cree_le)) r) AS reactions,
+         (SELECT json_build_object('id', a.id, 'type', a.type, 'statut', a.statut, 'appelant', a.appelant_id,
+                                   'duree', GREATEST(0, round(extract(epoch FROM (a.fin_le - a.debut_le))))::int)
+            FROM appels a WHERE a.id = m.appel_id) AS appel,
          (SELECT json_build_object(
                    'id', o.id,
                    'texte', CASE WHEN o.supprime_le IS NOT NULL OR o.masque THEN NULL ELSE left(o.texte, 90) END,
@@ -54,6 +57,8 @@ function versMessage(ligne, moi) {
     auteur: apercuMembre(ligne),
     reactions: supprime ? [] : (ligne.reactions || []),
     reponse: ligne.origine || null,
+    // La ligne laissée par un appel : son type, s'il a abouti, sa durée, et si c'est moi qui appelais.
+    appel: ligne.appel ? { type: ligne.appel.type, statut: ligne.appel.statut, duree: ligne.appel.duree, parMoi: ligne.appel.appelant === moi.id } : null,
     // Le bouton « Supprimer pour tout le monde » : l'auteur seulement, pendant 15 minutes (le serveur revérifie).
     supprimable: estMoi && !supprime && Date.now() - new Date(ligne.cree_le).getTime() < DELAI_SUPPRESSION_MIN * 60000,
   };
