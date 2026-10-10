@@ -3,6 +3,7 @@ const crypto = require('node:crypto');
 const config = require('../config');
 const db = require('../db/pool');
 const { ErreurValidation, ErreurHttp } = require('./validation');
+const { emailCode } = require('./gabarit-email');
 const mailer = require('./mailer'); // appelé par « mailer.envoyerEmail » : la démonstration et les tests peuvent le remplacer
 
 const DELAI_MIN_MS = 3000; // un humain ne remplit pas le formulaire en moins de 3 secondes
@@ -63,11 +64,8 @@ async function envoyerCode(utilisateur, { renvoi = false } = {}) {
      VALUES ($1, $2, now() + make_interval(mins => $3))`,
     [utilisateur.id, empreinteCode(utilisateur.id, code), DUREE_CODE_MIN],
   );
-  await mailer.envoyerEmail({
-    a: utilisateur.email,
-    sujet: `Palabre – Ton code de confirmation : ${code}`,
-    texte: `Bonjour ${utilisateur.prenom || utilisateur.nom},\n\nTon code de confirmation Palabre : ${code}\n\nIl est valable ${DUREE_CODE_MIN} minutes. Si tu n'as pas créé de compte, ignore simplement cet email.\n\nL'équipe Palabre`,
-  });
+  // L'email part en deux versions : texte, et HTML aux couleurs de Palabre (src/utils/gabarit-email.js).
+  await mailer.envoyerEmail({ a: utilisateur.email, ...emailCode({ prenom: utilisateur.prenom || utilisateur.nom, code, dureeMin: DUREE_CODE_MIN }) });
 }
 
 // Vérifie le code saisi. Seul le dernier code envoyé compte ; chaque erreur consomme un des 5 essais.

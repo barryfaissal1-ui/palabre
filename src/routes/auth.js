@@ -6,7 +6,8 @@ const rateLimit = require('express-rate-limit');
 const db = require('../db/pool');
 const config = require('../config');
 const v = require('../utils/validation');
-const { envoyerEmail } = require('../utils/mailer');
+const mailer = require('../utils/mailer'); // appelé par « mailer.envoyerEmail » : les tests peuvent le remplacer
+const { emailMotDePasse } = require('../utils/gabarit-email');
 const { ouvrirSession, fermerSession, exigerConnexion, profilDevIncomplet } = require('../middleware/auth');
 const { jetonOuverture, verifierOuverture, envoyerCode, confirmerCode } = require('../utils/inscription');
 const { liensPublics } = require('../utils/profil-dev');
@@ -190,7 +191,7 @@ router.get('/moi', async (req, res) => {
 // Toujours la même réponse, que l'email existe ou non (on ne révèle pas qui est inscrit).
 router.post('/mot-de-passe-oublie', limiteSensible, async (req, res) => {
   const email = v.email(req.body?.email);
-  const { rows } = await db.query('SELECT id, nom FROM utilisateurs WHERE email = $1 AND bloque = FALSE', [email]);
+  const { rows } = await db.query('SELECT id, nom, prenom FROM utilisateurs WHERE email = $1 AND bloque = FALSE', [email]);
 
   if (rows[0]) {
     const jeton = crypto.randomBytes(32).toString('hex');
@@ -201,11 +202,7 @@ router.post('/mot-de-passe-oublie', limiteSensible, async (req, res) => {
       [rows[0].id, jetonHash, DUREE_JETON_MIN],
     );
     const lien = `${config.urlPublique}/reinitialiser?jeton=${jeton}`;
-    await envoyerEmail({
-      a: email,
-      sujet: 'Palabre – Réinitialise ton mot de passe',
-      texte: `Bonjour ${rows[0].nom},\n\nPour choisir un nouveau mot de passe, ouvre ce lien (valable ${DUREE_JETON_MIN} minutes) :\n${lien}\n\nSi tu n'as rien demandé, ignore simplement cet email.\n\nL'équipe Palabre`,
-    });
+    await mailer.envoyerEmail({ a: email, ...emailMotDePasse({ prenom: rows[0].prenom || rows[0].nom, lien, dureeMin: DUREE_JETON_MIN }) });
   }
 
   res.json({ message: 'Si un compte existe avec cet email, un lien de réinitialisation vient d\'être envoyé.' });
