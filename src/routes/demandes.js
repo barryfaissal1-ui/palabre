@@ -65,7 +65,7 @@ async function lirePropositions(condition, valeurs, moi, pourClient) {
        FROM propositions p
        LEFT JOIN equipes e ON e.id = p.equipe_id
        JOIN utilisateurs u ON u.id = COALESCE(p.dev_id, e.chef_id)
-      WHERE ${condition}
+      WHERE u.bloque = FALSE AND ${condition}
       ORDER BY p.id`,
     valeurs,
   );
@@ -358,6 +358,9 @@ router.post('/:id/choisir', exigerClient, async (req, res) => {
     const { rows: [choisie] } = await client.query(
       `UPDATE propositions SET statut = 'acceptee'
         WHERE id = $1 AND demande_id = $2 AND statut = 'envoyee'
+          -- pas la proposition d'un compte bloqué entre-temps (le dev seul, ou le chef de l'équipe)
+          AND NOT EXISTS (SELECT 1 FROM utilisateurs b
+                           WHERE b.bloque AND b.id = COALESCE(propositions.dev_id, (SELECT e.chef_id FROM equipes e WHERE e.id = propositions.equipe_id)))
         RETURNING dev_id, equipe_id`,
       [propositionId, demande.id],
     );

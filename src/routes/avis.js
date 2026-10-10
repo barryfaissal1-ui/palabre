@@ -12,7 +12,9 @@ const limiteAvis = limiteParMembre(20, 60, 'Trop d\'avis envoyés. Réessaie plu
 // Avis reçus par un dev, avec leur moyenne (utilisé par routes/profils.js).
 async function avisDe(devId) {
   const { rows } = await db.query(
-    `SELECT a.note, a.commentaire, a.cree_le, d.titre AS titre_demande, ${COLONNES_MEMBRE}
+    `SELECT a.note, a.commentaire, a.cree_le,
+            CASE WHEN d.masque THEN NULL ELSE d.titre END AS titre_demande, -- demande masquée par un administrateur : son titre ne ressort pas ici
+            ${COLONNES_MEMBRE}
        FROM avis a
        JOIN utilisateurs u ON u.id = a.client_id
        JOIN demandes d ON d.id = a.demande_id

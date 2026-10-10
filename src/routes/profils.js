@@ -13,6 +13,17 @@ const profilDev = require('../utils/profil-dev');
 const router = express.Router();
 const MAX_COMPETENCES = 15;
 
+// Lecture des profils : 150 par 10 minutes, par membre (ou par adresse IP pour un visiteur). Un membre connecté voit
+// les numéros WhatsApp : sans limite, un seul compte pourrait recopier ceux de tout le monde.
+const limiteLectureProfils = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 150,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => (req.utilisateur ? `membre-${req.utilisateur.id}` : rateLimit.ipKeyGenerator(req.ip)),
+  message: { erreur: 'Tu consultes beaucoup de profils. Réessaie dans quelques minutes.' },
+});
+
 const limiteEnvoiImages = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 20,
@@ -102,7 +113,7 @@ router.get('/:identifiant/amis', exigerConnexion, async (req, res) => {
 });
 
 // Profil public : GET /api/profils/:identifiant
-router.get('/:identifiant', async (req, res) => {
+router.get('/:identifiant', limiteLectureProfils, async (req, res) => {
   const identifiant = String(req.params.identifiant || '').toLowerCase();
   const { rows } = await db.query(
     `SELECT u.*, ${NB_PROJETS_VERIFIES} AS nb_projets_verifies FROM utilisateurs u WHERE u.identifiant = $1 AND u.bloque = FALSE`,

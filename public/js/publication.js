@@ -176,7 +176,8 @@
     }
     if (video.plateforme === 'youtube') {
       const vignette = el('button', { classe: 'video-vignette', type: 'button', 'aria-label': 'Lire la vidéo YouTube' }, [
-        el('img', { src: `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`, alt: '', width: 480, height: 360, loading: 'lazy', decoding: 'async', referrerpolicy: 'no-referrer' }),
+        // Sur téléphone, la petite miniature (320 px, environ 10 Ko) suffit ; la grande (480 px) pèse trois fois plus.
+        el('img', { src: `https://i.ytimg.com/vi/${video.id}/${window.matchMedia('(max-width: 767px)').matches ? 'mqdefault' : 'hqdefault'}.jpg`, alt: '', width: 480, height: 360, loading: 'lazy', decoding: 'async', referrerpolicy: 'no-referrer' }),
         el('span', { classe: 'video-bouton-lecture' }, [icone('lecture')]),
       ]);
       vignette.addEventListener('click', lire);

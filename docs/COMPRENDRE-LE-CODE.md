@@ -23,6 +23,8 @@ Le navigateur ne parle jamais directement à la base : tout passe par le serveur
 2. `creerApp()` (dans `src/app.js`) construit l'application avec ses protections et ses routes.
 3. Le serveur écoute sur le port indiqué par `PORT`.
 
+Avant tout cela, `src/config.js` lit les réglages. **En production, le serveur refuse de démarrer** si la clé secrète des sessions (`JWT_SECRET`) est absente, fait moins de 32 caractères ou vaut encore la valeur d'exemple, ou si `URL_PUBLIQUE` n'est pas l'adresse du site en https. Mieux vaut un arrêt avec un message clair (« Configuration invalide : … ») qu'un site en ligne dont n'importe qui pourrait fabriquer les sessions. Le guide de mise en ligne est dans `docs/DEPLOIEMENT-SYSTALINK.md`.
+
 ## 3. La sécurité, en résumé
 
 | Menace | Protection dans Palabre | Où |
@@ -37,7 +39,13 @@ Le navigateur ne parle jamais directement à la base : tout passe par le serveur
 | Faire visiter une adresse interne par le serveur (SSRF) | Liens des projets contrôlés à la saisie, après le DNS et à chaque redirection | `src/utils/liens.js` |
 | Faux avis | Avis réservé au client d'une demande terminée, pour le dev retenu, une seule fois | `src/routes/avis.js` |
 | Faux fichiers images | Vérification du vrai format par les premiers octets du fichier, taille limitée à 500 Ko | `src/utils/images.js` |
-| Collecte de numéros de téléphone | Le numéro WhatsApp n'est montré qu'aux membres connectés ; l'email n'est jamais public | `src/routes/profils.js` |
+| Collecte de numéros de téléphone | Le numéro WhatsApp n'est montré qu'aux membres connectés ; l'email n'est jamais public ; lecture des profils limitée à 150 par 10 minutes | `src/routes/profils.js` |
+| Photo d'un message privé vue par un tiers | `/fichiers/:id` ne sert la photo d'un message qu'aux deux membres de la conversation | `src/routes/fichiers.js` |
+| Session restée ouverte après un changement de mot de passe | Une réinitialisation ferme toutes les sessions ouvertes avant (`sessions_depuis`) | `src/middleware/auth.js` |
+| Robot qui aspire l'API ouverte | 300 appels par minute et par adresse IP pour les visiteurs | `src/app.js` |
+| Site mal réglé en ligne | Refus de démarrer sans clé secrète solide ni adresse https | `src/config.js` |
+
+La relecture complète des routes, avec ce qui a été corrigé et les risques acceptés, est dans `docs/AUDIT-SECURITE.md`.
 
 ## 4. Inscription, connexion, mot de passe oublié
 
@@ -592,6 +600,16 @@ Le haut de l'accueil et le panneau vert de la connexion affichent des photos (`p
 - `public/manifest.json` : nom, couleurs et icônes de l'appli quand on l'ajoute à l'écran d'accueil.
 - `public/sw.js` : le « service worker » garde une copie des fichiers de l'interface. Les pages s'ouvrent vite, même avec une connexion faible. Les données (`/api`) ne sont jamais mises en cache, pour toujours être à jour. À chaque modification de l'interface, on augmente `VERSION` pour forcer la mise à jour chez tout le monde.
 
+## 13 bis. Rapide en 3G : compression, cache et pages d'erreur
+
+Les chiffres avant / après sont dans `docs/PERFORMANCE.md` : les pages pèsent deux fois moins et s'affichent en 3 secondes au lieu de 6 à 10, en 3G simulée.
+
+- **Compression** (`compression`, licence MIT, une ligne dans `src/app.js`) : le serveur compresse tout ce qui est du texte avant de l'envoyer. La feuille de style passe de 101 à 26 Ko. Les images, déjà compressées, ne sont pas retouchées.
+- **Cache long, sans risque de vieille version** (`src/utils/statique.js`). Le souci : si on dit au navigateur « garde `style.css` un an », il ne verra jamais la nouvelle version. La solution : le serveur ajoute dans chaque page une **empreinte** du fichier, `/css/style.css?v=3f2a91c0b4` (les 10 premiers caractères du SHA-1 de son contenu). Tant que le fichier ne change pas, l'adresse ne change pas et le navigateur ne redemande rien. Dès qu'il change, l'empreinte change, donc l'adresse aussi : la nouvelle version est prise aussitôt. Les pages HTML, elles, sont toujours revérifiées : elles sont petites, et ce sont elles qui portent ces adresses.
+- **Images** : logo de l'en-tête en WebP de 3 Ko au lieu d'un PNG de 50 Ko, `loading="lazy"` sur les images qui ne sont pas visibles à l'ouverture (une image cachée ou hors de l'écran n'est pas téléchargée).
+- **Pages d'erreur** (`src/vues/404.html` et `500.html`) : dans le style du site. La page 500 ne contient aucun détail technique (il reste dans le journal du serveur) et presque aucun script : elle doit s'afficher même quand quelque chose ne va pas. L'API, elle, répond toujours en JSON.
+- **`robots.txt`** : dit aux moteurs de recherche de visiter l'accueil, les profils et les projets, et de laisser l'API, l'administration et les pages réservées aux membres.
+
 ## 14. Les tests automatiques
 
 `npm test` lance des tests qui démarrent un vrai serveur et vérifient, entre autres : inscription, refus d'un mauvais mot de passe, protection CSRF, modification de profil, identifiants réservés, confidentialité du numéro WhatsApp, envoi et remplacement de photo, refus d'un faux fichier image.
@@ -614,11 +632,17 @@ Pour la messagerie (`tests/messages.test.js`) : amis qui s'écrivent (avec photo
 
 Pour l'inscription en deux étapes (`tests/inscription.test.js`) : champ piège, envoi trop rapide, heure d'ouverture absente, falsifiée ou trop ancienne ; code juste, faux, mal écrit, expiré, cinq essais ratés, renvoi limité à un par minute et cinq par heure, code jamais en clair dans la base ; membre non confirmé refusé partout sauf sur `/api/auth` ; dev de moins de 18 ans refusé, 18 ans le jour même accepté ; liens piégés ou sur le mauvais site refusés ; dev au profil incomplet bloqué (403) pour proposer, former ou rejoindre une équipe et écrire à un client, mais libre de regarder et d'écrire à un dev ; dev complet qui passe ; client sans page 2 ; « Profil à confirmer » ; date de naissance absente de neuf réponses différentes, âge visible du seul administrateur. Ces tests remplacent l'envoi d'emails et la visite des liens par de fausses fonctions : ils ne dépendent ni d'une boîte email ni d'internet.
 
+Pour la mise en ligne (`tests/production.test.js`) : le serveur lancé comme chez l'hébergeur refuse de démarrer avec une clé secrète absente, courte ou d'exemple, ou sans adresse https ; réponses compressées ; adresses versionnées dans toutes les pages et cache d'un an ; page 404, page 500 sans détail technique, fichiers du projet jamais servis ; `robots.txt` ; cookie sécurisé. Pour la relecture de sécurité (`tests/securite.test.js`) : un test par correction de `docs/AUDIT-SECURITE.md`.
+
 Les autres fichiers de tests ont besoin de comptes prêts à servir : `tests/aide.js` enveloppe leur fonction d'appel pour que chaque compte créé soit aussitôt confirmé et complet.
 
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
 
 ## 15. Questions probables du jury
+
+- **Comment avez-vous pensé à la 3G ?** Compression, cache d'un an grâce à une empreinte dans l'adresse des fichiers, images légères et chargées seulement quand elles sont visibles, vidéos chargées au toucher, pas de framework. Mesuré en 3G simulée : environ 3 secondes et 200 à 260 Ko à la première visite (`docs/PERFORMANCE.md`).
+- **Avez-vous relu la sécurité de votre code ?** Oui, route par route, avec cinq questions (accès, SQL, validation, limites, données privées). Huit corrections, chacune avec son test, et la liste des risques acceptés : `docs/AUDIT-SECURITE.md`.
+- **Quelqu'un qui a l'adresse d'une photo envoyée en message privé peut-il la voir ?** Non : le serveur ne la sert qu'aux deux membres de la conversation.
 
 - **Pourquoi la publication sur Facebook n'est-elle pas automatique ?** L'API de Meta exige une application validée et un jeton secret. Le site prépare donc le texte et ouvre la fenêtre de partage ; un administrateur publie en deux clics. Aucun secret Facebook n'est stocké.
 

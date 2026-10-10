@@ -1,0 +1,16 @@
+# Palabre : ce que les moteurs de recherche peuvent visiter.
+# Ouverts : l'accueil, les profils publics (/barry-faissal), les projets (/projets/12), le calculateur.
+# Fermés : l'API, l'administration et les pages réservées aux membres connectés (elles n'ont rien à montrer à un robot).
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin
+Disallow: /messages
+Disallow: /bienvenue
+Disallow: /confirmer-email
+Disallow: /fil
+Disallow: /amis
+Disallow: /notifications
+Disallow: /modifier-profil
+Disallow: /reinitialiser
+Disallow: /mot-de-passe-oublie

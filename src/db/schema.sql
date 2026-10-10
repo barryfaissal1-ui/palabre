@@ -116,6 +116,8 @@ ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS lien_linkedin TEXT;
 ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS lien_linkedin_verifie_le TIMESTAMPTZ;
 -- Vide tant que le dev n'a pas rempli la page 2 : il peut regarder le site, mais pas répondre aux demandes.
 ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS profil_complete_le TIMESTAMPTZ;
+-- Les sessions ouvertes avant cette date ne valent plus rien (remplie quand le mot de passe est réinitialisé).
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS sessions_depuis TIMESTAMPTZ;
 
 -- ============ Réseau social ============
 CREATE TABLE IF NOT EXISTS publications (

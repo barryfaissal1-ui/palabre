@@ -242,7 +242,7 @@
       el('ul', { classe: 'liste-avis' }, profil.avis.map((a) => el('li', { classe: 'avis' }, [
         el('p', { classe: 'avis-entete' }, [etoiles(a.note), ' ', el('a', { href: `/${a.client.identifiant}`, texte: a.client.nom }), el('span', { classe: 'texte-discret', texte: `, ${dateRelative(a.creeLe)}` })]),
         a.commentaire ? el('p', { classe: 'avis-texte', texte: a.commentaire }) : null,
-        el('p', { classe: 'texte-discret avis-demande', texte: `Demande : ${a.titreDemande}` }),
+        a.titreDemande ? el('p', { classe: 'texte-discret avis-demande', texte: `Demande : ${a.titreDemande}` }) : null,
       ]))),
     ]);
   }

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0F3D22">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+  <script src="/js/theme.js"></script>
+  <link rel="stylesheet" href="/css/style.css">
+  <title>Erreur – Palabre</title>
+</head>
+<!-- Page 500 : envoyée quand le serveur rencontre une erreur imprévue. Volontairement sans script (sauf le thème) :
+     elle doit s'afficher même si quelque chose ne va pas. Aucun détail technique n'y figure. -->
+<body>
+  <div class="bande"></div>
+  <header class="entete"><div class="conteneur entete-interieur">
+    <a class="marque" href="/"><img src="/icons/logo-96.webp" alt="" width="32" height="32">Palabre</a>
+  </div></header>
+  <main class="conteneur page-fil">
+    <div class="vide page-erreur">
+      <svg class="illustration" aria-hidden="true"><use href="/icons/illustrations.svg#calme"></use></svg>
+      <h1 class="vide-titre">Un problème est survenu</h1>
+      <p>Ce n'est pas de ta faute. Réessaie dans un instant : l'équipe est prévenue par le journal du serveur.</p>
+      <div class="erreur-actions">
+        <a class="bouton bouton-principal" href="/">Retour à l'accueil</a>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

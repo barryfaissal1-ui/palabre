@@ -1734,7 +1734,12 @@ body.conversation-ouverte .messages-conversation {
   body.avec-barre .entete-interieur { max-width: none; }
   body.avec-barre > main { grid-column: 1; grid-row: 3; width: 100%; max-width: none; min-width: 0; margin: 0; padding: 16px 0 48px; }
   body.avec-barre > main.page-large { grid-column: 1 / -1; }
-  /* Administration : texte prêt pour Facebook et compteur du jour */
+  /* Pages d'erreur 404 et 500 (src/vues/) */
+.page-erreur { margin-top: 32px; }
+.page-erreur h1 { margin: 0; font-size: var(--t-24); }
+.erreur-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+
+/* Administration : texte prêt pour Facebook et compteur du jour */
 .texte-facebook { min-height: 190px; resize: vertical; }
 .compteur-facebook { margin: 0; }
 .compteur-facebook.complet { color: var(--terre); }

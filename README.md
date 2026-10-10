@@ -94,6 +94,7 @@ tests/                 tests automatiques
 - [x] Pages Connexion et Inscription réunies en une seule, avec l'animation de la « lame »
 - [x] Refonte du design, étape C : qualité « réseau social » (anneau de preuve et badge feuille, en-tête compacte avec recherche de membres, « Disponibles maintenant », fil bord à bord avec preuve sociale et aperçu des commentaires, profil avec couverture et onglets)
 - [x] Publication Facebook depuis `/admin` : texte prêt, bouton de partage, « Marquer comme publié », 5 par jour au plus
+- [x] Prêt pour la mise en ligne : contrôles au démarrage en production, compression et cache long (`docs/PERFORMANCE.md`), pages 404 et 500, `robots.txt`, relecture de sécurité (`docs/AUDIT-SECURITE.md`), guide `docs/DEPLOIEMENT-SYSTALINK.md`
 - [ ] Défi de la semaine
 
 ## Comprendre le code

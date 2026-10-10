@@ -3,10 +3,12 @@ const path = require('node:path');
 const express = require('express');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
 const config = require('./config');
 const { chargerUtilisateur, exigerEmailConfirme } = require('./middleware/auth');
 
-const DOSSIER_PUBLIC = path.join(__dirname, '..', 'public');
+const { DOSSIER_PUBLIC, pagesHtml, entetesDeCache, pageErreur } = require('./utils/statique');
 
 function creerApp() {
   const app = express();
@@ -32,6 +34,10 @@ function creerApp() {
     },
   }));
 
+  // Compression gzip des réponses en texte (pages, style, scripts, icônes SVG, réponses de l'API) : en 3G,
+  // la feuille de style passe d'environ 100 Ko à moins de 20. Les images, déjà compressées, ne sont pas retouchées.
+  app.use(compression());
+
   // Les envois d'images ont droit à un corps plus gros (image compressée en base64) ;
   // toutes les autres requêtes restent limitées à 200 Ko.
   app.use('/api/profils/moi/avatar', express.json({ limit: '750kb' }));
@@ -51,6 +57,17 @@ function creerApp() {
   });
 
   app.use('/api', chargerUtilisateur);
+  // Les routes ouvertes sans compte (recherche de devs, vitrine, profils) pourraient être aspirées par un robot.
+  // Un visiteur a droit à 300 appels par minute et par adresse IP : bien plus qu'une personne, bien moins qu'un robot.
+  // Les membres connectés ne sont pas concernés (ils ont leurs propres limites, par membre et par action).
+  app.use('/api', rateLimit({
+    windowMs: 60 * 1000,
+    limit: 300,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    skip: (req) => Boolean(req.utilisateur),
+    message: { erreur: 'Trop de requêtes. Réessaie dans une minute.' },
+  }));
   // Tant que l'email n'est pas confirmé, seul /api/auth répond (le code, le renvoi, la déconnexion).
   app.use('/api', exigerEmailConfirme);
   app.use('/api/auth', require('./routes/auth'));
@@ -78,12 +95,12 @@ function creerApp() {
   // Placé avant les fichiers statiques, sinon l'accueil serait servi sans passer par là.
   app.use(require('./routes/pages'));
 
-  app.use(express.static(DOSSIER_PUBLIC, {
-    extensions: ['html'],
-    setHeaders(res, fichier) {
-      if (fichier.endsWith('sw.js')) res.setHeader('Cache-Control', 'no-cache');
-    },
-  }));
+  // Les pages simples (/fil, /amis…), puis les autres fichiers avec leur durée de cache (voir utils/statique.js).
+  app.use(pagesHtml);
+  app.use(express.static(DOSSIER_PUBLIC, { index: false, setHeaders: entetesDeCache }));
+
+  // Rien n'a répondu : page 404 dans le style du site.
+  app.use((req, res) => pageErreur(res, 404));
 
   // Gestion centralisée des erreurs.
   // eslint-disable-next-line no-unused-vars
@@ -98,7 +115,14 @@ function creerApp() {
     if (err.type === 'entity.too.large') {
       return res.status(413).json({ erreur: 'Envoi trop volumineux.' });
     }
+    // Adresse mal écrite (« %E0 » tout seul…) : c'est une erreur de la demande, pas du serveur.
+    if (err.status === 400 || err instanceof URIError) {
+      return req.path.startsWith('/api/') ? res.status(400).json({ erreur: 'Adresse illisible.' }) : pageErreur(res, 404);
+    }
     console.error(err);
+    // L'API répond en JSON ; une page demandée par le navigateur reçoit la page d'erreur du site.
+    // Dans les deux cas, aucun détail technique ne sort : il reste dans le journal du serveur.
+    if (!req.path.startsWith('/api/') && !req.path.startsWith('/fichiers/')) return pageErreur(res, 500);
     res.status(500).json({ erreur: 'Une erreur est survenue. Réessaie.' });
   });
 

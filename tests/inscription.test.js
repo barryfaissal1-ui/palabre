@@ -382,7 +382,7 @@ test('pages et adresses réservées', async () => {
     const page = await fetch(`${base}/${mot}`);
     assert.equal(page.status, 200);
     const html = await page.text();
-    assert.match(html, /<script src="\/js\/theme\.js"><\/script>\s*<link rel="stylesheet"/, 'theme.js avant la feuille de style');
+    assert.match(html, /<script src="\/js\/theme\.js\?v=[0-9a-f]+"><\/script>\s*<link rel="stylesheet"/, 'theme.js avant la feuille de style');
     assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)|\sstyle="/, 'ni script ni style en ligne');
   }
   assert.match(await (await fetch(`${base}/bienvenue`)).text(), /Étape 2 sur 2/);
@@ -396,7 +396,10 @@ test('mot de passe réinitialisé par le lien reçu : l\'email est confirmé du 
   assert.equal((await appel('/api/auth/mot-de-passe-oublie', { methode: 'POST', donnees: { email: adresse('cheick') } })).statut, 200);
   const jeton = /jeton=([0-9a-f]+)/.exec(emailsEnvoyes.filter((m) => m.a === adresse('cheick')).pop().texte)[1];
   assert.equal((await appel('/api/auth/reinitialiser', { methode: 'POST', donnees: { jeton, motDePasse: 'nouveau-mot-de-passe' } })).statut, 200);
-  assert.equal((await appel('/api/auth/moi', { qui: 'cheick' })).corps.utilisateur.emailConfirme, true);
+  // (La réinitialisation ferme les anciennes sessions : on se reconnecte avec le nouveau mot de passe.)
+  const connexion = await appel('/api/auth/connexion', { methode: 'POST', donnees: { email: adresse('cheick'), motDePasse: 'nouveau-mot-de-passe' } });
+  assert.equal(connexion.statut, 200);
+  assert.equal(connexion.corps.utilisateur.emailConfirme, true);
 });
 
 test('comptes créés avant cette étape : email confirmé, profil de dev à compléter', async () => {

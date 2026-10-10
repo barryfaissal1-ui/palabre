@@ -12,14 +12,36 @@ function obligatoire(nom, valeurDev) {
   return valeurDev;
 }
 
+// Clé secrète des sessions. En production, le serveur refuse de démarrer avec une clé absente, trop courte ou
+// restée à la valeur d'exemple : avec une clé devinable, n'importe qui pourrait fabriquer une session
+// (y compris celle d'un administrateur).
+function cleSecrete() {
+  const cle = obligatoire('JWT_SECRET', 'secret-de-developpement-a-changer');
+  if (production && (cle.length < 32 || /a-remplacer|secret-de-developpement/i.test(cle))) {
+    throw new Error('JWT_SECRET est trop court ou encore à sa valeur d\'exemple. Il faut au moins 32 caractères au hasard.\n'
+      + 'Pour en générer un : node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))"');
+  }
+  return cle;
+}
+
+// Adresse publique du site (liens des emails, cartes de partage Facebook / WhatsApp, texte des publications).
+// En production elle est obligatoire et en https : sinon les emails contiendraient des liens vers « localhost ».
+function adressePublique() {
+  const adresse = (process.env.URL_PUBLIQUE || '').trim().replace(/\/+$/, ''); // sans « / » à la fin
+  if (!production) return adresse || 'http://localhost:3000';
+  if (!/^https:\/\/[^/\s]+$/.test(adresse)) {
+    throw new Error('URL_PUBLIQUE doit être l\'adresse du site en https, sans chemin. Exemple : URL_PUBLIQUE=https://palabre.dev');
+  }
+  return adresse;
+}
+
 module.exports = {
   production,
   port: Number(process.env.PORT) || 3000,
-  // Adresse publique du site, utilisée dans les emails (lien de réinitialisation).
-  urlPublique: process.env.URL_PUBLIQUE || 'http://localhost:3000',
+  urlPublique: adressePublique(),
   databaseUrl: obligatoire('DATABASE_URL', 'postgres://palabre:palabre@localhost:5432/palabre'),
   databaseSsl: process.env.DATABASE_SSL === 'true',
-  jwtSecret: obligatoire('JWT_SECRET', 'secret-de-developpement-a-changer'),
+  jwtSecret: cleSecrete(),
   smtp: {
     host: process.env.SMTP_HOST || '',
     port: Number(process.env.SMTP_PORT) || 587,

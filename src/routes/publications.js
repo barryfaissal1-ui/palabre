@@ -16,6 +16,7 @@ const COMMENTAIRES_APERCU = 2; // derniers commentaires montrés directement sou
 
 const limitePublications = limiteParMembre(30, 15, 'Tu publies très vite. Réessaie dans quelques minutes.');
 const limiteCommentaires = limiteParMembre(60, 15, 'Tu commentes très vite. Réessaie dans quelques minutes.');
+const limiteJaime = limiteParMembre(300, 15, 'Doucement sur les j\'aime. Réessaie dans quelques minutes.');
 
 router.use(exigerConnexion);
 
@@ -227,7 +228,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // J'aime : POST /api/publications/:id/jaime — on ne peut aimer qu'une fois (clé primaire de la table).
-router.post('/:id/jaime', async (req, res) => {
+router.post('/:id/jaime', limiteJaime, async (req, res) => {
   const publication = await publicationDeLaRoute(req, res);
   if (!publication) return;
   await db.query(
@@ -238,7 +239,7 @@ router.post('/:id/jaime', async (req, res) => {
 });
 
 // Je n'aime plus : DELETE /api/publications/:id/jaime
-router.delete('/:id/jaime', async (req, res) => {
+router.delete('/:id/jaime', limiteJaime, async (req, res) => {
   const publication = await publicationDeLaRoute(req, res);
   if (!publication) return;
   await db.query(

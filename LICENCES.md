@@ -7,6 +7,7 @@ Déclaration exigée par l'article 6 du règlement CADEV 2026. Aucun composant s
 | Composant | Version | Licence |
 | --- | --- | --- |
 | bcryptjs | 3.0.3 | BSD-3-Clause |
+| compression | 1.8.2 | MIT |
 | cookie-parser | 1.4.7 | MIT |
 | dotenv | 18.0.6 | BSD-2-Clause |
 | express | 5.2.1 | MIT |

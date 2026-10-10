@@ -231,7 +231,7 @@ router.post('/reinitialiser', limiteSensible, async (req, res) => {
     await client.query('BEGIN');
     // Avoir reçu ce lien prouve que la boîte email est bien la sienne : l'email est confirmé du même coup.
     await client.query(
-      'UPDATE utilisateurs SET mot_de_passe_hash = $1, email_confirme_le = COALESCE(email_confirme_le, now()) WHERE id = $2',
+      'UPDATE utilisateurs SET mot_de_passe_hash = $1, email_confirme_le = COALESCE(email_confirme_le, now()), sessions_depuis = now() WHERE id = $2',
       [hash, rows[0].utilisateur_id],
     );
     await client.query('UPDATE reinitialisations_mdp SET utilise_le = now() WHERE utilisateur_id = $1 AND utilise_le IS NULL', [rows[0].utilisateur_id]);

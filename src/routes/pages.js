@@ -9,13 +9,13 @@ const path = require('node:path');
 const db = require('../db/pool');
 const config = require('../config');
 const v = require('../utils/validation');
+const { lirePage } = require('../utils/statique');
 
 const router = express.Router();
 const DOSSIER_PUBLIC = path.join(__dirname, '..', '..', 'public');
 // Image de partage quand la page n'a pas la sienne (accueil, calculateur, profil sans photo, projet sans capture).
 // 1200 × 630 : le format que Facebook et WhatsApp affichent en grande carte.
 const IMAGE_PAR_DEFAUT = '/img/palabre-partage-1200x630.png';
-const modeles = new Map();
 
 // Les textes viennent des membres : chaque caractère spécial est neutralisé avant d'entrer dans le HTML,
 // sinon un nom comme "><script>… deviendrait du code dans la page.
@@ -28,13 +28,8 @@ function raccourcir(texte, max = 180) {
   return propre.length > max ? `${propre.slice(0, max - 1)}…` : propre;
 }
 
-function lireModele(fichier) {
-  // En production le fichier est lu une seule fois ; en local il est relu pour voir ses modifications.
-  if (config.production && modeles.has(fichier)) return modeles.get(fichier);
-  const html = fs.readFileSync(path.join(DOSSIER_PUBLIC, fichier), 'utf8');
-  modeles.set(fichier, html);
-  return html;
-}
+// La page, avec les adresses versionnées de son style et de ses scripts (voir utils/statique.js).
+const lireModele = lirePage;
 
 // Remplace le <title> de la page par un titre et des balises de partage propres à ce contenu.
 function rendrePage(res, fichier, { titre, description, chemin, image, type = 'website', statut = 200, fond = false }) {
@@ -58,7 +53,8 @@ function rendrePage(res, fichier, { titre, description, chemin, image, type = 'w
   // La fonction en second argument évite que « $ » dans un titre soit pris pour un code de remplacement.
   let html = lireModele(fichier).replace(/<title>[^<]*<\/title>/, () => balises);
   if (fond) html = html.replace('<!-- photos-de-fond -->', () => baliseFond(0));
-  res.status(statut).type('html').send(html);
+  // no-cache : la page est toujours revérifiée (c'est elle qui porte les adresses versionnées du style et des scripts).
+  res.status(statut).set('Cache-Control', 'no-cache').type('html').send(html);
 }
 
 // Accueil
@@ -151,13 +147,13 @@ router.get(['/connexion', '/inscription'], (req, res) => {
       // Chaque texte marqué data-selon-type est remplacé par sa version « client », lue dans son propre attribut.
       .replace(/(data-selon-type data-dev="[^"]*" data-client="([^"]*)">)[^<]*/g, '$1$2');
   }
-  res.type('html').send(html);
+  res.set('Cache-Control', 'no-cache').type('html').send(html);
 });
 
 // Une conversation : /messages/12 affiche la même page que /messages, qui lit le numéro dans l'adresse.
 router.get('/messages/:id', (req, res, next) => {
   if (!/^\d+$/.test(req.params.id)) return next();
-  res.type('html').send(lireModele('messages.html'));
+  res.set('Cache-Control', 'no-cache').type('html').send(lireModele('messages.html'));
 });
 
 // Page d'un projet : /projets/12

@@ -1,6 +1,6 @@
 // Service worker : met en cache les fichiers de l'interface pour un chargement rapide, même en 3G.
 // Les données (/api) ne sont jamais mises en cache.
-const VERSION = 'palabre-v28';
+const VERSION = 'palabre-v29';
 const FICHIERS = [
   '/',
   '/connexion',
@@ -52,8 +52,9 @@ const FICHIERS = [
   '/js/modifier-profil.js',
   '/profil.html',
   '/modifier-profil',
-  '/icons/logo-256.png',
+  '/icons/logo-96.webp',
   '/icons/icon-512.png',
+  '/icons/arbre-512.webp',
   '/fonts/bricolage-grotesque-latin-700-normal.woff2',
   '/fonts/bricolage-grotesque-latin-800-normal.woff2',
 ];
@@ -86,6 +87,8 @@ self.addEventListener('fetch', (evenement) => {
         }
         return reponse;
       })
-      .catch(() => caches.match(requete).then((r) => r || caches.match('/'))),
+      // ignoreSearch : le style et les scripts sont demandés avec « ?v=empreinte » ; hors connexion, la copie gardée
+      // sous l'adresse simple fait l'affaire.
+      .catch(() => caches.match(requete).then((r) => r || caches.match(requete, { ignoreSearch: true })).then((r) => r || caches.match('/'))),
   );
 });

@@ -193,7 +193,7 @@
   // Tailles : 'mini' (32 px), 'moyen' (44), 'rangee' (64), 'grand' (96), 'profil' (112).
   function avatar(personne, taille = 'moyen') {
     const image = personne.avatar
-      ? el('img', { classe: 'avatar', src: personne.avatar, alt: '', decoding: 'async' })
+      ? el('img', { classe: 'avatar', src: personne.avatar, alt: '', loading: 'lazy', decoding: 'async' })
       : el('span', { classe: `avatar avatar-initiales teinte-${teinteAvatar(personne.identifiant)}`, 'aria-hidden': 'true', texte: initiales(personne.nom) });
     const prouve = personne.nbProjetsVerifies > 0;
     return el('span', { classe: `avatar-cadre avatar-${taille}${prouve ? ' avec-anneau' : ''}` }, [image, prouve ? anneauPreuve(personne.nbProjetsVerifies) : null]);

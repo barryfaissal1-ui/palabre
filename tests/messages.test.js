@@ -87,7 +87,8 @@ test('deux amis s\'écrivent librement, avec une photo si besoin', async () => {
   const reponse = await poster('bintou', `/api/messages/conversations/${id}`, { texte: 'Oui ! Regarde cette capture.', image: JPEG_1PX });
   assert.equal(reponse.statut, 201);
   assert.match(reponse.corps.message.image, /^\/fichiers\//);
-  assert.equal((await fetch(`${base}${reponse.corps.message.image}`)).status, 200);
+  // La photo d'un message n'est servie qu'aux deux membres de la conversation (voir tests/securite.test.js).
+  assert.equal((await fetch(`${base}${reponse.corps.message.image}`, { headers: { Cookie: membres.bintou.cookie } })).status, 200);
   await poster('awa', `/api/messages/conversations/${id}`, { texte: 'Très bien.' });
 
   // La même conversation des deux côtés, messages du plus ancien au plus récent.

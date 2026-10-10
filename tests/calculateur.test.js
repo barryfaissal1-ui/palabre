@@ -98,7 +98,7 @@ test('la page /calculateur est ouverte à tous, avec ses balises de partage', as
     assert.match(html, /<meta property="og:description" content="[^"]+FCFA[^"]*">/);
     assert.equal((html.match(/<title>/g) || []).length, 1);
     for (const script of ['/js/grille-prix.js', '/js/calcul-prix.js', '/js/calculateur.js']) {
-      assert.ok(html.includes(`src="${script}"`), script);
+      assert.ok(html.includes(`src="${script}?v=`), script); // l'adresse porte l'empreinte du fichier (cache long)
       assert.equal((await fetch(`${base}${script}`)).status, 200, script);
     }
     assert.ok(IDENTIFIANTS_RESERVES.has('calculateur'), 'aucun membre ne peut prendre « calculateur » comme identifiant');
