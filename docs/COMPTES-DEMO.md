@@ -6,6 +6,8 @@ Ces comptes sont créés par `npm run demo` (`scripts/demo.js`). Ils servent à 
 
 Pour se connecter : ouvrir `/connexion`, saisir l'email d'un compte ci-dessous et ce mot de passe.
 
+Ces comptes sont déjà **confirmés et complets** : pas de code à saisir, pas de « profil de dev » à remplir. Leurs adresses email n'existent pas : aucun email ne leur est envoyé. Pour voir l'inscription en deux étapes, crée un nouveau compte (en local, le code à 6 chiffres s'affiche dans la console du serveur). Idrissa et Ibrahim n'ont pas de lien : leur profil montre la mention « Profil à confirmer ».
+
 ## Développeurs
 
 | Nom | Email | Ville | À voir avec ce compte |

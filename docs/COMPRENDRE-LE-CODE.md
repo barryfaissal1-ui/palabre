@@ -350,6 +350,42 @@ La réponse à « quoi de neuf ? » est presque toujours une liste vide de quelq
 
 Une seule page pour la liste et la conversation (`/messages` et `/messages/12`) : on passe de l'une à l'autre sans rechargement (`history.pushState`). Sur ordinateur, la liste est à gauche et la conversation à droite. Sur téléphone, la conversation prend tout l'écran, le menu du bas disparaît, et sa hauteur suit la partie visible de l'écran (`visualViewport`) : quand le clavier s'ouvre, la zone d'écriture reste au-dessus.
 
+## 11 bis. L'inscription en deux étapes : contre les robots et les faux profils
+
+Un réseau où l'on confie un projet et un budget attire deux problèmes : les **robots** qui créent des comptes par centaines, et les **faux développeurs**. L'inscription leur oppose quatre barrières.
+
+### Trois protections contre les robots (pour tout le monde)
+
+1. **Le champ piège.** Le formulaire contient un champ « Site web » que personne ne voit : il est sorti de l'écran par le CSS, hors du parcours au clavier (`tabindex="-1"`) et caché aux lecteurs d'écran (`aria-hidden`). Une personne ne le remplit jamais ; un robot qui remplit tous les champs, si. Le serveur refuse alors, avec un message vague : on n'explique pas au robot ce qui l'a trahi.
+2. **L'heure d'ouverture signée.** À l'ouverture du formulaire, le navigateur demande au serveur un petit texte : l'heure, suivie d'une **signature** (`src/utils/inscription.js`, `jetonOuverture`). La signature est calculée avec un secret que seul le serveur connaît (HMAC-SHA256). À l'inscription, le serveur relit l'heure : moins de 3 secondes, c'est trop rapide pour une personne. Le navigateur ne peut pas tricher : s'il change l'heure, la signature ne correspond plus. Une simple heure envoyée par le navigateur, sans signature, n'aurait rien prouvé.
+3. **Le code reçu par email.** Après l'inscription, un code à 6 chiffres part à l'adresse donnée (`mailer.js` ; sans SMTP, il s'affiche dans la console du serveur, comme le lien du mot de passe oublié). Il est valable 15 minutes.
+
+### Le code : ce qui le rend sûr
+
+- Il est tiré par `crypto.randomInt` (un vrai hasard, pas `Math.random`).
+- La base ne garde **jamais le code**, seulement son **empreinte** (table `confirmations_email`, colonne `code_hash`). L'empreinte mélange le code, le numéro du membre et le secret du serveur : quelqu'un qui volerait une copie de la base ne pourrait pas retrouver les codes.
+- **5 essais** par code. Sans cette limite, il suffirait d'essayer les 1 000 000 de codes possibles. L'essai et son compteur passent dans une transaction avec `FOR UPDATE` : deux essais envoyés au même instant ne peuvent pas compter pour un seul.
+- **« Renvoyer le code »** : un par minute, cinq par heure, comptés en base (une ligne par envoi). Seul le dernier code envoyé est valable.
+- Tant que `utilisateurs.email_confirme_le` est vide, le serveur refuse **toutes** les routes de l'API sauf `/api/auth` (`exigerEmailConfirme`, posé une seule fois sur `/api` dans `src/app.js`). Le site, lui, ramène le membre sur `/confirmer-email`. C'est le serveur qui protège ; la redirection n'est qu'un confort.
+
+### La page 2 des développeurs : « Ton profil de dev » (`/bienvenue`)
+
+Un client a fini après le code. Un développeur a une seconde page (`PUT /api/profils/moi/profil-dev`, règles dans `src/utils/profil-dev.js`) :
+
+- **date de naissance**, 18 ans au moins. Elle ne sert qu'à ce contrôle : elle n'est renvoyée par **aucune** route, même pas à son propriétaire, et elle n'est même pas chargée dans la session. Seul l'administrateur voit **l'âge** (pas la date), calculé par la base, dans « Derniers inscrits » de `/admin` ;
+- **spécialité** et **années d'expérience**, choisies dans deux listes fixes ;
+- **liens** GitHub, GitLab, portfolio, LinkedIn. Chacun passe par `normaliserLien` (adresses internes refusées, voir le chapitre 9), doit être sur le bon site (un lien « GitHub » qui mène ailleurs est refusé), puis le serveur le visite : s'il répond, il porte le badge **« Lien vérifié »**. Un lien qui n'a pas changé n'est pas revisité ;
+- un dev qui n'a encore aucun lien peut cocher « Je n'ai pas encore de lien » : il continue, mais son profil porte la mention **« Profil à confirmer »** jusqu'à ce qu'il en ajoute un ;
+- numéro WhatsApp (facultatif) et courte présentation (20 à 300 caractères).
+
+### Ce qu'un dev au profil incomplet ne peut pas faire
+
+Tant que `profil_complete_le` est vide, il peut tout regarder, publier dans le fil et écrire à d'autres devs. Mais le serveur répond **403** s'il veut envoyer une proposition, créer ou rejoindre une équipe éclair, ou écrire à un client (`exigerProfilComplet` dans `src/middleware/auth.js`, et un contrôle dans `ecrire()` de la messagerie). La réponse contient `suite: '/bienvenue'`, et le site affiche un bandeau « Termine ton profil de dev pour répondre aux demandes ».
+
+### Les comptes qui existaient déjà
+
+La colonne `email_confirme_le` est créée dans un bloc `DO` du schéma : **au moment où elle est créée**, et seulement là, tous les comptes présents sont marqués confirmés. Un simple `UPDATE … WHERE email_confirme_le IS NULL` rejoué à chaque démarrage aurait confirmé tous les nouveaux inscrits sans code. Les développeurs déjà inscrits, eux, sont envoyés sur `/bienvenue` à leur prochaine connexion. Les comptes de démonstration sont confirmés et complétés par `scripts/demo.js`.
+
 ## 12. Le système de design
 
 Un « système de design », c'est un petit nombre de règles visuelles appliquées partout, pour que le site ait l'air d'une seule et même application. Tout est écrit à la main : aucune bibliothèque d'interface, aucun framework, donc des pages qui restent légères en 3G (les icônes pèsent 8 Ko en tout, les illustrations 4 Ko).
@@ -536,9 +572,18 @@ Pour la refonte « réseau social » (`tests/preuve-sociale.test.js`) : `nbProje
 
 Pour la messagerie (`tests/messages.test.js`) : amis qui s'écrivent (avec photo, une seule conversation par paire), messages par 30, demande de message d'un inconnu (un seul message, onglet à part, une seule notification, pas de « Vu » avant acceptation), refus invisible pour l'expéditeur, blocage et déblocage, client et dev après une proposition, intrus (404 partout, y compris pour signaler), compteur de non lus et « Vu », message signalé visible seul dans `/admin`, suppression d'un seul côté, et les deux limites d'envoi.
 
+Pour l'inscription en deux étapes (`tests/inscription.test.js`) : champ piège, envoi trop rapide, heure d'ouverture absente, falsifiée ou trop ancienne ; code juste, faux, mal écrit, expiré, cinq essais ratés, renvoi limité à un par minute et cinq par heure, code jamais en clair dans la base ; membre non confirmé refusé partout sauf sur `/api/auth` ; dev de moins de 18 ans refusé, 18 ans le jour même accepté ; liens piégés ou sur le mauvais site refusés ; dev au profil incomplet bloqué (403) pour proposer, former ou rejoindre une équipe et écrire à un client, mais libre de regarder et d'écrire à un dev ; dev complet qui passe ; client sans page 2 ; « Profil à confirmer » ; date de naissance absente de neuf réponses différentes, âge visible du seul administrateur. Ces tests remplacent l'envoi d'emails et la visite des liens par de fausses fonctions : ils ne dépendent ni d'une boîte email ni d'internet.
+
+Les autres fichiers de tests ont besoin de comptes prêts à servir : `tests/aide.js` enveloppe leur fonction d'appel pour que chaque compte créé soit aussitôt confirmé et complet.
+
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
 
 ## 15. Questions probables du jury
+
+- **Comment empêchez-vous les robots de créer des comptes ?** Trois barrières sans captcha (qui gêne les vraies personnes et pèse lourd en 3G) : un champ piège invisible, une heure d'ouverture signée par le serveur (moins de 3 secondes = refus), et un code à 6 chiffres envoyé par email.
+- **Pourquoi ne pas garder le code tel quel dans la base ?** Pour la même raison qu'un mot de passe : si la base fuit, les codes en cours ne doivent pas fuir avec elle. On garde une empreinte, et le code n'a que 5 essais et 15 minutes.
+- **Que faites-vous de la date de naissance ?** Elle sert à vérifier les 18 ans, rien d'autre. Aucune route ne la renvoie ; l'administrateur ne voit que l'âge.
+- **Un faux développeur peut-il répondre aux demandes ?** Pas sans avoir rempli son profil de dev. Et sans aucun lien vers son travail, son profil affiche « Profil à confirmer » : le client est prévenu.
 
 - **Avez-vous utilisé une bibliothèque d'interface (Bootstrap, Tailwind…) ?** Non. Le style est écrit à la main avec des variables CSS ; seules les icônes viennent d'un projet libre (Lucide, licence ISC), sous la forme d'un simple fichier SVG.
 - **Que se passe-t-il pour quelqu'un que les animations gênent ?** S'il a activé « réduire les animations » sur son appareil, le site n'en joue aucune.

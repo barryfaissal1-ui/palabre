@@ -43,9 +43,9 @@ server.js              démarrage (migration automatique puis écoute)
 src/app.js             application Express : sécurité, routes, lien court /:identifiant
 src/config.js          variables d'environnement (.env)
 src/db/schema.sql      toutes les tables (idempotent, relancé à chaque démarrage)
-src/routes/            auth.js, profils.js, fichiers.js, references.js, publications.js, amis.js, signalements.js, demandes.js, equipes.js, notifications.js, projets.js, avis.js, devs.js, messages.js, pages.js (accueil, profil et projet avec balises de partage), admin.js
-src/middleware/auth.js session (cookie httpOnly + JWT), exigerConnexion, exigerAdmin
-src/utils/             validation.js (dont IDENTIFIANTS_RESERVES), images.js, mailer.js, membres.js (aperçu d'un membre, état d'amitié, limites par membre), notifications.js (notifier), liens.js (vérification des liens)
+src/routes/            auth.js (inscription, code de confirmation de l'email, connexion), profils.js, fichiers.js, references.js, publications.js, amis.js, signalements.js, demandes.js, equipes.js, notifications.js, projets.js, avis.js, devs.js, messages.js, pages.js (accueil, profil et projet avec balises de partage), admin.js
+src/middleware/auth.js session (cookie httpOnly + JWT), exigerConnexion, exigerAdmin, exigerEmailConfirme, exigerProfilComplet
+src/utils/             validation.js (dont IDENTIFIANTS_RESERVES), images.js, mailer.js, membres.js (aperçu d'un membre, état d'amitié, limites par membre), notifications.js (notifier), liens.js (vérification des liens), inscription.js (heure d'ouverture signée, code de confirmation), profil-dev.js (spécialités, expériences, liens du dev, 18 ans)
 public/                pages HTML, css/style.css, js/ (app.js = outils communs), sw.js, manifest.json
 tests/                 tests node:test qui démarrent un vrai serveur
 docs/COMPRENDRE-LE-CODE.md  guide pédagogique pour l'équipe et le jury
@@ -64,7 +64,7 @@ npm run demo       # comptes et contenu de démonstration (docs/COMPTES-DEMO.md)
 npm run photos     # prépare les photos posées dans public/img/fond/ (WebP + JPEG, 1080 px)
 ```
 
-Sans SMTP configuré, les emails (mot de passe oublié) s'affichent dans la console du serveur.
+Sans SMTP configuré, les emails (mot de passe oublié, code de confirmation à 6 chiffres) s'affichent dans la console du serveur.
 
 ## Règles de code à respecter
 
@@ -75,7 +75,9 @@ Sans SMTP configuré, les emails (mot de passe oublié) s'affichent dans la cons
   - pas de script ni de style en ligne dans le HTML (la CSP de Helmet les bloque) : tout va dans `public/js/` et `public/css/` ;
   - toute requête qui modifie des données est en JSON (protection CSRF déjà en place) ;
   - valider toutes les entrées côté serveur avec `src/utils/validation.js` (erreurs `ErreurValidation` avec le nom du champ) ;
-  - jamais d'email public ; le numéro WhatsApp n'est visible que par les membres connectés.
+  - jamais d'email public ; le numéro WhatsApp n'est visible que par les membres connectés ;
+  - la date de naissance ne sort jamais de la base par une route (ni `profilVisible`, ni `profilPrive`, ni la session) : seul `/api/admin/membres-recents` renvoie l'âge ;
+  - une action qui engage un dev envers un client (proposition, équipe éclair, message à un client) passe par `exigerProfilComplet` ou `profilDevIncomplet()` de `src/middleware/auth.js`.
 - Modifications multiples en base : utiliser une **transaction** (`BEGIN` / `COMMIT` / `ROLLBACK`).
 - Nouvelle table ou colonne : l'ajouter dans `src/db/schema.sql` de façon idempotente (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE … ADD COLUMN IF NOT EXISTS`).
 - Toute nouvelle page ou nouveau script de l'interface : l'ajouter à la liste de `public/sw.js` et **augmenter `VERSION`** (sinon les téléphones gardent l'ancienne version).
@@ -110,6 +112,7 @@ Fait :
 - [x] Tableau de bord administrateur `/admin` (`src/routes/admin.js`) : statistiques, signalements regroupés par contenu (masquer / bloquer / classer), projets proposés pour Facebook (`statut_facebook` : `en_attente` → `valide` ou `refuse`), membres bloqués. Rôle admin : `npm run admin -- email` (jamais depuis le site). Les projets ont maintenant une colonne `masque`.
 - [x] Calculateur « Combien coûte mon projet ? » `/calculateur`, ouvert à tous : grille dans `public/js/grille-prix.js` (seul fichier à modifier pour un prix), calcul dans `public/js/calcul-prix.js` (dans le navigateur, testé par `tests/calculateur.test.js`), bouton vers `/demandes?publier=1&categorie=…&budget=…` qui pré-remplit le formulaire. L'inscription et la connexion suivent le paramètre `suite` (adresse interne seulement).
 - [x] Prénom et nom séparés : colonnes `utilisateurs.prenom` et `utilisateurs.nom_famille` ; `nom` reste le nom affiché « Prénom Nom », recalculé à chaque inscription ou modification (ne jamais l'écrire seul). Validation : `v.nomPropre()`. Les requêtes envoient `prenom` et `nomFamille`. Pour afficher un prénom : `prenom(membre)` de `public/js/app.js` (le serveur l'envoie dans `apercuMembre`), jamais le premier mot du nom.
+- [x] Inscription en deux étapes (`tests/inscription.test.js`). Pour tous : champ piège `siteWeb`, heure d'ouverture signée (`GET /api/auth/jeton-inscription`, refus sous 3 secondes), code à 6 chiffres par email (`/confirmer-email`, table `confirmations_email`, code haché, 15 minutes, 5 essais, renvoi 1 par minute et 5 par heure) ; tant que `utilisateurs.email_confirme_le` est vide, seul `/api/auth` répond. Pour les devs : page 2 « Ton profil de dev » (`/bienvenue`, `PUT /api/profils/moi/profil-dev`) avec date de naissance (18 ans), spécialité, expérience, liens GitHub / GitLab / portfolio / LinkedIn vérifiés, WhatsApp et présentation ; sans elle (`profil_complete_le` vide), 403 avec `suite: '/bienvenue'` pour proposer, former ou rejoindre une équipe, écrire à un client, et bandeau posé par `poserBandeauProfil()` de `app.js`. Dev sans aucun lien : « Profil à confirmer ». Les listes de `public/bienvenue.html` et `public/modifier-profil.html` doivent rester celles de `src/utils/profil-dev.js`. Dans les tests, créer les comptes avec `avecComptesPrets()` de `tests/aide.js` ; dans un script, confirmer en base comme `scripts/demo.js`.
 - [x] Palabre Messages, la messagerie privée (`/messages`, `/messages/:id`) : `src/routes/messages.js`, `public/messages.html`, `public/js/messages.js`, `tests/messages.test.js`. Amis et client-dev liés par une proposition s'écrivent librement ; un inconnu envoie une « demande de message » (accepter, refuser sans le dire, bloquer). Toute la règle est dans `droitDEcrire()`. Pas de WebSocket : `…/nouveaux?apres=` toutes les 5 s quand la conversation est visible, pastille toutes les 60 s, rien en arrière-plan. Tables `conversations`, `messages`, `conversation_lectures`, `blocages`, `conversation_masquees`. Pastille : `majPastilleMessages()` de `app.js` ; les 5 onglets du menu du bas ne changent pas.
 - [x] Version ordinateur et tablette en 3 colonnes : menu à gauche, fil au centre, panneau à droite (demandes récentes, « Devs à découvrir » avec `GET /api/devs/suggestions`), barre de recherche dans l'en-tête (touche `/`), profil en 2 colonnes, filtres et encadrés collés à droite. Pages `/a-propos` et `/conditions` (textes à relire par l'équipe).
 - [x] Contenu de démonstration : `npm run demo` (`scripts/demo.js`), comptes en `@demo.palabre.dev`, liste et mot de passe dans `docs/COMPTES-DEMO.md`.
