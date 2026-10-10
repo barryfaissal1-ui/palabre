@@ -2236,7 +2236,11 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
 .bulle-moi .bulle-menu { right: 100%; }
 .bulle-autre .bulle-menu { left: 100%; }
 .bulle:hover .bulle-menu, .bulle-menu:focus-within, .bulle-menu:has([aria-expanded="true"]) { opacity: 1; }
-.bulle-menu .menu-liste { color: var(--encre); }
+.bulle-menu .menu-liste { color: var(--encre); animation: none; }
+/* Où s'ouvre le menu d'une bulle : décidé à l'ouverture par messages.js, pour qu'il ne sorte jamais de la conversation. */
+.bulle-menu .menu-vers-la-droite { left: 0; right: auto; }
+.bulle-menu .menu-vers-la-gauche { right: 0; left: auto; }
+.bulle-menu .menu-vers-le-haut { top: auto; bottom: 100%; }
 @media (hover: none) { .bulle-menu > button { pointer-events: none; } }
 .bulle-supprimee .bulle-texte { font-style: italic; opacity: 0.75; }
 .bulle-eclairee { box-shadow: 0 0 0 3px var(--feuille-vive); }

@@ -471,6 +471,36 @@
     ], { cote: message.estMoi ? 'droite' : 'gauche' });
     menu.classList.add('bulle-menu');
     menu.querySelector('button').setAttribute('aria-label', 'Actions sur ce message');
+    // Le menu doit rester entièrement dans la conversation, quelle que soit la largeur de la bulle : une fois
+    // ouvert, on le mesure et on le déplace (classes .menu-vers-…) du côté où il tient, et vers le haut près du bas.
+    // (Cet écouteur passe après celui de menuOptions(), qui vient d'ouvrir le menu.)
+    menu.querySelector('button').addEventListener('click', () => {
+      const liste = menu.querySelector('.menu-liste');
+      liste.classList.remove('menu-vers-la-droite', 'menu-vers-la-gauche', 'menu-vers-le-haut');
+      liste.style.transform = '';
+      if (liste.hidden || !ouverte) return;
+      const cadre = ouverte.zone.getBoundingClientRect();
+      const marge = 8;
+      // D'abord du côté habituel : vers la droite pour la bulle d'un autre, vers la gauche pour la mienne.
+      liste.classList.add(message.estMoi ? 'menu-vers-la-gauche' : 'menu-vers-la-droite');
+      let place = liste.getBoundingClientRect();
+      // Pas la place de ce côté : on essaie l'autre.
+      if (place.left < cadre.left + marge || place.right > cadre.right - marge) {
+        liste.classList.toggle('menu-vers-la-gauche');
+        liste.classList.toggle('menu-vers-la-droite');
+        place = liste.getBoundingClientRect();
+      }
+      // Près du bas de la conversation : il s'ouvre vers le haut.
+      if (place.bottom > cadre.bottom - marge) {
+        liste.classList.add('menu-vers-le-haut');
+        place = liste.getBoundingClientRect();
+      }
+      // S'il dépasse encore d'un côté (écran étroit, conversation basse) : on le fait glisser juste ce qu'il faut.
+      const glisser = (debut, fin, min, max) => Math.max(0, min + marge - debut) - Math.max(0, fin - (max - marge));
+      const dx = glisser(place.left, place.right, cadre.left, cadre.right);
+      const dy = glisser(place.top, place.bottom, cadre.top, cadre.bottom);
+      if (dx || dy) liste.style.transform = `translate(${dx}px, ${dy}px)`;
+    });
 
     const element = el('div', {
       classe: `bulle ${message.estMoi ? 'bulle-moi' : 'bulle-autre'}${signee ? ' bulle-signee' : ''}${message.supprime ? ' bulle-supprimee' : ''}${message.vocal ? ' bulle-vocale' : ''}`,
