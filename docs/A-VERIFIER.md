@@ -34,20 +34,24 @@ Lance `npm run demo` une fois (il ajoute les vidéos et les défis aux comptes d
 - [ ] Les pages **404** (`/nimporte/quoi`) et le nouveau **petit logo** de l'en-tête : il doit rester net.
 - [ ] Après la mise à jour, **reconnecte-toi une fois** si le site te déconnecte, et recharge deux fois si une page garde l'ancien style (service worker).
 
-## 3. Les questions que tu dois trancher
+## 3. Les choix validés
 
-1. **Défi sans aucun vote : pas de gagnant.** Ta règle disait « le plus de votes, la plus ancienne en cas d'égalité ». Appliquée à la lettre, une réponse gagnerait avec zéro vote. J'ai choisi « pas de gagnant ». Tu préfères la plus ancienne ?
-2. **Compteurs de votes cachés pendant le vote**, montrés à la fin. C'est mon choix, pour ne pas influencer. Tu les veux visibles ?
-3. **Le défi de démonstration est en phase de vote** (le jury peut voter tout de suite). Du coup, personne ne peut y répondre. Pour montrer la réponse, crée un nouveau défi dans `/admin` quand celui-ci sera fini, ou supprime-le.
-4. **Le défi est lisible sans compte** (répondre et voter demandent un compte). C'est voulu pour attirer des visiteurs. D'accord ?
-5. **Lecture des profils limitée à 150 par 10 minutes** et par membre, pour protéger les numéros WhatsApp. Trop strict, pas assez ?
-6. **`URL_PUBLIQUE` obligatoire en https en production** : le serveur refuse de démarrer sans. Je l'ai ajouté de moi-même (tu n'avais demandé que `JWT_SECRET`), pour éviter des emails avec des liens vers `localhost`.
-7. **Mesure 3G faite sans Playwright** : même mécanisme (bridage du réseau par Chrome), mais sans installer 150 Mo de plus. Si le jury doit voir « Playwright », dis-le-moi.
-8. **TikTok : les liens raccourcis (`vm.tiktok.com`) sont refusés** avec un message qui demande le lien complet. Les suivre obligerait le serveur à visiter TikTok à chaque publication.
-9. **Icône TikTok** : Lucide n'en a pas, j'ai mis une note de musique. Ça te va ?
-10. **Risques de sécurité acceptés** : la liste est à la fin de `docs/AUDIT-SECURITE.md`. Le premier (l'inscription dit si un email est déjà inscrit) mérite ton avis.
+Barry a accepté ces dix choix le 10 octobre 2026. Ils ne sont plus à trancher ; ils restent ici pour pouvoir les expliquer au jury.
 
-Questions restées ouvertes des jours précédents : retirer les dessins des marges sur téléphone, faire démarrer les 3 colonnes à 1340 px, relire « À propos » et « Conditions », remplacer les liens de projets de démonstration inventés avant le jury. (La question des photos de messages est réglée : elles sont maintenant réservées aux deux membres.)
+1. **Défi sans aucun vote : pas de gagnant.** La règle « le plus de votes, la plus ancienne en cas d'égalité », appliquée à la lettre, ferait gagner une réponse avec zéro vote.
+2. **Compteurs de votes cachés pendant le vote**, montrés à la fin, pour ne pas influencer.
+3. **Le défi de démonstration est en phase de vote** : le jury peut voter tout de suite, mais personne ne peut y répondre. Pour montrer la réponse, créer un nouveau défi dans `/admin` quand celui-ci sera fini, ou le supprimer.
+4. **Le défi est lisible sans compte** (répondre et voter demandent un compte), pour attirer des visiteurs.
+5. **Lecture des profils limitée à 150 par 10 minutes** et par membre, pour protéger les numéros WhatsApp.
+6. **`URL_PUBLIQUE` obligatoire en https en production** : le serveur refuse de démarrer sans, pour éviter des emails avec des liens vers `localhost`.
+7. **Mesure 3G faite sans Playwright** : même bridage du réseau par Chrome, sans installer 150 Mo de plus.
+8. **TikTok : les liens raccourcis (`vm.tiktok.com`) sont refusés** avec un message qui demande le lien complet.
+9. **Icône TikTok** : une note de musique (Lucide n'a pas de logo TikTok).
+10. **Risques de sécurité acceptés** : la liste à la fin de `docs/AUDIT-SECURITE.md`, dont le fait que l'inscription dit si un email est déjà inscrit.
+
+Les vidéos de démonstration restent aussi telles quelles (cours en français, pas africains).
+
+Questions encore ouvertes, des jours précédents : retirer les dessins des marges sur téléphone, faire démarrer les 3 colonnes à 1340 px, relire « À propos » et « Conditions », remplacer les liens de projets de démonstration inventés avant le jury. (La question des photos de messages est réglée : elles sont maintenant réservées aux deux membres.)
 
 ## 4. Ce qui a bloqué ou surpris
 
