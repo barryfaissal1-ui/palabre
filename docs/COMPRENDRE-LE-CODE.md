@@ -386,6 +386,32 @@ Tant que `profil_complete_le` est vide, il peut tout regarder, publier dans le f
 
 La colonne `email_confirme_le` est créée dans un bloc `DO` du schéma : **au moment où elle est créée**, et seulement là, tous les comptes présents sont marqués confirmés. Un simple `UPDATE … WHERE email_confirme_le IS NULL` rejoué à chaque démarrage aurait confirmé tous les nouveaux inscrits sans code. Les développeurs déjà inscrits, eux, sont envoyés sur `/bienvenue` à leur prochaine connexion. Les comptes de démonstration sont confirmés et complétés par `scripts/demo.js`.
 
+## 11 ter. Les vidéos du fil
+
+Un membre peut joindre **un lien vidéo** à une publication : YouTube, TikTok ou Facebook. Deux soucis guident tout le code : la **sécurité** (ne pas afficher n'importe quelle page dans le fil) et la **3G** (une vidéo pèse lourd).
+
+### On ne garde jamais l'adresse
+
+Le lien collé est lu par `lireLienVideo()` (`src/utils/videos.js`). Pour chaque plateforme, la liste des noms de site est **exacte** (`youtube.com`, `youtu.be`… et non « contient youtube »), et une expression stricte extrait l'identifiant : 11 caractères pour YouTube, un nombre pour TikTok et Facebook. La base ne reçoit que deux petites valeurs, `video_plateforme` et `video_id`, et une contrainte `CHECK` refuse tout le reste même en cas d'écriture directe.
+
+Conséquence : c'est **le site** qui reconstruit l'adresse du lecteur officiel à partir de l'identifiant. Un lien comme `youtube.com.pirate.example`, `youtube.com@pirate.example` ou `javascript:…` n'a aucune chance : il n'est pas reconnu, donc rien n'est enregistré. Les paramètres de suivi (`?si=…`) disparaissent aussi.
+
+### Rien n'est chargé avant le toucher
+
+- **YouTube** : une miniature (une simple image de `i.ytimg.com`, en `loading="lazy"`) et un bouton lecture. Au toucher seulement, le lecteur `youtube-nocookie.com` est créé (la version de YouTube qui ne dépose pas de cookie avant la lecture).
+- **TikTok et Facebook** : une carte (« Vidéo TikTok », bouton « Lire la vidéo »). Aucune requête ne part vers eux avant le toucher.
+- Sous chaque vidéo : « La vidéo utilise tes données mobiles ».
+
+Sans cela, dix vidéos dans le fil chargeraient dix lecteurs de plusieurs centaines de kilo-octets chacun, que le membre les regarde ou non.
+
+### La CSP n'ouvre que ce qu'il faut
+
+Dans `src/app.js`, deux lignes : `frame-src` (les cadres) autorise seulement `www.youtube-nocookie.com`, `www.tiktok.com` et `www.facebook.com` ; `img-src` ajoute `i.ytimg.com`. Les scripts restent limités au site lui-même. Un détail : Helmet empêche le navigateur de dire d'où il vient, mais YouTube refuse alors de lire ; le cadre porte donc `referrerpolicy="strict-origin-when-cross-origin"`, qui ne donne que le nom du site, jamais la page.
+
+### L'aperçu avant de publier
+
+Le bouton « Vidéo » ouvre un champ. Une demi-seconde après la dernière touche, le navigateur demande au serveur `GET /api/publications/video?lien=…` : les règles ne sont écrites qu'**une fois**, côté serveur, et l'aperçu est dessiné par la même fonction que dans le fil (`videoPublication()` de `public/js/publication.js`).
+
 ## 12. Le système de design
 
 Un « système de design », c'est un petit nombre de règles visuelles appliquées partout, pour que le site ait l'air d'une seule et même application. Tout est écrit à la main : aucune bibliothèque d'interface, aucun framework, donc des pages qui restent légères en 3G (les icônes pèsent 8 Ko en tout, les illustrations 4 Ko).
@@ -560,6 +586,8 @@ Le haut de l'accueil et le panneau vert de la connexion affichent des photos (`p
 
 Pour le réseau social (`tests/social.test.js`) : fil réservé aux membres, chargement par 10 sans doublon, j'aime compté une seule fois, commentaires, suppression réservée à l'auteur, demandes d'amis (envoyer, accepter, refuser, demandes croisées, tricher en acceptant sa propre demande), filtre « Mes amis », signalements (en double, de son propre contenu, d'une cible inconnue).
 
+Pour les vidéos (dans `tests/social.test.js`) : onze formats de liens acceptés, vingt-six liens refusés (autre site, `javascript:`, nom de site piégé, identifiant malformé, lien raccourci), la réponse qui ne contient que la plateforme et l'identifiant, la contrainte de la base, et la CSP.
+
 Pour les demandes (`tests/demandes.test.js`) : publication réservée aux clients, chargement par 10, proposition en solo invisible pour les autres développeurs, invitation limitée aux amis développeurs, envoi de la proposition d'équipe seulement quand tous ont répondu, cas où tous refusent, choix du client (une seule fois, par le bon client), notifications de chaque événement et impossibilité de lire celles d'un autre.
 
 Pour le profil prouvé (`tests/preuves.test.js`) : une vingtaine de liens piégés refusés (localhost, IP privées, écritures déguisées, autres protocoles), un faux DNS qui mène à une adresse interne, une redirection vers une adresse interne, un vrai petit site local qui répond ; avis refusés dans tous les cas interdits (demande non terminée, autre client, dev non retenu, invité qui avait refusé, deuxième avis) ; recherche de devs ; balises de partage avec un nom piégé qui ne doit pas devenir du code.
@@ -579,6 +607,9 @@ Les autres fichiers de tests ont besoin de comptes prêts à servir : `tests/aid
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
 
 ## 15. Questions probables du jury
+
+- **Un membre peut-il afficher n'importe quelle page dans le fil avec un « lien vidéo » ?** Non. On n'enregistre pas son lien, seulement la plateforme et l'identifiant de la vidéo ; l'adresse du lecteur est reconstruite par le site, et la CSP n'autorise que trois lecteurs officiels.
+- **Les vidéos ne ruinent-elles pas le forfait des membres ?** Rien n'est chargé tant qu'on ne touche pas la vidéo : une miniature pour YouTube, une simple carte pour TikTok et Facebook.
 
 - **Comment empêchez-vous les robots de créer des comptes ?** Trois barrières sans captcha (qui gêne les vraies personnes et pèse lourd en 3G) : un champ piège invisible, une heure d'ouverture signée par le serveur (moins de 3 secondes = refus), et un code à 6 chiffres envoyé par email.
 - **Pourquoi ne pas garder le code tel quel dans la base ?** Pour la même raison qu'un mot de passe : si la base fuit, les codes en cours ne doivent pas fuir avec elle. On garde une empreinte, et le code n'a que 5 essais et 15 minutes.

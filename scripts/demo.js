@@ -351,6 +351,36 @@ async function creer() {
   }
 }
 
+// ---------- Publications avec une vidéo ----------
+// De vraies vidéos publiques de cours de programmation en français (YouTube), vérifiées le 10 octobre 2026.
+// Écrites à part et directement en base, pour pouvoir être ajoutées à des comptes créés avant cette fonction.
+// Ne fait rien si un compte de démonstration a déjà publié une vidéo (pas de doublons).
+// auteur, type, texte, identifiant YouTube, il y a combien d'heures, qui aime
+const VIDEOS = [
+  ['idrissa', 'idee', 'Pour ceux qui débutent comme moi : ce cours de Pierre Giraud sur HTML et CSS est gratuit, en français, et il part vraiment de zéro.', 'Y80juYcu3ZI', 30, ['awa', 'ibrahim', 'mariam']],
+  ['nadege', 'idee', 'On me demande souvent par où commencer Python. Je renvoie toujours vers cette série de Graven : courte, claire, en français.', 'psaDHhZ0cPs', 52, ['kofi', 'oumar']],
+  ['awa', 'question', 'Je prépare l\'atelier JavaScript du mois prochain. Vous feriez regarder ce cours avant de venir, ou vous avez mieux à conseiller ?', 'VZLflMqC6dI', 7, ['bintou', 'cheick', 'idrissa', 'yao']],
+];
+
+async function creerVideos() {
+  const { rows: [deja] } = await pool.query(
+    'SELECT count(*)::int AS nb FROM publications p JOIN utilisateurs u ON u.id = p.auteur_id WHERE u.email LIKE $1 AND p.video_id IS NOT NULL',
+    [MOTIF_EMAIL],
+  );
+  const { rows: comptes } = await pool.query('SELECT id, email FROM utilisateurs WHERE email LIKE $1', [MOTIF_EMAIL]);
+  if (deja.nb > 0 || comptes.length === 0) return 0;
+  const id = (cle) => comptes.find((c) => c.email === email(cle)).id;
+  for (const [auteur, type, texte, video, heures, aime] of VIDEOS) {
+    const { rows: [publication] } = await pool.query(
+      `INSERT INTO publications (auteur_id, type, texte, video_plateforme, video_id, cree_le)
+       VALUES ($1, $2, $3, 'youtube', $4, now() - make_interval(hours => $5::int)) RETURNING id`,
+      [id(auteur), type, texte, video, heures],
+    );
+    for (const qui of aime) await pool.query('INSERT INTO jaime (publication_id, utilisateur_id) VALUES ($1, $2)', [publication.id, id(qui)]);
+  }
+  return VIDEOS.length;
+}
+
 // ---------- Conversations privées de démonstration ----------
 // Écrites à part, pour pouvoir être ajoutées à des comptes de démonstration créés avant la messagerie.
 // Ne fait rien s'il existe déjà une conversation entre deux comptes de démonstration (pas de doublons).
@@ -460,6 +490,8 @@ async function main() {
   // Ces comptes n'ont pas de vraie boîte email : le code de confirmation n'est ni envoyé ni affiché.
   mailer.envoyerEmail = async () => {};
   const bilan = await creer();
+  const videos = await creerVideos();
+  if (videos) console.log(`${videos} publications avec une vidéo ajoutées.`);
   const completes = bilan ? 0 : await completerProfils();
   if (completes) console.log(`${completes} profil(s) de dev de démonstration complété(s).`);
   const conversations = await creerConversations(bilan ? bilan.sessions : null);

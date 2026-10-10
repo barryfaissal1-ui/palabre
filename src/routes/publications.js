@@ -6,6 +6,7 @@ const v = require('../utils/validation');
 const { exigerConnexion } = require('../middleware/auth');
 const { lireImageDataUrl } = require('../utils/images');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
+const { lireLienVideo } = require('../utils/videos');
 
 const router = express.Router();
 const PAR_PAGE = 10;
@@ -24,7 +25,7 @@ router.use(exigerConnexion);
 //  - « aime » : une personne qui a aimé, autre que moi, un de mes amis en priorité (« Aimé par Awa et 12 autres ») ;
 //  - « apercu » : les 2 derniers commentaires, avec leur auteur.
 const SELECTION = `
-  SELECT p.id, p.type, p.texte, p.image, p.image_largeur, p.image_hauteur, p.cree_le, p.auteur_id, ${COLONNES_MEMBRE},
+  SELECT p.id, p.type, p.texte, p.image, p.image_largeur, p.image_hauteur, p.video_plateforme, p.video_id, p.cree_le, p.auteur_id, ${COLONNES_MEMBRE},
          aime.nom AS aime_nom, aime.prenom AS aime_prenom, aime.identifiant AS aime_identifiant, apercu.liste AS apercu_commentaires,
          (SELECT count(*)::int FROM jaime j WHERE j.publication_id = p.id) AS nb_jaime,
          (SELECT count(*)::int FROM commentaires c
@@ -64,6 +65,8 @@ function versPublication(ligne, moi) {
     image: ligne.image ? `/fichiers/${ligne.image}` : null,
     imageLargeur: ligne.image_largeur,
     imageHauteur: ligne.image_hauteur,
+    // Vidéo jointe : la plateforme et l'identifiant, rien d'autre. Le navigateur reconstruit l'adresse du lecteur officiel.
+    video: ligne.video_plateforme ? { plateforme: ligne.video_plateforme, id: ligne.video_id } : null,
     creeLe: ligne.cree_le,
     auteur: apercuMembre(ligne),
     nbJaime: ligne.nb_jaime,
@@ -140,6 +143,14 @@ router.get('/', async (req, res) => {
   });
 });
 
+// Aperçu d'un lien vidéo avant de publier : GET /api/publications/video?lien=…
+// Le navigateur ne devine rien : c'est le serveur qui dit si le lien est reconnu, avec les mêmes règles qu'à la publication.
+router.get('/video', (req, res) => {
+  const video = lireLienVideo(req.query.lien);
+  if (!video) throw new v.ErreurValidation('Colle le lien de la vidéo.', 'video');
+  res.json({ video });
+});
+
 // Une seule publication : GET /api/publications/:id (le lien « Copier le lien » y mène)
 router.get('/:id', async (req, res) => {
   const id = v.idPositif(req.params.id);
@@ -148,13 +159,14 @@ router.get('/:id', async (req, res) => {
   res.json({ publication: versPublication(rows[0], req.utilisateur) });
 });
 
-// Publier : POST /api/publications  { type, texte, image? }
+// Publier : POST /api/publications  { type, texte, image?, video? }  (video = le lien collé par le membre)
 router.post('/', limitePublications, async (req, res) => {
   const corps = req.body || {};
   const moi = req.utilisateur;
   const type = v.parmi(corps.type, TYPES, 'type');
   const texte = v.texte(corps.texte, 'texte', { max: 3000 });
   const image = corps.image ? lireImageDataUrl(corps.image) : null;
+  const video = lireLienVideo(corps.video);
 
   const client = await db.pool.connect();
   let id;
@@ -170,9 +182,9 @@ router.post('/', limitePublications, async (req, res) => {
       imageId = fichier.rows[0].id;
     }
     const { rows } = await client.query(
-      `INSERT INTO publications (auteur_id, type, texte, image, image_largeur, image_hauteur)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [moi.id, type, texte, imageId, image ? image.largeur : null, image ? image.hauteur : null],
+      `INSERT INTO publications (auteur_id, type, texte, image, image_largeur, image_hauteur, video_plateforme, video_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+      [moi.id, type, texte, imageId, image ? image.largeur : null, image ? image.hauteur : null, video ? video.plateforme : null, video ? video.id : null],
     );
     id = rows[0].id;
     await client.query('COMMIT');

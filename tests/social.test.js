@@ -25,6 +25,7 @@ async function appelBrut(chemin, { methode = 'GET', donnees, qui } = {}) {
 }
 // Les comptes créés par ces tests sont aussitôt « prêts » : email confirmé, profil de dev complet (voir tests/aide.js).
 const appel = avecComptesPrets(appelBrut);
+const poster = (qui, chemin, donnees = {}) => appel(chemin, { methode: 'POST', qui, donnees });
 
 // Une vraie petite image JPEG (1 × 1 pixel), encodée en base64.
 const JPEG_1PX = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
@@ -87,6 +88,82 @@ test('publier une question avec une image', async () => {
   const image = await fetch(`${base}${p.image}`);
   assert.equal(image.status, 200);
   assert.equal(image.headers.get('content-type'), 'image/jpeg');
+});
+
+test('vidéo : chaque format de lien accepté, seuls la plateforme et l\'identifiant sont gardés', async () => {
+  const liens = [
+    ['https://www.youtube.com/watch?v=PkZNo7MFNFg', 'youtube', 'PkZNo7MFNFg'],
+    ['https://youtube.com/watch?v=PkZNo7MFNFg&t=42s&list=PLx', 'youtube', 'PkZNo7MFNFg'],
+    ['m.youtube.com/watch?v=PkZNo7MFNFg', 'youtube', 'PkZNo7MFNFg'], // https:// ajouté s'il manque
+    ['https://youtu.be/PkZNo7MFNFg?si=abc', 'youtube', 'PkZNo7MFNFg'],
+    ['https://www.youtube.com/shorts/a1B2c3D4e_-', 'youtube', 'a1B2c3D4e_-'],
+    ['https://www.tiktok.com/@dev.afrique_226/video/7301234567890123456', 'tiktok', '7301234567890123456'],
+    ['https://tiktok.com/@awa/video/7301234567890123456?lang=fr', 'tiktok', '7301234567890123456'],
+    ['https://www.facebook.com/PalabreDev/videos/1234567890123456/', 'facebook', '1234567890123456'],
+    ['https://web.facebook.com/palabre.dev/videos/mon-titre/1234567890123456', 'facebook', '1234567890123456'],
+    ['https://www.facebook.com/watch/?v=1234567890123456', 'facebook', '1234567890123456'],
+    ['https://fb.watch/aBc-D_123/', 'facebook', 'aBc-D_123'],
+  ];
+  for (const [lien, plateforme, id] of liens) {
+    const apercu = await appel(`/api/publications/video?lien=${encodeURIComponent(lien)}`, { qui: 'awa' });
+    assert.equal(apercu.statut, 200, lien);
+    assert.deepEqual(apercu.corps, { video: { plateforme, id } }, lien);
+  }
+  // À la publication : la réponse ne contient que la plateforme et l'identifiant, jamais l'adresse collée.
+  const r = await poster('awa', '/api/publications', { type: 'idee', texte: 'Un bon cours pour débuter.', video: 'https://youtu.be/PkZNo7MFNFg?si=TRACEUR&feature=shared' });
+  assert.equal(r.statut, 201);
+  assert.deepEqual(r.corps.publication.video, { plateforme: 'youtube', id: 'PkZNo7MFNFg' });
+  assert.doesNotMatch(JSON.stringify(r.corps), /TRACEUR|youtu\.be|https?:\/\/[^"]*youtube/);
+  const { rows: [enBase] } = await pool.query('SELECT video_plateforme, video_id FROM publications WHERE id = $1', [r.corps.publication.id]);
+  assert.deepEqual(enBase, { video_plateforme: 'youtube', video_id: 'PkZNo7MFNFg' });
+  // Dans le fil aussi, et une publication sans vidéo dit « null ».
+  const fil = (await appel('/api/publications', { qui: 'bintou' })).corps.publications;
+  assert.deepEqual(fil.find((p) => p.id === r.corps.publication.id).video, { plateforme: 'youtube', id: 'PkZNo7MFNFg' });
+  assert.ok(fil.some((p) => p.video === null));
+  // Vidéo et image ensemble : permis.
+  const deux = await poster('awa', '/api/publications', { type: 'projet', texte: 'Image et vidéo.', image: JPEG_1PX, video: 'https://www.tiktok.com/@awa/video/7301234567890123456' });
+  assert.equal(deux.statut, 201);
+  assert.ok(deux.corps.publication.image);
+  assert.equal(deux.corps.publication.video.plateforme, 'tiktok');
+});
+
+test('vidéo : autre site, javascript:, adresse piégée ou identifiant malformé, refusés sur le champ « video »', async () => {
+  const refuses = [
+    'https://vimeo.com/123456789', 'https://exemple.com/watch?v=PkZNo7MFNFg', 'javascript:alert(1)', 'data:text/html,<script>alert(1)</script>',
+    'https://youtube.com.pirate.example/watch?v=PkZNo7MFNFg', 'https://pirate.example/youtube.com/watch?v=PkZNo7MFNFg',
+    'https://youtube.com@pirate.example/watch?v=PkZNo7MFNFg', 'https://www.youtube.com:8080/watch?v=PkZNo7MFNFg', 'ftp://youtu.be/PkZNo7MFNFg',
+    'https://www.youtube.com/watch?v=court', 'https://www.youtube.com/watch?v=PkZNo7MFNFg"><script>', 'https://youtu.be/PkZNo7MF/../x',
+    'https://www.youtube.com/embed/PkZNo7MFNFg', 'https://www.youtube.com/@freecodecamp', 'https://www.youtube.com/playlist?list=PLabc',
+    'https://www.tiktok.com/@awa', 'https://www.tiktok.com/@awa/video/abc', 'https://www.tiktok.com/@awa/video/123/../../evil', 'https://vm.tiktok.com/ZMabc123/',
+    'https://www.facebook.com/PalabreDev', 'https://www.facebook.com/PalabreDev/videos/abc', 'https://www.facebook.com/watch/?v=1%20onload=x', 'https://fb.watch/', 'https://fb.watch/a/b/c',
+    'pas un lien', `https://youtu.be/PkZNo7MFNFg?${'x'.repeat(300)}`,
+  ];
+  // Les mêmes règles servent à l'aperçu et à la publication (lireLienVideo) : on les essaie toutes sur l'aperçu…
+  for (const lien of refuses) {
+    const r = await appel(`/api/publications/video?lien=${encodeURIComponent(lien)}`, { qui: 'awa' });
+    assert.equal(r.statut, 400, lien);
+    assert.equal(r.corps.champ, 'video', lien);
+  }
+  // … et quelques-unes à la publication elle-même (qui est limitée à 30 envois par quart d'heure).
+  for (const lien of [refuses[0], refuses[2], refuses[4]]) {
+    const r = await poster('awa', '/api/publications', { type: 'idee', texte: 'Regardez ça.', video: lien });
+    assert.equal(r.statut, 400, lien);
+    assert.equal(r.corps.champ, 'video', lien);
+  }
+  assert.match((await poster('awa', '/api/publications', { type: 'idee', texte: 'x', video: 'https://vm.tiktok.com/ZMabc123/' })).corps.erreur, /lien complet/);
+  // Un visiteur n'a pas accès à l'aperçu ; un champ vide ou absent ne bloque pas la publication.
+  assert.equal((await appel('/api/publications/video?lien=https://youtu.be/PkZNo7MFNFg')).statut, 401);
+  assert.equal((await poster('awa', '/api/publications', { type: 'idee', texte: 'Sans vidéo.', video: '  ' })).corps.publication.video, null);
+  // La base refuse elle aussi autre chose qu'une plateforme connue et un identifiant simple.
+  await assert.rejects(pool.query('UPDATE publications SET video_plateforme = \'autre\', video_id = \'abcd\' WHERE video_id IS NOT NULL'), /publications_video_check/);
+  await assert.rejects(pool.query('UPDATE publications SET video_id = \'https://pirate.example\' WHERE video_id IS NOT NULL'), /publications_video_check/);
+});
+
+test('seuls les lecteurs vidéo officiels et les miniatures YouTube sont autorisés par la CSP', async () => {
+  const csp = (await fetch(`${base}/fil`)).headers.get('content-security-policy');
+  assert.match(csp, /frame-src https:\/\/www\.youtube-nocookie\.com https:\/\/www\.tiktok\.com https:\/\/www\.facebook\.com(;|$)/);
+  assert.match(csp, /img-src 'self' data: blob: https:\/\/i\.ytimg\.com(;|$)/);
+  assert.match(csp, /script-src 'self'(;|$)/); // rien d'ouvert côté scripts
 });
 
 test('un faux fichier image est refusé dans une publication', async () => {

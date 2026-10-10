@@ -939,6 +939,34 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
 .actions-publier label { cursor: pointer; }
 .apercu-image { display: grid; gap: 4px; justify-items: start; }
 .apercu-image img { max-height: 220px; border-radius: var(--rayon-petit); }
+.actions-joindre { display: flex; flex-wrap: wrap; gap: 8px; }
+.raccourci-video .icone { color: var(--terre); }
+.ligne-video { display: flex; align-items: center; gap: 4px; }
+.ligne-video input { flex: 1; min-width: 0; }
+.zone-video .publication-video { margin-top: 6px; border-radius: var(--rayon-petit); overflow: hidden; }
+
+/* ---------- Vidéo jointe à une publication ----------
+   Avant le toucher : une miniature (YouTube) ou une simple carte (TikTok, Facebook). Le lecteur n'est chargé qu'ensuite. */
+.video-cadre { position: relative; display: grid; aspect-ratio: 16 / 9; background: var(--surface-2); }
+.video-cadre.video-tiktok.en-lecture { aspect-ratio: 9 / 16; max-height: 80vh; margin-inline: auto; }
+.video-cadre iframe { width: 100%; height: 100%; border: 0; }
+/* La miniature de YouTube est en 4:3 avec des bandes noires : posée en absolu et recadrée, elle remplit le cadre 16:9 sans le déformer */
+.video-vignette { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; background: #000; cursor: pointer; }
+.video-vignette img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.video-bouton-lecture {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%;
+  background: rgb(0 0 0 / 0.62); color: #fff;
+}
+.video-bouton-lecture .icone { width: 28px; height: 28px; margin-left: 3px; fill: currentColor; }
+.video-vignette:hover .video-bouton-lecture, .video-vignette:focus-visible .video-bouton-lecture { background: var(--action); }
+.video-vignette:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
+.video-carte { display: grid; place-content: center; justify-items: center; gap: 10px; padding: 16px; text-align: center; }
+.video-carte strong { font: 700 var(--t-17)/1.2 var(--titre); }
+.video-logo { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--surface); color: var(--encre); box-shadow: var(--ombre-1); }
+.video-logo .icone { width: 24px; height: 24px; }
+.video-carte .bouton .icone { fill: currentColor; }
+.video-mention { margin: 6px var(--gouttiere) 0; font-size: var(--t-13); }
 
 /* « Disponibles maintenant » : une rangée qui défile sur le côté */
 .disponibles { padding: 12px 0 8px; }
@@ -1016,7 +1044,7 @@ a.nom-auteur:hover { text-decoration: underline; }
 
 /* Une publication du fil. Tout a une marge sur les côtés, sauf l'image qui prend toute la largeur. */
 .publication { display: grid; gap: 10px; padding-top: 12px; }
-.publication > :not(.publication-image) { margin-inline: var(--gouttiere); }
+.publication > :not(.publication-image, .publication-video) { margin-inline: var(--gouttiere); }
 .publication-qui { flex: 1; }
 .publication-qui .publication-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .publication-menu { margin-right: -10px; }

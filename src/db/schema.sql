@@ -127,6 +127,14 @@ CREATE TABLE IF NOT EXISTS publications (
 -- Taille de l'image jointe : le navigateur réserve sa place avant qu'elle soit chargée (la page ne saute pas).
 ALTER TABLE publications ADD COLUMN IF NOT EXISTS image_largeur INTEGER;
 ALTER TABLE publications ADD COLUMN IF NOT EXISTS image_hauteur INTEGER;
+-- Vidéo jointe : seulement la plateforme et l'identifiant de la vidéo (src/utils/videos.js), jamais une adresse libre.
+-- Les deux contraintes sont une seconde barrière : même une écriture directe en base ne peut pas y mettre autre chose.
+ALTER TABLE publications ADD COLUMN IF NOT EXISTS video_plateforme TEXT;
+ALTER TABLE publications ADD COLUMN IF NOT EXISTS video_id TEXT;
+ALTER TABLE publications DROP CONSTRAINT IF EXISTS publications_video_check;
+ALTER TABLE publications ADD CONSTRAINT publications_video_check CHECK (
+  (video_plateforme IS NULL AND video_id IS NULL)
+  OR (video_plateforme IN ('youtube', 'tiktok', 'facebook') AND video_id ~ '^[A-Za-z0-9_-]{4,25}$'));
 
 CREATE TABLE IF NOT EXISTS commentaires (
   id             SERIAL PRIMARY KEY,

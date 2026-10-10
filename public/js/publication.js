@@ -143,6 +143,59 @@
     return el('img', attributs);
   }
 
+  // ---------- Vidéo jointe (YouTube, TikTok, Facebook) ----------
+  // Le serveur n'envoie que { plateforme, id } : c'est ici que l'adresse du lecteur officiel est reconstruite.
+  // Économie de données : RIEN n'est demandé à TikTok ni à Facebook tant que le membre n'a pas touché la vidéo,
+  // et YouTube ne fournit qu'une petite image (la miniature). Le lecteur (un cadre « iframe », lourd) n'arrive qu'au toucher.
+  const VIDEOS = {
+    youtube: { nom: 'YouTube', lecteur: (id) => `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0` },
+    tiktok: { nom: 'TikTok', lecteur: (id) => `https://www.tiktok.com/player/v1/${id}?autoplay=1` },
+    facebook: {
+      nom: 'Facebook',
+      // Un identifiant tout en chiffres vient de facebook.com/…/videos/… ; sinon c'est le code d'un lien court fb.watch.
+      lecteur: (id) => `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(/^\d+$/.test(id) ? `https://www.facebook.com/watch/?v=${id}` : `https://fb.watch/${id}/`)}&show_text=false&autoplay=true`,
+    },
+  };
+
+  function videoPublication(video) {
+    const plateforme = video && VIDEOS[video.plateforme];
+    // Deuxième contrôle, côté navigateur : un identifiant qui n'a pas la bonne forme n'est jamais mis dans une adresse.
+    if (!plateforme || !/^[A-Za-z0-9_-]{4,25}$/.test(video.id)) return null;
+    const cadre = el('div', { classe: `video-cadre video-${video.plateforme}` });
+    function lire() {
+      cadre.classList.add('en-lecture');
+      cadre.replaceChildren(el('iframe', {
+        src: plateforme.lecteur(video.id),
+        title: `Vidéo ${plateforme.nom}`,
+        allow: 'autoplay; encrypted-media; picture-in-picture; fullscreen',
+        allowfullscreen: true,
+        // Le site n'envoie d'habitude aucune « adresse d'origine » (réglage de Helmet), mais YouTube refuse de lire sans elle :
+        // on donne seulement le nom du site, jamais la page où se trouve le membre.
+        referrerpolicy: 'strict-origin-when-cross-origin',
+      }));
+    }
+    if (video.plateforme === 'youtube') {
+      const vignette = el('button', { classe: 'video-vignette', type: 'button', 'aria-label': 'Lire la vidéo YouTube' }, [
+        el('img', { src: `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`, alt: '', width: 480, height: 360, loading: 'lazy', decoding: 'async', referrerpolicy: 'no-referrer' }),
+        el('span', { classe: 'video-bouton-lecture' }, [icone('lecture')]),
+      ]);
+      vignette.addEventListener('click', lire);
+      cadre.append(vignette);
+    } else {
+      const bouton = el('button', { classe: 'bouton bouton-principal', type: 'button' }, [icone('lecture'), 'Lire la vidéo']);
+      bouton.addEventListener('click', lire);
+      cadre.append(el('div', { classe: 'video-carte' }, [
+        el('span', { classe: 'video-logo' }, [icone(video.plateforme)]),
+        el('strong', { texte: `Vidéo ${plateforme.nom}` }),
+        bouton,
+      ]));
+    }
+    return el('div', { classe: 'publication-video' }, [
+      cadre,
+      el('p', { classe: 'video-mention texte-discret', texte: 'La vidéo utilise tes données mobiles.' }),
+    ]);
+  }
+
   // ---------- Une publication ----------
   // « nouvelle » : la publication vient d'être écrite, elle apparaît en douceur en haut du fil.
   function cartePublication(publication, { nouvelle = false } = {}) {
@@ -209,6 +262,7 @@
       ]),
       el('div', { classe: 'publication-corps' }, [texte, voirPlus]),
       publication.image ? imagePublication(publication) : null,
+      publication.video ? videoPublication(publication.video) : null,
       preuve,
       el('div', { classe: 'publication-actions' }, [boutonJaime, boutonCommenter]),
       commentaires.zone,
@@ -293,5 +347,5 @@
     return { charger, ajouterEnTete };
   }
 
-  Object.assign(window.Palabre, { cartePublication, filPublications });
+  Object.assign(window.Palabre, { cartePublication, filPublications, videoPublication });
 })();

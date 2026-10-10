@@ -16,7 +16,11 @@ function creerApp() {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        imgSrc: ["'self'", 'data:', 'blob:'],
+        // i.ytimg.com : les miniatures des vidéos YouTube du fil (une simple image, sans traceur).
+        imgSrc: ["'self'", 'data:', 'blob:', 'https://i.ytimg.com'],
+        // Les seuls cadres autorisés : les lecteurs officiels des vidéos jointes aux publications.
+        // Ils ne sont créés qu'au moment où le membre touche la vidéo (public/js/publication.js).
+        frameSrc: ['https://www.youtube-nocookie.com', 'https://www.tiktok.com', 'https://www.facebook.com'],
         styleSrc: ["'self'"],
         fontSrc: ["'self'"],
         scriptSrc: ["'self'"],

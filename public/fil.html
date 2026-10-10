@@ -52,8 +52,22 @@
           <img alt="Aperçu de l'image choisie" data-apercu-image>
           <button class="bouton bouton-lien" type="button" data-retirer-image>Retirer l'image</button>
         </div>
+        <!-- Lien vidéo (YouTube, TikTok, Facebook) : ouvert par le bouton « Vidéo ». L'aperçu est dessiné par fil.js
+             une fois que le serveur a reconnu le lien. -->
+        <div class="champ zone-video" data-zone-video hidden>
+          <label for="video">Lien de la vidéo <span class="aide">YouTube, TikTok ou Facebook</span></label>
+          <div class="ligne-video">
+            <input id="video" name="video" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="300" placeholder="https://youtu.be/…">
+            <button class="bouton bouton-lien" type="button" data-retirer-video>Retirer</button>
+          </div>
+          <p class="erreur-champ" data-erreur="video"></p>
+          <div data-apercu-video></div>
+        </div>
         <div class="actions-publier">
-          <label class="bouton bouton-contour" for="choisir-image"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#image"></use></svg>Image</label>
+          <div class="actions-joindre">
+            <label class="bouton bouton-contour" for="choisir-image"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#image"></use></svg>Image</label>
+            <button class="bouton bouton-contour" type="button" data-ouvrir-video aria-expanded="false"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#video"></use></svg>Vidéo</button>
+          </div>
           <button class="bouton bouton-principal" type="submit"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#envoyer"></use></svg>Publier</button>
         </div>
       </div>
@@ -61,6 +75,7 @@
       <!-- Raccourcis : ils préchoisissent le type de publication (ou ouvrent le choix d'une photo). -->
       <div class="composer-raccourcis">
         <label class="raccourci raccourci-photo" for="choisir-image"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#image"></use></svg>Photo</label>
+        <button class="raccourci raccourci-video" type="button" data-ouvrir-video><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#video"></use></svg>Vidéo</button>
         <button class="raccourci raccourci-question" type="button" data-raccourci="question"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#question"></use></svg>Question</button>
         <button class="raccourci raccourci-projet" type="button" data-raccourci="projet"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#projet"></use></svg>Projet</button>
       </div>

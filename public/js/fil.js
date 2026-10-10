@@ -1,7 +1,7 @@
 // Fil d'actualité : zone « Publier », rangée « Disponibles maintenant », puis les publications par 10.
 // La carte d'une publication (j'aime, commentaires…) est dans publication.js.
 (function () {
-  const { api, el, avatar, prenom, utilisateurConnecte, reduireImage, icone, etatVide, toast, filPublications, cartePublication } = window.Palabre;
+  const { api, el, avatar, prenom, utilisateurConnecte, reduireImage, icone, etatVide, toast, filPublications, cartePublication, videoPublication } = window.Palabre;
 
   let filtre = 'tout';     // 'tout' ou 'amis'
   let imageChoisie = null; // image réduite, prête à être envoyée (data URL)
@@ -78,6 +78,54 @@
     });
     formulaire.querySelector('[data-retirer-image]').addEventListener('click', retirerImage);
 
+    // ----- Lien vidéo : le bouton « Vidéo » ouvre un champ ; dès qu'un lien y est collé, le serveur dit s'il le reconnaît
+    // (GET /api/publications/video) et l'aperçu s'affiche, exactement comme il apparaîtra dans le fil. -----
+    const zoneVideo = formulaire.querySelector('[data-zone-video]');
+    const champVideo = formulaire.elements.video;
+    const erreurVideo = formulaire.querySelector('[data-erreur="video"]');
+    const apercuVideo = formulaire.querySelector('[data-apercu-video]');
+    let attenteVideo = null;
+    let demandeVideo = 0; // numéro de la dernière vérification lancée : une réponse en retard est ignorée
+
+    function retirerVideo() {
+      clearTimeout(attenteVideo);
+      demandeVideo += 1;
+      champVideo.value = '';
+      champVideo.removeAttribute('aria-invalid');
+      erreurVideo.textContent = '';
+      apercuVideo.replaceChildren();
+      zoneVideo.hidden = true;
+      formulaire.querySelectorAll('[data-ouvrir-video]').forEach((b) => b.setAttribute('aria-expanded', 'false'));
+    }
+    async function verifierVideo() {
+      const lien = champVideo.value.trim();
+      const numero = demandeVideo += 1;
+      erreurVideo.textContent = '';
+      champVideo.removeAttribute('aria-invalid');
+      if (!lien) return apercuVideo.replaceChildren();
+      try {
+        const { video } = await api(`/publications/video?lien=${encodeURIComponent(lien)}`);
+        if (numero === demandeVideo) apercuVideo.replaceChildren(videoPublication(video));
+      } catch (erreur) {
+        if (numero !== demandeVideo) return;
+        apercuVideo.replaceChildren();
+        erreurVideo.textContent = erreur.message;
+        champVideo.setAttribute('aria-invalid', 'true');
+      }
+    }
+    formulaire.querySelectorAll('[data-ouvrir-video]').forEach((boutonVideo) => boutonVideo.addEventListener('click', () => {
+      ouvrir();
+      zoneVideo.hidden = false;
+      formulaire.querySelectorAll('[data-ouvrir-video]').forEach((b) => b.setAttribute('aria-expanded', 'true'));
+      champVideo.focus();
+    }));
+    // On attend une demi-seconde après la dernière touche avant d'interroger le serveur.
+    champVideo.addEventListener('input', () => {
+      clearTimeout(attenteVideo);
+      attenteVideo = setTimeout(verifierVideo, 500);
+    });
+    formulaire.querySelector('[data-retirer-video]').addEventListener('click', retirerVideo);
+
     formulaire.addEventListener('submit', async (evenement) => {
       evenement.preventDefault();
       zoneErreur.textContent = '';
@@ -91,10 +139,12 @@
       try {
         const donnees = { type: formulaire.elements.type.value, texte: champ.value };
         if (imageChoisie) donnees.image = imageChoisie;
+        if (!zoneVideo.hidden && champVideo.value.trim()) donnees.video = champVideo.value.trim();
         const { publication } = await api('/publications', { methode: 'POST', donnees });
         champ.value = '';
         formulaire.elements.type.value = 'idee';
         retirerImage();
+        retirerVideo();
         fil.ajouterEnTete(publication);
         // La zone se replie, prête pour la prochaine publication.
         document.activeElement.blur();
@@ -102,6 +152,11 @@
         toast('Publié !');
       } catch (erreur) {
         if (erreur.champ === 'texte') zoneErreur.textContent = erreur.message;
+        else if (erreur.champ === 'video') {
+          erreurVideo.textContent = erreur.message;
+          champVideo.setAttribute('aria-invalid', 'true');
+          champVideo.focus();
+        }
         else message(erreur.message, 'erreur');
       } finally {
         bouton.disabled = false;
