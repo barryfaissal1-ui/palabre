@@ -2,7 +2,7 @@
 // Partagé par le fil (/fil), l'onglet « Publications » d'un profil et la page publique /publication/12 :
 // le même code, le même rendu. Un visiteur sans compte la voit en lecture seule (option « visiteur »).
 (function () {
-  const { api, el, avatar, nomMembre, prenom, dateRelative, signaler, icone, chargement, toast, confirmer, menuOptions, copierLien, partager, utilisateurConnecte } = window.Palabre;
+  const { api, el, avatar, nomMembre, prenom, dateRelative, deNom, signaler, icone, chargement, toast, confirmer, menuOptions, copierLien, partager, utilisateurConnecte } = window.Palabre;
 
   // Un administrateur peut supprimer le contenu des autres : le menu « … » le lui propose.
   // (Le serveur revérifie de toute façon : cacher un bouton n'est jamais une protection.)
@@ -275,7 +275,12 @@
       publication.video ? videoPublication(publication.video) : null,
       preuve,
       visiteur
-        ? el('div', { classe: 'publication-rejoindre' }, [el('a', { classe: 'bouton bouton-principal bouton-plein', href: `/inscription?suite=${encodeURIComponent(`/publication/${publication.id}`)}`, texte: 'Rejoindre Palabre pour réagir' })])
+        // Les trois sorties d'un visiteur, dans la carte, l'une sous l'autre et sur toute la largeur.
+        ? el('div', { classe: 'publication-rejoindre' }, [
+          el('a', { classe: 'bouton bouton-principal bouton-plein', href: `/inscription?suite=${encodeURIComponent(`/publication/${publication.id}`)}`, texte: 'Rejoindre Palabre pour réagir' }),
+          el('a', { classe: 'bouton bouton-contour bouton-plein', href: `/${publication.auteur.identifiant}`, texte: `Voir le profil ${deNom(prenom(publication.auteur))}` }),
+          el('a', { classe: 'bouton bouton-lien bouton-plein', href: `/connexion?suite=${encodeURIComponent(`/publication/${publication.id}`)}`, texte: 'J\'ai déjà un compte' }),
+        ])
         : el('div', { classe: 'publication-actions' }, [boutonJaime, boutonCommenter]),
       commentaires.zone,
     ]);

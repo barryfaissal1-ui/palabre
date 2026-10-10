@@ -2205,8 +2205,8 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
   color: var(--action);
 }
 .choix-partage-rond .icone { width: 20px; height: 20px; }
-.publication-rejoindre { padding: 12px 16px 16px; }
-.page-publication .liens-publication { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px; }
+.publication-rejoindre { display: grid; gap: 8px; padding: 4px 0 8px; }
+.publication-rejoindre .bouton { justify-content: center; text-align: center; }
 
 /* ---------- Défi de la semaine ---------- */
 .carte-defi { display: grid; gap: 10px; }
