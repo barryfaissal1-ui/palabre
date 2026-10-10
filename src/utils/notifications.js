@@ -15,15 +15,16 @@ const push = require('./push');
 //           garde qu'une. 'acteurs' compte les personnes (« Awa et 3 autres ont aimé ta publication ») ;
 //           'compteur' compte les événements (« Awa t'a envoyé 3 messages »).
 //           « texte » est alors une fonction (nombre) => phrase.
-//   push    { titre, texte } : ce qu'affiche le push, s'il doit différer du texte de la cloche (aperçu d'un message).
+//   push    { titre, texte } : ce qu'affiche le push, s'il doit différer du titre du type (voir TITRES_PUSH) ou du
+//           texte de la cloche (aperçu d'un message).
 async function notifier(executeur, utilisateurId, type, texte, lien, { acteur = null, cible = null, groupe = null, push: surPush = null } = {}) {
   if (acteur && acteur.id === utilisateurId) return null;
   // Le push part après l'écriture, sans que la requête l'attende : un service de push lent ou en panne ne ralentit
   // ni ne fait échouer l'action du membre. « tag » : sur le téléphone, la notification suivante du même sujet
   // remplace la précédente au lieu de s'empiler.
-  const pousser = (phrase) => {
+  const pousser = (phrase, nombre) => {
     if (!push.pushActif()) return;
-    const message = { titre: 'Palabre', texte: phrase, ...(surPush || {}), lien, tag: cible ? `${type}-${cible.type}-${cible.id}` : `${type}-${utilisateurId}` };
+    const message = { titre: titrePush(type, acteur, nombre), texte: CORPS_PUSH[type] || phrase, ...(surPush || {}), lien, tag: cible ? `${type}-${cible.type}-${cible.id}` : `${type}-${utilisateurId}` };
     setImmediate(() => { push.envoyerPush(utilisateurId, type, message); });
   };
   const inserer = (client, phrase, acteurs, nombre) => client.query(
@@ -34,7 +35,7 @@ async function notifier(executeur, utilisateurId, type, texte, lien, { acteur = 
   if (!groupe || !cible || !acteur) {
     const phrase = typeof texte === 'function' ? texte(1) : texte;
     await inserer(executeur, phrase, acteur ? [acteur.id] : [], 1);
-    pousser(phrase);
+    pousser(phrase, 1);
     return { nombre: 1 };
   }
 
@@ -57,8 +58,41 @@ async function notifier(executeur, utilisateurId, type, texte, lien, { acteur = 
   };
   // Un verrou « de transaction » a besoin d'une transaction : on en ouvre une si l'appelant n'en a pas.
   const resultat = await (typeof executeur.transaction === 'function' ? executeur.transaction(regrouper) : regrouper(executeur));
-  pousser(texte(resultat.nombre));
+  pousser(texte(resultat.nombre), resultat.nombre);
   return resultat;
+}
+
+// Le titre du push, pour chaque type de notification : sur l'écran verrouillé du téléphone, on comprend ce qui se
+// passe sans ouvrir, et ce n'est jamais seulement « Palabre ». « qui » : le prénom de la personne qui a fait l'action.
+// Un nouveau type de notification doit avoir sa ligne ici (tests/push.test.js le vérifie).
+const TITRES_PUSH = {
+  message: (qui) => `Nouveau message ${deNom(qui)}`,
+  demande_message: (qui) => `Demande de message ${deNom(qui)}`,
+  appel_manque: () => 'Appel manqué',
+  jaime: (qui, n) => avecLesAutres(qui, n, 'a aimé ta publication', 'ont aimé ta publication'),
+  commentaire: (qui, n) => avecLesAutres(qui, n, 'a commenté ta publication', 'ont commenté ta publication'),
+  reponse_commentaire: (qui, n) => avecLesAutres(qui, n, 'a répondu après ton commentaire', 'ont répondu après ton commentaire'),
+  demande_ami: (qui) => `${qui} veut t'ajouter en ami`,
+  ami_accepte: (qui) => `${qui} et toi êtes maintenant amis`,
+  nouvelle_proposition: () => 'Nouvelle proposition pour ta demande',
+  proposition_acceptee: () => 'Bonne nouvelle : proposition choisie',
+  invitation_equipe: (qui) => `${qui} t'invite dans son équipe`,
+  equipe_reponses: () => 'Ton équipe éclair a répondu',
+  avis_recu: (qui) => `Nouvel avis ${deNom(qui)}`,
+  defi_gagne: () => 'Tu as gagné le défi de la semaine',
+  projet_facebook: () => 'Ton projet et la page Facebook',
+};
+// Quand le titre dit déjà tout, le texte du push ne le répète pas.
+const CORPS_PUSH = {
+  jaime: 'Touche pour voir ta publication.',
+  commentaire: 'Touche pour lire les commentaires.',
+  reponse_commentaire: 'Touche pour lire la discussion.',
+  demande_ami: 'Touche pour répondre à sa demande.',
+};
+function titrePush(type, acteur = null, nombre = 1) {
+  const qui = (acteur && (acteur.prenom || acteur.nom)) || 'un membre';
+  const titre = TITRES_PUSH[type] ? TITRES_PUSH[type](qui, nombre) : 'Du nouveau sur Palabre';
+  return titre.charAt(0).toUpperCase() + titre.slice(1);
 }
 
 // Quelqu'un revient sur son action (il n'aime plus) : il sort de la notification regroupée, tant qu'elle n'est pas lue.
@@ -102,4 +136,4 @@ function deNom(nom) {
   return /^[aeiouyhàâäéèêëîïôöùûü]/i.test(nom) ? `d'${nom}` : `de ${nom}`;
 }
 
-module.exports = { notifier, retirerActeur, avecLesAutres, court, deNom };
+module.exports = { notifier, retirerActeur, avecLesAutres, court, deNom, titrePush, TITRES_PUSH };

@@ -8,7 +8,9 @@ const { creerApp } = require('../src/app');
 const { migrer } = require('../src/db/migrate');
 const { pool } = require('../src/db/pool');
 const push = require('../src/utils/push');
-const { notifier } = require('../src/utils/notifications');
+const fs = require('node:fs');
+const path = require('node:path');
+const { notifier, titrePush, TITRES_PUSH } = require('../src/utils/notifications');
 const { avecComptesPrets } = require('./aide');
 
 let serveur;
@@ -146,7 +148,7 @@ test('un j\'aime envoie un push chiffré, signé par le site, que seul l\'appare
   assert.ok(!envoi.options.body.toString('latin1').includes('aimé'));
   // … mais l'appareil, avec ses clés, retrouve le titre, le texte, le lien et le tag.
   assert.deepEqual(dechiffrer(envoi.options.body, telephoneAwa), {
-    titre: 'Palabre', texte: `${nom('bintou')} a aimé ta publication.`, lien: `/publication/${id}`, tag: `jaime-publication-${id}`,
+    titre: 'Bintou a aimé ta publication', texte: 'Touche pour voir ta publication.', lien: `/publication/${id}`, tag: `jaime-publication-${id}`,
   });
 
   // La signature VAPID : un jeton ES256 pour ce service de push, vérifiable avec la clé publique du site.
@@ -174,12 +176,50 @@ test('message : le push porte le nom et un aperçu de 60 caractères, jamais le 
   const { corps } = await poster('bintou', `/api/messages/avec/${membres.awa.identifiant}`, { texte: long });
   const [envoi] = await pushRecus();
   const recu = dechiffrer(envoi.options.body, telephoneAwa);
-  assert.equal(recu.titre, nom('bintou'));
+  assert.equal(recu.titre, 'Nouveau message de bintou');
   assert.equal(recu.texte.length, 60);
   assert.ok(long.startsWith(recu.texte.slice(0, -1)) && recu.texte.endsWith('…'));
   assert.ok(!recu.texte.includes('secret'));
   assert.equal(recu.lien, `/messages/${corps.conversationId}`);
   assert.equal(recu.tag, `message-conversation-${corps.conversationId}`, 'même tag : le message suivant remplace la notification');
+});
+
+test('titres des push : un titre clair pour chaque type, jamais seulement « Palabre »', async () => {
+  const kofi = { id: 1, nom: 'Kofi Mensah', prenom: 'Kofi' };
+  assert.equal(titrePush('message', kofi), 'Nouveau message de Kofi');
+  assert.equal(titrePush('message', { id: 2, nom: 'Awa Ouédraogo', prenom: 'Awa' }), 'Nouveau message d\'Awa');
+  assert.equal(titrePush('jaime', { prenom: 'Bintou' }, 1), 'Bintou a aimé ta publication');
+  assert.equal(titrePush('jaime', { prenom: 'Bintou' }, 2), 'Bintou et 1 autre ont aimé ta publication');
+  assert.equal(titrePush('jaime', { prenom: 'Bintou' }, 3), 'Bintou et 2 autres ont aimé ta publication');
+  assert.equal(titrePush('commentaire', { prenom: 'Bintou' }, 3), 'Bintou et 2 autres ont commenté ta publication');
+  assert.equal(titrePush('nouvelle_proposition', kofi), 'Nouvelle proposition pour ta demande');
+  assert.equal(titrePush('invitation_equipe', { prenom: 'Fatoumata' }), 'Fatoumata t\'invite dans son équipe');
+  assert.equal(titrePush('demande_ami', kofi), 'Kofi veut t\'ajouter en ami');
+  // Sans prénom connu (acteur réduit à son numéro, ou notification du site), le titre reste une vraie phrase.
+  assert.equal(titrePush('appel_manque', { id: 3 }), 'Appel manqué');
+  assert.equal(titrePush('demande_message', { id: 3 }), 'Demande de message d\'un membre');
+  assert.equal(titrePush('demande_ami', { id: 3 }), 'Un membre veut t\'ajouter en ami');
+  assert.equal(titrePush('defi_gagne'), 'Tu as gagné le défi de la semaine');
+
+  // Chaque type de notification écrit dans le code a son titre : en ajouter un sans titre fait échouer ce test.
+  const dossier = path.join(__dirname, '..', 'src', 'routes');
+  const types = new Set();
+  for (const fichier of fs.readdirSync(dossier)) {
+    const source = fs.readFileSync(path.join(dossier, fichier), 'utf8');
+    for (const [, type] of source.matchAll(/notifier\(\s*\w+,\s*[\w.]+,\s*'([a-z_]+)'/g)) types.add(type);
+  }
+  assert.ok(types.size >= 14, `types trouvés : ${[...types].join(', ')}`);
+  for (const type of types) {
+    assert.ok(TITRES_PUSH[type], `pas de titre de push pour « ${type} »`);
+    const titre = titrePush(type, kofi, 2);
+    assert.ok(titre.length >= 12 && titre.length <= 60 && titre !== 'Palabre' && !titre.endsWith('.'), `${type} : ${titre}`);
+  }
+
+  // De bout en bout : une demande d'ami arrive sur le téléphone avec son titre, sans le répéter dans le texte.
+  await poster('cheick', '/api/amis/demandes', { identifiant: membres.awa.identifiant });
+  const [envoi] = await pushRecus();
+  const recu = dechiffrer(envoi.options.body, telephoneAwa);
+  assert.deepEqual([recu.titre, recu.texte, recu.lien], ['Cheick veut t\'ajouter en ami', 'Touche pour répondre à sa demande.', '/amis']);
 });
 
 test('préférences : une famille coupée n\'arrive plus en push, mais reste dans la cloche', async () => {

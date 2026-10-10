@@ -214,8 +214,9 @@ async function ecrire(req, res, autreId, conversation) {
           acteur: moi,
           cible: { type: 'conversation', id: conv.id },
           groupe: 'compteur',
-          // Sur le téléphone : le nom, et un aperçu de 60 caractères au plus (jamais le message entier, jamais la photo).
-          push: { titre: moi.nom, texte: texte ? court(texte, 60) : 'Photo' },
+          // Sur le téléphone : « Nouveau message de Kofi », et un aperçu de 60 caractères au plus (jamais le message
+          // entier, jamais la photo).
+          push: { texte: texte ? court(texte, 60) : 'Photo' },
         });
     }
     return { conversationId: conv.id, statut: accepte ? 'acceptee' : conv.statut, message: await lireMessage(conv.id, message.id, moi, client) };
