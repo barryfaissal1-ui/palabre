@@ -89,7 +89,7 @@ tests/                 tests automatiques
 - [x] Inscription en deux étapes : code à 6 chiffres reçu par email, champ piège et délai minimum contre les robots, puis « Ton profil de dev » (18 ans minimum, spécialité, expérience, liens vérifiés) avant de pouvoir répondre aux demandes
 - [x] Palabre Messages : messagerie privée (amis, client et dev, demandes de message, blocage, signalement, « Vu »), sans WebSocket
 - [x] Version ordinateur et tablette en 3 colonnes (menu, fil, panneau), recherche dans l'en-tête
-- [x] Contenu de démonstration (`npm run demo`, comptes dans `docs/COMPTES-DEMO.md`)
+- [x] Contenu de démonstration (`npm run demo`, comptes dans `docs/COMPTES-DEMO.md`), dont deux comptes pour tout essayer : `dev@demo.palabre.dev` et `client@demo.palabre.dev`
 - [x] Photos de fond optimisées (accueil et connexion), chargées une par une et jamais sur connexion lente
 - [x] Pages Connexion et Inscription réunies en une seule, avec l'animation de la « lame »
 - [x] Refonte du design, étape C : qualité « réseau social » (anneau de preuve et badge feuille, en-tête compacte avec recherche de membres, « Disponibles maintenant », fil bord à bord avec preuve sociale et aperçu des commentaires, profil avec couverture et onglets)

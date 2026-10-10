@@ -3,6 +3,7 @@
 //   npm run demo             crée le contenu ; ne fait RIEN si les comptes de démonstration existent déjà
 //                            (il leur ajoute seulement les conversations privées, si elles manquent)
 //   npm run demo -- retirer  retire les comptes de démonstration et tout leur contenu
+//   npm run demo -- --admin  (en production seulement) donne aussi le tableau /admin au compte dev@demo.palabre.dev
 //
 // Tous les comptes de démonstration ont un email en …@demo.palabre.dev : c'est ce qui permet de les reconnaître
 // et de les retirer d'un coup (leurs publications, projets, demandes… partent avec eux, ON DELETE CASCADE).
@@ -12,6 +13,7 @@
 // les mêmes règles que celles d'un vrai membre. Seuls les projets et les dates sont écrits directement en base.
 // Les images sont dessinées par le script lui-même (de fausses captures d'écran) : aucune photo de personne.
 const zlib = require('node:zlib');
+const jwt = require('jsonwebtoken');
 const config = require('../src/config');
 const { pool } = require('../src/db/pool');
 const { migrer } = require('../src/db/migrate');
@@ -528,6 +530,162 @@ async function creerConversations(sessions = null) {
   }
 }
 
+// ---------- Les deux comptes « tout tester » ----------
+// Un développeur (dev@…) et une cliente (client@…) qui ont, dès la connexion, quelque chose à faire dans CHAQUE
+// fonction du site : demandes d'amis à accepter, invitation d'équipe éclair, propositions dans tous les états,
+// messages non lus, demande de message d'un inconnu, avis, projets, défi, et (pour le dev) le tableau /admin
+// avec des signalements à traiter et des projets à valider puis à publier sur Facebook.
+// Un compte ne peut pas être dev et client à la fois : il en faut donc deux.
+// Écrit à part, après tout le reste, pour pouvoir être ajouté à des comptes de démonstration déjà créés.
+// Ne fait rien si ces deux comptes existent déjà.
+const COMPLETS = {
+  dev: ['dev', 'Moussa', 'Compaoré', 'Koudougou', 'Burkina Faso', 'Compte de démonstration complet : tout ce qu\'un développeur peut faire sur Palabre. Sites et applications pour les commerces, avec paiement Mobile Money.', ['JavaScript', 'Node.js', 'PostgreSQL', 'Flutter']],
+  client: ['client', 'Rasmata', 'Ilboudo', 'Ouagadougou', 'Burkina Faso', 'Compte de démonstration complet : tout ce qu\'un client peut faire sur Palabre. Gérante d\'une quincaillerie et d\'une auberge.', []],
+};
+
+async function creerComptesComplets(avecAdmin) {
+  const { rows: comptes } = await pool.query('SELECT id, email, identifiant FROM utilisateurs WHERE email LIKE $1', [MOTIF_EMAIL]);
+  if (comptes.length === 0 || comptes.some((c) => c.email === email('dev'))) return null;
+
+  const serveur = creerApp().listen(0);
+  const base = `http://localhost:${serveur.address().port}`;
+  const m = {}; // cle → { cookie, identifiant, id }
+  // Les comptes déjà créés : on leur ouvre une session en signant le jeton ici, comme le fait ouvrirSession().
+  // Pas de connexion par le site : elle est limitée à 20 par quart d'heure.
+  for (const c of comptes) {
+    m[c.email.split('@')[0]] = { id: c.id, identifiant: c.identifiant, cookie: `palabre_session=${jwt.sign({ id: c.id }, config.jwtSecret, { expiresIn: '1h' })}` };
+  }
+  async function appel(chemin, { methode = 'GET', donnees, qui } = {}) {
+    const headers = {};
+    if (donnees) headers['Content-Type'] = 'application/json';
+    if (qui) headers.Cookie = m[qui].cookie;
+    const reponse = await fetch(`${base}/api${chemin}`, { method: methode, headers, body: donnees ? JSON.stringify(donnees) : undefined });
+    const corps = await reponse.json().catch(() => ({}));
+    if (!reponse.ok) throw new Error(`${methode} ${chemin} → ${reponse.status} ${corps.erreur || ''}`);
+    return { corps, entetes: reponse.headers };
+  }
+  const poster = async (chemin, qui, donnees = {}) => (await appel(chemin, { methode: 'POST', qui, donnees })).corps;
+  const ecrire = (de, a, texte, demandeId) => poster(`/messages/avec/${m[a].identifiant}`, de, { texte, ...(demandeId ? { demandeId } : {}) });
+
+  try {
+    // 1. Les deux comptes : inscrits par le site, puis confirmés et complétés en base (comme les autres).
+    const { corps: { competences } } = await appel('/competences');
+    for (const [cle, [type, prenom, nomFamille, ville, pays, bio, noms]] of Object.entries(COMPLETS)) {
+      const inscription = await appel('/auth/inscription', { methode: 'POST', donnees: { type, prenom, nomFamille, email: email(cle), motDePasse: MOT_DE_PASSE, pays, ville, jeton: jetonOuverture(Date.now() - 10000) } });
+      const { rows } = await pool.query('UPDATE utilisateurs SET email_confirme_le = now() WHERE email = $1 RETURNING id', [email(cle)]);
+      m[cle] = { cookie: inscription.entetes.get('set-cookie').split(';')[0], identifiant: inscription.corps.utilisateur.identifiant, id: rows[0].id };
+      await appel('/profils/moi', { methode: 'PUT', qui: cle, donnees: { prenom, nomFamille, identifiant: m[cle].identifiant, pays, ville, bio, disponible: true, whatsapp: null, competences: competences.filter((c) => noms.includes(c.nom)).map((c) => c.id) } });
+    }
+    // ATTENTION : comme pour les autres comptes, le lien de portfolio est inventé et marqué « vérifié ».
+    await pool.query(
+      `UPDATE utilisateurs
+          SET specialite = 'web', experience = '3-5', date_naissance = make_date(1995, 5, 15), profil_complete_le = now(),
+              lien_portfolio = 'https://demo.palabre.dev/' || identifiant, lien_portfolio_verifie_le = now(),
+              est_admin = $2
+        WHERE id = $1`,
+      [m.dev.id, avecAdmin],
+    );
+    await poster('/profils/moi/couverture', 'dev', { image: `data:image/png;base64,${maquette(20, { large: true }).toString('base64')}` });
+
+    // 2. Projets de Moussa : 3 au lien vérifié (donc l'anneau de preuve), 1 sans lien vérifié.
+    //    Le premier attend la validation de l'admin pour Facebook, le deuxième est validé et prêt à publier.
+    const PROJETS = [
+      ['Caisse et stock d\'une quincaillerie', 'commerce', true, 'en_attente'],
+      ['Réservations d\'une auberge', 'services', true, 'valide'],
+      ['Suivi des tournées d\'un livreur', 'transport', true, 'non'],
+      ['Carnet de tontine (en cours)', 'finance', false, 'non'],
+    ];
+    for (const [i, [titre, secteur, verifie, statut]] of PROJETS.entries()) {
+      let image = null;
+      if (i < 2) {
+        const octets = maquette(30 + i);
+        const { rows } = await pool.query('INSERT INTO fichiers (proprietaire_id, type_mime, taille, donnees) VALUES ($1, \'image/png\', $2, $3) RETURNING id', [m.dev.id, octets.length, octets]);
+        image = rows[0].id;
+      }
+      await pool.query(
+        `INSERT INTO projets (dev_id, titre, description, secteur, lien, image, lien_verifie_le, publier_facebook, statut_facebook, cree_le)
+         VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $7 THEN now() END, $8, $9, now() - make_interval(days => $10))`,
+        [m.dev.id, titre, 'Projet de démonstration : conçu pour le téléphone, léger en données, avec paiement par Mobile Money quand il y en a besoin.',
+          secteur, `https://demo.palabre.dev/${m.dev.identifiant}/${i + 1}`, image, verifie, statut !== 'non', statut, 2 + i * 5],
+      );
+    }
+
+    // 3. Amis : 5 amis, 2 demandes reçues à accepter ou refuser, 1 demande envoyée. La cliente en reçoit une aussi.
+    for (const ami of ['awa', 'bintou', 'fatou', 'kofi', 'yao']) {
+      await poster('/amis/demandes', ami, { identifiant: m.dev.identifiant });
+      await poster(`/amis/demandes/${m[ami].identifiant}/accepter`, 'dev');
+    }
+    await poster('/amis/demandes', 'mariam', { identifiant: m.dev.identifiant });
+    await poster('/amis/demandes', 'aminata', { identifiant: m.dev.identifiant });
+    await poster('/amis/demandes', 'dev', { identifiant: m.oumar.identifiant });
+    await poster('/amis/demandes', 'bintou', { identifiant: m.client.identifiant });
+
+    // 4. Publications de Moussa, avec des j'aime et des commentaires (dont un commentaire publicitaire, signalé).
+    const publier = async (type, texte, aime, commentaires) => {
+      const { publication } = await poster('/publications', 'dev', { type, texte });
+      for (const qui of aime) await poster(`/publications/${publication.id}/jaime`, qui);
+      const ids = [];
+      for (const [qui, commentaire] of commentaires) ids.push((await poster(`/publications/${publication.id}/commentaires`, qui, { texte: commentaire })).commentaire.id);
+      return { id: publication.id, commentaires: ids };
+    };
+    const premiere = await publier('projet', 'La caisse de la quincaillerie de Rasmata tourne depuis un mois : ventes, stock et alertes de rupture, le tout sur un téléphone à 40 000 FCFA.',
+      ['awa', 'bintou', 'fatou', 'kofi', 'client'], [['client', 'Je ne compte plus le stock à la main le dimanche. Merci Moussa.'], ['fatou', 'Les alertes de rupture, tu les envoies par SMS ?']]);
+    const seconde = await publier('question', 'Vous facturez comment la maintenance après la livraison : un forfait par mois, ou à l\'intervention ?',
+      ['yao', 'kofi'], [['kofi', 'Forfait par mois, sinon on t\'appelle le dimanche pour rien.'], ['oumar', 'Passez par moi, je fais le même travail deux fois moins cher. Écrivez-moi en privé.']]);
+    await pool.query('UPDATE publications SET cree_le = now() - interval \'26 hours\' WHERE id = $1', [premiere.id]);
+    await pool.query('UPDATE publications SET cree_le = now() - interval \'3 hours\' WHERE id = $1', [seconde.id]);
+
+    // 5. Signalements à traiter dans /admin : un commentaire publicitaire signalé deux fois, une publication une fois.
+    for (const qui of ['awa', 'bintou']) await poster('/signalements', qui, { cibleType: 'commentaire', cible: seconde.commentaires[1], motif: 'Publicité dans les commentaires, il démarche les clients des autres.' });
+    const { rows: [cible] } = await pool.query('SELECT id FROM publications WHERE auteur_id = $1 ORDER BY id LIMIT 1', [m.ibrahim.id]);
+    if (cible) await poster('/signalements', 'nadege', { cibleType: 'publication', cible: cible.id, motif: 'Je ne suis pas d\'accord avec ce conseil.' });
+
+    // 6. Les demandes de Rasmata : une dans chaque état.
+    const demander = async (donnees) => (await poster('/demandes', 'client', donnees)).demande.id;
+    const proposer = (id, qui, message, montantFcfa) => poster(`/demandes/${id}/propositions`, qui, { message, montantFcfa });
+    const propositionDe = async (id, cle) => (await appel(`/demandes/${id}`, { qui: 'client' })).corps.propositions.find((p) => p.auteur.identifiant === m[cle].identifiant).id;
+
+    // Terminée, avec avis : Moussa a un avis sur son profil.
+    const caisse = await demander({ titre: 'Caisse et gestion de stock pour ma quincaillerie', description: 'Je tiens une quincaillerie à Ouagadougou. Je veux enregistrer les ventes sur un téléphone et savoir à tout moment ce qu\'il reste en stock.', budgetFcfa: 400000, delai: '1 mois', categorie: 'logiciel-gestion' });
+    await proposer(caisse, 'dev', 'Bonjour Rasmata, je peux vous livrer une caisse simple qui marche même sans réseau, avec une alerte quand un article va manquer.', 380000);
+    await proposer(caisse, 'nadege', 'Bonjour, je peux reprendre votre fichier Excel actuel et en faire un vrai outil.', 400000);
+    await ecrire('client', 'dev', 'Bonjour Moussa, votre proposition m\'intéresse. La caisse marchera aussi quand le réseau coupe ?', caisse);
+    await ecrire('dev', 'client', 'Bonjour Rasmata. Oui : les ventes sont gardées dans le téléphone et envoyées au retour du réseau.', caisse);
+    await poster(`/demandes/${caisse}/choisir`, 'client', { propositionId: await propositionDe(caisse, 'dev') });
+    await poster(`/demandes/${caisse}/terminer`, 'client');
+    await poster('/avis', 'client', { demandeId: caisse, identifiant: m.dev.identifiant, note: 5, commentaire: 'Livré dans les temps et expliqué à mes deux vendeurs. Je sais enfin ce qu\'il me reste en stock.' });
+    await ecrire('client', 'dev', 'Merci encore. J\'ai une auberge aussi, je viens de publier une autre demande : regardez-la !', caisse);
+
+    // Ouverte, 3 propositions à départager : Rasmata peut choisir, Moussa voit sa proposition « en attente ».
+    const auberge = await demander({ titre: 'Site de réservation pour mon auberge', description: 'Auberge de 12 chambres à Ouagadougou. Je voudrais que les voyageurs voient les chambres libres et réservent avec un acompte par Mobile Money.', budgetFcfa: 350000, delai: '6 semaines', categorie: 'site-web' });
+    await proposer(auberge, 'dev', 'Bonjour Rasmata, après la caisse, l\'auberge ! Calendrier des chambres, acompte Orange Money et confirmation par SMS.', 330000);
+    await proposer(auberge, 'aminata', 'Bonjour, je propose un site WordPress avec un module de réservation que vous gérez vous-même.', 280000);
+    await proposer(auberge, 'cheick', 'Bonjour, je peux ajouter une petite application Android pour la réception.', 350000);
+
+    // Ouverte, avec une équipe éclair en formation : Fatoumata invite Yao (qui accepte) et Moussa (qui doit répondre).
+    const tournees = await demander({ titre: 'Application de livraison pour mes clients professionnels', description: 'Je livre du ciment et du fer aux chantiers. Je veux que les clients commandent, que le chauffeur voie sa tournée et que je suive les paiements.', budgetFcfa: 1200000, delai: '2 mois', categorie: 'appli-mobile' });
+    const equipe = await poster(`/demandes/${tournees}/equipes`, 'fatou', { message: 'Bonjour Rasmata, à trois nous couvrons le serveur, l\'application du chauffeur et le suivi des paiements.', montantFcfa: 1100000, roleChef: 'Serveur et paiement', membres: [{ identifiant: m.yao.identifiant, role: 'Application du chauffeur' }, { identifiant: m.dev.identifiant, role: 'Suivi des commandes et du stock' }] });
+    await poster(`/equipes/${equipe.propositions.find((p) => p.equipe).equipe.id}/accepter`, 'yao');
+
+    // Attribuée à Kofi, pas encore terminée : Rasmata peut la terminer puis laisser un avis ; la proposition de Moussa est « non retenue ».
+    const paie = await demander({ titre: 'Logiciel de paie pour mes 9 employés', description: 'Je calcule les salaires à la main chaque mois. Je voudrais un outil simple qui sort les bulletins et garde l\'historique.', budgetFcfa: 300000, delai: '1 mois', categorie: 'logiciel-gestion' });
+    await proposer(paie, 'kofi', 'Bonjour, j\'ai déjà ce module dans mon logiciel pour les écoles. Je l\'adapte à votre quincaillerie en trois semaines.', 280000);
+    await proposer(paie, 'dev', 'Bonjour Rasmata, je peux l\'ajouter directement à votre caisse : un seul outil pour tout.', 300000);
+    await poster(`/demandes/${paie}/choisir`, 'client', { propositionId: await propositionDe(paie, 'kofi') });
+    await ecrire('client', 'kofi', 'Bonjour Kofi, j\'ai retenu votre proposition. Quand commençons-nous ?', paie);
+    await ecrire('kofi', 'client', 'Bonjour Rasmata, merci. Dès lundi : envoyez-moi la liste des employés et leurs salaires de base.', paie);
+
+    // 7. Messages : un ami qui attend une réponse, et un inconnu qui envoie une « demande de message ».
+    await ecrire('dev', 'awa', 'Salut Awa, il reste une place pour animer l\'atelier Git ?');
+    await ecrire('awa', 'dev', 'Oui ! Tu peux prendre la partie « réparer une erreur » : revert, reset, tout ça ?');
+    await ecrire('ibrahim', 'dev', 'Bonjour Moussa, je fais des sites pour les associations à Niamey. Je peux vous poser une question sur le paiement Mobile Money ?');
+
+    return { dev: email('dev'), client: email('client'), admin: avecAdmin };
+  } finally {
+    serveur.close();
+  }
+}
+
 async function main() {
   // Garde-fou : jamais par accident sur le site en ligne (le mot de passe de ces comptes est écrit dans la documentation).
   if (config.production && !process.argv.includes('--forcer')) {
@@ -550,12 +708,16 @@ async function main() {
   if (completes) console.log(`${completes} profil(s) de dev de démonstration complété(s).`);
   const conversations = await creerConversations(bilan ? bilan.sessions : null);
   if (conversations) console.log(`${conversations} conversations privées de démonstration ajoutées (dont une demande de message en attente).`);
+  // Le compte complet est administrateur en local. Sur le site en ligne, seulement si on le demande (--admin) :
+  // son mot de passe est public, et un administrateur peut masquer des contenus et bloquer des membres.
+  const complets = await creerComptesComplets(!config.production || process.argv.includes('--admin'));
+  if (complets) console.log(`Deux comptes « tout tester » ajoutés : ${complets.dev} (développeur${complets.admin ? ' et administrateur' : ''}) et ${complets.client} (cliente).`);
   if (!bilan) {
-    console.log(`Les comptes de démonstration existent déjà : ${conversations ? 'seules les conversations ont été ajoutées' : 'rien n\'a été modifié'}.\nPour repartir de zéro : npm run demo -- retirer, puis npm run demo`);
+    console.log(`Les comptes de démonstration existent déjà : ${conversations || complets ? 'seul ce qui manquait a été ajouté' : 'rien n\'a été modifié'}.\nPour repartir de zéro : npm run demo -- retirer, puis npm run demo`);
     return;
   }
   console.log(`Contenu de démonstration créé : ${bilan.membres} membres, ${bilan.publications} publications, des projets, 6 demandes, 2 avis.`);
-  console.log(`Comptes et mot de passe : docs/COMPTES-DEMO.md (par exemple ${email('awa')}, mot de passe « ${MOT_DE_PASSE} »).`);
+  console.log(`Comptes et mot de passe : docs/COMPTES-DEMO.md (pour tout essayer : ${email('dev')} et ${email('client')}, mot de passe « ${MOT_DE_PASSE} »).`);
   if (bilan.vrais) console.log('Awa et Bintou ont envoyé une demande d\'ami aux comptes déjà inscrits : regarde tes notifications.');
 }
 

@@ -98,6 +98,8 @@ npm run demo -- --forcer
 
 `--forcer` est obligatoire en production : c'est un garde-fou, car le mot de passe de ces comptes est écrit dans `docs/COMPTES-DEMO.md`.
 
+Les deux comptes à donner au jury pour tout essayer sont `dev@demo.palabre.dev` et `client@demo.palabre.dev`. En production, `dev@demo.palabre.dev` n'est **pas** administrateur : son mot de passe est public, et un administrateur peut masquer des contenus et bloquer des membres. Pour montrer `/admin` au jury, deux possibilités : un compte à part avec un mot de passe donné seulement au jury (`npm run admin -- son-email`, conseillé), ou `npm run demo -- --forcer --admin` en acceptant ce risque.
+
 Ton rôle d'administrateur : inscris-toi d'abord sur le site avec ton vrai email, puis :
 
 ```
