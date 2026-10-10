@@ -12,6 +12,7 @@ const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/mem
 const { notifier, court } = require('../utils/notifications');
 const { messageSysteme } = require('../utils/groupes');
 const { lireMessages, lireMessage, messagesModifies, origineValide } = require('../utils/messages');
+const { presenceVue, signalerEcriture, finEcriture, quiEcrit } = require('../utils/presence');
 
 const router = express.Router();
 // La même limite pour les conversations privées et les groupes : 30 messages par minute et par membre.
@@ -46,7 +47,7 @@ async function monGroupe(valeurId, moi) {
 // Les membres actuels, avec leur rôle dans l'équipe et jusqu'où ils ont lu. Un compte bloqué n'est pas montré.
 async function membresDuGroupe(groupe, moi) {
   const { rows } = await db.query(
-    `SELECT u.id, cm.role, em.role AS role_equipe, ${COLONNES_MEMBRE},
+    `SELECT u.id, cm.role, em.role AS role_equipe, u.vu_le, u.masquer_presence, ${COLONNES_MEMBRE},
             COALESCE((SELECT l.dernier_lu_id FROM conversation_lectures l WHERE l.conversation_id = cm.conversation_id AND l.membre_id = u.id), 0) AS lu_jusqua
        FROM conversation_membres cm
        JOIN utilisateurs u ON u.id = cm.membre_id AND u.bloque = FALSE
@@ -62,6 +63,7 @@ async function membresDuGroupe(groupe, moi) {
     estClient: ligne.id === groupe.client_id,
     roleEquipe: ligne.role_equipe,
     luJusqua: ligne.lu_jusqua,
+    presence: ligne.id === moi.id ? null : presenceVue(moi, ligne),
   }));
 }
 
@@ -145,11 +147,24 @@ router.get('/:id/nouveaux', async (req, res) => {
   const groupe = await monGroupe(req.params.id, moi);
   const apres = v.idPositif(req.query.apres) || 0;
   const { rows: [{ maintenant }] } = await db.query('SELECT now() AS maintenant');
-  const [nouveaux, modifies] = await Promise.all([
+  const [nouveaux, modifies, ecrivent, { rows: lectures }] = await Promise.all([
     lireMessages(groupe.id, moi, { apres }),
     messagesModifies(groupe.id, moi, req.query.depuis, apres),
+    groupe.ferme_le ? [] : quiEcrit(groupe.id, moi.id),
+    // « Vu par » : jusqu'où chaque autre membre a lu (la page pose son petit avatar sous ce message).
+    db.query(
+      `SELECT u.identifiant, COALESCE(l.dernier_lu_id, 0) AS lu_jusqua
+         FROM conversation_membres cm
+         JOIN utilisateurs u ON u.id = cm.membre_id AND u.bloque = FALSE
+         LEFT JOIN conversation_lectures l ON l.conversation_id = cm.conversation_id AND l.membre_id = cm.membre_id
+        WHERE cm.conversation_id = $1 AND cm.quitte_le IS NULL AND cm.membre_id <> $2`,
+      [groupe.id, moi.id],
+    ),
   ]);
-  res.json({ messages: nouveaux.messages, modifies, maintenant, ferme: Boolean(groupe.ferme_le), titre: groupe.titre });
+  res.json({
+    messages: nouveaux.messages, modifies, maintenant, ferme: Boolean(groupe.ferme_le), titre: groupe.titre,
+    ecrivent, lectures: lectures.map((l) => ({ identifiant: l.identifiant, luJusqua: l.lu_jusqua })),
+  });
 });
 
 // ---------- Écrire ----------
@@ -177,6 +192,7 @@ router.post('/:id', limiteMessages, async (req, res) => {
       [groupe.id, moi.id, texte, fichierId, reponseA],
     );
     await client.query('UPDATE conversations SET dernier_message_le = now() WHERE id = $1', [groupe.id]);
+    await finEcriture(client, groupe.id, moi.id);
     await client.query(
       `INSERT INTO conversation_lectures (conversation_id, membre_id, dernier_lu_id) VALUES ($1, $2, $3)
        ON CONFLICT (conversation_id, membre_id) DO UPDATE SET dernier_lu_id = EXCLUDED.dernier_lu_id`,
@@ -202,6 +218,13 @@ router.post('/:id', limiteMessages, async (req, res) => {
     return lireMessage(groupe.id, cree.id, moi, client);
   });
   res.status(201).json({ message });
+});
+
+// « J'écris » : POST /api/messages/groupes/:id/ecrit
+router.post('/:id/ecrit', async (req, res) => {
+  const groupe = await monGroupe(req.params.id, req.utilisateur);
+  if (!groupe.ferme_le) await signalerEcriture(groupe.id, req.utilisateur.id);
+  res.json({ ok: true });
 });
 
 // J'ai lu jusqu'ici : POST /api/messages/groupes/:id/lu

@@ -698,6 +698,31 @@ La page demandait déjà toutes les 5 secondes « quoi de neuf après le message
 
 Sur ordinateur, un bouton « … » apparaît à côté de la bulle au survol. Sur téléphone, un **appui long** ouvre le même menu (Répondre, Réagir, Copier, Supprimer, Signaler), et **glisser la bulle vers la droite** répond. Le menu est celui de tout le site (`menuOptions()`).
 
+## 11 duodecies. « Écrit… », « Vu par » et « En ligne »
+
+Ces trois signes de vie existent sans connexion permanente (pas de WebSocket). Tout passe par des requêtes que les pages faisaient déjà : `src/utils/presence.js`.
+
+### « Awa écrit… »
+
+Pendant qu'on tape, la page envoie un petit signal au serveur, **au plus une fois toutes les 3 secondes**. Le serveur le garde 6 secondes (table `ecritures`), puis l'oublie tout seul. L'autre personne l'apprend par la requête qu'elle fait déjà toutes les 5 secondes pour demander les nouveaux messages : **aucune boucle d'appels en plus**. Envoyer le message efface le signal tout de suite.
+
+La table est `UNLOGGED` : ses lignes ne valent que quelques secondes, il est inutile de les protéger contre une panne, et l'écriture coûte moins cher.
+
+Dans une demande de message pas encore acceptée, rien n'est signalé : l'expéditeur ne doit pas savoir qu'on le lit, ni qu'on hésite à répondre.
+
+### « En ligne »
+
+Chaque requête d'un membre connecté passe par `chargerUtilisateur()`. On y note son heure d'activité (`utilisateurs.vu_le`), mais **au plus une fois par minute**, et sans faire attendre la requête : sinon chaque clic écrirait dans la base. Actif il y a moins de 5 minutes : point vert. Sinon : « Actif il y a 2 h ».
+
+Deux protections :
+
+- **La présence ne sort que par la messagerie**, et seulement dans une conversation acceptée ou un groupe dont on est membre. Ni le profil public, ni la recherche, ni le fil ne la montrent : un inconnu ne peut pas savoir quand quelqu'un est connecté.
+- **Chacun peut la cacher** (« Modifier mon profil », « Montrer quand je suis en ligne »). La règle est réciproque : qui cache son statut ne voit plus celui des autres.
+
+### « Vu par » dans un groupe
+
+En privé, « Vu » apparaît sous mon dernier message, comme avant. Dans un groupe, le serveur envoie jusqu'où chaque membre a lu, et la page pose le petit avatar de chacun sous le dernier message qu'il a lu.
+
 ## 12. Le système de design
 
 Un « système de design », c'est un petit nombre de règles visuelles appliquées partout, pour que le site ait l'air d'une seule et même application. Tout est écrit à la main : aucune bibliothèque d'interface, aucun framework, donc des pages qui restent légères en 3G (les icônes pèsent 8 Ko en tout, les illustrations 4 Ko).
@@ -918,6 +943,8 @@ Pour les notifications (`tests/notifications.test.js`) : j'aime regroupés avec 
 Pour les groupes (`tests/groupes.test.js`) : le groupe naît avec l'équipe ; accepter y fait entrer, refuser non ; seuls les membres lisent et écrivent (404 pour les autres, photos comprises) ; une seule notification par groupe ; la liste et la pastille comptent les groupes ; sourdine ; renommer réservé au chef ; le client entre quand il choisit l'équipe ; quitter avant ou après ce choix ; équipe dissoute, groupe fermé ; signalement d'un message de groupe.
 
 Pour les actions sur les messages (`tests/messages-actions.test.js`) : une réaction par personne, changée ou retirée, six émojis seulement ; les changements arrivent par « modifies » ; une réponse ne peut citer qu'un message de la même conversation ; suppression pour tout le monde par l'auteur seul, pendant 15 minutes, avec le texte et la photo réellement effacés ; suppression pour soi ; les mêmes actions dans un groupe, refusées aux extérieurs et dans un groupe fermé.
+
+Pour la présence (`tests/presence.test.js`) : « écrit… » vu par l'autre seulement, pendant 6 secondes, effacé à l'envoi ; rien de révélé dans une demande de message non acceptée ; l'activité notée au plus une fois par minute ; « en ligne » sous 5 minutes ; la présence absente du profil public, de la recherche et du fil ; statut masqué dans les deux sens ; « vu par » et « écrit… » dans un groupe.
 
 Les autres fichiers de tests ont besoin de comptes prêts à servir : `tests/aide.js` enveloppe leur fonction d'appel pour que chaque compte créé soit aussitôt confirmé et complet.
 

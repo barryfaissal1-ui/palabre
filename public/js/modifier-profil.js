@@ -223,6 +223,21 @@
     document.querySelector('[data-chargement]').hidden = true;
     formulaire.hidden = false;
 
+    // « Montrer quand je suis en ligne » : enregistré dès qu'on touche l'interrupteur, sans le bouton « Enregistrer ».
+    const zonePresence = document.querySelector('[data-reglage-presence]');
+    const casePresence = zonePresence.querySelector('input');
+    casePresence.checked = !moi.presenceMasquee;
+    zonePresence.hidden = false;
+    casePresence.addEventListener('change', async () => {
+      try {
+        await api('/profils/moi/presence', { methode: 'PUT', donnees: { masquer: !casePresence.checked } });
+        window.Palabre.toast(casePresence.checked ? 'Ton statut en ligne est visible.' : 'Ton statut en ligne est caché.');
+      } catch (erreur) {
+        casePresence.checked = !casePresence.checked;
+        window.Palabre.toast(erreur.message, 'erreur');
+      }
+    });
+
     document.querySelector('[data-deconnexion]').addEventListener('click', async () => {
       // Se déconnecter coupe aussi le push sur cet appareil : la personne suivante ne recevra pas mes notifications.
       if (window.Palabre.push) await window.Palabre.push.couper().catch(() => {});

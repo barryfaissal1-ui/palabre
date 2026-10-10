@@ -2,6 +2,7 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const db = require('../db/pool');
+const { noterActivite } = require('../utils/presence');
 
 const NOM_COOKIE = 'palabre_session';
 const DUREE_SESSION_JOURS = 30;
@@ -33,15 +34,18 @@ async function chargerUtilisateur(req, res, next) {
       `SELECT id, type, est_admin, nom, prenom, nom_famille, identifiant, email, pays, ville, whatsapp, bio, avatar, couverture, disponible,
               email_confirme_le, profil_complete_le, specialite, experience,
               lien_github, lien_github_verifie_le, lien_gitlab, lien_gitlab_verifie_le,
-              lien_portfolio, lien_portfolio_verifie_le, lien_linkedin, lien_linkedin_verifie_le, sessions_depuis
+              lien_portfolio, lien_portfolio_verifie_le, lien_linkedin, lien_linkedin_verifie_le, sessions_depuis,
+              vu_le, masquer_presence
          FROM utilisateurs WHERE id = $1 AND bloque = FALSE`,
       [id],
     );
     // Mot de passe réinitialisé depuis : cette session a été ouverte avec l'ancien, elle est fermée.
     // (Si quelqu'un avait volé le mot de passe ou un téléphone resté connecté, il est déconnecté lui aussi.)
     const perimee = rows[0] && rows[0].sessions_depuis && iat * 1000 < rows[0].sessions_depuis.getTime() - 1000;
-    if (rows[0] && !perimee) req.utilisateur = rows[0];
-    else fermerSession(res);
+    if (rows[0] && !perimee) {
+      req.utilisateur = rows[0];
+      noterActivite(rows[0]); // « en ligne » : noté au plus une fois par minute, sans faire attendre la requête
+    } else fermerSession(res);
   } catch {
     fermerSession(res);
   }

@@ -173,6 +173,17 @@
       </div>
     </form>
 
+    <!-- Statut « en ligne » dans la messagerie : enregistré tout de suite (modifier-profil.js). -->
+    <section class="bloc-formulaire reglages-push" data-reglage-presence hidden>
+      <h2>Confidentialité</h2>
+      <label class="interrupteur">
+        <input type="checkbox" name="montrer-presence">
+        <span class="interrupteur-piste" aria-hidden="true"></span>
+        <span>Montrer quand je suis en ligne</span>
+      </label>
+      <p class="aide">Dans la messagerie, tes contacts voient un point vert quand tu es là. Si tu le caches, tu ne vois plus le leur non plus.</p>
+    </section>
+
     <!-- Notifications sur le téléphone : rempli par push.js. Ces réglages s'enregistrent tout de suite,
          sans passer par le bouton « Enregistrer » du profil. -->
     <section class="bloc-formulaire reglages-push" data-reglages-push hidden></section>

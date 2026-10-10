@@ -2165,6 +2165,36 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
   to { opacity: 1; }
 }
 
+/* ---------- « Écrit… », « En ligne », « Vu par » ---------- */
+.ecrit-en-ce-moment { flex: none; display: flex; align-items: center; gap: 6px; margin: 0; padding: 2px 16px 4px; color: var(--gris); font-size: var(--t-13); }
+.ecrit-en-ce-moment[hidden] { display: none; }
+/* Trois petits points qui montent l'un après l'autre (transform et opacity seulement). */
+.points-ecriture { display: inline-flex; gap: 3px; }
+.points-ecriture span { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.5; animation: point-ecriture 1.2s ease-in-out infinite; }
+.points-ecriture span:nth-child(2) { animation-delay: 0.15s; }
+.points-ecriture span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes point-ecriture {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+/* Le point vert « en ligne », en bas à droite de l'avatar. */
+.avec-presence { position: relative; display: inline-flex; flex: none; }
+.avec-presence.en-ligne::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--feuille-vive);
+}
+.presence-en-ligne { color: var(--action); font-weight: 600; }
+/* « Vu par » dans un groupe : de tout petits avatars, à droite, sous le dernier message lu par chacun. */
+.vus-par { align-self: flex-end; display: flex; gap: 2px; margin: 0 4px 2px 0; }
+.vus-par > * { --taille: 18px; }
+
 /* ---------- Réactions, réponses, suppression ---------- */
 .bulle { position: relative; }
 /* Le bouton « … » d'un message : à côté de la bulle. Visible au survol ou au clavier sur ordinateur ;

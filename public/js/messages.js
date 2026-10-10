@@ -8,7 +8,7 @@
 // seulement quand une conversation est ouverte ET que l'onglet est visible. En arrière-plan, plus aucune requête.
 (function () {
   const {
-    api, el, avatar, nomMembre, utilisateurConnecte, reduireImage, signaler, icone, etatVide, chargement, toast, confirmer, menuOptions, prenom,
+    api, el, avatar, nomMembre, utilisateurConnecte, reduireImage, signaler, icone, etatVide, chargement, toast, confirmer, menuOptions, prenom, dateRelative,
   } = window.Palabre;
 
   const DELAI_CONVERSATION = 5000; // nouveaux messages de la conversation ouverte
@@ -68,7 +68,7 @@
       classe: `conversation-item${conversation.nonLus ? ' non-lue' : ''}`, href: adresseDe(conversation),
       'aria-current': ouverte && ouverte.id === conversation.id ? 'true' : null,
     }, [
-      groupe ? avatarsEmpiles(conversation.membres) : avatar(conversation.autre, 'moyen'),
+      groupe ? avatarsEmpiles(conversation.membres) : el('span', { classe: `avec-presence${conversation.presence && conversation.presence.enLigne ? ' en-ligne' : ''}` }, [avatar(conversation.autre, 'moyen')]),
       el('span', { classe: 'conversation-texte' }, [
         groupe ? el('strong', { classe: 'conversation-titre', texte: conversation.titre }) : nomMembre(conversation.autre, { lien: false }),
         el('span', { classe: 'conversation-apercu' }, [dernier && dernier.aImage ? icone('image') : null, apercu]),
@@ -333,6 +333,46 @@
     });
   }
 
+  // ---------- « Awa écrit… », « En ligne », « Vu par » ----------
+  // Tout arrive par la requête déjà faite toutes les 5 secondes (route « nouveaux ») : aucun appel de plus.
+  const adresseOuverte = () => (ouverte.estGroupe ? `/messages/groupes/${ouverte.id}` : `/messages/conversations/${ouverte.id}`);
+
+  // La ligne « Awa écrit… », avec ses trois petits points, posée juste au-dessus de la zone d'écriture.
+  function ligneEcriture() {
+    return el('p', { classe: 'ecrit-en-ce-moment', hidden: true, 'aria-live': 'polite' });
+  }
+  function dessinerEcriture(prenoms) {
+    if (!ouverte || !ouverte.ecritIci) return;
+    const ligne = ouverte.ecritIci;
+    ligne.hidden = prenoms.length === 0;
+    if (ligne.hidden) return;
+    let texte = `${prenoms[0]} écrit`;
+    if (prenoms.length === 2) texte = `${prenoms[0]} et ${prenoms[1]} écrivent`;
+    else if (prenoms.length > 2) texte = 'Plusieurs personnes écrivent';
+    // Les prénoms viennent d'autres membres : textContent, comme partout.
+    ligne.replaceChildren(el('span', { texte }), el('span', { classe: 'points-ecriture', 'aria-hidden': 'true' }, [el('span'), el('span'), el('span')]));
+  }
+  // « En ligne » ou « Actif il y a 2 h » ; rien si l'un des deux cache son statut.
+  const textePresence = (presence) => (presence.enLigne ? 'En ligne' : `Actif ${dateRelative(presence.vuLe)}`);
+
+  // Dans un groupe : le petit avatar de chacun sous le dernier message qu'il a lu.
+  function dessinerVusPar() {
+    if (!ouverte || !ouverte.estGroupe) return;
+    ouverte.zone.querySelectorAll('.vus-par').forEach((ligne) => ligne.remove());
+    const bulles = [...ouverte.zone.querySelectorAll('[data-message]')];
+    const parMessage = new Map();
+    ouverte.donnees.membres.filter((m) => !m.estMoi && m.luJusqua).forEach((membre) => {
+      // Le dernier message affiché que ce membre a lu.
+      const lue = bulles.filter((b) => Number(b.dataset.message) <= membre.luJusqua).pop();
+      if (!lue) return;
+      if (!parMessage.has(lue)) parMessage.set(lue, []);
+      parMessage.get(lue).push(membre);
+    });
+    parMessage.forEach((lecteurs, apresBulle) => {
+      apresBulle.after(el('div', { classe: 'vus-par', role: 'img', 'aria-label': `Vu par ${lecteurs.map((m) => m.prenom).join(', ')}` }, lecteurs.map((m) => avatar(m, 'mini'))));
+    });
+  }
+
   // « Vu » sous mon dernier message, quand l'autre l'a lu.
   function dessinerVu() {
     ouverte.mentionVu.hidden = !(ouverte.monDernierId && ouverte.vuJusqua >= ouverte.monDernierId && ouverte.monDernierId >= ouverte.dernierId);
@@ -414,9 +454,14 @@
       }
     });
     // Le champ grandit avec le texte (jusqu'à une limite fixée par le CSS).
+    let dernierSignal = 0;
     champ.addEventListener('input', () => {
       champ.style.height = 'auto';
       champ.style.height = `${champ.scrollHeight}px`;
+      // « J'écris » : un signal au serveur au plus toutes les 3 secondes pendant la frappe (il l'oublie après 6 s).
+      if (!champ.value.trim() || Date.now() - dernierSignal < 3000 || !ouverte || !ouverte.id) return;
+      dernierSignal = Date.now();
+      api(`${adresseOuverte()}/ecrit`, { methode: 'POST', donnees: {} }).catch(() => {});
     });
     // Sur ordinateur : Entrée envoie, Maj+Entrée va à la ligne. Sur téléphone, Entrée va à la ligne.
     champ.addEventListener('keydown', (evenement) => {
@@ -453,15 +498,22 @@
   function enteteConversation(autre, { menu = null } = {}) {
     const retour = el('button', { classe: 'bouton-icone bouton-retour', type: 'button', 'aria-label': 'Retour à la liste des conversations' }, [icone('fleche-gauche')]);
     retour.addEventListener('click', () => aller('/messages'));
-    return el('header', { classe: 'conversation-entete' }, [
+    const role = [autre.type === 'client' ? 'Client' : 'Développeur', autre.ville].filter(Boolean).join(', ');
+    const sousTitre = el('p', { classe: 'texte-discret', texte: role });
+    const lienAvatar = el('a', { classe: 'lien-avatar avec-presence', href: `/${autre.identifiant}`, 'aria-label': `Profil de ${autre.nom}` }, [avatar(autre, 'moyen')]);
+    const entete = el('header', { classe: 'conversation-entete' }, [
       retour,
-      el('a', { classe: 'lien-avatar', href: `/${autre.identifiant}`, 'aria-label': `Profil de ${autre.nom}` }, [avatar(autre, 'moyen')]),
-      el('div', { classe: 'conversation-qui' }, [
-        nomMembre(autre),
-        el('p', { classe: 'texte-discret', texte: [autre.type === 'client' ? 'Client' : 'Développeur', autre.ville].filter(Boolean).join(', ') }),
-      ]),
+      lienAvatar,
+      el('div', { classe: 'conversation-qui' }, [nomMembre(autre), sousTitre]),
       menu,
     ]);
+    // Point vert et « En ligne » quand on le sait ; sinon on garde « Développeur, Koudougou ».
+    entete.majPresence = (presence) => {
+      lienAvatar.classList.toggle('en-ligne', Boolean(presence && presence.enLigne));
+      sousTitre.textContent = presence ? textePresence(presence) : role;
+      sousTitre.classList.toggle('presence-en-ligne', Boolean(presence && presence.enLigne));
+    };
+    return entete;
   }
 
   // Bouton qui appelle l'API puis recharge la conversation (Accepter, Refuser, Bloquer…).
@@ -600,13 +652,16 @@
     zone.append(plusAnciens);
     ajouterMessages(reponse.messages);
     dessinerVu();
+    ouverte.entete = enteteConversation(autre, { menu });
+    ouverte.entete.majPresence(conversation.presence);
     panneau.replaceChildren(...[
-      enteteConversation(autre, { menu }),
+      ouverte.entete,
       // Client et dev : on rappelle la demande dont il est question.
       conversation.demande
         ? el('a', { classe: 'bandeau-demande', href: `/demande?id=${conversation.demande.id}` }, [icone('demandes'), el('span', {}, ['À propos de la demande : ', el('strong', { texte: conversation.demande.titre })])])
         : null,
       zone,
+      (ouverte.ecritIci = ligneEcriture()),
       bas,
     ].filter(Boolean));
     ouverte.ecriture = bas;
@@ -739,6 +794,7 @@
         envoyer: async (donnees) => {
           const { message } = await api(`/messages/groupes/${id}`, { methode: 'POST', donnees });
           ajouterMessages([message]);
+          dessinerVusPar();
           allerEnBas();
           chargerListe();
         },
@@ -777,10 +833,12 @@
         ? el('a', { classe: 'bandeau-demande', href: `/demande?id=${groupe.demande.id}` }, [icone('demandes'), el('span', {}, ['Équipe éclair pour la demande : ', el('strong', { texte: groupe.demande.titre })])])
         : null,
       zone,
+      (ouverte.ecritIci = ligneEcriture()),
       bas,
     ].filter(Boolean));
     ouverte.ecriture = bas;
     ouverte.maintenant = reponse.maintenant;
+    dessinerVusPar();
     allerEnBas();
     dessinerListe();
     marquerLu();
@@ -851,6 +909,12 @@
         if (!ouverte || ouverte.id !== id) return;
         ouverte.maintenant = reponse.maintenant;
         (reponse.modifies || []).forEach(redessiner);
+        dessinerEcriture(reponse.ecrivent || []);
+        // Jusqu'où chacun a lu : les petits avatars « vu par » suivent.
+        (reponse.lectures || []).forEach((lecture) => {
+          const membre = ouverte.donnees.membres.find((m) => m.identifiant === lecture.identifiant);
+          if (membre) membre.luJusqua = lecture.luJusqua;
+        });
         // Le groupe vient d'être fermé (équipe dissoute) ou renommé : on redessine tout.
         if (reponse.ferme !== ouverte.donnees.ferme || reponse.titre !== ouverte.donnees.titre) {
           chargerListe();
@@ -859,8 +923,9 @@
         }
         const enBas = ouverte.zone.scrollHeight - ouverte.zone.scrollTop - ouverte.zone.clientHeight < 80;
         const nouveaux = reponse.messages.filter((m) => m.id > ouverte.dernierId);
+        if (nouveaux.length) ajouterMessages(nouveaux);
+        dessinerVusPar();
         if (nouveaux.length) {
-          ajouterMessages(nouveaux);
           if (enBas) allerEnBas();
           if (nouveaux.some((m) => !m.estMoi)) {
             marquerLu();
@@ -873,6 +938,8 @@
       if (!ouverte || ouverte.id !== id) return; // on a changé de conversation pendant la requête
       ouverte.maintenant = reponse.maintenant;
       (reponse.modifies || []).forEach(redessiner);
+      dessinerEcriture(reponse.ecrivent || []);
+      if (ouverte.entete) ouverte.entete.majPresence(reponse.presence);
       // La demande que j'avais envoyée vient d'être acceptée (ou l'inverse) : on redessine pour montrer la zone d'écriture.
       if (reponse.statut !== ouverte.donnees.statut) {
         ouvrir(id);

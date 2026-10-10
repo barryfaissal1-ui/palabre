@@ -40,6 +40,7 @@ const limiteCodes = rateLimit({
 // Profil complet du membre connecté (avec son email) : n'est envoyé qu'à lui-même.
 function profilPrive(u) {
   return {
+    presenceMasquee: Boolean(u.masquer_presence),
     id: u.id,
     type: u.type,
     estAdmin: u.est_admin,

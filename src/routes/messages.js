@@ -17,6 +17,7 @@ const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/mem
 const { notifier, court } = require('../utils/notifications');
 const groupes = require('./groupes');
 const { lireMessages, lireMessage, messagesModifies, origineValide } = require('../utils/messages');
+const { presenceVue, signalerEcriture, finEcriture, quiEcrit } = require('../utils/presence');
 
 const router = express.Router();
 const MAX_CONVERSATIONS = 100;
@@ -106,7 +107,7 @@ async function maConversation(valeurId, moi) {
   const id = v.idPositif(valeurId);
   const { rows } = id ? await db.query(
     `SELECT c.id, c.statut, c.cree_par, c.demande_id, c.membre_a, c.membre_b, d.titre AS demande_titre,
-            u.id AS autre_id, ${COLONNES_MEMBRE},
+            u.id AS autre_id, u.vu_le, u.masquer_presence, ${COLONNES_MEMBRE},
             COALESCE((SELECT l.dernier_lu_id FROM conversation_lectures l
                        WHERE l.conversation_id = c.id AND l.membre_id = u.id), 0) AS vu_jusqua
        FROM conversations c
@@ -206,6 +207,7 @@ async function ecrire(req, res, autreId, conversation) {
        ON CONFLICT (conversation_id, membre_id) DO UPDATE SET dernier_lu_id = EXCLUDED.dernier_lu_id`,
       [conv.id, moi.id, message.id],
     );
+    await finEcriture(client, conv.id, moi.id); // le message est parti : « écrit… » s'arrête tout de suite
     // Une conversation supprimée d'un côté réapparaît quand un nouveau message arrive.
     await client.query('DELETE FROM conversation_masquees WHERE conversation_id = $1', [conv.id]);
     // La cloche : une demande de message d'un inconnu est annoncée une fois. Dans une conversation ouverte,
@@ -238,7 +240,7 @@ router.get('/conversations', async (req, res) => {
   const moi = req.utilisateur;
   const demandes = req.query.onglet === 'demandes';
   const { rows } = await db.query(
-    `SELECT c.id, c.statut, c.cree_par, c.demande_id, c.dernier_message_le, d.titre AS demande_titre, ${COLONNES_MEMBRE},
+    `SELECT c.id, c.statut, c.cree_par, c.demande_id, c.dernier_message_le, d.titre AS demande_titre, u.vu_le, u.masquer_presence, ${COLONNES_MEMBRE},
             dernier.texte AS dernier_texte, dernier.cree_le AS dernier_le, dernier.auteur_id AS dernier_auteur,
             dernier.fichier_id IS NOT NULL AS dernier_image,
             ${NON_LUS} AS non_lus, ${JE_BLOQUE} AS je_bloque
@@ -272,6 +274,8 @@ router.get('/conversations', async (req, res) => {
       statut: ligne.statut,
       enAttente: ligne.statut === 'demande' && ligne.cree_par === moi.id,
       autre: apercuMembre(ligne),
+      // Présence : seulement dans une conversation acceptée (pas pour une demande de message d'un inconnu).
+      presence: ligne.statut === 'acceptee' ? presenceVue(moi, ligne) : null,
       demande: ligne.demande_id && ligne.demande_titre ? { id: ligne.demande_id, titre: ligne.demande_titre } : null,
       dernierMessage: ligne.dernier_le
         ? { texte: ligne.dernier_texte, creeLe: ligne.dernier_le, estMoi: ligne.dernier_auteur === moi.id, aImage: ligne.dernier_image }
@@ -330,6 +334,7 @@ function parametresConversation(ligne, moi, droit) {
     id: ligne.id,
     statut: ligne.statut,
     autre: apercuMembre(ligne),
+    presence: ligne.statut === 'acceptee' ? presenceVue(moi, ligne) : null,
     demande: ligne.demande_id && ligne.demande_titre ? { id: ligne.demande_id, titre: ligne.demande_titre } : null,
     // Demande de message que j'ai reçue : la page propose Accepter / Refuser / Bloquer à la place de la zone d'écriture.
     estDemandeRecue: ligne.statut === 'demande' && ligne.cree_par !== moi.id,
@@ -366,11 +371,17 @@ router.get('/conversations/:id/nouveaux', async (req, res) => {
   const apres = v.idPositif(req.query.apres) || 0;
   // L'heure est lue AVANT les messages : une réaction posée pendant la lecture sera vue au tour suivant, pas perdue.
   const { rows: [{ maintenant }] } = await db.query('SELECT now() AS maintenant');
-  const [nouveaux, modifies] = await Promise.all([
+  const ouverte = ligne.statut === 'acceptee';
+  const [nouveaux, modifies, ecrivent] = await Promise.all([
     lireMessages(ligne.id, moi, { apres }),
     messagesModifies(ligne.id, moi, req.query.depuis, apres),
+    // « Awa écrit… » et sa présence voyagent avec cette requête, déjà faite toutes les 5 secondes : aucun appel de plus.
+    ouverte ? quiEcrit(ligne.id, moi.id) : [],
   ]);
-  res.json({ messages: nouveaux.messages, modifies, maintenant, vuJusqua: ligne.vu_jusqua, statut: ligne.statut });
+  res.json({
+    messages: nouveaux.messages, modifies, maintenant, vuJusqua: ligne.vu_jusqua, statut: ligne.statut,
+    ecrivent, presence: ouverte ? presenceVue(moi, ligne) : null,
+  });
 });
 
 // Envoyer un message : POST /api/messages/conversations/:id  { texte, image? }
@@ -378,6 +389,15 @@ router.post('/conversations/:id', limiteMessages, async (req, res) => {
   const ligne = await maConversation(req.params.id, req.utilisateur);
   const resultat = await ecrire(req, res, ligne.autre_id, ligne);
   if (resultat) res.status(201).json(resultat);
+});
+
+// « J'écris » : POST /api/messages/conversations/:id/ecrit — signalé par la page au plus toutes les 3 secondes.
+// Dans une demande de message pas encore acceptée, rien n'est signalé : l'expéditeur ne doit pas savoir qu'on le lit.
+router.post('/conversations/:id/ecrit', async (req, res) => {
+  const moi = req.utilisateur;
+  const ligne = await maConversation(req.params.id, moi);
+  if (ligne.statut === 'acceptee') await signalerEcriture(ligne.id, moi.id);
+  res.json({ ok: true });
 });
 
 // J'ai lu jusqu'ici : POST /api/messages/conversations/:id/lu

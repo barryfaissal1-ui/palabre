@@ -228,6 +228,14 @@ router.put('/moi', exigerConnexion, async (req, res) => {
 
 // Page 2 de l'inscription des devs, « Ton profil de dev » : PUT /api/profils/moi/profil-dev
 // { dateNaissance, specialite, experience, liens: { github, gitlab, portfolio, linkedin }, sansLien, whatsapp, bio }
+// Montrer ou cacher son statut « en ligne » : PUT /api/profils/moi/presence  { masquer }
+// Qui le cache ne voit pas non plus celui des autres (src/utils/presence.js).
+router.put('/moi/presence', exigerConnexion, async (req, res) => {
+  if (typeof req.body?.masquer !== 'boolean') throw new v.ErreurValidation('Choix illisible.', 'masquer');
+  await db.query('UPDATE utilisateurs SET masquer_presence = $2 WHERE id = $1', [req.utilisateur.id, req.body.masquer]);
+  res.json({ presenceMasquee: req.body.masquer });
+});
+
 router.put('/moi/profil-dev', exigerConnexion, exigerDev, async (req, res) => {
   const corps = req.body || {};
   const moi = req.utilisateur;

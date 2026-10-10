@@ -449,6 +449,20 @@ ALTER TABLE messages ADD COLUMN IF NOT EXISTS supprime_le TIMESTAMPTZ;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS modifie_le TIMESTAMPTZ NOT NULL DEFAULT now();
 CREATE INDEX IF NOT EXISTS idx_messages_modifie ON messages (conversation_id, modifie_le);
 
+-- ============ Présence : « en ligne », « écrit… » ============
+-- vu_le : dernière activité du membre, notée au plus une fois par minute. masquer_presence : il cache son statut
+-- (et ne voit alors pas celui des autres).
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS vu_le TIMESTAMPTZ;
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS masquer_presence BOOLEAN NOT NULL DEFAULT FALSE;
+-- Qui écrit dans quelle conversation, jusqu'à quand (6 secondes après le dernier signal). UNLOGGED : ces lignes
+-- ne valent que quelques secondes, inutile de les protéger contre une panne du serveur de base de données.
+CREATE UNLOGGED TABLE IF NOT EXISTS ecritures (
+  conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  membre_id       INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  jusqu_a         TIMESTAMPTZ NOT NULL,
+  PRIMARY KEY (conversation_id, membre_id)
+);
+
 -- Reprise de l'existant, rejouable sans rien doubler (ON CONFLICT DO NOTHING, NOT EXISTS) :
 -- 1) les deux membres de chaque conversation privée ;
 INSERT INTO conversation_membres (conversation_id, membre_id, rejoint_le)
