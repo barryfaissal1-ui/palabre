@@ -1,0 +1,206 @@
+/* Page /confirmer-email : « les feuilles de l'arbre à palabres ». Chargée par cette page seulement, pour ne pas
+   alourdir les autres. Elle s'appuie sur les variables et les boutons de style.css.
+   Tout ce qui BOUGE ici n'utilise que transform et opacity : le navigateur les anime sans recalculer la page,
+   ce qui reste fluide sur un petit téléphone. Les changements de couleur passent par des calques superposés
+   dont on change seulement l'opacité (.feuille-eclat, .petite-vive, .petite-seche). */
+
+/* ---------- Le décor : un vert profond, de grandes courbes douces, un reflet terre cuite ---------- */
+.page-feuille {
+  margin: 0;
+  padding: 0;
+  min-height: 100dvh;
+  background-color: #0F3D22;
+  background-image:
+    radial-gradient(circle at 88% 92%, transparent 0 33.6%, rgba(255, 255, 255, 0.06) 33.8% 34.2%, transparent 34.4%),
+    radial-gradient(circle at 6% 4%, transparent 0 41.6%, rgba(255, 255, 255, 0.05) 41.8% 42.2%, transparent 42.4%),
+    radial-gradient(120% 80% at 112% -12%, rgba(34, 160, 75, 0.42), transparent 60%),
+    radial-gradient(90% 70% at -22% 112%, rgba(200, 98, 63, 0.3), transparent 60%),
+    radial-gradient(60% 50% at 18% 8%, rgba(255, 255, 255, 0.07), transparent 70%);
+  background-attachment: fixed;
+}
+:where([data-theme="sombre"]) .page-feuille { background-color: #07170D; }
+.scene-feuille {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 28px 12px 52px; /* de la place en bas pour la queue de la feuille */
+  overflow: hidden;        /* la feuille qui se balance ne crée jamais de défilement horizontal */
+}
+
+/* ---------- La grande feuille ---------- */
+/* Deux coins opposés en pointe (haut gauche, bas droite), les deux autres très arrondis. */
+.grande-feuille {
+  position: relative;
+  width: min(100%, 540px);
+  padding: 52px 72px 58px;
+  border-radius: 12px 200px 12px 200px;
+  background: color-mix(in srgb, #F2F8EA 90%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--ombre-3), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  color: #14261A;
+  --feuille-encre: #14261A;
+  --feuille-gris: #4C5A4E;
+  --petite: #D9EFD6;
+  --petite-bord: rgba(24, 122, 59, 0.38);
+  --petite-nervure: rgba(24, 122, 59, 0.2);
+}
+:where([data-theme="sombre"]) .grande-feuille {
+  background: color-mix(in srgb, #143A24 92%, transparent);
+  box-shadow: var(--ombre-3), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: #EEF6EA;
+  --feuille-encre: #EEF6EA;
+  --feuille-gris: #B9CBB9;
+  --petite: #1F5C37;
+  --petite-bord: rgba(120, 214, 150, 0.45);
+  --petite-nervure: rgba(160, 230, 180, 0.2);
+}
+/* Le reflet : un voile clair qui part de la pointe du haut. */
+.grande-feuille::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.5), transparent 36%);
+  pointer-events: none;
+}
+:where([data-theme="sombre"]) .grande-feuille::before { background: linear-gradient(135deg, rgba(255, 255, 255, 0.09), transparent 36%); }
+/* Au succès, la feuille prend un vert plus vif : ce calque passe de transparent à opaque. */
+.feuille-eclat {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #DFF5DA, #BCE8C2);
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  pointer-events: none;
+}
+:where([data-theme="sombre"]) .feuille-eclat { background: linear-gradient(135deg, #1C5A34, #17703A); }
+.grande-feuille.reussi .feuille-eclat { opacity: 1; }
+.feuille-nervure { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit; opacity: 0.07; pointer-events: none; }
+.feuille-nervure path { fill: none; stroke: #187A3B; stroke-width: 1.4; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.feuille-nervure path:first-child { stroke-width: 2.4; }
+:where([data-theme="sombre"]) .feuille-nervure { opacity: 0.12; }
+:where([data-theme="sombre"]) .feuille-nervure path { stroke: #9FE0B2; }
+.feuille-petiole { position: absolute; right: -24px; bottom: -34px; width: 44px; height: 48px; pointer-events: none; }
+.feuille-petiole path { fill: none; stroke: #CFE5C6; stroke-width: 6; stroke-linecap: round; }
+:where([data-theme="sombre"]) .feuille-petiole path { stroke: #1E5433; }
+
+.feuille-contenu { position: relative; display: grid; justify-items: center; gap: 14px; text-align: center; }
+.feuille-contenu form { display: grid; gap: 12px; width: 100%; }
+.medaillon {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, var(--feuille-vive), var(--feuille));
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--feuille-vive) 22%, transparent), var(--ombre-1);
+  color: #FFFFFF;
+}
+.medaillon .icone { width: 30px; height: 30px; }
+.feuille-titre { margin: 0; font: 800 var(--t-24)/1.15 var(--titre); color: var(--feuille-encre); }
+.feuille-texte { margin: 0; max-width: 34ch; font-size: var(--t-15); line-height: 1.45; color: var(--feuille-gris); }
+.feuille-texte strong { color: var(--feuille-encre); overflow-wrap: anywhere; }
+.feuille-contenu .erreur-champ { margin: 0; min-height: 20px; font-weight: 600; }
+:where([data-theme="sombre"]) .feuille-contenu .erreur-champ { color: #FFB4A9; }
+.feuille-renvoi, .feuille-sortie { margin: 0; font-size: var(--t-15); color: var(--feuille-gris); }
+.feuille-renvoi .bouton-lien { font-weight: 700; color: var(--feuille-encre); text-decoration: underline; text-underline-offset: 3px; }
+.feuille-renvoi .bouton-lien:disabled { text-decoration: none; opacity: 0.75; }
+.feuille-sortie .bouton-lien { font-size: var(--t-13); font-weight: 500; color: var(--feuille-gris); }
+/* Le petit rond qui tourne dans le bouton pendant la vérification */
+.rond-attente { width: 16px; height: 16px; border: 2px solid rgba(255, 255, 255, 0.45); border-top-color: #FFFFFF; border-radius: 50%; animation: tourner 0.7s linear infinite; }
+.rond-attente[hidden] { display: none; }
+@keyframes tourner { to { transform: rotate(360deg); } }
+
+/* ---------- La branche et ses six petites feuilles ---------- */
+/* Plus haute que les feuilles : c'est là qu'elles tourbillonnent, puis que l'arbre se forme. */
+.branche { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; height: 148px; }
+.petite-feuille { position: relative; flex: 0 1 54px; aspect-ratio: 54 / 62; min-width: 0; will-change: transform; }
+/* La forme d'une feuille : deux bouts pointus en diagonale. Elle seule est inclinée (--penche). */
+.petite-forme {
+  position: absolute;
+  inset: 0;
+  border: 1.5px solid var(--petite-bord);
+  border-radius: 0 70% 0 70%;
+  background:
+    radial-gradient(90% 70% at 30% 18%, rgba(255, 255, 255, 0.5), transparent 62%),
+    linear-gradient(48deg, transparent 49.2%, var(--petite-nervure) 49.6% 50.4%, transparent 50.8%),
+    var(--petite);
+  box-shadow: 0 2px 6px rgba(15, 61, 34, 0.14);
+  transform: rotate(var(--penche, -5deg));
+  overflow: hidden;
+}
+:where([data-theme="sombre"]) .petite-forme { background: radial-gradient(90% 70% at 30% 18%, rgba(255, 255, 255, 0.12), transparent 62%), linear-gradient(48deg, transparent 49.2%, var(--petite-nervure) 49.6% 50.4%, transparent 50.8%), var(--petite); }
+/* Une feuille sur deux est retournée et penche de l'autre côté, comme sur une branche. */
+.petite-feuille:nth-of-type(even) .petite-forme {
+  border-radius: 70% 0 70% 0;
+  --penche: 5deg;
+  background:
+    radial-gradient(90% 70% at 70% 18%, rgba(255, 255, 255, 0.5), transparent 62%),
+    linear-gradient(-48deg, transparent 49.2%, var(--petite-nervure) 49.6% 50.4%, transparent 50.8%),
+    var(--petite);
+}
+:where([data-theme="sombre"]) .petite-feuille:nth-of-type(even) .petite-forme { background: radial-gradient(90% 70% at 70% 18%, rgba(255, 255, 255, 0.12), transparent 62%), linear-gradient(-48deg, transparent 49.2%, var(--petite-nervure) 49.6% 50.4%, transparent 50.8%), var(--petite); }
+/* Deux calques de couleur : vert vif (feuille active) et terre cuite (code faux, « feuille sèche »). */
+.petite-vive, .petite-seche { position: absolute; inset: 0; opacity: 0; transition: opacity 0.18s ease; }
+.petite-vive { background: color-mix(in srgb, var(--feuille-vive) 38%, transparent); }
+.petite-seche { background: linear-gradient(160deg, #E0A27F, #C8623F); }
+.petite-feuille:focus-within .petite-vive { opacity: 1; }
+/* Code confirmé : les feuilles de la couronne sont d'un vert franc, comme le feuillage du logo. */
+.grande-feuille.reussi .petite-vive { opacity: 1; background: color-mix(in srgb, var(--feuille-vive) 78%, transparent); }
+.grande-feuille.reussi .petite-forme { border-color: var(--feuille); }
+.petite-feuille:focus-within .petite-forme {
+  border-color: var(--action);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--feuille-vive) 30%, transparent), 0 2px 6px rgba(15, 61, 34, 0.14);
+  animation: balancer 2.2s ease-in-out infinite alternate;
+}
+@keyframes balancer {
+  from { transform: rotate(calc(var(--penche, -5deg) - 2.5deg)); }
+  to { transform: rotate(calc(var(--penche, -5deg) + 2.5deg)); }
+}
+/* Le chiffre : toujours droit, centré, en gros. Le champ occupe toute la feuille (zone tactile entière). */
+.chiffre {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--feuille-encre);
+  caret-color: var(--action);
+  font: 800 var(--t-24)/1 var(--titre);
+  text-align: center;
+}
+.chiffre:focus { outline: none; border: 0; box-shadow: none; }
+.chiffre:disabled { opacity: 1; -webkit-text-fill-color: var(--feuille-encre); }
+.chiffre.pop { animation: pop-chiffre 0.22s ease-out; }
+@keyframes pop-chiffre {
+  from { transform: scale(0.5); opacity: 0.2; }
+  60% { transform: scale(1.18); opacity: 1; }
+  to { transform: none; }
+}
+
+/* ---------- L'arbre à palabres (succès) ---------- */
+.arbre { position: absolute; inset: 0; pointer-events: none; }
+.tronc { position: absolute; left: 50%; top: 58px; width: 56px; height: 66px; margin-left: -28px; fill: #3A2A1E; opacity: 0; transform-origin: 50% 100%; }
+:where([data-theme="sombre"]) .tronc { fill: #D9C7B4; }
+.badge-coche, .onde { position: absolute; left: 50%; top: 40px; width: 44px; height: 44px; margin-left: -22px; border-radius: 50%; opacity: 0; }
+.badge-coche { display: grid; place-items: center; background: var(--feuille); box-shadow: 0 0 0 3px #FFFFFF, var(--ombre-2); color: #FFFFFF; }
+.badge-coche .icone { width: 24px; height: 24px; stroke-width: 3; }
+.onde { border: 3px solid var(--feuille-vive); }
+
+/* ---------- Téléphone : une forme plus douce, pour que tout tienne ---------- */
+@media (max-width: 599px) {
+  .scene-feuille { padding: 16px 8px 46px; }
+  .grande-feuille { padding: 36px 14px 42px; border-radius: 10px 64px 10px 64px; }
+  .feuille-petiole { right: -4px; bottom: -36px; }
+  .branche { gap: 4px; height: 140px; }
+  .petite-forme { --penche: -4deg; }
+  .petite-feuille:nth-of-type(even) .petite-forme { --penche: 4deg; }
+  .medaillon { width: 54px; height: 54px; }
+  .feuille-contenu { gap: 12px; }
+}

@@ -548,6 +548,54 @@ La fenêtre est un `<dialog>` ouvert avec `showModal()` : le navigateur la place
 
 Le calendrier du navigateur oblige à reculer mois par mois jusqu'à son année de naissance. À la place : Jour, Mois (en lettres) et Année (de « il y a 18 ans » jusqu'à 1940), avec le même composant. `public/js/date-naissance.js` assemble les trois valeurs en `AAAA-MM-JJ`, exactement ce que le serveur attendait déjà, et refuse une date qui n'existe pas avec un message clair (« il n'y a pas de 31 février »). La règle des 18 ans reste vérifiée **par le serveur**, comme avant : un contrôle dans le navigateur peut toujours être contourné.
 
+## 11 octies. La page du code : « les feuilles de l'arbre à palabres »
+
+`/confirmer-email` est la première page que voit un nouveau membre après son inscription. On en a fait un moment propre à Palabre : la carte est une grande feuille, le code s'écrit sur six petites feuilles, et quand il est bon, elles forment la couronne d'un arbre à palabres. Dix captures de l'animation sont dans `docs/captures/`.
+
+**Ce qui n'a pas changé : toutes les règles du serveur.** Le code est haché, valable 15 minutes, 5 essais, un renvoi par minute et cinq par heure. La page n'est qu'une façon plus agréable de le saisir : elle envoie toujours `POST /api/auth/confirmer-email` avec `{ code }`.
+
+### Trois fichiers
+
+- `public/confirmer-email.html` : la structure, sans aucun style ni script en ligne ;
+- `public/css/confirmer-email.css` : une feuille de style **chargée par cette page seulement**, pour ne pas alourdir les autres pages en 3G ;
+- `public/js/confirmer-email.js` : la saisie et le mouvement.
+
+### La forme de feuille
+
+La grande feuille n'est pas une image : c'est un rectangle dont deux coins opposés sont en pointe et les deux autres très arrondis (`border-radius: 12px 200px 12px 200px`), avec des nervures et une queue dessinées en SVG. Sur téléphone les arrondis sont plus petits (64 px), pour que tout tienne. Un test dans le navigateur vérifie par le calcul que le texte, les feuilles et les boutons restent **à l'intérieur** de la forme, à 360, 390 et 1280 px.
+
+### Six champs qui se comportent comme un seul
+
+Chaque petite feuille contient un vrai champ de saisie. Seule la **forme** de la feuille est inclinée ; le chiffre, lui, reste droit et en 24 px. Le script fait le lien entre les six :
+
+- un chiffre tapé fait passer à la feuille suivante, Retour arrière revient à la précédente, les flèches déplacent ;
+- tout ce qui n'est pas un chiffre est retiré ;
+- un code collé (même avec des espaces) est réparti sur les six feuilles ; `autocomplete="one-time-code"` permet au téléphone de proposer le code reçu ;
+- au sixième chiffre, le code part tout seul. Le bouton « Confirmer » reste, pour le clavier et les lecteurs d'écran ;
+- chaque champ a son libellé (« Chiffre 3 sur 6 ») et les messages sont annoncés (`role="alert"`, `aria-live`).
+
+### Un mouvement qui ne coûte rien au téléphone
+
+Tout ce qui bouge n'utilise que deux propriétés : `transform` (déplacer, tourner, agrandir) et `opacity` (transparence). Le navigateur les anime sans recalculer la mise en page, ce qui reste fluide sur un petit téléphone : avec le processeur ralenti quatre fois dans Chrome, le tourbillon garde 60 images par seconde. Aucune bibliothèque : c'est `element.animate()`, l'outil d'animation du navigateur.
+
+Comment changer de couleur avec seulement de la transparence ? Par des **calques superposés**. Chaque petite feuille a un calque vert vif (feuille active) et un calque terre cuite (« feuille sèche », quand le code est faux) ; on ne fait que les rendre plus ou moins opaques.
+
+Le déroulement :
+
+1. **Vérification.** Les feuilles décollent et tournent sur une ellipse, décalées les unes des autres ; la grande feuille se balance à peine. Cela dure au moins 800 ms même si le serveur répond tout de suite (sinon on ne verrait rien), et continue tant qu'il n'a pas répondu.
+2. **Code bon.** Chaque feuille part de l'endroit exact où elle se trouve (`figer()` lit sa position en plein vol) et se pose en arc de cercle ; le tronc pousse ; le badge « vérifié » apparaît. Titre « Email confirmé », puis redirection au bout d'une seconde et demie.
+3. **Code faux.** Les feuilles retombent à leur place, frissonnent, sèchent un instant, puis redeviennent vertes et vides. Le message du serveur s'affiche dessous (« Code incorrect. Il te reste 4 essais. ») et le curseur revient sur la première feuille.
+
+Pour une personne qui a demandé à son téléphone de **réduire les animations**, il n'y a ni tourbillon ni arbre : un fondu, puis la coche.
+
+### Le compte à rebours du renvoi
+
+« Renvoyer dans 0:59 » suit la limite du serveur (un code par minute). L'heure du dernier envoi est gardée dans `sessionStorage` : recharger la page ne remet pas le compteur à zéro. Ce n'est qu'un confort : c'est le serveur qui refuse réellement un second envoi trop rapproché.
+
+### Les emails
+
+`src/utils/gabarit-email.js` fabrique le code de confirmation et le « mot de passe oublié » avec le même gabarit, en deux versions : texte et HTML. Un email n'est pas une page web : Gmail et Outlook retirent les feuilles de style. On écrit donc avec des **tableaux** et des **styles sur chaque balise**, 600 px de large au plus. C'est le seul endroit du projet où les styles en ligne sont permis. Le prénom du membre est échappé (`echapperHtml()`), le logo est appelé par son adresse complète, et l'email du code ne contient **aucun lien** : quelqu'un qui le lirait par-dessus l'épaule n'a rien à cliquer.
+
 ## 12. Le système de design
 
 Un « système de design », c'est un petit nombre de règles visuelles appliquées partout, pour que le site ait l'air d'une seule et même application. Tout est écrit à la main : aucune bibliothèque d'interface, aucun framework, donc des pages qui restent légères en 3G (les icônes pèsent 8 Ko en tout, les illustrations 4 Ko).
@@ -761,6 +809,8 @@ Pour les listes (`tests/listes.test.js`) : les notifications arrivent par 10, de
 
 Pour la date de naissance (`tests/date-naissance.test.js`, sans serveur) : la date composée à partir des trois listes est bien `AAAA-MM-JJ`, les dates impossibles (31 février, 29 février 2001, 31 avril) donnent un message clair, les années vont de « il y a 18 ans » à 1940, et la validation du serveur accepte la date composée tout en refusant les moins de 18 ans.
 
+Pour les emails (`tests/emails.test.js`) : le code figure dans la version texte et dans la version HTML, en gros ; l'email du code n'a aucun lien ; un prénom piégé (`<img onerror=…>`) reste du texte ; le logo est en adresse absolue ; « mot de passe oublié » utilise le même gabarit avec son lien ; le code enregistré en base est toujours haché.
+
 Les autres fichiers de tests ont besoin de comptes prêts à servir : `tests/aide.js` enveloppe leur fonction d'appel pour que chaque compte créé soit aussitôt confirmé et complet.
 
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
@@ -782,6 +832,9 @@ C'est aussi mieux pour le site en ligne : un redémarrage ne bloque plus les tab
 Deux tests dépendaient en plus de ce qui se trouvait dans la base : la liste « Derniers inscrits » ne montre que 50 comptes (les autres fichiers en créent en même temps) et l'API des notifications n'en envoie plus que 10 à la fois. Ils lisent maintenant ce qu'ils vérifient directement en base, ou datent leurs comptes de « maintenant ».
 
 ## 15. Questions probables du jury
+
+- **L'animation du code ne ralentit-elle pas les petits téléphones ?** Elle n'anime que `transform` et `opacity`, que le navigateur gère sans recalculer la page : 60 images par seconde avec le processeur ralenti quatre fois. Et elle se coupe pour qui a demandé de réduire les animations.
+- **Six champs pour un code, est-ce accessible ?** Chaque champ a son libellé, le code peut être collé ou proposé par le téléphone, le clavier seul suffit, et les erreurs sont annoncées aux lecteurs d'écran.
 
 - **Vos tests échouaient parfois : qu'avez-vous fait ?** On a cherché la cause au lieu de relancer : un interblocage entre la mise à jour du schéma et les écritures du site. Le schéma n'est plus rejoué que s'il a changé.
 

@@ -1,12 +1,13 @@
 // Service worker : met en cache les fichiers de l'interface pour un chargement rapide, même en 3G.
 // Les données (/api) ne sont jamais mises en cache.
-const VERSION = 'palabre-v32';
+const VERSION = 'palabre-v33';
 const FICHIERS = [
   '/',
   '/connexion',
   '/inscription',
   '/fil',
   '/css/style.css',
+  '/css/confirmer-email.css',
   '/js/theme.js',
   '/js/app.js',
   '/js/formulaires.js',

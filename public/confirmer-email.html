@@ -10,36 +10,56 @@
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <script src="/js/theme.js"></script>
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/confirmer-email.css">
   <title>Confirme ton email – Palabre</title>
   <script src="/js/app.js" defer></script>
   <script src="/js/confirmer-email.js" defer></script>
 </head>
 <!-- Étape 1 de l'inscription, pour tout le monde : saisir le code à 6 chiffres reçu par email.
-     Tant que ce n'est pas fait, le serveur refuse tout le reste (src/middleware/auth.js, exigerEmailConfirme). -->
-<body class="page-acces">
-  <main class="acces etape">
-    <div class="etape-carte etape-etroite">
-      <a class="etape-marque" href="/"><img src="/icons/logo-96.webp" alt="" width="36" height="36">Palabre</a>
-      <h1 class="acces-titre">Confirme ton email</h1>
-      <p class="etape-texte">Nous avons envoyé un code à 6 chiffres à <strong data-email>ton adresse</strong>. Il est valable 15 minutes.</p>
+     Tant que ce n'est pas fait, le serveur refuse tout le reste (src/middleware/auth.js, exigerEmailConfirme).
+     « Les feuilles de l'arbre à palabres » : la carte est une grande feuille, chaque chiffre s'écrit sur une petite
+     feuille. Pendant la vérification elles tourbillonnent ; si le code est bon, elles forment la couronne d'un arbre.
+     Styles : css/confirmer-email.css (chargé par cette page seulement). Mouvement : js/confirmer-email.js. -->
+<body class="page-feuille">
+  <main class="scene-feuille">
+    <div class="grande-feuille" data-grande-feuille>
+      <span class="feuille-eclat" aria-hidden="true"></span>
+      <!-- Nervures de la grande feuille, presque invisibles derrière le texte -->
+      <svg class="feuille-nervure" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M3 3C30 34 66 68 97 97"/>
+        <path d="M22 22C30 20 40 12 46 4M22 22C20 30 12 40 4 46M42 42C54 38 68 26 76 12M42 42C38 54 26 68 12 76M62 62C74 58 86 48 94 36M62 62C58 74 48 86 36 94"/>
+      </svg>
+      <!-- La queue de la feuille (pétiole), qui sort de la pointe du bas -->
+      <svg class="feuille-petiole" viewBox="0 0 44 48" aria-hidden="true"><path d="M5 5C17 12 30 26 38 43"/></svg>
 
-      <form data-code novalidate>
-        <div class="champ">
-          <label for="code">Code de confirmation</label>
-          <div class="ligne-saisie">
-            <input class="saisie-code" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*" required placeholder="000000">
-            <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#cadenas"></use></svg>
-            <span class="trait"></span>
+      <div class="feuille-contenu">
+        <span class="medaillon" aria-hidden="true"><svg class="icone"><use href="/icons/icones.svg#feuille"></use></svg></span>
+        <h1 class="feuille-titre" data-titre>Confirme ton email</h1>
+        <p class="feuille-texte" data-texte>Entre le code à 6 chiffres envoyé à <strong data-email>ton adresse</strong>.</p>
+
+        <form data-code novalidate>
+          <!-- Une petite feuille par chiffre. Seule sa forme est inclinée : le chiffre reste droit. -->
+          <div class="branche" role="group" aria-label="Code à 6 chiffres" data-branche>
+            <span class="petite-feuille" data-feuille><span class="petite-forme" aria-hidden="true"><span class="petite-vive"></span><span class="petite-seche"></span></span><input class="chiffre" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" aria-label="Chiffre 1 sur 6"></span>
+            <span class="petite-feuille" data-feuille><span class="petite-forme" aria-hidden="true"><span class="petite-vive"></span><span class="petite-seche"></span></span><input class="chiffre" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Chiffre 2 sur 6"></span>
+            <span class="petite-feuille" data-feuille><span class="petite-forme" aria-hidden="true"><span class="petite-vive"></span><span class="petite-seche"></span></span><input class="chiffre" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Chiffre 3 sur 6"></span>
+            <span class="petite-feuille" data-feuille><span class="petite-forme" aria-hidden="true"><span class="petite-vive"></span><span class="petite-seche"></span></span><input class="chiffre" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Chiffre 4 sur 6"></span>
+            <span class="petite-feuille" data-feuille><span class="petite-forme" aria-hidden="true"><span class="petite-vive"></span><span class="petite-seche"></span></span><input class="chiffre" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Chiffre 5 sur 6"></span>
+            <span class="petite-feuille" data-feuille><span class="petite-forme" aria-hidden="true"><span class="petite-vive"></span><span class="petite-seche"></span></span><input class="chiffre" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Chiffre 6 sur 6"></span>
+            <!-- L'arbre à palabres, caché tant que le code n'est pas confirmé : un tronc, puis le badge « vérifié ». -->
+            <span class="arbre" aria-hidden="true">
+              <svg class="tronc" viewBox="0 0 60 70" data-tronc><path d="M25 70c2-14 2-26-1-36l-8-14 4-2 7 11 3-16h4l-1 18 8-12 4 3-9 14c-2 9-2 21 0 34z"/></svg>
+              <span class="onde" data-onde></span>
+              <span class="badge-coche" data-coche><svg class="icone"><use href="/icons/icones.svg#valide"></use></svg></span>
+            </span>
           </div>
-          <p class="erreur-champ" data-erreur="code"></p>
-        </div>
-        <p class="message" role="alert" data-message></p>
-        <button class="bouton bouton-principal bouton-plein" type="submit">Confirmer</button>
-      </form>
+          <p class="erreur-champ" data-erreur="code" role="alert"></p>
+          <p class="visuellement-cache" aria-live="polite" data-annonce></p>
+          <button class="bouton bouton-principal bouton-plein" type="submit" data-confirmer><span class="rond-attente" aria-hidden="true" hidden></span><span data-libelle>Confirmer</span></button>
+        </form>
 
-      <div class="liens-formulaire">
-        <p><button class="bouton bouton-lien" type="button" data-renvoyer>Renvoyer le code</button></p>
-        <p><button class="bouton bouton-lien" type="button" data-deconnexion>Mauvaise adresse ? Se déconnecter</button></p>
+        <p class="feuille-renvoi">Tu n'as rien reçu ? <button class="bouton bouton-lien" type="button" data-renvoyer>Renvoyer le code</button></p>
+        <p class="feuille-sortie"><button class="bouton bouton-lien" type="button" data-deconnexion>Mauvaise adresse ? Se déconnecter</button></p>
       </div>
     </div>
   </main>
