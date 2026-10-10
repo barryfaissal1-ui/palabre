@@ -116,7 +116,9 @@ router.get('/:identifiant/amis', exigerConnexion, async (req, res) => {
 router.get('/:identifiant', limiteLectureProfils, async (req, res) => {
   const identifiant = String(req.params.identifiant || '').toLowerCase();
   const { rows } = await db.query(
-    `SELECT u.*, ${NB_PROJETS_VERIFIES} AS nb_projets_verifies FROM utilisateurs u WHERE u.identifiant = $1 AND u.bloque = FALSE`,
+    `SELECT u.*, ${NB_PROJETS_VERIFIES} AS nb_projets_verifies,
+            (SELECT count(*)::int FROM defis df WHERE df.gagnant_id = u.id AND df.statut = 'termine') AS nb_defis_gagnes
+       FROM utilisateurs u WHERE u.identifiant = $1 AND u.bloque = FALSE`,
     [identifiant],
   );
   if (!rows[0]) return res.status(404).json({ erreur: 'Ce profil n\'existe pas.' });
@@ -134,6 +136,7 @@ router.get('/:identifiant', limiteLectureProfils, async (req, res) => {
   );
   profil.nbAmis = amis.nb;
   profil.nbProjetsVerifies = rows[0].nb_projets_verifies;
+  profil.nbDefisGagnes = rows[0].nb_defis_gagnes; // badge « Gagnant du défi »
   // « N amis en commun » : les membres qui sont à la fois mes amis et les siens.
   if (amitie) {
     const { rows: [commun] } = await db.query(

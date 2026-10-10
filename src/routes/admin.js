@@ -8,6 +8,7 @@ const { apercuMembre, COLONNES_MEMBRE } = require('../utils/membres');
 const { notifier, court } = require('../utils/notifications');
 const { SPECIALITES, EXPERIENCES } = require('../utils/profil-dev');
 const config = require('../config');
+const { cloreDefisFinis, PHASE: PHASE_DEFI } = require('./defis');
 
 const router = express.Router();
 const MAX_AFFICHES = 50;
@@ -327,6 +328,65 @@ router.post('/projets/:id/facebook-publie', async (req, res) => {
     return jour.nb + 1;
   });
   res.json({ ok: true, publiesAujourdhui: publies, maxParJour: MAX_FACEBOOK_PAR_JOUR });
+});
+
+// ---------- Défi de la semaine ----------
+
+const DUREE_MAX_DEFI_JOURS = 60;
+
+// Une date envoyée par le formulaire (format ISO) ; erreur sur le champ si elle est illisible.
+function dateDuFormulaire(valeur, champ) {
+  const date = typeof valeur === 'string' && valeur.length <= 40 ? new Date(valeur) : null;
+  if (!date || Number.isNaN(date.getTime())) throw new v.ErreurValidation('Date invalide.', champ);
+  return date;
+}
+
+// GET /api/admin/defis — les derniers défis, avec leur phase.
+router.get('/defis', async (req, res) => {
+  await cloreDefisFinis();
+  const { rows } = await db.query(
+    `SELECT d.id, d.titre, d.fin_reponses_le, d.fin_vote_le, ${PHASE_DEFI} AS phase, g.nom AS gagnant,
+            (SELECT count(*)::int FROM defi_reponses r WHERE r.defi_id = d.id) AS nb_reponses,
+            (SELECT count(*)::int FROM defi_votes vo WHERE vo.defi_id = d.id) AS nb_votes
+       FROM defis d LEFT JOIN utilisateurs g ON g.id = d.gagnant_id
+      WHERE d.statut IN ('ouvert', 'termine')
+      ORDER BY d.id DESC LIMIT 10`,
+  );
+  res.json({
+    defis: rows.map((d) => ({ id: d.id, titre: d.titre, phase: d.phase, finReponsesLe: d.fin_reponses_le, finVoteLe: d.fin_vote_le, nbReponses: d.nb_reponses, nbVotes: d.nb_votes, gagnant: d.gagnant })),
+  });
+});
+
+// POST /api/admin/defis  { titre, probleme, finReponsesLe, finVoteLe } — un seul défi en cours à la fois.
+router.post('/defis', async (req, res) => {
+  const corps = req.body || {};
+  const titre = v.texte(corps.titre, 'titre', { min: 5, max: 120 });
+  const probleme = v.texte(corps.probleme, 'probleme', { min: 20, max: 3000 });
+  const finReponses = dateDuFormulaire(corps.finReponsesLe, 'finReponsesLe');
+  const finVote = dateDuFormulaire(corps.finVoteLe, 'finVoteLe');
+  if (finReponses.getTime() <= Date.now()) throw new v.ErreurValidation('La fin des réponses doit être dans le futur.', 'finReponsesLe');
+  if (finVote.getTime() <= finReponses.getTime()) throw new v.ErreurValidation('Le vote doit finir après les réponses.', 'finVoteLe');
+  if (finVote.getTime() > Date.now() + DUREE_MAX_DEFI_JOURS * 24 * 3600 * 1000) throw new v.ErreurValidation(`Un défi dure ${DUREE_MAX_DEFI_JOURS} jours au plus.`, 'finVoteLe');
+
+  await cloreDefisFinis();
+  const id = await db.transaction(async (client) => {
+    await client.query('SELECT pg_advisory_xact_lock($1)', [VERROU_FACEBOOK + 1]); // deux créations au même instant passent l'une après l'autre
+    const { rowCount } = await client.query('SELECT 1 FROM defis WHERE statut = \'ouvert\'');
+    if (rowCount > 0) throw new v.ErreurValidation('Un défi est déjà en cours. Attends sa fin, ou supprime-le.');
+    const { rows: [defi] } = await client.query(
+      `INSERT INTO defis (auteur_id, titre, probleme, fin_reponses_le, fin_vote_le, statut) VALUES ($1, $2, $3, $4, $5, 'ouvert') RETURNING id`,
+      [req.utilisateur.id, titre, probleme, finReponses, finVote],
+    );
+    return defi.id;
+  });
+  res.status(201).json({ id });
+});
+
+// DELETE /api/admin/defis/:id — supprime un défi (ses réponses et ses votes partent avec, ON DELETE CASCADE).
+router.delete('/defis/:id', async (req, res) => {
+  const { rowCount } = await db.query('DELETE FROM defis WHERE id = $1', [v.idPositif(req.params.id)]);
+  if (rowCount === 0) throw new v.ErreurHttp(404, 'Ce défi n\'existe pas.');
+  res.json({ ok: true });
 });
 
 module.exports = router;

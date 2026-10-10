@@ -381,6 +381,58 @@ async function creerVideos() {
   return VIDEOS.length;
 }
 
+// ---------- Défis de la semaine ----------
+// Deux défis, écrits directement en base (leurs dates sont dans le passé, ce que le site ne permet pas de saisir) :
+//  - un défi terminé la semaine dernière, gagné par Fatoumata (son profil porte le badge « Gagnant du défi ») ;
+//  - le défi en cours, en phase de vote pour encore 3 jours : on peut voter avec n'importe quel compte.
+// Ne fait rien si un compte de démonstration a déjà créé un défi (pas de doublons).
+const DEFIS = [
+  {
+    titre: 'Un reçu de paiement qui passe par SMS',
+    probleme: 'Une vendeuse du marché veut envoyer un reçu à chaque client qui paie par Mobile Money, sans imprimante et sans application à installer.\nComment faire tenir un reçu clair et vérifiable dans un simple SMS de 160 caractères ?',
+    finReponses: -10, finVote: -7, gagnante: 'fatou',
+    reponses: [
+      ['fatou', 'Un code court à 6 caractères dans le SMS (montant, date, code). Le client vérifie le reçu en envoyant ce code à un numéro gratuit : le serveur répond par le détail du paiement. Tout tient en 110 caractères.', ['awa', 'bintou', 'kofi', 'salimata', 'yao']],
+      ['kofi', 'Je génère le reçu en PDF côté serveur et j\'envoie seulement le lien court dans le SMS. Simple, mais il faut des données mobiles pour l\'ouvrir.', ['nadege', 'oumar']],
+      ['yao', 'Un SMS en deux lignes : montant et référence de la transaction de l\'opérateur. La vendeuse garde la liste dans un carnet numérique hors ligne, synchronisé le soir.', ['cheick']],
+    ],
+  },
+  {
+    titre: 'Une boutique qui marche sans connexion',
+    probleme: 'Dans beaucoup de villes, le réseau coupe plusieurs fois par jour. Un boutiquier doit pourtant continuer à enregistrer ses ventes sur son téléphone.\nComment garder les ventes en sécurité hors connexion, puis les envoyer au serveur sans doublon quand le réseau revient ?',
+    finReponses: -1, finVote: 3, gagnante: null,
+    reponses: [
+      ['awa', 'Chaque vente reçoit un identifiant unique créé sur le téléphone (UUID) et part dans une file d\'attente locale. Au retour du réseau, on envoie la file ; le serveur ignore les identifiants qu\'il connaît déjà. Aucun doublon, même si l\'envoi est répété.', ['bintou', 'kofi', 'pascal']],
+      ['yao', 'IndexedDB pour stocker, un service worker avec « background sync » pour renvoyer tout seul. Sur les vieux téléphones sans background sync, un bouton « Envoyer mes ventes ».', ['cheick', 'fatou']],
+      ['bintou', 'Je garde les ventes dans le stockage du navigateur et j\'affiche un compteur « 3 ventes à envoyer » toujours visible. Le boutiquier sait où il en est, c\'est ce qui le rassure le plus.', ['awa', 'salimata']],
+      ['idrissa', 'Un simple fichier CSV sur le téléphone, envoyé par WhatsApp au comptable en fin de journée. Pas élégant, mais ça marche partout.', []],
+    ],
+  },
+];
+
+async function creerDefis() {
+  const { rows: comptes } = await pool.query('SELECT id, email FROM utilisateurs WHERE email LIKE $1', [MOTIF_EMAIL]);
+  const { rows: [deja] } = await pool.query('SELECT count(*)::int AS nb FROM defis d JOIN utilisateurs u ON u.id = d.auteur_id WHERE u.email LIKE $1', [MOTIF_EMAIL]);
+  if (comptes.length === 0 || deja.nb > 0) return 0;
+  const id = (cle) => comptes.find((c) => c.email === email(cle)).id;
+  for (const defi of DEFIS) {
+    const { rows: [cree] } = await pool.query(
+      `INSERT INTO defis (auteur_id, titre, probleme, debut_le, fin_reponses_le, fin_vote_le, statut)
+       VALUES ($1, $2, $3, now() + make_interval(days => $4::int - 6), now() + make_interval(days => $4::int), now() + make_interval(days => $5::int), $6) RETURNING id`,
+      [id('awa'), defi.titre, defi.probleme, defi.finReponses, defi.finVote, defi.finVote < 0 ? 'termine' : 'ouvert'],
+    );
+    for (const [auteur, texte, votants] of defi.reponses) {
+      const { rows: [reponse] } = await pool.query(
+        'INSERT INTO defi_reponses (defi_id, dev_id, texte, cree_le) VALUES ($1, $2, $3, now() + make_interval(days => $4::int - 3)) RETURNING id',
+        [cree.id, id(auteur), texte, defi.finReponses],
+      );
+      for (const votant of votants) await pool.query('INSERT INTO defi_votes (defi_id, utilisateur_id, reponse_id) VALUES ($1, $2, $3)', [cree.id, id(votant), reponse.id]);
+      if (auteur === defi.gagnante) await pool.query('UPDATE defis SET gagnant_id = $2, gagnant_reponse_id = $3 WHERE id = $1', [cree.id, id(auteur), reponse.id]);
+    }
+  }
+  return DEFIS.length;
+}
+
 // ---------- Conversations privées de démonstration ----------
 // Écrites à part, pour pouvoir être ajoutées à des comptes de démonstration créés avant la messagerie.
 // Ne fait rien s'il existe déjà une conversation entre deux comptes de démonstration (pas de doublons).
@@ -490,6 +542,8 @@ async function main() {
   // Ces comptes n'ont pas de vraie boîte email : le code de confirmation n'est ni envoyé ni affiché.
   mailer.envoyerEmail = async () => {};
   const bilan = await creer();
+  const defis = await creerDefis();
+  if (defis) console.log(`${defis} défis de la semaine ajoutés (un terminé avec son gagnant, un en cours de vote).`);
   const videos = await creerVideos();
   if (videos) console.log(`${videos} publications avec une vidéo ajoutées.`);
   const completes = bilan ? 0 : await completerProfils();

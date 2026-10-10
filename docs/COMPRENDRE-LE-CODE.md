@@ -432,6 +432,43 @@ Dans `src/app.js`, deux lignes : `frame-src` (les cadres) autorise seulement `ww
 
 Le bouton « Vidéo » ouvre un champ. Une demi-seconde après la dernière touche, le navigateur demande au serveur `GET /api/publications/video?lien=…` : les règles ne sont écrites qu'**une fois**, côté serveur, et l'aperçu est dessiné par la même fonction que dans le fil (`videoPublication()` de `public/js/publication.js`).
 
+## 11 quater. Le défi de la semaine
+
+Chaque semaine, l'équipe pose un problème concret. Les développeurs proposent une solution, les membres votent, un gagnant est désigné. Tout est dans `src/routes/defis.js` (et la création dans `src/routes/admin.js`).
+
+### Deux dates, trois phases
+
+Un défi a une **fin des réponses** et une **fin du vote**. Sa phase n'est pas enregistrée : elle se **déduit de l'heure**, par la base elle-même (`PHASE`, un `CASE` en SQL) :
+
+- avant la fin des réponses : `reponses`. Un dev au profil complet répond (20 à 2000 caractères, lien facultatif vérifié par `liens.js`), et peut modifier ou retirer sa réponse ;
+- ensuite, jusqu'à la fin du vote : `vote`. Chaque membre connecté vote pour une réponse, et peut changer d'avis ;
+- après : `termine`.
+
+C'est l'horloge du serveur qui fait foi : changer l'heure de son téléphone ne permet ni de répondre en retard, ni de voter en avance.
+
+### Les règles sont dans la base, pas seulement dans le code
+
+- **Une seule réponse par dev** : contrainte `UNIQUE (defi_id, dev_id)`. Répondre une seconde fois, c'est modifier (`INSERT … ON CONFLICT … DO UPDATE`).
+- **Un seul vote par membre** : la clé primaire de `defi_votes` est `(defi_id, utilisateur_id)`. Changer d'avis remplace la ligne.
+- **Pas de vote pour soi** : vérifié dans la transaction du vote.
+- **Un seul défi en cours** : la création est refusée s'il en existe un.
+
+Même si quelqu'un appelait l'API cent fois en même temps, la base refuserait le deuxième vote : ce n'est pas le bouton grisé qui protège.
+
+### Les compteurs restent cachés pendant le vote
+
+Pendant le vote, le serveur n'envoie **pas** le nombre de votes de chaque réponse (`nbVotes: null`) : un compteur visible pousserait à voter pour celui qui est déjà en tête. Chacun voit seulement son propre vote. Les compteurs apparaissent à la fin.
+
+### Désigner le gagnant sans tâche programmée
+
+Il n'y a pas de minuteur qui tourne sur le serveur. À chaque lecture du défi, `cloreDefisFinis()` regarde si un vote est terminé ; si oui, elle désigne le gagnant : le plus de votes, et **la réponse la plus ancienne en cas d'égalité**. Sans aucun vote, il n'y a pas de gagnant. Le gagnant reçoit une notification et le badge « Gagnant du défi » sur son profil.
+
+Piège évité : deux lectures au même instant ne doivent pas désigner (ni prévenir) deux fois. La requête prend le défi avec `FOR UPDATE SKIP LOCKED` : la première lecture le verrouille et fait le travail, la seconde le saute.
+
+### Où on le voit
+
+La page `/defis`, un encadré dans la colonne de droite sur ordinateur, et une carte en haut du fil sur téléphone. La carte se ferme : le numéro du défi fermé est gardé dans le navigateur (`localStorage`), et un nouveau défi la fait revenir. Les deux utilisent une route légère, `GET /api/defis/resume`, qui n'envoie ni l'énoncé ni les réponses.
+
 ## 12. Le système de design
 
 Un « système de design », c'est un petit nombre de règles visuelles appliquées partout, pour que le site ait l'air d'une seule et même application. Tout est écrit à la main : aucune bibliothèque d'interface, aucun framework, donc des pages qui restent légères en 3G (les icônes pèsent 8 Ko en tout, les illustrations 4 Ko).
@@ -634,11 +671,17 @@ Pour l'inscription en deux étapes (`tests/inscription.test.js`) : champ piège,
 
 Pour la mise en ligne (`tests/production.test.js`) : le serveur lancé comme chez l'hébergeur refuse de démarrer avec une clé secrète absente, courte ou d'exemple, ou sans adresse https ; réponses compressées ; adresses versionnées dans toutes les pages et cache d'un an ; page 404, page 500 sans détail technique, fichiers du projet jamais servis ; `robots.txt` ; cookie sécurisé. Pour la relecture de sécurité (`tests/securite.test.js`) : un test par correction de `docs/AUDIT-SECURITE.md`.
 
+Pour le défi de la semaine (`tests/defis.test.js`) : création réservée à l'administrateur, dates contrôlées, un seul défi à la fois ; une seule réponse par dev (la seconde la modifie), dev au profil incomplet et cliente refusés ; vote refusé avant l'heure, pour soi-même et pour une réponse inconnue ; un seul vote par membre même en changeant d'avis ; compteurs cachés pendant le vote ; à la fin, gagnant désigné une seule fois malgré quatre lectures simultanées, égalité tranchée par l'ancienneté, notification et badge ; défi sans vote sans gagnant ; suppression. Les tests « avancent l'horloge » en reculant les dates du défi dans la base.
+
 Les autres fichiers de tests ont besoin de comptes prêts à servir : `tests/aide.js` enveloppe leur fonction d'appel pour que chaque compte créé soit aussitôt confirmé et complet.
 
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
 
 ## 15. Questions probables du jury
+
+- **Qu'est-ce qui empêche de voter deux fois au défi ?** La base elle-même : la clé primaire de la table des votes est le couple (défi, membre). Un second vote remplace le premier.
+- **Comment le gagnant est-il désigné sans tâche programmée ?** À la première lecture du défi après la fin du vote, dans une transaction qui verrouille le défi (`FOR UPDATE SKIP LOCKED`) : il ne peut pas être désigné deux fois.
+- **Pourquoi cacher le nombre de votes pendant le vote ?** Pour que chacun vote pour la réponse qu'il trouve la meilleure, pas pour celle qui est en tête.
 
 - **Comment avez-vous pensé à la 3G ?** Compression, cache d'un an grâce à une empreinte dans l'adresse des fichiers, images légères et chargées seulement quand elles sont visibles, vidéos chargées au toucher, pas de framework. Mesuré en 3G simulée : environ 3 secondes et 200 à 260 Ko à la première visite (`docs/PERFORMANCE.md`).
 - **Avez-vous relu la sécurité de votre code ?** Oui, route par route, avec cinq questions (accès, SQL, validation, limites, données privées). Huit corrections, chacune avec son test, et la liste des risques acceptés : `docs/AUDIT-SECURITE.md`.

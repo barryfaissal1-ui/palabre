@@ -1,7 +1,7 @@
 // Fil d'actualité : zone « Publier », rangée « Disponibles maintenant », puis les publications par 10.
 // La carte d'une publication (j'aime, commentaires…) est dans publication.js.
 (function () {
-  const { api, el, avatar, prenom, utilisateurConnecte, reduireImage, icone, etatVide, toast, filPublications, cartePublication, videoPublication } = window.Palabre;
+  const { etatDefi, api, el, avatar, prenom, utilisateurConnecte, reduireImage, icone, etatVide, toast, filPublications, cartePublication, videoPublication } = window.Palabre;
 
   let filtre = 'tout';     // 'tout' ou 'amis'
   let imageChoisie = null; // image réduite, prête à être envoyée (data URL)
@@ -22,6 +22,37 @@
       ])));
       section.hidden = false;
     } catch { /* la rangée est un plus : sans elle, le fil reste utilisable */ }
+  }
+
+  // ---------- Carte « Défi de la semaine » (téléphone) ----------
+  // Sur ordinateur, le défi est dans la colonne de droite : ici on ne demande rien au serveur.
+  // Une carte fermée le reste pour ce défi (son numéro est gardé dans le navigateur) ; un nouveau défi la fait revenir.
+  const CLE_DEFI_FERME = 'palabre-defi-ferme';
+  async function afficherCarteDefi() {
+    if (!window.matchMedia('(max-width: 767px)').matches) return;
+    const zone = document.querySelector('[data-carte-defi]');
+    try {
+      const { defi } = await api('/defis/resume');
+      let ferme = null;
+      try { ferme = localStorage.getItem(CLE_DEFI_FERME); } catch { /* navigation privée */ }
+      if (!defi || ferme === String(defi.id)) return;
+      const fermer = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': 'Fermer la carte du défi' }, [icone('fermer')]);
+      fermer.addEventListener('click', () => {
+        try { localStorage.setItem(CLE_DEFI_FERME, String(defi.id)); } catch { /* tant pis : elle reviendra */ }
+        zone.hidden = true;
+      });
+      zone.className = 'bloc-fil carte-defi-fil';
+      zone.replaceChildren(
+        el('span', { classe: 'defi-fil-icone' }, [icone('trophee')]),
+        el('a', { classe: 'defi-fil-texte', href: '/defis' }, [
+          el('span', { classe: 'defi-fil-surtitre', texte: 'Défi de la semaine' }),
+          el('strong', { texte: defi.titre }),
+          el('span', { classe: 'texte-discret', texte: etatDefi(defi) }),
+        ]),
+        fermer,
+      );
+      zone.hidden = false;
+    } catch { /* la carte est un plus */ }
   }
 
   // ---------- Zone « Publier » ----------
@@ -215,6 +246,7 @@
       afficherUneSeule(seule);
       return;
     }
+    afficherCarteDefi();
     afficherDisponibles();
     fil.charger({ depuisLeDebut: true });
   });

@@ -200,6 +200,71 @@
     ]);
   }
 
+  // ---------- Défi de la semaine ----------
+  const PHASES_DEFI = { reponses: 'réponses ouvertes', vote: 'vote en cours', termine: 'terminé' };
+  function sectionDefis(defis) {
+    const enCours = defis.some((d) => d.phase !== 'termine');
+    const champ = (id, nom, controle, aide) => el('div', { classe: 'champ' }, [el('label', { for: id, texte: nom }), controle, aide ? el('span', { classe: 'aide', texte: aide }) : null, el('p', { classe: 'erreur-champ', 'data-erreur': controle.name })]);
+    const titre = el('input', { id: 'defi-titre', name: 'titre', maxlength: 120, required: true });
+    const probleme = el('textarea', { id: 'defi-probleme', name: 'probleme', rows: 5, maxlength: 3000, required: true });
+    const finReponses = el('input', { id: 'defi-fin-reponses', name: 'finReponsesLe', type: 'datetime-local', required: true });
+    const finVote = el('input', { id: 'defi-fin-vote', name: 'finVoteLe', type: 'datetime-local', required: true });
+    const zoneMessage = el('p', { classe: 'message', role: 'alert' });
+    const bouton = el('button', { classe: 'bouton bouton-principal', type: 'submit', texte: 'Lancer le défi' });
+    const formulaire = el('form', { classe: 'bloc-formulaire', novalidate: true }, [
+      champ('defi-titre', 'Titre du défi', titre),
+      champ('defi-probleme', 'Problème à résoudre', probleme, 'Un problème concret, que plusieurs solutions peuvent résoudre.'),
+      el('div', { classe: 'champs-cote-a-cote' }, [
+        champ('defi-fin-reponses', 'Fin des réponses', finReponses),
+        champ('defi-fin-vote', 'Fin du vote', finVote),
+      ]),
+      zoneMessage,
+      el('div', {}, [bouton]),
+    ]);
+    formulaire.addEventListener('submit', async (evenement) => {
+      evenement.preventDefault();
+      formulaire.querySelectorAll('[data-erreur]').forEach((z) => { z.textContent = ''; });
+      zoneMessage.textContent = '';
+      zoneMessage.className = 'message';
+      // Le champ donne l'heure du navigateur ; on l'envoie au serveur en heure universelle (format ISO).
+      const versIso = (valeur) => (valeur ? new Date(valeur).toISOString() : '');
+      bouton.disabled = true;
+      try {
+        await api('/admin/defis', { methode: 'POST', donnees: { titre: titre.value, probleme: probleme.value, finReponsesLe: versIso(finReponses.value), finVoteLe: versIso(finVote.value) } });
+        await afficher();
+        message('Le défi est lancé. Il apparaît sur /defis, dans le fil et dans la colonne de droite.', 'succes');
+      } catch (erreur) {
+        const zoneErreur = erreur.champ && formulaire.querySelector(`[data-erreur="${erreur.champ}"]`);
+        if (zoneErreur) zoneErreur.textContent = erreur.message;
+        else { zoneMessage.textContent = erreur.message; zoneMessage.className = 'message erreur'; }
+        bouton.disabled = false;
+      }
+    });
+    const date = (iso) => new Date(iso).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+    return el('section', { classe: 'section-profil', id: 'defis' }, [
+      el('h2', { texte: 'Défi de la semaine' }),
+      enCours
+        ? el('p', { classe: 'texte-discret', texte: 'Un défi est en cours. Le suivant pourra être lancé quand il sera terminé (ou supprimé).' })
+        : formulaire,
+      defis.length ? el('ul', { classe: 'liste-membres' }, defis.map((d) => el('li', { classe: 'ligne-membre' }, [
+        el('div', { classe: 'ligne-membre-infos' }, [
+          el('a', { href: '/defis', texte: d.titre }),
+          el('p', { classe: 'texte-discret', texte: [
+            PHASES_DEFI[d.phase],
+            `${d.nbReponses} réponse${d.nbReponses > 1 ? 's' : ''}`,
+            `${d.nbVotes} vote${d.nbVotes > 1 ? 's' : ''}`,
+            d.phase === 'reponses' ? `réponses jusqu'au ${date(d.finReponsesLe)}` : null,
+            d.phase !== 'termine' ? `vote jusqu'au ${date(d.finVoteLe)}` : (d.gagnant ? `gagnant : ${d.gagnant}` : 'pas de gagnant'),
+          ].filter(Boolean).join(', ') }),
+        ]),
+        el('div', { classe: 'ligne-membre-actions' }, [
+          boutonAction('Supprimer', 'bouton-contour', () => api(`/admin/defis/${d.id}`, { methode: 'DELETE', donnees: {} }),
+            { confirmation: `Supprimer le défi « ${d.titre} » ? Ses réponses et ses votes seront supprimés aussi.`, succes: 'Défi supprimé.', danger: true }),
+        ]),
+      ]))) : null,
+    ]);
+  }
+
   // ---------- Derniers inscrits ----------
   // Ce que seul l'administrateur voit : l'âge des devs et où en est chaque inscription.
   function sectionRecents(membres) {
@@ -231,14 +296,15 @@
   }
 
   async function afficher() {
-    const [{ statistiques }, { signalements }, { projets }, { membres }, { membres: recents }, aPublier] = await Promise.all([
-      api('/admin/statistiques'), api('/admin/signalements'), api('/admin/projets-facebook'), api('/admin/membres-bloques'), api('/admin/membres-recents'), api('/admin/facebook-a-publier'),
+    const [{ statistiques }, { signalements }, { projets }, { membres }, { membres: recents }, aPublier, { defis }] = await Promise.all([
+      api('/admin/statistiques'), api('/admin/signalements'), api('/admin/projets-facebook'), api('/admin/membres-bloques'), api('/admin/membres-recents'), api('/admin/facebook-a-publier'), api('/admin/defis'),
     ]);
     document.querySelector('[data-admin]').replaceChildren(...[
       sectionStatistiques(statistiques),
       sectionSignalements(signalements),
       sectionFacebook(projets),
       sectionAPublier(aPublier),
+      sectionDefis(defis),
       sectionBloques(membres),
       sectionRecents(recents),
     ].filter(Boolean));

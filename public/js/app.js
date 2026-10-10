@@ -561,6 +561,7 @@
         lien('/messages', 'commentaire', 'Messages', el('span', { classe: 'compteur compteur-messages', hidden: true })),
         lien('/notifications', 'cloche', 'Notifications', compteur(nonLues, 'compteur-notifications')),
         estDev ? lien('/projets', 'projet', 'Mes projets') : null,
+        lien('/defis', 'trophee', 'Défi de la semaine'),
         lien('/calculateur', 'calculatrice', 'Calculateur'),
         moi.estAdmin ? lien('/admin', 'admin', 'Administration') : null,
       ])]),
@@ -588,7 +589,14 @@
       zoneDevs,
       el('a', { classe: 'lien-cote', href: '/chercher', texte: 'Chercher un développeur' }),
     ]);
-    const colonne = el('aside', { classe: 'colonne-droite', 'aria-label': 'À découvrir' }, [blocDemandes, blocDevs]);
+    // Encadré « Défi de la semaine » : caché tant qu'on ne sait pas s'il y a un défi.
+    const zoneDefi = el('div', { classe: 'liste-cote' });
+    const blocDefi = el('section', { classe: 'bloc-cote bloc-defi', 'aria-labelledby': 'titre-defi-cote', hidden: true }, [
+      el('h2', { id: 'titre-defi-cote' }, [icone('trophee'), 'Défi de la semaine']),
+      zoneDefi,
+      el('a', { classe: 'lien-cote', href: '/defis', texte: 'Voir le défi' }),
+    ]);
+    const colonne = el('aside', { classe: 'colonne-droite', 'aria-label': 'À découvrir' }, [blocDefi, blocDemandes, blocDevs]);
 
     function boutonAjouter(dev) {
       const bouton = el('button', { classe: 'bouton bouton-contour bouton-compact', type: 'button', 'aria-label': `Ajouter ${dev.nom} en ami` }, [icone('ami-ajouter'), 'Ajouter']);
@@ -611,6 +619,14 @@
     async function charger() {
       if (charge || !ECRAN_LARGE.matches) return; // sur téléphone, le panneau est caché : on ne demande rien au serveur
       charge = true;
+      api('/defis/resume').then(({ defi }) => {
+        if (!defi) return;
+        zoneDefi.replaceChildren(
+          el('p', { classe: 'demande-cote-titre', texte: defi.titre }),
+          el('p', { classe: 'texte-discret', texte: etatDefi(defi) }),
+        );
+        blocDefi.hidden = false;
+      }).catch(() => { /* l'encadré est un plus */ });
       const finiDemandes = chargement(zoneDemandes, 2);
       api(`/demandes${moi.type === 'client' ? '?miennes=1' : ''}`).then(({ demandes }) => {
         finiDemandes();
@@ -652,6 +668,27 @@
     page.before(colonneGauche(moi));
     // Les pages « larges » (profil, demandes, devs, détail d'une demande) ont leur propre colonne de droite.
     if (!page.classList.contains('page-large')) page.after(colonneDroite(moi));
+  }
+
+  // ---------- Défi de la semaine : outils partagés par l'encadré de droite, la carte du fil et la page /defis ----------
+  // « 2 jours et 5 heures », « 3 heures », « moins d'une heure » : le temps qui reste avant une date.
+  function tempsRestant(iso) {
+    const heures = Math.floor((new Date(iso).getTime() - Date.now()) / 3600000);
+    if (heures < 1) return 'moins d\'une heure';
+    const jours = Math.floor(heures / 24);
+    const reste = heures % 24;
+    const morceaux = [];
+    if (jours) morceaux.push(`${jours} jour${jours > 1 ? 's' : ''}`);
+    if (reste) morceaux.push(`${reste} heure${reste > 1 ? 's' : ''}`);
+    return morceaux.join(' et ');
+  }
+
+  // Une ligne qui dit où en est le défi : « Réponses ouvertes, encore 2 jours et 5 heures ».
+  function etatDefi(defi) {
+    const reponses = `${defi.nbReponses} réponse${defi.nbReponses > 1 ? 's' : ''}`;
+    if (defi.phase === 'reponses') return `${reponses}, encore ${tempsRestant(defi.finReponsesLe)} pour répondre`;
+    if (defi.phase === 'vote') return `${reponses}, encore ${tempsRestant(defi.finVoteLe)} pour voter`;
+    return `Terminé, ${reponses} : découvre le gagnant`;
   }
 
   // Bandeau « Termine ton profil de dev » : sous l'en-tête, tant qu'un dev n'a pas rempli la page /bienvenue.
@@ -787,5 +824,5 @@
 
   document.addEventListener('DOMContentLoaded', remplirNavigation);
 
-  window.Palabre = { api, utilisateurConnecte, el, avatar, nomMembre, badgeFeuille, prenom, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, copierLien, menuOptions, majPastilleMessages, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
+  window.Palabre = { tempsRestant, etatDefi, api, utilisateurConnecte, el, avatar, nomMembre, badgeFeuille, prenom, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, copierLien, menuOptions, majPastilleMessages, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
 })();

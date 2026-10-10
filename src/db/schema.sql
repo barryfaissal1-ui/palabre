@@ -252,6 +252,13 @@ CREATE TABLE IF NOT EXISTS defi_votes (
   PRIMARY KEY (defi_id, utilisateur_id)
 );
 
+-- Le défi tel qu'il fonctionne : créé par un administrateur (statut 'ouvert'), avec la fin des réponses puis la fin
+-- du vote. À la fin, statut 'termine' et la réponse gagnante est notée (colonnes ajoutées après la création des tables).
+ALTER TABLE defis ADD COLUMN IF NOT EXISTS fin_reponses_le TIMESTAMPTZ;
+ALTER TABLE defis ADD COLUMN IF NOT EXISTS gagnant_reponse_id INTEGER;
+ALTER TABLE defi_reponses ADD COLUMN IF NOT EXISTS lien_verifie_le TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_defi_votes_reponse ON defi_votes (reponse_id);
+
 -- ============ Notifications et signalements ============
 CREATE TABLE IF NOT EXISTS notifications (
   id             SERIAL PRIMARY KEY,

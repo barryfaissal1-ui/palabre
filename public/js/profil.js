@@ -176,6 +176,9 @@
         ? el('p', { classe: 'profil-metier avec-icone' }, [icone('devs'), [profil.specialiteNom, profil.experienceNom ? `${profil.experienceNom.toLowerCase()} d'expérience` : null].filter(Boolean).join(', ')])
         : null,
       liensDev(profil),
+      profil.nbDefisGagnes > 0
+        ? el('a', { classe: 'pastille pastille-gagnant', href: '/defis' }, [icone('trophee'), profil.nbDefisGagnes > 1 ? `Gagnant de ${profil.nbDefisGagnes} défis` : 'Gagnant du défi'])
+        : null,
       estDev
         ? el('span', { classe: `pastille ${profil.disponible ? 'pastille-dispo' : 'pastille-occupe'}`, texte: profil.disponible ? 'Disponible pour des projets' : 'Occupé en ce moment' })
         : null,

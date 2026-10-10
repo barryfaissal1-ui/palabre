@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0F3D22">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Palabre">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <script src="/js/theme.js"></script>
+  <link rel="stylesheet" href="/css/style.css">
+  <title>Défi de la semaine – Palabre</title>
+  <meta name="description" content="Chaque semaine, un problème concret à résoudre : les développeurs répondent, les membres votent, un gagnant est désigné.">
+  <script src="/js/app.js" defer></script>
+  <script src="/js/defis.js" defer></script>
+</head>
+<!-- Défi de la semaine : l'énoncé, les réponses des devs, puis le vote. Tout est dessiné par defis.js
+     d'après GET /api/defis/courant ; c'est le serveur qui décide de la phase et de ce que chacun peut faire. -->
+<body>
+  <div class="bande"></div>
+  <header class="entete"><div class="conteneur entete-interieur">
+    <a class="marque" href="/"><img src="/icons/logo-96.webp" alt="" width="32" height="32">Palabre</a>
+    <nav data-nav></nav>
+  </div></header>
+  <main class="conteneur page-fil">
+    <h1 class="titre-page">Défi de la semaine</h1>
+    <div data-defi aria-live="polite">
+      <div class="squelettes" aria-hidden="true">
+        <div class="squelette"><span class="os os-moyen"></span><span class="os"></span><span class="os os-court"></span></div>
+        <div class="squelette"><div class="squelette-entete"><span class="os os-rond"></span><span class="os os-court"></span></div><span class="os"></span></div>
+      </div>
+      <p class="visuellement-cache">Chargement…</p>
+    </div>
+  </main>
+</body>
+</html>
