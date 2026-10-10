@@ -286,12 +286,45 @@ router.get('/non-lus', async (req, res) => {
   res.json({ nonLus: await compterNonLus(req.utilisateur.id), appel: await appels.appelEntrant(req.utilisateur.id) });
 });
 
-// La veille : GET /api/messages/veille
+// La veille : GET /api/messages/veille?apres=<numéro du dernier message connu>
 // Une route volontairement légère, interrogée toutes les 5 secondes par toutes les pages tant que l'onglet est
-// visible : elle dit si un appel sonne pour moi. La pastille des messages, elle, garde son rythme d'une minute.
+// visible. Elle dit si un appel sonne pour moi, et quels messages me sont arrivés depuis « apres » : la page en fait
+// une petite carte (« toast ») quand je ne suis pas dans cette conversation. La pastille garde son rythme d'une minute.
+// Sans « apres » (première visite) : aucun message, seulement le numéro à partir duquel regarder ensuite.
 router.get('/veille', async (req, res) => {
+  const moi = req.utilisateur;
   await appels.entretenir();
-  res.set('Cache-Control', 'no-store').json({ appel: await appels.appelEntrant(req.utilisateur.id) });
+  const apres = v.idPositif(req.query.apres);
+  const { rows: [{ maximum }] } = await db.query('SELECT COALESCE(max(id), 0)::int AS maximum FROM messages');
+  let messages = [];
+  if (apres) {
+    // Les mêmes conditions que pour LIRE ces messages : conversation privée acceptée, non masquée, sans blocage ;
+    // ou groupe dont je suis membre actuel. Un groupe mis en sourdine n'annonce rien.
+    const { rows } = await db.query(
+      `SELECT m.id, m.conversation_id, m.texte, m.vocal_duree, m.fichier_id IS NOT NULL AS piece, c.type, c.titre, ${COLONNES_MEMBRE}
+         FROM messages m
+         JOIN conversations c ON c.id = m.conversation_id
+         JOIN utilisateurs u ON u.id = m.auteur_id AND u.bloque = FALSE
+        WHERE m.id > $2 AND m.auteur_id <> $1 AND m.masque = FALSE AND m.systeme = FALSE AND m.supprime_le IS NULL
+          AND ((c.type = 'privee' AND $1 IN (c.membre_a, c.membre_b) AND c.statut = 'acceptee'
+                AND NOT EXISTS (SELECT 1 FROM conversation_masquees cm WHERE cm.conversation_id = c.id AND cm.membre_id = $1)
+                AND NOT EXISTS (SELECT 1 FROM blocages b WHERE (b.bloqueur_id = $1 AND b.bloque_id = m.auteur_id) OR (b.bloqueur_id = m.auteur_id AND b.bloque_id = $1)))
+            OR (c.type = 'groupe' AND EXISTS (SELECT 1 FROM conversation_membres cm
+                 WHERE cm.conversation_id = c.id AND cm.membre_id = $1 AND cm.quitte_le IS NULL AND cm.sourdine = FALSE)))
+        ORDER BY m.id DESC LIMIT 5`,
+      [moi.id, apres],
+    );
+    messages = rows.reverse().map((ligne) => ({
+      id: ligne.id,
+      conversationId: ligne.conversation_id,
+      groupe: ligne.type === 'groupe',
+      titre: ligne.titre,
+      auteur: apercuMembre(ligne),
+      // Un aperçu de 60 caractères au plus, jamais le message entier.
+      apercu: ligne.vocal_duree ? 'Message vocal' : (ligne.piece && !ligne.texte ? 'Photo' : court(ligne.texte, 60)),
+    }));
+  }
+  res.set('Cache-Control', 'no-store').json({ appel: await appels.appelEntrant(moi.id), messages, dernier: Math.max(apres || 0, maximum) });
 });
 
 // ---------- Écrire à un membre depuis son profil ou depuis une proposition ----------

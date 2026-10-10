@@ -1131,7 +1131,11 @@
     let minuterie = 0;
     const demander = () => {
       if (window.Palabre.appels && window.Palabre.appels.enCours()) return;
-      api('/messages/veille').then(recevoirVeille).catch(() => {});
+      // « apres » : le numéro du dernier message déjà annoncé. Gardé le temps de l'onglet, pour qu'un changement
+      // de page ne fasse ni oublier ni répéter un message.
+      let apres = null;
+      try { apres = sessionStorage.getItem(CLE_VEILLE); } catch { /* stockage refusé : on repart de maintenant */ }
+      api(`/messages/veille${apres ? `?apres=${apres}` : ''}`).then(recevoirVeille).catch(() => {});
     };
     const regler = () => {
       clearInterval(minuterie);
@@ -1142,8 +1146,37 @@
     document.addEventListener('visibilitychange', regler);
     regler();
   }
+  const CLE_VEILLE = 'palabre-veille';
   function recevoirVeille(reponse) {
     if (reponse.appel) appelEntrant(reponse.appel);
+    try { sessionStorage.setItem(CLE_VEILLE, String(reponse.dernier)); } catch { /* voir veiller() */ }
+    // Un message arrivé pendant qu'on est ailleurs que dans sa conversation : une petite carte l'annonce.
+    const ailleurs = (reponse.messages || []).filter((message) => window.Palabre.conversationOuverte !== message.conversationId);
+    if (ailleurs.length === 0) return;
+    ailleurs.forEach(toastMessage);
+    api('/messages/non-lus').then(({ nonLus }) => majPastilleMessages(nonLus)).catch(() => {});
+  }
+
+  // La carte d'arrivée d'un message : en verre, aux coins en feuille, elle glisse depuis le haut et s'en va au bout
+  // de 5 secondes. La toucher ouvre la conversation. Trois au plus à l'écran.
+  function toastMessage(message) {
+    let zone = document.querySelector('.toasts-messages');
+    if (!zone) {
+      zone = el('div', { classe: 'toasts-messages', role: 'status', 'aria-live': 'polite' });
+      document.body.append(zone);
+    }
+    const carte = el('a', { classe: 'toast-message', href: message.groupe ? `/messages/groupe/${message.conversationId}` : `/messages/${message.conversationId}` }, [
+      avatar(message.auteur, 'moyen'),
+      el('span', { classe: 'toast-message-texte' }, [
+        // textContent partout : le nom, le titre du groupe et l'aperçu viennent de membres.
+        el('strong', { texte: message.groupe ? `${prenom(message.auteur)}, ${message.titre}` : message.auteur.nom }),
+        el('span', { texte: message.apercu }),
+      ]),
+    ]);
+    zone.prepend(carte);
+    [...zone.children].slice(3).forEach((ancienne) => ancienne.remove());
+    setTimeout(() => carte.classList.add('part'), 5000);
+    setTimeout(() => carte.remove(), 5500);
   }
 
   function surveillerMessages() {

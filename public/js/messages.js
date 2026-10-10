@@ -829,6 +829,7 @@
 
     const zone = el('div', { classe: 'fil-messages', role: 'log', 'aria-label': `Messages avec ${autre.nom}`, tabindex: '0' });
     const mentionVu = el('p', { classe: 'mention-vu', texte: 'Vu', hidden: true });
+    window.Palabre.conversationOuverte = id; // app.js n'annonce pas par une carte les messages de la conversation ouverte
     ouverte = { id, donnees: conversation, zone, mentionVu, dernierId: 0, monDernierId: 0, dernierDeLAutre: 0, dernierJour: null, vuJusqua: conversation.vuJusqua };
 
     const menu = menuOptions(() => [
@@ -1016,6 +1017,7 @@
     document.title = `${groupe.titre} – Messages – Palabre`;
     const zone = el('div', { classe: 'fil-messages', role: 'log', 'aria-label': `Messages du groupe ${groupe.titre}`, tabindex: '0' });
     const mentionVu = el('p', { classe: 'mention-vu', hidden: true });
+    window.Palabre.conversationOuverte = id;
     ouverte = { id, estGroupe: true, donnees: groupe, zone, mentionVu, dernierId: 0, monDernierId: 0, dernierDeLAutre: 0, dernierJour: null, vuJusqua: 0 };
 
     const menu = menuOptions(() => [
@@ -1161,6 +1163,7 @@
   function fermer() {
     arreterConversation();
     ouverte = null;
+    window.Palabre.conversationOuverte = null;
     document.body.classList.remove('conversation-ouverte');
     document.title = 'Messages – Palabre';
     panneau.replaceChildren(etatVide('palabre', 'Tes conversations', 'Choisis une conversation dans la liste, ou écris à un membre depuis son profil.'));
