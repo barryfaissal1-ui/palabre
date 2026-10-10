@@ -463,6 +463,14 @@ CREATE UNLOGGED TABLE IF NOT EXISTS ecritures (
   PRIMARY KEY (conversation_id, membre_id)
 );
 
+-- ============ Messages vocaux ============
+-- La table fichiers accepte aussi l'audio (WebM / Opus, Ogg, MP4 / AAC selon le téléphone).
+ALTER TABLE fichiers DROP CONSTRAINT IF EXISTS fichiers_type_mime_check;
+ALTER TABLE fichiers ADD CONSTRAINT fichiers_type_mime_check
+  CHECK (type_mime IN ('image/jpeg', 'image/png', 'image/webp', 'audio/webm', 'audio/ogg', 'audio/mp4'));
+-- Durée du message vocal, en secondes. Renseignée : le fichier joint est un son, pas une photo.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS vocal_duree INTEGER CHECK (vocal_duree BETWEEN 1 AND 60);
+
 -- Reprise de l'existant, rejouable sans rien doubler (ON CONFLICT DO NOTHING, NOT EXISTS) :
 -- 1) les deux membres de chaque conversation privée ;
 INSERT INTO conversation_membres (conversation_id, membre_id, rejoint_le)

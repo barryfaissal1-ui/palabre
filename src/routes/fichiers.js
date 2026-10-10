@@ -41,6 +41,21 @@ router.get('/:id', async (req, res, next) => {
     if (!dedans || fichier.masque) return res.status(404).end();
     // « private » : le navigateur du membre peut la garder, pas un cache partagé (proxy d'opérateur, cybercafé).
     res.set({ 'Content-Type': fichier.type_mime, 'Cache-Control': 'private, max-age=31536000, immutable' });
+    // Message vocal : l'iPhone demande le son par morceaux (« Range: bytes=0-1 »…) et refuse de le lire si le
+    // serveur ne sait pas répondre « 206, voici ce morceau ».
+    if (fichier.type_mime.startsWith('audio/')) {
+      res.set('Accept-Ranges', 'bytes');
+      const morceau = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+      if (morceau && (morceau[1] || morceau[2])) {
+        const taille = fichier.donnees.length;
+        // « bytes=-500 » : les 500 derniers octets ; « bytes=100- » : de 100 à la fin.
+        const debut = morceau[1] ? Number(morceau[1]) : Math.max(0, taille - Number(morceau[2]));
+        const fin = morceau[1] && morceau[2] ? Math.min(Number(morceau[2]), taille - 1) : taille - 1;
+        if (debut > fin || debut >= taille) return res.status(416).set('Content-Range', `bytes */${taille}`).end();
+        res.status(206).set('Content-Range', `bytes ${debut}-${fin}/${taille}`);
+        return res.send(fichier.donnees.subarray(debut, fin + 1));
+      }
+    }
     return res.send(fichier.donnees);
   }
 

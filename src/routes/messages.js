@@ -12,11 +12,10 @@ const express = require('express');
 const db = require('../db/pool');
 const v = require('../utils/validation');
 const { exigerConnexion, profilDevIncomplet } = require('../middleware/auth');
-const { lireImageDataUrl } = require('../utils/images');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
 const { notifier, court } = require('../utils/notifications');
 const groupes = require('./groupes');
-const { lireMessages, lireMessage, messagesModifies, origineValide } = require('../utils/messages');
+const { lireMessages, lireMessage, messagesModifies, origineValide, lireContenu, enregistrerPiece } = require('../utils/messages');
 const { presenceVue, signalerEcriture, finEcriture, quiEcrit } = require('../utils/presence');
 
 const router = express.Router();
@@ -143,8 +142,7 @@ async function compterNonLus(moiId) {
 async function ecrire(req, res, autreId, conversation) {
   const moi = req.utilisateur;
   const corps = req.body || {};
-  const texte = v.texte(corps.texte, 'texte', { max: 2000 });
-  const image = corps.image ? lireImageDataUrl(corps.image) : null;
+  const { texte, image, vocal } = lireContenu(corps); // du texte (et une photo), ou un message vocal
   const demandePrecise = v.idPositif(corps.demandeId);
 
   // Un dev qui n'a pas terminé son profil peut écrire à d'autres devs, mais pas à un client.
@@ -182,20 +180,13 @@ async function ecrire(req, res, autreId, conversation) {
     // Le bouton « Écrire » d'une proposition précise la demande concernée : on la rappellera en haut de la conversation.
     const demandeId = demandePrecise && droit.demandeId === demandePrecise ? demandePrecise : (conv.demande_id || droit.demandeId);
 
-    let fichierId = null;
-    if (image) {
-      const { rows } = await client.query(
-        'INSERT INTO fichiers (proprietaire_id, type_mime, taille, donnees) VALUES ($1, $2, $3, $4) RETURNING id',
-        [moi.id, image.typeMime, image.donnees.length, image.donnees],
-      );
-      fichierId = rows[0].id;
-    }
+    const fichierId = await enregistrerPiece(client, moi.id, { image, vocal });
     // Réponse à un message : il doit être dans cette conversation (sinon la citation est simplement ignorée).
     const reponseA = await origineValide(client, conv.id, corps.reponseA);
     const { rows: [message] } = await client.query(
-      `INSERT INTO messages (conversation_id, auteur_id, texte, fichier_id, reponse_a) VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO messages (conversation_id, auteur_id, texte, fichier_id, reponse_a, vocal_duree) VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, texte, fichier_id, cree_le, auteur_id`,
-      [conv.id, moi.id, texte, fichierId, reponseA],
+      [conv.id, moi.id, texte, fichierId, reponseA, vocal ? vocal.duree : null],
     );
     await client.query(
       'UPDATE conversations SET dernier_message_le = now(), statut = $2, demande_id = $3 WHERE id = $1',

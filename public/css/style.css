@@ -2165,6 +2165,27 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
   to { opacity: 1; }
 }
 
+/* ---------- Messages vocaux ---------- */
+/* Le lecteur dans la bulle : lecture / pause, barre d'avancement, durée restante, vitesse. */
+.bulle-vocale { min-width: min(240px, 70vw); }
+.vocal { display: flex; align-items: center; gap: 8px; }
+.vocal-lecture { display: grid; place-items: center; flex: none; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: color-mix(in srgb, currentColor 16%, transparent); color: inherit; cursor: pointer; }
+.vocal-lecture .icone { width: 20px; height: 20px; fill: currentColor; }
+/* La barre fait 4 px de haut, mais sa zone tactile en fait 44 (padding, fond limité au contenu). */
+.vocal-barre { flex: 1; min-width: 48px; height: 44px; padding: 20px 0; background: color-mix(in srgb, currentColor 26%, transparent); background-clip: content-box; cursor: pointer; }
+.vocal-avance { display: block; height: 100%; background: currentColor; transform: scaleX(0); transform-origin: left center; }
+.vocal-temps { flex: none; min-width: 34px; font: 600 var(--t-13)/1 var(--texte); font-variant-numeric: tabular-nums; }
+.vocal-vitesse { flex: none; min-width: 44px; min-height: 44px; padding: 0 6px; border: 0; border-radius: 22px; background: color-mix(in srgb, currentColor 14%, transparent); color: inherit; font: 700 var(--t-13)/1 var(--texte); cursor: pointer; }
+/* L'enregistrement : il remplace la ligne d'écriture le temps de parler. */
+.ligne-ecriture[hidden] { display: none; }
+.bouton-micro[hidden] { display: none; }
+.enregistrement { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.enregistrement[hidden] { display: none; }
+.enregistrement-point { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--erreur); animation: battre 1.2s ease-in-out infinite; }
+@keyframes battre { 50% { opacity: 0.25; } }
+.enregistrement-temps { flex: none; font: 700 var(--t-17)/1 var(--texte); font-variant-numeric: tabular-nums; }
+.enregistrement-aide { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-13); }
+
 /* ---------- « Écrit… », « En ligne », « Vu par » ---------- */
 .ecrit-en-ce-moment { flex: none; display: flex; align-items: center; gap: 6px; margin: 0; padding: 2px 16px 4px; color: var(--gris); font-size: var(--t-13); }
 .ecrit-en-ce-moment[hidden] { display: none; }

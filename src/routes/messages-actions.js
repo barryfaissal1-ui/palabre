@@ -84,7 +84,7 @@ module.exports = function actionsSurMessages({ maConversation, monGroupe }) {
     }
     await db.transaction(async (client) => {
       await client.query(
-        'UPDATE messages SET texte = \'Message supprimé\', fichier_id = NULL, supprime_le = now(), modifie_le = now() WHERE id = $1',
+        'UPDATE messages SET texte = \'Message supprimé\', fichier_id = NULL, vocal_duree = NULL, supprime_le = now(), modifie_le = now() WHERE id = $1',
         [message.id],
       );
       // La photo (ou le vocal) part vraiment : la ligne du fichier est supprimée, pas seulement détachée.

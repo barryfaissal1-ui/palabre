@@ -7,11 +7,10 @@
 const express = require('express');
 const db = require('../db/pool');
 const v = require('../utils/validation');
-const { lireImageDataUrl } = require('../utils/images');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
 const { notifier, court } = require('../utils/notifications');
 const { messageSysteme } = require('../utils/groupes');
-const { lireMessages, lireMessage, messagesModifies, origineValide } = require('../utils/messages');
+const { lireMessages, lireMessage, messagesModifies, origineValide, lireContenu, enregistrerPiece } = require('../utils/messages');
 const { presenceVue, signalerEcriture, finEcriture, quiEcrit } = require('../utils/presence');
 
 const router = express.Router();
@@ -174,22 +173,14 @@ router.post('/:id', limiteMessages, async (req, res) => {
   const moi = req.utilisateur;
   const groupe = await monGroupe(req.params.id, moi);
   if (groupe.ferme_le) throw new v.ErreurHttp(403, 'Cette équipe a été dissoute : on ne peut plus écrire dans ce groupe.');
-  const texte = v.texte(req.body?.texte, 'texte', { max: 2000 });
-  const image = req.body?.image ? lireImageDataUrl(req.body.image) : null;
+  const { texte, image, vocal } = lireContenu(req.body || {});
 
   const message = await db.transaction(async (client) => {
-    let fichierId = null;
-    if (image) {
-      const { rows } = await client.query(
-        'INSERT INTO fichiers (proprietaire_id, type_mime, taille, donnees) VALUES ($1, $2, $3, $4) RETURNING id',
-        [moi.id, image.typeMime, image.donnees.length, image.donnees],
-      );
-      fichierId = rows[0].id;
-    }
+    const fichierId = await enregistrerPiece(client, moi.id, { image, vocal });
     const reponseA = await origineValide(client, groupe.id, req.body?.reponseA);
     const { rows: [cree] } = await client.query(
-      'INSERT INTO messages (conversation_id, auteur_id, texte, fichier_id, reponse_a) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-      [groupe.id, moi.id, texte, fichierId, reponseA],
+      'INSERT INTO messages (conversation_id, auteur_id, texte, fichier_id, reponse_a, vocal_duree) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+      [groupe.id, moi.id, texte, fichierId, reponseA, vocal ? vocal.duree : null],
     );
     await client.query('UPDATE conversations SET dernier_message_le = now() WHERE id = $1', [groupe.id]);
     await finEcriture(client, groupe.id, moi.id);

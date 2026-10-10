@@ -120,6 +120,196 @@
   }
 
   // ---------- Les messages d'une conversation ----------
+  // ---------- Messages vocaux : le lecteur dans la bulle ----------
+  const minutes = (secondes) => `${Math.floor(secondes / 60)}:${String(Math.floor(secondes % 60)).padStart(2, '0')}`;
+  const VITESSES = [[1, 'x1'], [1.5, 'x1,5'], [2, 'x2']];
+  let sonEnCours = null; // un seul message vocal joue à la fois
+
+  // Lecture / pause, barre d'avancement, durée, vitesse. Le son n'est demandé au serveur qu'au premier toucher :
+  // une conversation pleine de vocaux ne coûte rien en données tant qu'on n'écoute pas.
+  function lecteurVocal(vocal) {
+    let audio = null;
+    let rang = 0;
+    const lire = el('button', { classe: 'vocal-lecture', type: 'button', 'aria-label': 'Écouter le message vocal' }, [icone('lecture')]);
+    const avance = el('span', { classe: 'vocal-avance' });
+    const barre = el('span', { classe: 'vocal-barre' }, [avance]);
+    const temps = el('span', { classe: 'vocal-temps', texte: minutes(vocal.duree) });
+    const vitesse = el('button', { classe: 'vocal-vitesse', type: 'button', texte: 'x1', 'aria-label': 'Vitesse de lecture : x1' });
+    // Un enregistrement du navigateur n'annonce pas toujours sa durée : on se fie alors à celle gardée par le serveur.
+    const total = () => (audio && Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : vocal.duree);
+    const dessiner = (joue) => {
+      lire.replaceChildren(icone(joue ? 'pause' : 'lecture'));
+      lire.setAttribute('aria-label', joue ? 'Mettre en pause' : 'Écouter le message vocal');
+    };
+    function preparer() {
+      audio = new Audio(vocal.url);
+      audio.preload = 'auto';
+      audio.playbackRate = VITESSES[rang][0];
+      audio.addEventListener('timeupdate', () => {
+        avance.style.transform = `scaleX(${Math.min(1, audio.currentTime / total())})`;
+        temps.textContent = minutes(Math.max(0, total() - audio.currentTime));
+      });
+      // « en-lecture » : tant que le son joue, la bulle n'est pas redessinée (voir redessiner()).
+      const marquer = (joue) => { const bulleDuSon = lire.closest('.bulle'); if (bulleDuSon) bulleDuSon.classList.toggle('en-lecture', joue); };
+      audio.addEventListener('play', () => { dessiner(true); marquer(true); });
+      audio.addEventListener('pause', () => { dessiner(false); marquer(false); });
+      audio.addEventListener('ended', () => {
+        avance.style.transform = 'scaleX(0)';
+        temps.textContent = minutes(vocal.duree);
+      });
+      audio.addEventListener('error', () => {
+        dessiner(false);
+        toast('Ce message vocal ne peut pas être lu.', 'erreur');
+      });
+    }
+    lire.addEventListener('click', () => {
+      if (!audio) preparer();
+      if (!audio.paused) {
+        audio.pause();
+        return;
+      }
+      if (sonEnCours && sonEnCours !== audio) sonEnCours.pause();
+      sonEnCours = audio;
+      audio.play().catch(() => {});
+    });
+    vitesse.addEventListener('click', () => {
+      rang = (rang + 1) % VITESSES.length;
+      vitesse.textContent = VITESSES[rang][1];
+      vitesse.setAttribute('aria-label', `Vitesse de lecture : ${VITESSES[rang][1]}`);
+      if (audio) audio.playbackRate = VITESSES[rang][0];
+    });
+    // Toucher la barre déplace la lecture à cet endroit.
+    barre.addEventListener('click', (evenement) => {
+      if (!audio) return;
+      const cadre = barre.getBoundingClientRect();
+      audio.currentTime = Math.max(0, Math.min(1, (evenement.clientX - cadre.left) / cadre.width)) * total();
+    });
+    return el('span', { classe: 'vocal' }, [lire, barre, temps, vitesse]);
+  }
+
+  // ---------- Messages vocaux : l'enregistrement ----------
+  // Renvoie le bouton micro et la barre d'enregistrement, à poser dans la zone d'écriture.
+  //   - toucher le micro : l'enregistrement démarre, puis « Annuler » ou « Envoyer » ;
+  //   - le maintenir appuyé : relâcher envoie, glisser vers la gauche annule.
+  // Le micro n'est demandé au navigateur qu'à ce premier appui, jamais avant. Une minute au plus, à 24 kb/s
+  // (environ 180 Ko) : cela passe en 3G.
+  const DUREE_MAX_VOCAL_S = 60;
+  function enregistreurVocal({ envoyer, erreur, pendant }) {
+    const micro = el('button', { classe: 'bouton-icone bouton-micro', type: 'button', 'aria-label': 'Enregistrer un message vocal', title: 'Message vocal' }, [icone('micro')]);
+    const temps = el('span', { classe: 'enregistrement-temps', texte: '0:00', 'aria-live': 'off' });
+    const aide = el('span', { classe: 'texte-discret enregistrement-aide', texte: 'Enregistrement…' });
+    const annuler = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': 'Annuler l\'enregistrement', title: 'Annuler' }, [icone('supprimer')]);
+    const valider = el('button', { classe: 'bouton bouton-principal bouton-envoyer', type: 'button', 'aria-label': 'Envoyer le message vocal', title: 'Envoyer' }, [icone('envoyer')]);
+    const barre = el('div', { classe: 'enregistrement', hidden: true }, [annuler, el('span', { classe: 'enregistrement-point', 'aria-hidden': 'true' }), temps, aide, valider]);
+    const possible = Boolean(window.MediaRecorder && navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    micro.hidden = !possible;
+
+    let prise = null;      // l'enregistrement en cours : { enregistreur, flux, morceaux, debut, minuteur }
+    let maintenu = null;   // le doigt est resté sur le micro : { x, depuis }
+    let demarrage = false;
+
+    function ranger() {
+      if (prise) {
+        clearInterval(prise.minuteur);
+        prise.flux.getTracks().forEach((piste) => piste.stop()); // le voyant du micro s'éteint
+      }
+      prise = null;
+      maintenu = null;
+      barre.hidden = true;
+      pendant(false);
+    }
+    async function demarrer() {
+      if (prise || demarrage) return;
+      demarrage = true;
+      erreur('');
+      let flux;
+      try {
+        flux = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+      } catch (refus) {
+        demarrage = false;
+        maintenu = null;
+        erreur(refus.name === 'NotAllowedError' || refus.name === 'SecurityError'
+          ? 'Le micro est bloqué pour Palabre. Autorise-le dans les réglages de ton navigateur (le cadenas à côté de l\'adresse), puis réessaie.'
+          : 'Aucun micro n\'a été trouvé sur cet appareil.');
+        return;
+      }
+      demarrage = false;
+      const format = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus'].find((type) => MediaRecorder.isTypeSupported(type));
+      const enregistreur = new MediaRecorder(flux, { ...(format ? { mimeType: format } : {}), audioBitsPerSecond: 24000 });
+      prise = { enregistreur, flux, morceaux: [], debut: Date.now(), minuteur: 0 };
+      enregistreur.addEventListener('dataavailable', (evenement) => { if (evenement.data.size) prise.morceaux.push(evenement.data); });
+      enregistreur.start();
+      temps.textContent = '0:00';
+      aide.textContent = maintenu ? 'Relâche pour envoyer, glisse à gauche pour annuler' : 'Enregistrement…';
+      barre.hidden = false;
+      pendant(true);
+      prise.minuteur = setInterval(() => {
+        const ecoule = (Date.now() - prise.debut) / 1000;
+        temps.textContent = minutes(ecoule);
+        if (ecoule >= DUREE_MAX_VOCAL_S) terminer(true); // une minute au plus : il part tout seul
+      }, 250);
+      if (!maintenu) valider.focus();
+    }
+    function terminer(aEnvoyer) {
+      // Une seule fin par enregistrement : sans cela, « glisser pour annuler » puis relâcher le doigt
+      // demandait d'abord l'annulation, puis l'envoi, et le message partait quand même.
+      if (!prise || prise.termine) return;
+      prise.termine = true;
+      maintenu = null;
+      const { enregistreur, morceaux, debut } = prise;
+      const duree = Math.min(DUREE_MAX_VOCAL_S, Math.round((Date.now() - debut) / 1000));
+      enregistreur.addEventListener('stop', async () => {
+        ranger();
+        if (!aEnvoyer) return;
+        if (duree < 1) {
+          erreur('Message vocal trop court. Touche le micro, parle, puis touche « Envoyer ».');
+          return;
+        }
+        const son = new Blob(morceaux, { type: enregistreur.mimeType });
+        if (son.size > 400 * 1024) {
+          erreur('Ce message vocal est trop lourd. Essaie plus court.');
+          return;
+        }
+        try {
+          const donnees = await new Promise((fini, echec) => {
+            const lecteur = new FileReader();
+            lecteur.onload = () => fini(lecteur.result);
+            lecteur.onerror = () => echec(new Error('L\'enregistrement n\'a pas pu être lu.'));
+            lecteur.readAsDataURL(son);
+          });
+          await envoyer({ vocal: { donnees, duree } });
+        } catch (echec) {
+          erreur(echec.message);
+        }
+      }, { once: true });
+      enregistreur.stop();
+    }
+
+    // Maintenir le micro appuyé : relâcher envoie, glisser à gauche annule. Un toucher bref laisse les deux boutons.
+    micro.addEventListener('pointerdown', (evenement) => {
+      if (evenement.button > 0) return;
+      maintenu = { x: evenement.clientX, depuis: Date.now() };
+      try { micro.setPointerCapture(evenement.pointerId); } catch { /* sans capture, le geste marche tant que le doigt reste sur le bouton */ }
+      demarrer();
+    });
+    micro.addEventListener('pointermove', (evenement) => {
+      if (maintenu && prise && evenement.clientX - maintenu.x < -80) terminer(false);
+    });
+    micro.addEventListener('pointerup', () => {
+      if (!maintenu) return;
+      const longtemps = Date.now() - maintenu.depuis >= 500;
+      maintenu = null;
+      if (prise && longtemps) terminer(true);
+      else aide.textContent = 'Enregistrement…';
+    });
+    micro.addEventListener('pointercancel', () => { maintenu = null; });
+    // Au clavier (Entrée ou Espace) : pas de « maintien », on démarre et on valide avec les boutons.
+    micro.addEventListener('click', (evenement) => { if (evenement.detail === 0) demarrer(); });
+    annuler.addEventListener('click', () => terminer(false));
+    valider.addEventListener('click', () => terminer(true));
+    return { micro, barre };
+  }
+
   // Les six réactions (la même liste que le serveur, qui refuse toute autre valeur).
   const REACTIONS = ['❤️', '😂', '👍', '😮', '😢', '🙏'];
 
@@ -127,9 +317,9 @@
   function redessiner(message) {
     const ancienne = ouverte && ouverte.zone.querySelector(`[data-message="${message.id}"]`);
     if (!ancienne) return;
-    // La personne est en train de choisir dans le menu de cette bulle (ou une réaction) : on ne la lui retire pas
-    // des mains, on redessinera juste après.
-    if (ancienne.querySelector('[aria-expanded="true"], .barre-reactions')) {
+    // La personne est en train de choisir dans le menu de cette bulle, ou d'écouter ce message vocal : on ne la lui
+    // retire pas des mains, on redessinera juste après.
+    if (ancienne.classList.contains('en-lecture') || ancienne.querySelector('[aria-expanded="true"], .barre-reactions')) {
       setTimeout(() => redessiner(message), 1500);
       return;
     }
@@ -251,7 +441,7 @@
     const menu = menuOptions(() => [
       peutAgir ? { texte: 'Répondre', icone: 'repondre', action: () => repondreA(message) } : null,
       peutAgir ? { texte: 'Réagir', icone: 'sourire', action: () => choisirReaction(message, element) } : null,
-      message.supprime ? null : { texte: 'Copier', icone: 'copier', action: async () => {
+      message.supprime || message.vocal ? null : { texte: 'Copier', icone: 'copier', action: async () => {
         try {
           await navigator.clipboard.writeText(message.texte);
           toast('Message copié.');
@@ -267,7 +457,7 @@
     menu.querySelector('button').setAttribute('aria-label', 'Actions sur ce message');
 
     const element = el('div', {
-      classe: `bulle ${message.estMoi ? 'bulle-moi' : 'bulle-autre'}${signee ? ' bulle-signee' : ''}${message.supprime ? ' bulle-supprimee' : ''}`,
+      classe: `bulle ${message.estMoi ? 'bulle-moi' : 'bulle-autre'}${signee ? ' bulle-signee' : ''}${message.supprime ? ' bulle-supprimee' : ''}${message.vocal ? ' bulle-vocale' : ''}`,
       'data-message': message.id,
     }, [
       signee ? el('a', { classe: 'bulle-auteur', href: `/${message.auteur.identifiant}`, texte: message.auteur.nom }) : null,
@@ -276,7 +466,7 @@
         ? el('a', { href: message.image, target: '_blank', rel: 'noopener', 'aria-label': 'Ouvrir la photo' }, [el('img', { src: message.image, alt: 'Photo jointe au message', loading: 'lazy', decoding: 'async' })])
         : null,
       // textContent : le texte d'un membre n'est jamais interprété. Un lien écrit dans un message reste du simple texte.
-      el('span', { classe: 'bulle-texte', texte: message.supprime ? 'Message supprimé' : message.texte }),
+      message.vocal ? lecteurVocal(message.vocal) : el('span', { classe: 'bulle-texte', texte: message.supprime ? 'Message supprimé' : message.texte }),
       el('span', { classe: 'bulle-heure', texte: heure(message.creeLe) }),
       reactions,
       menu,
@@ -413,12 +603,24 @@
     const annulerReponse = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': 'Ne plus répondre à ce message' }, [icone('fermer')]);
     const citationReponse = el('p', { classe: 'reponse-texte' });
     const barreReponse = el('div', { classe: 'reponse-en-cours', hidden: true }, [icone('repondre'), citationReponse, annulerReponse]);
+    const ligne = el('div', { classe: 'ligne-ecriture' }, [boutonPhoto, champ]);
+    // Message vocal : le micro à côté du champ ; pendant l'enregistrement, sa barre remplace la ligne d'écriture.
+    const vocal = enregistreurVocal({
+      envoyer: async (donnees) => {
+        await envoyer({ ...donnees, ...(reponse ? { reponseA: reponse.id } : {}) });
+        oublierReponse();
+      },
+      erreur: (texte) => { erreurZone.textContent = texte; },
+      pendant: (enCours) => { ligne.hidden = enCours; },
+    });
+    ligne.append(vocal.micro, boutonEnvoyer);
     const formulaire = el('form', { classe: 'zone-ecriture', novalidate: true }, [
       avertissement ? el('p', { classe: 'texte-discret avertissement-message', texte: avertissement }) : null,
       barreReponse,
       apercu,
       erreurZone,
-      el('div', { classe: 'ligne-ecriture' }, [boutonPhoto, champ, boutonEnvoyer]),
+      ligne,
+      vocal.barre,
     ]);
 
     function retirerPhoto() {

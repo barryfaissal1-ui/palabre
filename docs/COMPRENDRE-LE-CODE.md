@@ -723,6 +723,32 @@ Deux protections :
 
 En privé, « Vu » apparaît sous mon dernier message, comme avant. Dans un groupe, le serveur envoie jusqu'où chaque membre a lu, et la page pose le petit avatar de chacun sous le dernier message qu'il a lu.
 
+## 11 terdecies. Les messages vocaux
+
+Dans beaucoup de nos villes, on parle plus volontiers qu'on n'écrit. Un bouton micro dans la zone d'écriture enregistre jusqu'à **une minute**.
+
+### Enregistrer sans vider le forfait
+
+Le navigateur enregistre lui-même (`MediaRecorder`), en Opus à **24 kb/s**, une seule voie : une minute pèse environ 180 Ko, ce qui passe en 3G. Selon le téléphone, le fichier est du WebM (Android, ordinateur) ou du MP4 (iPhone) : le code demande le premier format que le navigateur sait faire.
+
+Deux gestes : toucher le micro puis « Envoyer » ou « Annuler » ; ou le **maintenir appuyé**, relâcher pour envoyer, glisser vers la gauche pour annuler. **Le micro n'est demandé au navigateur qu'au premier appui**, jamais à l'ouverture de la page ; s'il est refusé, un message dit où l'autoriser.
+
+### Le serveur ne fait confiance à rien
+
+Comme pour les images (`src/utils/audio.js`) : type annoncé parmi trois, **premiers octets vérifiés** (un fichier annoncé « audio » qui n'en est pas un est refusé), 400 Ko au plus, durée d'une à soixante secondes. Le son est rangé dans la table `fichiers`, comme les photos, et `messages.vocal_duree` dit qu'il s'agit d'un vocal.
+
+### Écouter : seulement les membres, seulement au toucher
+
+- Le son est servi par `/fichiers/:id` avec la **même règle que les photos de messages** : les membres de la conversation, personne d'autre (404).
+- Il n'est **téléchargé qu'au premier toucher** sur « lecture » : une conversation pleine de vocaux ne coûte rien tant qu'on n'écoute pas.
+- L'iPhone demande un son par morceaux (`Range: bytes=0-1`…) et refuse de le lire sinon : le serveur sait répondre « 206, voici ce morceau ».
+- Le lecteur est écrit à la main : lecture / pause, barre d'avancement (une transformation `scaleX`), durée restante, vitesse x1, x1,5 ou x2.
+
+### Deux défauts trouvés en vérifiant dans le navigateur
+
+- « Glisser pour annuler » puis relâcher le doigt demandait l'annulation **puis** l'envoi : le message partait quand même. Un enregistrement ne peut plus se terminer qu'une fois.
+- Un message qu'on venait d'écrire était redessiné cinq secondes plus tard pour rien, ce qui remettait à zéro le lecteur en train de jouer. Le serveur ne signale plus que les messages réellement retouchés, et une bulle dont le son joue n'est jamais redessinée.
+
 ## 12. Le système de design
 
 Un « système de design », c'est un petit nombre de règles visuelles appliquées partout, pour que le site ait l'air d'une seule et même application. Tout est écrit à la main : aucune bibliothèque d'interface, aucun framework, donc des pages qui restent légères en 3G (les icônes pèsent 8 Ko en tout, les illustrations 4 Ko).
@@ -945,6 +971,8 @@ Pour les groupes (`tests/groupes.test.js`) : le groupe naît avec l'équipe ; ac
 Pour les actions sur les messages (`tests/messages-actions.test.js`) : une réaction par personne, changée ou retirée, six émojis seulement ; les changements arrivent par « modifies » ; une réponse ne peut citer qu'un message de la même conversation ; suppression pour tout le monde par l'auteur seul, pendant 15 minutes, avec le texte et la photo réellement effacés ; suppression pour soi ; les mêmes actions dans un groupe, refusées aux extérieurs et dans un groupe fermé.
 
 Pour la présence (`tests/presence.test.js`) : « écrit… » vu par l'autre seulement, pendant 6 secondes, effacé à l'envoi ; rien de révélé dans une demande de message non acceptée ; l'activité notée au plus une fois par minute ; « en ligne » sous 5 minutes ; la présence absente du profil public, de la recherche et du fil ; statut masqué dans les deux sens ; « vu par » et « écrit… » dans un groupe.
+
+Pour les messages vocaux (`tests/vocaux.test.js`) : le contrôle du fichier (type annoncé, premiers octets, taille, durée) ; l'envoi sans texte ; le son servi aux seuls membres de la conversation, entier ou par morceaux (206), jamais à un extérieur ; la suppression pour tout le monde qui efface le son ; un vocal dans un groupe.
 
 Les autres fichiers de tests ont besoin de comptes prêts à servir : `tests/aide.js` enveloppe leur fonction d'appel pour que chaque compte créé soit aussitôt confirmé et complet.
 
