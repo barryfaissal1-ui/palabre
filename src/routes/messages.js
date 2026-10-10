@@ -286,6 +286,14 @@ router.get('/non-lus', async (req, res) => {
   res.json({ nonLus: await compterNonLus(req.utilisateur.id), appel: await appels.appelEntrant(req.utilisateur.id) });
 });
 
+// La veille : GET /api/messages/veille
+// Une route volontairement légère, interrogée toutes les 5 secondes par toutes les pages tant que l'onglet est
+// visible : elle dit si un appel sonne pour moi. La pastille des messages, elle, garde son rythme d'une minute.
+router.get('/veille', async (req, res) => {
+  await appels.entretenir();
+  res.set('Cache-Control', 'no-store').json({ appel: await appels.appelEntrant(req.utilisateur.id) });
+});
+
 // ---------- Écrire à un membre depuis son profil ou depuis une proposition ----------
 
 // Où en suis-je avec ce membre ? GET /api/messages/avec/:identifiant?demande=<id>

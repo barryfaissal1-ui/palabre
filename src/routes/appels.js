@@ -82,6 +82,10 @@ async function clore(client, appel, statut) {
 //  - un appel en cours où il reste moins de deux personnes présentes (les autres ont fermé la page) est terminé.
 // SKIP LOCKED : deux lectures au même instant ne traitent pas le même appel deux fois.
 async function entretenir() {
+  // Presque toujours, aucun appel n'est en cours sur le site : une lecture toute simple suffit à le savoir,
+  // et on n'ouvre pas de transaction pour rien (cette fonction est appelée très souvent).
+  const { rowCount } = await db.query('SELECT 1 FROM appels WHERE statut IN (\'sonne\', \'en_cours\') LIMIT 1');
+  if (rowCount === 0) return;
   await db.transaction(async (client) => {
     const { rows } = await client.query(
       `SELECT a.id, a.conversation_id, a.appelant_id, a.type, a.statut,

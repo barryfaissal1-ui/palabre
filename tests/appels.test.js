@@ -115,6 +115,13 @@ test('un appel de bout en bout : sonnerie, décrocher, échange technique, raccr
   const sonne = await entrant('bintou');
   assert.deepEqual([sonne.id, sonne.type, sonne.conversationId, sonne.groupe, sonne.appelant.identifiant], [id, 'video', conversation, false, membres.awa.identifiant]);
   assert.equal((await api('/api/messages/non-lus', { qui: 'bintou' })).corps.appel.id, id);
+  // La veille (interrogée toutes les 5 secondes par toutes les pages) : l'appel, et rien d'autre.
+  const veille = await api('/api/messages/veille', { qui: 'bintou' });
+  assert.equal(veille.corps.appel.id, id);
+  assert.equal(veille.entetes.get('cache-control'), 'no-store');
+  assert.equal((await api('/api/messages/veille', { qui: 'awa' })).corps.appel, null);
+  assert.equal((await api('/api/messages/veille', { qui: 'cheick' })).corps.appel, null);
+  assert.equal((await appelBrut('/api/messages/veille')).statut, 401);
   assert.equal(await entrant('awa'), null);
   assert.equal(await entrant('cheick'), null);
   assert.equal((await api(`/api/messages/appels/${id}`, { qui: 'cheick' })).statut, 404, 'un extérieur ne voit pas l\'appel');

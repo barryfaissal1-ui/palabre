@@ -1124,18 +1124,35 @@
     chargerAppels().then((appels) => appels.lancer(conversation, type)).catch((erreur) => toast(erreur.message, 'erreur'));
   }
 
-  function surveillerMessages() {
+  // La veille : toutes les 5 secondes, une petite requête demande « un appel sonne-t-il pour moi ? ».
+  // Seulement quand l'onglet est visible : onglet caché ou site fermé, c'est la notification push qui prévient.
+  // (Rien pendant un appel : la page interroge déjà le serveur chaque seconde.)
+  function veiller() {
     let minuterie = 0;
-    // La même requête dit si un appel sonne pour moi. Elle part toutes les 20 secondes (une sonnerie en dure 30) :
-    // c'est ce qui permet de décrocher depuis n'importe quelle page. Site fermé, c'est le push qui prévient.
-    const demander = () => api('/messages/non-lus').then(({ nonLus, appel }) => {
-      majPastilleMessages(nonLus);
-      if (appel) appelEntrant(appel);
-    }).catch(() => {});
+    const demander = () => {
+      if (window.Palabre.appels && window.Palabre.appels.enCours()) return;
+      api('/messages/veille').then(recevoirVeille).catch(() => {});
+    };
     const regler = () => {
       clearInterval(minuterie);
       if (document.hidden) return;
-      minuterie = setInterval(demander, 20000);
+      minuterie = setInterval(demander, 5000);
+      demander();
+    };
+    document.addEventListener('visibilitychange', regler);
+    regler();
+  }
+  function recevoirVeille(reponse) {
+    if (reponse.appel) appelEntrant(reponse.appel);
+  }
+
+  function surveillerMessages() {
+    let minuterie = 0;
+    const demander = () => api('/messages/non-lus').then(({ nonLus }) => majPastilleMessages(nonLus)).catch(() => {});
+    const regler = () => {
+      clearInterval(minuterie);
+      if (document.hidden) return;
+      minuterie = setInterval(demander, 60000);
     };
     document.addEventListener('visibilitychange', () => {
       regler();
@@ -1198,6 +1215,7 @@
       poserBandeauProfil(moi);
       majPastilleMessages(moi.messagesNonLus || 0);
       surveillerMessages();
+      veiller();
     } else {
       nav.append(...[barreRecherche(), loupe, boutonTheme(), el('a', { classe: 'bouton bouton-principal bouton-compact', href: '/connexion', texte: 'Se connecter' })].filter(Boolean));
     }
