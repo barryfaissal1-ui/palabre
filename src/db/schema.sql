@@ -280,6 +280,23 @@ ALTER TABLE notifications ADD COLUMN IF NOT EXISTS acteurs INTEGER[] NOT NULL DE
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS nombre INTEGER NOT NULL DEFAULT 1;
 CREATE INDEX IF NOT EXISTS idx_notifications_groupe ON notifications (utilisateur_id, type, cible_type, cible_id) WHERE lue = FALSE;
 
+-- Notifications push : un abonnement par appareil (téléphone, ordinateur) du membre.
+-- endpoint : l'adresse donnée par le service de push du navigateur ; p256dh et auth : les clés de l'appareil,
+-- avec lesquelles le serveur chiffre chaque message (src/utils/push.js).
+CREATE TABLE IF NOT EXISTS abonnements_push (
+  id             SERIAL PRIMARY KEY,
+  utilisateur_id INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  endpoint       TEXT NOT NULL UNIQUE,
+  p256dh         TEXT NOT NULL,
+  auth           TEXT NOT NULL,
+  appareil       TEXT,
+  cree_le        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_abonnements_push_membre ON abonnements_push (utilisateur_id);
+-- Réglages des notifications du membre, en JSON : { "push": { "messages": false, … } }.
+-- Une famille absente vaut « oui » : un nouveau type de notification est donc reçu sans rien migrer.
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS preferences_notifications JSONB NOT NULL DEFAULT '{}';
+
 CREATE TABLE IF NOT EXISTS signalements (
   id          SERIAL PRIMARY KEY,
   auteur_id   INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,

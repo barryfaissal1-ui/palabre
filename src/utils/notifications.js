@@ -1,5 +1,6 @@
-// Notifications dans l'appli (la cloche du menu).
+// Notifications dans l'appli (la cloche du menu), doublées d'un push sur les appareils du membre.
 const db = require('../db/pool');
+const push = require('./push');
 
 // Ajoute une notification pour un membre.
 //   notifier(executeur, utilisateurId, type, texte, lien, options)
@@ -14,15 +15,26 @@ const db = require('../db/pool');
 //           garde qu'une. 'acteurs' compte les personnes (« Awa et 3 autres ont aimé ta publication ») ;
 //           'compteur' compte les événements (« Awa t'a envoyé 3 messages »).
 //           « texte » est alors une fonction (nombre) => phrase.
-async function notifier(executeur, utilisateurId, type, texte, lien, { acteur = null, cible = null, groupe = null } = {}) {
+//   push    { titre, texte } : ce qu'affiche le push, s'il doit différer du texte de la cloche (aperçu d'un message).
+async function notifier(executeur, utilisateurId, type, texte, lien, { acteur = null, cible = null, groupe = null, push: surPush = null } = {}) {
   if (acteur && acteur.id === utilisateurId) return null;
+  // Le push part après l'écriture, sans que la requête l'attende : un service de push lent ou en panne ne ralentit
+  // ni ne fait échouer l'action du membre. « tag » : sur le téléphone, la notification suivante du même sujet
+  // remplace la précédente au lieu de s'empiler.
+  const pousser = (phrase) => {
+    if (!push.pushActif()) return;
+    const message = { titre: 'Palabre', texte: phrase, ...(surPush || {}), lien, tag: cible ? `${type}-${cible.type}-${cible.id}` : `${type}-${utilisateurId}` };
+    setImmediate(() => { push.envoyerPush(utilisateurId, type, message); });
+  };
   const inserer = (client, phrase, acteurs, nombre) => client.query(
     `INSERT INTO notifications (utilisateur_id, type, texte, lien, acteur_id, cible_type, cible_id, acteurs, nombre)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
     [utilisateurId, type, phrase, lien, acteur ? acteur.id : null, cible ? cible.type : null, cible ? cible.id : null, acteurs, nombre],
   );
   if (!groupe || !cible || !acteur) {
-    await inserer(executeur, typeof texte === 'function' ? texte(1) : texte, acteur ? [acteur.id] : [], 1);
+    const phrase = typeof texte === 'function' ? texte(1) : texte;
+    await inserer(executeur, phrase, acteur ? [acteur.id] : [], 1);
+    pousser(phrase);
     return { nombre: 1 };
   }
 
@@ -44,7 +56,9 @@ async function notifier(executeur, utilisateurId, type, texte, lien, { acteur = 
     return { nombre };
   };
   // Un verrou « de transaction » a besoin d'une transaction : on en ouvre une si l'appelant n'en a pas.
-  return typeof executeur.transaction === 'function' ? executeur.transaction(regrouper) : regrouper(executeur);
+  const resultat = await (typeof executeur.transaction === 'function' ? executeur.transaction(regrouper) : regrouper(executeur));
+  pousser(texte(resultat.nombre));
+  return resultat;
 }
 
 // Quelqu'un revient sur son action (il n'aime plus) : il sort de la notification regroupée, tant qu'elle n'est pas lue.

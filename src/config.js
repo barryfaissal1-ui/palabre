@@ -49,4 +49,11 @@ module.exports = {
     pass: process.env.SMTP_PASS || '',
     expediteur: process.env.SMTP_FROM || 'Palabre <no-reply@palabre.dev>',
   },
+  // Notifications push (facultatif) : sans ces clés, le site marche normalement, simplement sans push.
+  // Pour les fabriquer : npm run cles-push
+  vapid: {
+    publique: (process.env.VAPID_PUBLIQUE || '').trim(),
+    privee: (process.env.VAPID_PRIVEE || '').trim(),
+    sujet: (process.env.VAPID_SUJET || '').trim(),
+  },
 };

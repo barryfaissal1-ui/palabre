@@ -1,6 +1,6 @@
 // Service worker : met en cache les fichiers de l'interface pour un chargement rapide, même en 3G.
 // Les données (/api) ne sont jamais mises en cache.
-const VERSION = 'palabre-v33';
+const VERSION = 'palabre-v34';
 const FICHIERS = [
   '/',
   '/connexion',
@@ -21,6 +21,7 @@ const FICHIERS = [
   '/js/date-naissance.js',
   '/bienvenue',
   '/js/publication.js',
+  '/js/push.js',
   '/js/page-publication.js',
   '/publication.html',
   '/js/fil.js',
@@ -97,4 +98,34 @@ self.addEventListener('fetch', (evenement) => {
       // sous l'adresse simple fait l'affaire.
       .catch(() => caches.match(requete).then((r) => r || caches.match(requete, { ignoreSearch: true })).then((r) => r || caches.match('/'))),
   );
+});
+
+// ---------- Notifications push ----------
+// Le serveur envoie un message chiffré (src/utils/push.js) ; le téléphone réveille ce fichier, même site fermé.
+// Seule une adresse interne au site est acceptée comme lien.
+const lienInterne = (lien) => (typeof lien === 'string' && /^\/(?!\/)/.test(lien) ? lien : '/notifications');
+
+self.addEventListener('push', (evenement) => {
+  let message = {};
+  try { message = evenement.data ? evenement.data.json() : {}; } catch { /* message illisible : texte par défaut */ }
+  evenement.waitUntil(self.registration.showNotification(message.titre || 'Palabre', {
+    body: message.texte || 'Tu as une nouvelle notification.',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/favicon-32.png',
+    // Même « tag » : la nouvelle notification remplace la précédente du même sujet au lieu de s'empiler.
+    tag: message.tag || 'palabre',
+    renotify: true,
+    data: { lien: lienInterne(message.lien) },
+  }));
+});
+
+// Toucher la notification : on réutilise un onglet Palabre déjà ouvert (mis au premier plan), sinon on en ouvre un.
+self.addEventListener('notificationclick', (evenement) => {
+  evenement.notification.close();
+  const adresse = new URL(lienInterne(evenement.notification.data && evenement.notification.data.lien), self.location.origin).href;
+  evenement.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((onglets) => {
+    const ouvert = onglets.find((onglet) => new URL(onglet.url).origin === self.location.origin);
+    if (!ouvert) return self.clients.openWindow(adresse);
+    return ouvert.navigate(adresse).then((onglet) => (onglet || ouvert).focus()).catch(() => self.clients.openWindow(adresse));
+  }));
 });

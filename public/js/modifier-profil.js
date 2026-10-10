@@ -224,6 +224,8 @@
     formulaire.hidden = false;
 
     document.querySelector('[data-deconnexion]').addEventListener('click', async () => {
+      // Se déconnecter coupe aussi le push sur cet appareil : la personne suivante ne recevra pas mes notifications.
+      if (window.Palabre.push) await window.Palabre.push.couper().catch(() => {});
       await api('/auth/deconnexion', { methode: 'POST', donnees: {} }).catch(() => {});
       window.location.href = '/';
     });

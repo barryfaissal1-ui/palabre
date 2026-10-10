@@ -18,6 +18,7 @@
   <script src="/js/app.js" defer></script>
   <script src="/js/publication.js" defer></script>
   <script src="/js/fil.js" defer></script>
+  <script src="/js/push.js" defer></script>
 </head>
 <body>
   <div class="bande"></div>
@@ -81,6 +82,9 @@
       </div>
       <input type="file" id="choisir-image" accept="image/*" data-choisir-image class="visuellement-cache" aria-label="Choisir une image">
     </form>
+
+    <!-- « Active les notifications » : proposé une fois par push.js, jamais sans une action de la personne. -->
+    <div data-encadre-push hidden></div>
 
     <!-- Carte « Défi de la semaine » : sur téléphone seulement, remplie par fil.js, fermable. -->
     <div data-carte-defi hidden></div>

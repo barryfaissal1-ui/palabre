@@ -14,7 +14,7 @@ const v = require('../utils/validation');
 const { exigerConnexion, profilDevIncomplet } = require('../middleware/auth');
 const { lireImageDataUrl } = require('../utils/images');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
-const { notifier, avecLesAutres } = require('../utils/notifications');
+const { notifier, court } = require('../utils/notifications');
 
 const router = express.Router();
 const PAR_PAGE = 30;
@@ -215,7 +215,13 @@ async function ecrire(req, res, autreId, conversation) {
       await notifier(client, autreId, 'demande_message', `${moi.nom} t'a envoyé une demande de message.`, '/messages?onglet=demandes', { acteur: moi });
     } else if (ouverte) {
       await notifier(client, autreId, 'message', (n) => (n === 1 ? `${moi.nom} t'a envoyé un message.` : `${moi.nom} t'a envoyé ${n} messages.`),
-        `/messages/${conv.id}`, { acteur: moi, cible: { type: 'conversation', id: conv.id }, groupe: 'compteur' });
+        `/messages/${conv.id}`, {
+          acteur: moi,
+          cible: { type: 'conversation', id: conv.id },
+          groupe: 'compteur',
+          // Sur le téléphone : le nom, et un aperçu de 60 caractères au plus (jamais le message entier, jamais la photo).
+          push: { titre: moi.nom, texte: texte ? court(texte, 60) : 'Photo' },
+        });
     }
     return { conversationId: conv.id, statut: accepte ? 'acceptee' : conv.statut, message: versMessage(message, moi) };
   });

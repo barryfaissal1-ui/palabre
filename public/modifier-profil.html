@@ -17,6 +17,7 @@
   <title>Modifier mon profil – Palabre</title>
   <script src="/js/app.js" defer></script>
   <script src="/js/modifier-profil.js" defer></script>
+  <script src="/js/push.js" defer></script>
 </head>
 <body>
   <div class="bande"></div>
@@ -171,6 +172,10 @@
         <button class="bouton bouton-principal bouton-plein" type="submit">Enregistrer</button>
       </div>
     </form>
+
+    <!-- Notifications sur le téléphone : rempli par push.js. Ces réglages s'enregistrent tout de suite,
+         sans passer par le bouton « Enregistrer » du profil. -->
+    <section class="bloc-formulaire reglages-push" data-reglages-push hidden></section>
 
     <div class="zone-deconnexion">
       <button class="bouton bouton-lien" type="button" data-deconnexion>Se déconnecter</button>
