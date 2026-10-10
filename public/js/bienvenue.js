@@ -27,10 +27,8 @@
     // Un compte créé avant cette page a peut-être déjà un numéro et une présentation : on les reprend.
     champs.whatsapp.value = moi.whatsapp || '';
     champs.bio.value = moi.bio || '';
-    // La date la plus récente acceptée : il y a 18 ans, jour pour jour (le serveur revérifie de toute façon).
-    const limite = new Date();
-    limite.setFullYear(limite.getFullYear() - 18);
-    champs.dateNaissance.max = limite.toISOString().slice(0, 10);
+    // Les trois listes de la date de naissance (date-naissance.js) ; lireDate() rend { date: 'AAAA-MM-JJ' } ou { erreur }.
+    const lireDate = window.preparerDateNaissance(champs);
 
     const compteur = formulaire.querySelector('[data-compteur-bio]');
     function compter() {
@@ -65,7 +63,7 @@
         return;
       }
       zone.textContent = erreur.message;
-      const champ = champs[erreur.champ === 'liens' ? 'github' : erreur.champ];
+      const champ = champs[{ liens: 'github', dateNaissance: 'jourNaissance' }[erreur.champ] || erreur.champ];
       if (champ && champ.focus) {
         if (erreur.champ !== 'liens') champ.setAttribute('aria-invalid', 'true');
         champ.focus();
@@ -76,9 +74,12 @@
     formulaire.addEventListener('submit', async (evenement) => {
       evenement.preventDefault();
       effacerErreurs();
+      // Date incomplète ou impossible (31 février) : on le dit tout de suite, sans déranger le serveur.
+      const naissance = lireDate();
+      if (naissance.erreur) return montrerErreur({ champ: 'dateNaissance', message: naissance.erreur });
       const sansLien = champs.sansLien.checked;
       const donnees = {
-        dateNaissance: champs.dateNaissance.value,
+        dateNaissance: naissance.date,
         specialite: champs.specialite.value,
         experience: champs.experience.value,
         liens: Object.fromEntries(LIENS.map((nom) => [nom, sansLien ? '' : champs[nom].value])),

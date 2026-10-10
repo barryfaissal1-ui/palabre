@@ -520,6 +520,34 @@ Le serveur envoyait déjà les listes par 10, avec le numéro du dernier éléme
 
 La vitrine de l'accueil garde son bouton « Voir plus de réalisations » : sous elle il y a un bouton et le pied de page, qu'un défilement infini rendrait impossibles à atteindre.
 
+## 11 septies. Les listes de choix et la date de naissance
+
+### Pourquoi refaire les listes du navigateur
+
+Un `<select>` s'affiche différemment sur chaque téléphone, et on ne peut presque pas le styler. `listeChoix(select)` (dans `public/js/app.js`) le remplace par un bouton et une fenêtre de choix « effet verre » : un fond à moitié transparent, et ce qui est derrière est flouté (`backdrop-filter: blur(16px) saturate(140%)`).
+
+- **Sur ordinateur** : un menu flottant accroché au bouton, placé dessous s'il y a la place, sinon au-dessus, jamais hors de l'écran.
+- **Sur téléphone** : une feuille qui monte du bas de l'écran, avec une poignée, le nom du champ et des choix de 52 px de haut, faciles à toucher. On la ferme en touchant le fond, en glissant la poignée vers le bas, ou avec Échap.
+- **Plus de 12 choix** (les pays, les années) : un champ de recherche en haut, qui ignore les accents et les majuscules.
+
+### Le `<select>` reste dans la page
+
+C'est le choix le plus important. Le `<select>` d'origine n'est pas supprimé : il est caché, et **c'est toujours lui qui porte la valeur**. Conséquences :
+
+- le code des formulaires n'a pas changé : `formulaire.elements.pays.value` marche comme avant ;
+- toutes les listes du site sont habillées toutes seules au chargement de la page : pour en ajouter une, on écrit un `<select>` normal dans le HTML ;
+- si le script ne se chargeait pas (réseau coupé au mauvais moment), la liste du navigateur resterait utilisable.
+
+Trois détails pour que le bouton dise toujours la vérité : quand une page écrit `select.value = 'x'`, quand le serveur envoie de nouveaux choix (pays, catégories), ou quand la page grise la liste, le bouton se met à jour (un `MutationObserver` et une petite interception de `value`).
+
+### Utilisable au clavier et avec un lecteur d'écran
+
+La fenêtre est un `<dialog>` ouvert avec `showModal()` : le navigateur la place au-dessus de tout (même d'une autre fenêtre, comme celle du signalement), y garde le clavier, la ferme avec Échap et rend le focus au bouton. Par-dessus : flèches, Début, Fin, Entrée, et la recherche par première lettre (« j » va à « Jeux vidéo »). Les rôles ARIA (`listbox`, `option`, `aria-selected`, `aria-expanded`) disent à un lecteur d'écran ce qu'est chaque élément.
+
+### La date de naissance en trois listes
+
+Le calendrier du navigateur oblige à reculer mois par mois jusqu'à son année de naissance. À la place : Jour, Mois (en lettres) et Année (de « il y a 18 ans » jusqu'à 1940), avec le même composant. `public/js/date-naissance.js` assemble les trois valeurs en `AAAA-MM-JJ`, exactement ce que le serveur attendait déjà, et refuse une date qui n'existe pas avec un message clair (« il n'y a pas de 31 février »). La règle des 18 ans reste vérifiée **par le serveur**, comme avant : un contrôle dans le navigateur peut toujours être contourné.
+
 ## 12. Le système de design
 
 Un « système de design », c'est un petit nombre de règles visuelles appliquées partout, pour que le site ait l'air d'une seule et même application. Tout est écrit à la main : aucune bibliothèque d'interface, aucun framework, donc des pages qui restent légères en 3G (les icônes pèsent 8 Ko en tout, les illustrations 4 Ko).
@@ -563,6 +591,7 @@ Une icône seule ne suffit pas pour un lecteur d'écran : les boutons sans texte
 | --- | --- |
 | `avatar(personne, taille)` | la photo ou les initiales d'un membre, avec son anneau de preuve |
 | `nomMembre(membre)` | son nom, suivi du badge feuille s'il a un projet vérifié |
+| `listeChoix(select)` | une liste de choix au style du site, à la place du `<select>` du navigateur (chapitre 11 septies) |
 | `chargementInfini(liste, chargerSuite)` | la page suivante d'une liste, chargée toute seule en défilant (chapitre 11 sexies) |
 | `partager({ titre, texte, url })` | LE partage du site : menu du téléphone, ou fenêtre WhatsApp / Facebook / X / Copier le lien |
 | `menuOptions(lister)` | le bouton « … » (« Plus d'options ») et son petit menu : Copier le lien, Signaler, Supprimer |
@@ -730,11 +759,16 @@ Pour le partage (`tests/partage.test.js`) : page publique visible sans compte ; 
 
 Pour les listes (`tests/listes.test.js`) : les notifications arrivent par 10, de la plus récente à la plus ancienne, sans doublon ni oubli sur 23, et chacun ne voit que les siennes.
 
+Pour la date de naissance (`tests/date-naissance.test.js`, sans serveur) : la date composée à partir des trois listes est bien `AAAA-MM-JJ`, les dates impossibles (31 février, 29 février 2001, 31 avril) donnent un message clair, les années vont de « il y a 18 ans » à 1940, et la validation du serveur accepte la date composée tout en refusant les moins de 18 ans.
+
 Les autres fichiers de tests ont besoin de comptes prêts à servir : `tests/aide.js` enveloppe leur fonction d'appel pour que chaque compte créé soit aussitôt confirmé et complet.
 
 Les fichiers de tests démarrent en même temps et chacun met la base à jour : `migrer()` prend donc un verrou PostgreSQL (`pg_advisory_xact_lock`) pour que le second attende le premier.
 
 ## 15. Questions probables du jury
+
+- **Pourquoi ne pas utiliser le `<select>` du navigateur ?** Il est toujours là, caché, et c'est lui qui porte la valeur. On a seulement remplacé son apparence, pour avoir la même sur tous les téléphones et de grandes zones tactiles.
+- **Votre liste maison est-elle accessible ?** Oui : clavier seul (flèches, Entrée, Échap, première lettre), rôles ARIA, focus rendu au bouton. C'est un `<dialog>` du navigateur qui gère le clavier et Échap.
 
 - **Le défilement infini ne consomme-t-il pas trop de données ?** Non : 10 éléments à la fois, un seul chargement en cours, et en cas de panne on s'arrête sur « Réessayer » au lieu de rappeler le serveur en boucle.
 - **Pourquoi `IntersectionObserver` plutôt qu'écouter le défilement ?** Écouter le défilement fait travailler la page des dizaines de fois par seconde ; ici le navigateur prévient une seule fois, quand le repère approche.

@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/css/style.css">
   <title>Ton profil de dev – Palabre</title>
   <script src="/js/app.js" defer></script>
+  <script src="/js/date-naissance.js" defer></script>
   <script src="/js/bienvenue.js" defer></script>
 </head>
 <!-- Étape 2 de l'inscription, pour les développeurs seulement : « Ton profil de dev ».
@@ -26,15 +27,30 @@
       <p class="etape-texte">Quelques informations pour montrer aux clients que tu es un vrai développeur. Tu pourras les modifier plus tard.</p>
 
       <form data-profil-dev novalidate>
-        <div class="champ">
-          <label for="date-naissance">Date de naissance</label>
-          <div class="ligne-saisie">
-            <input id="date-naissance" name="dateNaissance" type="date" autocomplete="bday" required aria-describedby="aide-naissance">
-            <span class="trait"></span>
+        <!-- Date de naissance : trois listes (jour, mois, année) remplies par date-naissance.js.
+             La page envoie au serveur « AAAA-MM-JJ », comme avec un champ de date. -->
+        <fieldset class="champ date-naissance" aria-describedby="aide-naissance">
+          <legend>Date de naissance</legend>
+          <div class="trois-listes">
+            <div class="ligne-saisie">
+              <label class="visuellement-cache" for="jour-naissance">Jour</label>
+              <select id="jour-naissance" name="jourNaissance" required autocomplete="bday-day"><option value="">Jour</option></select>
+              <span class="trait"></span>
+            </div>
+            <div class="ligne-saisie">
+              <label class="visuellement-cache" for="mois-naissance">Mois</label>
+              <select id="mois-naissance" name="moisNaissance" required autocomplete="bday-month"><option value="">Mois</option></select>
+              <span class="trait"></span>
+            </div>
+            <div class="ligne-saisie">
+              <label class="visuellement-cache" for="annee-naissance">Année</label>
+              <select id="annee-naissance" name="anneeNaissance" required autocomplete="bday-year"><option value="">Année</option></select>
+              <span class="trait"></span>
+            </div>
           </div>
           <span class="aide" id="aide-naissance">Elle n'est jamais affichée sur le site. Il faut avoir 18 ans.</span>
-          <p class="erreur-champ" data-erreur="dateNaissance"></p>
-        </div>
+          <p class="erreur-champ" data-erreur="dateNaissance" role="alert"></p>
+        </fieldset>
 
         <div class="etape-deux-colonnes">
           <div class="champ">
@@ -42,15 +58,15 @@
             <div class="ligne-saisie">
               <select id="specialite" name="specialite" required>
                 <option value="">Choisir</option>
-                <option value="web">Développement web</option>
-                <option value="mobile">Mobile</option>
-                <option value="back-end">Back-end</option>
-                <option value="front-end">Front-end</option>
-                <option value="design">Design UI/UX</option>
-                <option value="data-ia">Data et IA</option>
-                <option value="devops">DevOps et cloud</option>
-                <option value="jeux">Jeux vidéo</option>
-                <option value="autre">Autre</option>
+                <option value="web" data-icone="code">Développement web</option>
+                <option value="mobile" data-icone="smartphone">Mobile</option>
+                <option value="back-end" data-icone="serveur">Back-end</option>
+                <option value="front-end" data-icone="disposition">Front-end</option>
+                <option value="design" data-icone="palette">Design UI/UX</option>
+                <option value="data-ia" data-icone="cerveau">Data et IA</option>
+                <option value="devops" data-icone="nuage">DevOps et cloud</option>
+                <option value="jeux" data-icone="manette">Jeux vidéo</option>
+                <option value="autre" data-icone="options">Autre</option>
               </select>
               <span class="trait"></span>
             </div>

@@ -363,6 +363,234 @@
     }
   }
 
+  // ---------- Listes de choix (à la place des <select> du navigateur) ----------
+  // listeChoix(select) habille un <select> : un bouton au style du site, et à l'ouverture un menu « effet verre »
+  // (flottant sur ordinateur, feuille qui monte du bas sur téléphone). Toutes les listes du site y passent,
+  // toutes seules, au chargement de la page ; il suffit donc d'écrire un <select> normal dans le HTML.
+  //
+  // Le <select> RESTE dans la page, caché : c'est toujours lui qui porte la valeur. Le code des formulaires ne
+  // change pas (formulaire.elements.pays.value), et si ce script ne se chargeait pas, la liste d'origine marcherait.
+  // Une icône devant un choix : <option data-icone="code">.
+  const sansAccent = (texte) => texte.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const valeurNative = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+  let numeroListe = 0;
+
+  function listeChoix(select) {
+    if (!select || select.dataset.listeChoix || select.multiple) return;
+    select.dataset.listeChoix = 'oui';
+    numeroListe += 1;
+    const base = `${select.id || 'liste'}-${numeroListe}`;
+    const etiquette = select.labels && select.labels[0];
+    const titre = () => (etiquette ? etiquette.textContent.trim() : select.getAttribute('aria-label') || select.title || 'Choisir');
+
+    const valeur = el('span', { classe: 'liste-choix-valeur', id: `${base}-valeur` });
+    const bouton = el('button', { classe: 'liste-choix', type: 'button', id: `${base}-bouton`, 'aria-haspopup': 'listbox', 'aria-expanded': 'false' }, [valeur, icone('chevron-bas')]);
+    if (etiquette) {
+      // Toucher le libellé place le curseur sur le bouton, et un lecteur d'écran lit « Pays, Burkina Faso ».
+      if (!etiquette.id) etiquette.id = `${base}-etiquette`;
+      etiquette.htmlFor = bouton.id;
+      bouton.setAttribute('aria-labelledby', `${etiquette.id} ${valeur.id}`);
+    }
+    select.classList.add('liste-native');
+    select.tabIndex = -1;
+    select.setAttribute('aria-hidden', 'true');
+    select.after(bouton);
+
+    // Le bouton suit le <select> : choix affiché, grisé, en erreur.
+    function suivre() {
+      const option = select.options[select.selectedIndex];
+      valeur.textContent = option ? option.textContent : '';
+      bouton.classList.toggle('sans-choix', !option || option.value === '');
+      bouton.disabled = select.disabled;
+      if (select.getAttribute('aria-invalid') === 'true') bouton.setAttribute('aria-invalid', 'true');
+      else bouton.removeAttribute('aria-invalid');
+      if (!etiquette) bouton.setAttribute('aria-label', `${titre()} : ${valeur.textContent}`);
+    }
+    // « select.value = 'x' » écrit par une page ne prévient personne : on l'intercepte pour mettre le bouton à jour.
+    Object.defineProperty(select, 'value', {
+      configurable: true,
+      get() { return valeurNative.get.call(select); },
+      set(v) { valeurNative.set.call(select, v); suivre(); },
+    });
+    select.addEventListener('change', suivre);
+    select.addEventListener('focus', () => bouton.focus()); // une page qui fait select.focus() (champ en erreur)
+    if (select.form) select.form.addEventListener('reset', () => setTimeout(suivre));
+    // Des choix ajoutés plus tard (pays, catégories demandés au serveur), ou la liste grisée par la page.
+    new MutationObserver(suivre).observe(select, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled', 'aria-invalid', 'selected'] });
+    suivre();
+
+    let fenetre = null;
+    function ouvrir() {
+      if (fenetre || select.disabled) return;
+      const telephone = window.matchMedia('(max-width: 767px)').matches;
+      // « Choisir » (valeur vide) n'est pas proposé quand un choix est obligatoire ; ailleurs c'est « Tous les pays ».
+      const options = [...select.options].filter((o) => !o.disabled && !(select.required && o.value === ''));
+      const avecRecherche = options.length > 12;
+      const idListe = `${base}-liste`;
+      const lignes = options.map((option, rang) => {
+        const ligne = el('li', { classe: 'choix', role: 'option', id: `${base}-choix-${rang}`, 'aria-selected': String(option.selected) }, [
+          option.dataset.icone ? icone(option.dataset.icone) : null,
+          el('span', { classe: 'choix-texte', texte: option.textContent }),
+          el('span', { classe: 'choix-coche' }, [icone('valide')]),
+        ]);
+        ligne.addEventListener('click', () => choisir(rang));
+        ligne.addEventListener('pointermove', () => activer(rang, { defiler: false }));
+        return ligne;
+      });
+      const rien = el('li', { classe: 'choix-rien texte-discret', texte: 'Aucun résultat', hidden: true });
+      const liste = el('ul', { classe: 'choix-liste', role: 'listbox', id: idListe, tabindex: '-1', 'aria-label': titre() }, [...lignes, rien]);
+      const recherche = avecRecherche
+        ? el('input', { classe: 'choix-recherche', type: 'search', placeholder: 'Chercher…', 'aria-label': `Chercher dans la liste ${titre()}`, autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false', role: 'combobox', 'aria-expanded': 'true', 'aria-controls': idListe, 'aria-autocomplete': 'list' })
+        : null;
+      const entete = el('div', { classe: 'choix-entete' }, [el('span', { classe: 'choix-poignee', 'aria-hidden': 'true' }), el('p', { classe: 'choix-titre', texte: titre() })]);
+      // Le clavier reste sur le champ de recherche ou sur la liste ; le choix « actif » est annoncé par aria-activedescendant.
+      const foyer = recherche || liste;
+      if (!recherche) liste.tabIndex = 0;
+      // Un <dialog> ouvert avec showModal() passe au-dessus de tout (même d'une autre fenêtre), garde le clavier,
+      // se ferme avec Échap et rend le focus : le navigateur fait le travail.
+      fenetre = el('dialog', { classe: `choix-fenetre ${telephone ? 'choix-feuille' : 'choix-menu'}` }, [
+        el('div', { classe: 'choix-interieur' }, [entete, recherche, liste]),
+      ]);
+
+      let actif = -1;
+      const visibles = () => lignes.map((l, rang) => (l.hidden ? -1 : rang)).filter((rang) => rang >= 0);
+      function activer(rang, { defiler = true } = {}) {
+        if (rang === actif || rang < 0) return;
+        if (lignes[actif]) lignes[actif].classList.remove('actif');
+        actif = rang;
+        lignes[actif].classList.add('actif');
+        foyer.setAttribute('aria-activedescendant', lignes[actif].id);
+        if (defiler) lignes[actif].scrollIntoView({ block: 'nearest' });
+      }
+      function deplacer(pas) {
+        const rangs = visibles();
+        if (rangs.length === 0) return;
+        const position = rangs.indexOf(actif);
+        const cible = pas === 'debut' ? 0 : pas === 'fin' ? rangs.length - 1 : Math.min(rangs.length - 1, Math.max(0, position + pas));
+        activer(rangs[cible]);
+      }
+      function choisir(rang) {
+        const option = options[rang];
+        if (!option) return;
+        const change = select.value !== option.value;
+        select.value = option.value;
+        fermer();
+        // Les pages écoutent « change » (filtres, formulaires) : on prévient comme le ferait la liste du navigateur.
+        if (change) {
+          select.dispatchEvent(new Event('input', { bubbles: true }));
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+      function fermer() {
+        if (fenetre && fenetre.open) fenetre.close();
+      }
+
+      // Recherche par première(s) lettre(s), quand il n'y a pas de champ de recherche : « b », « bu »…
+      let saisie = '';
+      let minuteur = null;
+      function parLettres(lettre) {
+        saisie += sansAccent(lettre);
+        clearTimeout(minuteur);
+        minuteur = setTimeout(() => { saisie = ''; }, 700);
+        const rang = visibles().find((r) => sansAccent(options[r].textContent).startsWith(saisie));
+        if (rang !== undefined) activer(rang);
+      }
+
+      fenetre.addEventListener('keydown', (evenement) => {
+        const { key } = evenement;
+        if (key === 'ArrowDown' || key === 'ArrowUp') { evenement.preventDefault(); deplacer(key === 'ArrowDown' ? 1 : -1); }
+        else if (key === 'Home' && !recherche) { evenement.preventDefault(); deplacer('debut'); }
+        else if (key === 'End' && !recherche) { evenement.preventDefault(); deplacer('fin'); }
+        else if (key === 'PageDown' || key === 'PageUp') { evenement.preventDefault(); deplacer(key === 'PageDown' ? 6 : -6); }
+        else if (key === 'Enter' || (key === ' ' && !recherche)) { evenement.preventDefault(); choisir(actif); }
+        else if (key === 'Tab') { evenement.preventDefault(); fermer(); }
+        else if (!recherche && key.length === 1 && !evenement.ctrlKey && !evenement.metaKey && !evenement.altKey) parLettres(key);
+      });
+      if (recherche) {
+        recherche.addEventListener('input', () => {
+          const mots = sansAccent(recherche.value.trim());
+          lignes.forEach((ligne, rang) => { ligne.hidden = Boolean(mots) && !sansAccent(options[rang].textContent).includes(mots); });
+          const rangs = visibles();
+          rien.hidden = rangs.length > 0;
+          if (lignes[actif]) lignes[actif].classList.remove('actif');
+          actif = -1;
+          foyer.removeAttribute('aria-activedescendant');
+          if (rangs.length) activer(rangs[0]);
+        });
+      }
+      // Toucher le fond (à côté du menu) ferme : le clic arrive alors sur le <dialog> lui-même.
+      fenetre.addEventListener('click', (evenement) => { if (evenement.target === fenetre) fermer(); });
+      const surDefilement = () => fermer(); // sur ordinateur, le menu est accroché au bouton : si la page bouge, on ferme
+      fenetre.addEventListener('close', () => {
+        clearTimeout(minuteur);
+        window.removeEventListener('resize', surDefilement);
+        window.removeEventListener('scroll', surDefilement);
+        fenetre.remove();
+        fenetre = null;
+        bouton.setAttribute('aria-expanded', 'false');
+        bouton.focus();
+      });
+
+      if (telephone) {
+        // Glisser la poignée (ou le titre) vers le bas referme la feuille ; un petit geste la laisse revenir.
+        let depart = null;
+        entete.addEventListener('pointerdown', (evenement) => { 
+          depart = evenement.clientY;
+          try { entete.setPointerCapture(evenement.pointerId); } catch { /* sans capture, le geste marche tant que le doigt reste sur l'en-tête */ }
+        });
+        entete.addEventListener('pointermove', (evenement) => {
+          if (depart === null) return;
+          fenetre.style.transform = `translateY(${Math.max(0, evenement.clientY - depart)}px)`;
+        });
+        const lacher = (evenement) => {
+          if (depart === null) return;
+          const descente = evenement.clientY - depart;
+          depart = null;
+          fenetre.style.transform = '';
+          if (descente > 80) fermer();
+        };
+        entete.addEventListener('pointerup', lacher);
+        entete.addEventListener('pointercancel', lacher);
+      }
+
+      document.body.append(fenetre);
+      fenetre.showModal();
+      bouton.setAttribute('aria-expanded', 'true');
+      if (!telephone) {
+        // Menu flottant : sous le bouton s'il y a la place, sinon au-dessus ; jamais hors de l'écran.
+        const cadre = bouton.getBoundingClientRect();
+        const largeur = Math.max(cadre.width, 260);
+        const dessous = window.innerHeight - cadre.bottom - 16;
+        const dessus = cadre.top - 16;
+        const enBas = dessous >= 240 || dessous >= dessus;
+        fenetre.style.width = `${largeur}px`;
+        fenetre.style.left = `${Math.max(8, Math.min(cadre.left, window.innerWidth - largeur - 8))}px`;
+        fenetre.style.maxHeight = `${Math.min(380, enBas ? dessous : dessus)}px`;
+        if (enBas) fenetre.style.top = `${cadre.bottom + 6}px`;
+        else fenetre.style.bottom = `${window.innerHeight - cadre.top + 6}px`;
+        fenetre.classList.toggle('vers-le-haut', !enBas);
+        window.addEventListener('resize', surDefilement);
+        window.addEventListener('scroll', surDefilement, { passive: true });
+      }
+      foyer.focus();
+      const choisi = options.findIndex((o) => o.selected);
+      activer(choisi >= 0 ? choisi : 0);
+      if (lignes[actif]) lignes[actif].scrollIntoView({ block: 'center' });
+    }
+
+    bouton.addEventListener('click', ouvrir);
+    // Comme une liste du navigateur : les flèches ouvrent aussi (Entrée et Espace « cliquent » déjà le bouton).
+    bouton.addEventListener('keydown', (evenement) => {
+      if (evenement.key === 'ArrowDown' || evenement.key === 'ArrowUp') {
+        evenement.preventDefault();
+        ouvrir();
+      }
+    });
+  }
+
+  // Toutes les listes de la page, et celles qu'une page crée plus tard (appeler listeChoix(select) après l'avoir posée).
+  document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('select').forEach(listeChoix));
+
   // ---------- Partager ----------
   // LA fonction de partage du site (publications, projets, profils) : partager({ titre, texte, url }).
   //  - sur un téléphone, le menu de partage de l'appareil (WhatsApp, Facebook, Messenger, SMS…) : navigator.share ;
@@ -523,6 +751,7 @@
       el('div', { classe: 'dialogue-actions' }, [annuler, envoyer]),
     ]);
     const dialogue = el('dialog', { classe: 'dialogue', 'aria-labelledby': 'signalement-titre' }, [formulaire]);
+    listeChoix(motif); // une liste créée après le chargement de la page : on l'habille à la main
 
     annuler.addEventListener('click', () => dialogue.close());
     dialogue.addEventListener('close', () => dialogue.remove());
@@ -944,5 +1173,5 @@
 
   document.addEventListener('DOMContentLoaded', remplirNavigation);
 
-  window.Palabre = { chargementInfini, tempsRestant, etatDefi, api, utilisateurConnecte, el, avatar, nomMembre, badgeFeuille, prenom, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, copierLien, menuOptions, majPastilleMessages, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
+  window.Palabre = { listeChoix, chargementInfini, tempsRestant, etatDefi, api, utilisateurConnecte, el, avatar, nomMembre, badgeFeuille, prenom, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, copierLien, menuOptions, majPastilleMessages, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
 })();

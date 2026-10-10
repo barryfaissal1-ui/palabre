@@ -2165,6 +2165,132 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
   to { opacity: 1; }
 }
 
+/* ---------- Listes de choix (listeChoix() dans app.js) ---------- */
+/* Le <select> d'origine reste dans la page pour porter la valeur, mais on ne le voit plus et on n'y passe plus au clavier. */
+.liste-native { position: absolute; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; clip: rect(0 0 0 0); }
+
+/* Le bouton fermé : le même cadre qu'un champ de saisie. */
+.liste-choix {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--ligne);
+  border-radius: var(--rayon-petit);
+  background: var(--surface-2);
+  color: var(--encre);
+  font: inherit;
+  font-size: 1rem; /* 16 px, comme les champs */
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.liste-choix:focus-visible, .liste-choix[aria-expanded="true"] {
+  outline: none;
+  border-color: var(--feuille-vive);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--feuille-vive) 25%, transparent);
+}
+.liste-choix[aria-invalid="true"] { border-color: var(--erreur); }
+.liste-choix:disabled { opacity: 0.45; cursor: default; }
+.liste-choix.sans-choix .liste-choix-valeur { color: var(--gris); }
+.liste-choix-valeur { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.liste-choix > .icone { flex: none; width: 20px; height: 20px; color: var(--gris); transition: transform 0.15s ease; }
+.liste-choix[aria-expanded="true"] > .icone { transform: rotate(180deg); color: var(--action); }
+/* Dans un champ souligné (inscription, profil de dev) : pas de cadre, le trait du champ suffit. */
+.ligne-saisie .liste-choix, .ligne-saisie .liste-choix:focus-visible, .ligne-saisie .liste-choix[aria-expanded="true"] {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* La fenêtre des choix, « effet verre » : fond à moitié transparent, ce qui est derrière est flouté. */
+.choix-fenetre {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, #fff 55%, transparent);
+  border-radius: var(--rayon-grand);
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+  color: var(--encre);
+  box-shadow: var(--ombre-3);
+}
+:where([data-theme="sombre"]) .choix-fenetre { border-color: color-mix(in srgb, #fff 14%, transparent); background: color-mix(in srgb, var(--surface) 72%, transparent); }
+.choix-fenetre[open] { display: flex; }
+.choix-interieur { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+.choix-liste { flex: 1; min-height: 0; margin: 0; padding: 6px; overflow-y: auto; list-style: none; overscroll-behavior: contain; }
+.choix-liste:focus { outline: none; }
+.choix {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font: 500 var(--t-15)/1.2 var(--texte);
+  cursor: pointer;
+}
+.choix[hidden] { display: none; }
+.choix > .icone { flex: none; width: 20px; height: 20px; color: var(--gris); }
+.choix-texte { flex: 1; min-width: 0; }
+.choix-coche { display: grid; place-items: center; flex: none; width: 20px; color: var(--action); visibility: hidden; }
+.choix-coche .icone { width: 18px; height: 18px; }
+.choix[aria-selected="true"] { font-weight: 700; }
+.choix[aria-selected="true"] .choix-coche { visibility: visible; }
+.choix[aria-selected="true"] > .icone { color: var(--action); }
+.choix.actif { background: color-mix(in srgb, var(--action) 12%, transparent); }
+/* Au clavier, le choix actif porte en plus un contour net : on voit toujours où l'on est. */
+.choix-fenetre:focus-within .choix.actif { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--action) 45%, transparent); }
+.choix-rien { padding: 16px 12px; text-align: center; }
+.choix-recherche { flex: none; width: auto; min-height: 44px; margin: 8px 8px 0; border-radius: 22px; background: color-mix(in srgb, var(--surface-2) 80%, transparent); }
+.choix-entete { display: none; }
+
+/* Ordinateur : un menu flottant accroché au bouton, qui s'ouvre en fondu avec un léger agrandissement. */
+.choix-menu::backdrop { background: transparent; }
+.choix-menu[open] { animation: choix-apparait 0.15s ease; transform-origin: top center; }
+.choix-menu.vers-le-haut[open] { transform-origin: bottom center; }
+@keyframes choix-apparait {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Téléphone : une feuille qui monte du bas de l'écran, avec une poignée et le nom du champ. */
+.choix-feuille {
+  inset: auto 0 0 0;
+  width: 100%;
+  max-width: 100%;
+  max-height: min(78dvh, 560px);
+  border-width: 1px 0 0;
+  border-radius: var(--rayon-grand) var(--rayon-grand) 0 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.choix-feuille[open] { animation: choix-monte 0.22s ease; }
+.choix-feuille::backdrop { background: rgba(15, 12, 8, 0.5); }
+.choix-feuille .choix-entete { display: grid; justify-items: center; gap: 8px; flex: none; padding: 10px 16px 6px; touch-action: none; cursor: grab; }
+.choix-poignee { width: 40px; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--gris) 55%, transparent); }
+.choix-titre { margin: 0; font: 700 var(--t-17)/1.2 var(--titre); }
+.choix-feuille .choix { min-height: 52px; padding: 0 14px; font-size: var(--t-17); }
+.choix-feuille .choix-liste { padding: 4px 8px 12px; }
+@keyframes choix-monte {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+
+/* Date de naissance : jour, mois, année côte à côte. Le mois, écrit en lettres, a plus de place. */
+.date-naissance { min-width: 0; margin: 0; padding: 0; border: 0; }
+.trois-listes { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.5fr) minmax(0, 1fr); gap: 12px; }
+
 /* ---------- Défilement infini (chargementInfini() dans app.js) ---------- */
 /* Le repère est invisible : c'est lui que le navigateur guette pour charger la page suivante. */
 .repere-infini { height: 1px; }

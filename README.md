@@ -85,6 +85,7 @@ tests/                 tests automatiques
 - [x] Calculateur « Combien coûte mon projet ? » `/calculateur` (grille de prix : `public/js/grille-prix.js`)
 - [x] Refonte du design, étape A : système de design (icônes Lucide, ombres, animations, toasts, états vides illustrés, squelettes de chargement, mode sombre)
 - [x] Prénom et nom saisis séparément (inscription et profil)
+- [x] Listes de choix maison à l'effet verre (menu flottant sur ordinateur, feuille du bas sur téléphone, utilisables au clavier) et date de naissance en trois listes
 - [x] Listes chargées toutes seules en défilant (fil, demandes, recherche, notifications), 10 éléments à la fois
 - [x] Partage des publications : « Partager » dans le menu de chaque publication (menu du téléphone, ou WhatsApp / Facebook / X / copier le lien), page publique `/publication/12` lisible sans compte, avec sa carte de partage
 - [x] Vidéos dans le fil : un lien YouTube, TikTok ou Facebook par publication, lecteur chargé seulement au toucher (3G)
