@@ -1,3 +1,40 @@
+# À vérifier : le Griot de Palabre (11 octobre 2026)
+
+344 tests passent. Essayé dans Chrome sur téléphone 390 px et sur ordinateur, en clair et en sombre, en français et en anglais (96 contrôles). Captures : `docs/captures/griot/`.
+
+## À faire par toi
+
+- [ ] **Relire toutes les réponses du Griot**, une par une, en français puis en anglais. C'est moi qui les ai écrites. Elles sont dans `public/langues/fr.js` et `en.js`, clés `assistant.sujet.<sujet>.reponse` (18 sujets). Vérifie surtout que chacune dit vrai sur le site d'aujourd'hui.
+- [ ] **Relire les suggestions** (`.question`) : ce sont les premières phrases que voit un visiteur.
+- [ ] **Poser tes propres questions**, avec tes mots et tes fautes, et noter celles qu'il ne comprend pas. Pour les corriger, ajoute un mot-clé dans `assistant.sujet.<sujet>.mots`.
+- [ ] **Faire essayer par ton ami et ton petit frère** : ils n'écriront pas comme moi.
+- [ ] **Sur un vrai téléphone** : le bouton ne doit gêner ni le menu du bas, ni le bouton d'envoi d'un formulaire ; le clavier ne doit pas cacher le champ de la fenêtre.
+- [ ] **« Contacter l'équipe »** ouvre un email vers `CONTACT_MODERATION` : vérifie que l'adresse est la bonne.
+
+## Mes choix, à valider
+
+- **Ajouter une question se fait en deux endroits, pas un seul** : une ligne dans `SUJETS`, et ses trois textes dans les fichiers de langue. Tu demandais un seul endroit, mais tu demandais aussi que tous les textes passent par `fr.js` et `en.js`. Changer une réponse ou un mot-clé, lui, se fait en un seul endroit.
+- **18 sujets** au lieu des 12 de ta liste : j'ai ajouté « créer un compte », « trouver un développeur », « signaler un contenu », « protéger mon compte », « le défi de la semaine » et « installer Palabre sur mon téléphone ».
+- **Aucun prix dans les réponses.** « Combien coûte mon projet ? » renvoie au calculateur, sans chiffre : la grille peut changer, la réponse resterait fausse.
+- **Les pages** : le bouton est aussi sur `/inscription` (même page que `/connexion`). Il est absent de toute la messagerie, pas seulement d'une conversation ouverte : sur ordinateur, la liste et la conversation sont sur la même page.
+- **Sans compte, « Changer la langue »** renvoie à l'accueil, où se trouve le lien en bas de page. Le Griot ne change pas la langue lui-même.
+- **Les textes du Griot pèsent dans les fichiers de langue**, chargés par toutes les pages : environ 90 clés de plus par langue. Seuls les scripts et la feuille de style attendent le premier toucher.
+- **La fenêtre garde la conversation** tant qu'on reste sur la page. Elle repart de zéro à la page suivante : rien n'est gardé nulle part.
+
+## Ce qu'il ne sait pas faire
+
+- **Comprendre le sens.** Il compare des mots. « Je me suis fait avoir par un dev » ne contient aucun mot-clé : il répond « pas compris ».
+- **Les autres langues** : français et anglais seulement.
+- **Les sujets absents** : par exemple les messages, les appels, les notifications, les amis. Il répond « pas compris » et propose d'écrire à l'équipe.
+- **Les questions sur un compte précis** (« pourquoi ma publication est cachée ? ») : il ne lit rien du compte.
+
+## Ce que je n'ai pas pu vérifier
+
+- **De vraies questions de vrais visiteurs** : la recherche a été essayée sur environ 80 phrases que j'ai écrites.
+- **Un vrai téléphone, avec son clavier** : seulement Chrome en largeur de téléphone.
+- **Un lecteur d'écran** : les rôles et les noms sont posés, mais je n'ai pas écouté le résultat.
+- **Écrans de 360 px.**
+
 # À vérifier : modération du contenu (11 octobre 2026)
 
 Cinq parties, cinq commits. 336 tests passent. Chaque partie a été essayée dans Chrome (téléphone 390 px et ordinateur, clair et sombre, français et anglais). Captures : `docs/captures/moderation/` (version claire).

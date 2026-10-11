@@ -1037,6 +1037,46 @@ Les tables `publications`, `commentaires`, `demandes` et `projets` avaient déj�
 
 `parleDePaiement(texte)` est appelé au moment de **lire** un message (`versMessage()`) ou une proposition, seulement pour le destinataire. Il n'y a ni colonne ni table : rien n'est gardé, personne ne lit les messages.
 
+## 11 vicies. Le Griot de Palabre : l'aide, sans intelligence artificielle
+
+Fichiers : `public/js/assistant-recherche.js` (les sujets et la recherche), `public/js/assistant.js` (la fenêtre), `public/css/assistant.css`, le bouton dans `public/js/app.js` (`poserGriot()`, `chargerGriot()`), les textes dans `public/langues/fr.js` et `en.js` (famille `assistant.`), `tests/assistant.test.js`.
+
+### Ce que c'est, et ce que ce n'est pas
+
+Un bouton rond « Besoin d'aide ? » ouvre une fenêtre où l'on touche une suggestion ou écrit une question. Le Griot répond en deux ou trois phrases, avec un ou deux boutons vers la bonne page.
+
+Ce n'est **pas** une intelligence artificielle. Il n'y a ni service payant, ni bibliothèque, ni serveur : la question est comparée, **dans le navigateur**, aux mots-clés de 18 sujets. Rien n'est envoyé, rien n'est enregistré, personne ne lit les questions. La fenêtre le dit : « Assistant automatique, pas une personne. »
+
+### La recherche, pas à pas (`chercher(question, index)`)
+
+1. **Nettoyer** : minuscules, accents retirés, ponctuation remplacée par des espaces.
+2. **Remettre d'aplomb** les abréviations (`assistant.abreviations` : « koi » devient « quoi », « mdp » devient « motdepasse ») et **retirer les petits mots** qui ne disent rien du sujet (`assistant.mots-vides` : « le », « de », « comment »).
+3. **Comparer** chaque mot restant aux mots-clés des sujets. Deux mots « se ressemblent » s'ils sont pareils, s'ils ont le même début (« oublier » pour « oublie »), ou à une lettre près pour un mot de 5 lettres et plus (« suprimer » pour « supprimer »). C'est `ressemble()`, avec la distance entre deux mots (`distance()`).
+4. **Compter les points** : un point par mot retrouvé, un de plus pour une expression entière (« mot de passe »). Le sujet qui a le plus de points gagne. Aucun point : « Je n'ai pas compris ta question. »
+
+Les mots-clés des deux langues valent toujours : un membre dont le site est en français peut écrire en anglais.
+
+### Adapté à la personne et à la page
+
+- `suggestionsPour(profil, page)` : les six suggestions. Celles de la page d'abord (`PAR_PAGE`), puis les autres sujets de la personne (visiteur, dev ou client).
+- `boutonsPour(sujet, profil)` : chaque bouton dit qui a le droit de le voir (`pour`). Un visiteur ne reçoit jamais un lien vers `/parametres` ; un membre ne reçoit jamais « Créer un compte ».
+- L'adresse de l'équipe n'est écrite dans aucun script : la fenêtre la lit dans la page `/regles`, où le serveur la pose (`avecContact()`, variable `CONTACT_MODERATION`).
+
+### Chargé au premier toucher
+
+À l'ouverture d'une page, seul le bouton existe (quelques lignes dans `app.js` et `style.css`). `chargerGriot()` ajoute la feuille de style et les deux scripts quand on touche le bouton, comme `chargerAppels()` pour les appels. Le service worker les garde : l'aide s'ouvre aussi hors connexion.
+
+La fenêtre est un `<dialog>` ouvert par `showModal()` : la touche Échap la ferme, le focus reste dedans, et il revient au bouton à la fermeture. Ce que la personne écrit est posé avec `textContent` (`el()`), jamais `innerHTML`.
+
+### Ajouter une question
+
+1. Dans `SUJETS` (`public/js/assistant-recherche.js`), une ligne : `{ id: 'mon-sujet', pour: TOUS, boutons: ['regles'] }`.
+2. Dans `public/langues/fr.js` **et** `en.js`, ses trois textes : `assistant.sujet.mon-sujet.question` (la suggestion), `.mots` (les mots-clés, séparés par des virgules) et `.reponse` (2 ou 3 phrases).
+
+C'est tout : la fenêtre, la recherche et les suggestions suivent. `tests/assistant.test.js` échoue s'il manque un texte, si la suggestion ne trouve pas sa propre réponse, ou si un bouton n'existe pas. Pour changer seulement une réponse ou ajouter un mot-clé, on ne touche qu'aux fichiers de langue.
+
+**Une réponse ne doit jamais donner un chiffre que le site n'applique pas.** Un test vérifie les quatre valeurs citées (30 jours, une heure, 18 ans, trois signalements) contre le code, et qu'aucun prix n'est écrit : les prix viennent de la grille du calculateur.
+
 ## 12. Le système de design
 
 Un « système de design », c'est un petit nombre de règles visuelles appliquées partout, pour que le site ait l'air d'une seule et même application. Tout est écrit à la main : aucune bibliothèque d'interface, aucun framework, donc des pages qui restent légères en 3G (les icônes pèsent 8 Ko en tout, les illustrations 4 Ko).
@@ -1219,6 +1259,8 @@ Les chiffres avant / après sont dans `docs/PERFORMANCE.md` : les pages pèsent 
 - **`robots.txt`** : dit aux moteurs de recherche de visiter l'accueil, les profils et les projets, et de laisser l'API, l'administration et les pages réservées aux membres.
 
 ## 14. Les tests automatiques
+
+Pour le Griot (`tests/assistant.test.js`, sans serveur) : chaque suggestion trouve sa réponse dans les deux langues, les fautes courantes aussi, une question hors sujet donne « pas compris », un visiteur ne reçoit aucun lien réservé aux membres, les valeurs citées sont celles du code, et rien n'est envoyé au serveur.
 
 Pour la modération : `tests/regles.test.js` (acceptation obligatoire, nouvelle version), `tests/moderation.test.js` (insultes et variantes, mots innocents, arnaque en attente puis approuvée, liens), `tests/nouveaux-comptes.test.js`, `tests/sanctions.test.js` (masquage après 3 signalements, sanctions progressives, lecture seule, contestation, journal), `tests/anti-arnaque.test.js`.
 
