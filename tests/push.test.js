@@ -72,7 +72,7 @@ test.before(async () => {
   push.transport = async (adresse, options) => { envois.push({ adresse, options }); return reponseDuService(adresse); };
   for (const cle of ['awa', 'bintou', 'cheick']) {
     const email = `push-${cle}-${suffixe}@palabre.test`;
-    const r = await appel('/api/auth/inscription', { methode: 'POST', donnees: { type: 'dev', prenom: cle, nomFamille: `Push${lettres}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Koudougou' } });
+    const r = await appel('/api/auth/inscription', { methode: 'POST', donnees: { type: 'dev', prenom: cle, nomFamille: `Push${lettres}`, email, motDePasse: 'kolatier-vert-48', pays: 'Burkina Faso', ville: 'Koudougou' } });
     assert.equal(r.statut, 201);
     const { rows } = await pool.query('SELECT id FROM utilisateurs WHERE email = $1', [email]);
     membres[cle] = { cookie: r.entetes.get('set-cookie').split(';')[0], identifiant: r.corps.utilisateur.identifiant, id: rows[0].id };

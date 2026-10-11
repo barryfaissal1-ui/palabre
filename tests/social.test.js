@@ -42,7 +42,7 @@ test.before(async () => {
     const email = `social-${prenom}-${suffixe}@palabre.test`;
     const r = await appel('/api/auth/inscription', {
       methode: 'POST',
-      donnees: { type: 'dev', prenom, nomFamille: `Social${lettres}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Koudougou' },
+      donnees: { type: 'dev', prenom, nomFamille: `Social${lettres}`, email, motDePasse: 'kolatier-vert-48', pays: 'Burkina Faso', ville: 'Koudougou' },
     });
     assert.equal(r.statut, 201);
     membres[prenom] = { cookie: r.entetes.get('set-cookie').split(';')[0], identifiant: r.corps.utilisateur.identifiant, email };

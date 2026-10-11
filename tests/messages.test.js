@@ -48,7 +48,7 @@ test.before(async () => {
     const email = `messages-${cle}-${suffixe}@palabre.test`;
     const r = await appel('/api/auth/inscription', {
       methode: 'POST',
-      donnees: { type, prenom: cle, nomFamille: `Msg${lettres}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Koudougou' },
+      donnees: { type, prenom: cle, nomFamille: `Msg${lettres}`, email, motDePasse: 'kolatier-vert-48', pays: 'Burkina Faso', ville: 'Koudougou' },
     });
     assert.equal(r.statut, 201);
     const { rows } = await pool.query('SELECT id FROM utilisateurs WHERE email = $1', [email]);

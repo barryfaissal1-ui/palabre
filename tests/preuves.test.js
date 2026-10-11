@@ -54,7 +54,7 @@ test.before(async () => {
     const email = `preuves-${prenom}-${suffixe}@palabre.test`;
     const r = await appel('/api/auth/inscription', {
       methode: 'POST',
-      donnees: { type, prenom, nomFamille: `Preuves${lettres}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Ouagadougou', whatsapp: '+22670000000' },
+      donnees: { type, prenom, nomFamille: `Preuves${lettres}`, email, motDePasse: 'kolatier-vert-48', pays: 'Burkina Faso', ville: 'Ouagadougou', whatsapp: '+22670000000' },
     });
     assert.equal(r.statut, 201);
     membres[prenom] = { cookie: r.entetes.get('set-cookie').split(';')[0], identifiant: r.corps.utilisateur.identifiant, email };

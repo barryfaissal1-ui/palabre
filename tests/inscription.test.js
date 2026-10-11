@@ -35,7 +35,7 @@ async function appel(chemin, { methode = 'GET', donnees, qui } = {}) {
 const poster = (qui, chemin, donnees = {}) => appel(chemin, { methode: 'POST', qui, donnees });
 
 const fiche = (cle, type, extra = {}) => ({
-  type, prenom: cle, nomFamille: `Inscr${lettres}`, email: adresse(cle), motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Koudougou', jeton: jetonAncien(), ...extra,
+  type, prenom: cle, nomFamille: `Inscr${lettres}`, email: adresse(cle), motDePasse: 'kolatier-vert-48', pays: 'Burkina Faso', ville: 'Koudougou', jeton: jetonAncien(), ...extra,
 });
 
 // Inscription par la vraie route ; le compte reste « à confirmer » (aucun raccourci ici).
@@ -127,7 +127,7 @@ test('email non confirmé : le membre ne peut rien faire d\'autre que saisir son
   assert.equal((await appel('/api/auth/moi', { qui: 'awa' })).corps.utilisateur.emailConfirme, false);
   assert.equal((await fetch(`${base}/confirmer-email`)).status, 200);
   // Se reconnecter ne confirme rien.
-  const connexion = await appel('/api/auth/connexion', { methode: 'POST', donnees: { email: adresse('awa'), motDePasse: 'motdepasse1' } });
+  const connexion = await appel('/api/auth/connexion', { methode: 'POST', donnees: { email: adresse('awa'), motDePasse: 'kolatier-vert-48' } });
   assert.equal(connexion.corps.utilisateur.emailConfirme, false);
 });
 
@@ -409,7 +409,7 @@ test('comptes créés avant cette étape : email confirmé, profil de dev à com
   // Un compte « d'avant » : la migration a rempli email_confirme_le une fois pour toutes, mais pas le profil de dev.
   await inscrire('dao', 'dev');
   await pool.query('UPDATE utilisateurs SET email_confirme_le = cree_le WHERE email = $1', [adresse('dao')]);
-  const connexion = await appel('/api/auth/connexion', { methode: 'POST', donnees: { email: adresse('dao'), motDePasse: 'motdepasse1' } });
+  const connexion = await appel('/api/auth/connexion', { methode: 'POST', donnees: { email: adresse('dao'), motDePasse: 'kolatier-vert-48' } });
   assert.equal(connexion.corps.utilisateur.emailConfirme, true);
   assert.equal(connexion.corps.utilisateur.profilComplet, false, 'la connexion l\'enverra sur /bienvenue');
   // Rejouer la migration ne confirme pas les comptes en attente (la colonne existe déjà : le bloc DO ne fait rien).

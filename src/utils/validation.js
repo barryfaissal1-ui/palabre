@@ -1,4 +1,5 @@
 // Petites fonctions de validation des données envoyées par les formulaires.
+const { tropCourant, contientLeNom } = require('./mots-de-passe');
 
 const PAYS = [
   'Bénin', 'Burkina Faso', 'Burundi', 'Cameroun', 'Centrafrique', 'Comores', 'Congo',
@@ -50,12 +51,20 @@ function email(valeur) {
   return v;
 }
 
-function motDePasse(valeur, champ = 'motDePasse') {
+// proches : le prénom, le nom et l'identifiant de la personne. Un mot de passe qui les contient, ou qui figure
+// parmi les plus courants (src/utils/mots-de-passe.js), est refusé : ce sont les premiers qu'un intrus essaie.
+function motDePasse(valeur, champ = 'motDePasse', proches = []) {
   if (typeof valeur !== 'string' || valeur.length < 8) {
     throw new ErreurValidation('Le mot de passe doit faire au moins 8 caractères.', champ);
   }
   if (valeur.length > 128) {
     throw new ErreurValidation('Mot de passe trop long.', champ);
+  }
+  if (tropCourant(valeur)) {
+    throw new ErreurValidation('Ce mot de passe est trop courant. Choisis-en un que personne ne peut deviner.', champ);
+  }
+  if (contientLeNom(valeur, proches)) {
+    throw new ErreurValidation('Ton mot de passe ne doit contenir ni ton prénom, ni ton nom, ni ton identifiant.', champ);
   }
   return valeur;
 }

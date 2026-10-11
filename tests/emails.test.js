@@ -70,7 +70,7 @@ test('à l\'inscription, l\'email envoyé porte le même code en texte et en HTM
     const r = await fetch(`${base}/api/auth/inscription`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'client', prenom: 'Aïcha', nomFamille: 'Emails', email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Koudougou', jeton: jetonAncien() }),
+      body: JSON.stringify({ type: 'client', prenom: 'Aïcha', nomFamille: 'Emails', email, motDePasse: 'kolatier-vert-48', pays: 'Burkina Faso', ville: 'Koudougou', jeton: jetonAncien() }),
     });
     assert.equal(r.status, 201);
     const message = emailsEnvoyes.filter((m) => m.a === email).pop();

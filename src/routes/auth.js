@@ -7,7 +7,7 @@ const db = require('../db/pool');
 const config = require('../config');
 const v = require('../utils/validation');
 const mailer = require('../utils/mailer'); // appelé par « mailer.envoyerEmail » : les tests peuvent le remplacer
-const { emailMotDePasse } = require('../utils/gabarit-email');
+const { emailMotDePasse, emailEssaisConnexion } = require('../utils/gabarit-email');
 const { ouvrirSession, fermerSession, exigerConnexion, profilDevIncomplet } = require('../middleware/auth');
 const { jetonOuverture, verifierOuverture, envoyerCode, confirmerCode } = require('../utils/inscription');
 const { liensPublics } = require('../utils/profil-dev');
@@ -22,6 +22,9 @@ const { typeAppareil } = sessions;
 const router = express.Router();
 const COUT_BCRYPT = 12;
 const DUREE_JETON_MIN = 60;
+// Verrou par compte : 10 mots de passe faux en 15 minutes ferment la connexion à ce compte pendant 15 minutes.
+const MAX_ECHECS = 10;
+const DUREE_VERROU_MIN = 15;
 // Hash factice : on compare quand même quand l'email n'existe pas, pour ne pas révéler les comptes par le temps de réponse.
 const HASH_FACTICE = bcrypt.hashSync('mot-de-passe-factice', COUT_BCRYPT);
 
@@ -105,7 +108,7 @@ router.post('/inscription', limiteSensible, async (req, res) => {
     prenom: v.nomPropre(corps.prenom, 'prenom'),
     nomFamille: v.nomPropre(corps.nomFamille, 'nomFamille'),
     email: v.email(corps.email),
-    motDePasse: v.motDePasse(corps.motDePasse),
+    motDePasse: v.motDePasse(corps.motDePasse, 'motDePasse', [corps.prenom, corps.nomFamille]),
     pays: v.pays(corps.pays),
     ville: v.texte(corps.ville, 'ville', { min: 2, max: 60 }),
     // Le dev donne son numéro à l'étape 2 (« Ton profil de dev ») ; le client, ici.
@@ -166,9 +169,17 @@ router.post('/connexion', limiteSensible, async (req, res) => {
   const { rows } = await db.query('SELECT * FROM utilisateurs WHERE email = $1', [email]);
   const utilisateur = rows[0];
   const valide = await bcrypt.compare(motDePasse, utilisateur?.mot_de_passe_hash || HASH_FACTICE);
+  // Trop de mots de passe faux pour CE compte : la connexion est fermée pendant 15 minutes, même avec le bon mot de
+  // passe. La réponse est exactement celle d'un mot de passe faux : on ne dit ni que le compte existe, ni qu'il est
+  // verrouillé (c'est le propriétaire qui est prévenu, par email).
+  const verrouille = Boolean(utilisateur && utilisateur.connexion_bloquee_jusqu_a && utilisateur.connexion_bloquee_jusqu_a > new Date());
 
-  if (!utilisateur || !valide) {
+  if (!utilisateur || !valide || verrouille) {
+    if (utilisateur && !valide && !verrouille) await noterEchec(utilisateur, req);
     return res.status(401).json({ erreur: 'Email ou mot de passe incorrect.' });
+  }
+  if (utilisateur.echecs_connexion > 0 || utilisateur.connexion_bloquee_jusqu_a) {
+    await db.query('UPDATE utilisateurs SET echecs_connexion = 0, echecs_depuis = NULL, connexion_bloquee_jusqu_a = NULL WHERE id = $1', [utilisateur.id]);
   }
   if (utilisateur.bloque) {
     return res.status(403).json({ erreur: 'Ce compte a été suspendu. Contacte l\'équipe Palabre.' });
@@ -190,6 +201,30 @@ router.post('/connexion', limiteSensible, async (req, res) => {
   await terminerConnexion(req, res, utilisateur, etat);
   res.json({ utilisateur: profilPrive(utilisateur) });
 });
+
+// Un mot de passe faux pour un compte qui existe. Le compteur repart de 1 si le premier échec date de plus de
+// 15 minutes. Au dixième : verrou de 15 minutes et email au propriétaire. Une seule requête fait le compte, pour
+// que dix essais envoyés au même instant soient bien comptés dix fois.
+async function noterEchec(utilisateur, req) {
+  const { rows: [compte] } = await db.query(
+    `UPDATE utilisateurs
+        SET echecs_connexion = CASE WHEN echecs_depuis IS NULL OR echecs_depuis < now() - make_interval(mins => $2) THEN 1 ELSE echecs_connexion + 1 END,
+            echecs_depuis = CASE WHEN echecs_depuis IS NULL OR echecs_depuis < now() - make_interval(mins => $2) THEN now() ELSE echecs_depuis END
+      WHERE id = $1 RETURNING echecs_connexion`,
+    [utilisateur.id, DUREE_VERROU_MIN],
+  );
+  if (compte.echecs_connexion < MAX_ECHECS) return;
+  await db.query('UPDATE utilisateurs SET connexion_bloquee_jusqu_a = now() + make_interval(mins => $2), echecs_connexion = 0, echecs_depuis = NULL WHERE id = $1', [utilisateur.id, DUREE_VERROU_MIN]);
+  if (!utilisateur.email_confirme_le || utilisateur.bloque || utilisateur.supprime_le) return;
+  try {
+    await mailer.envoyerEmail({
+      a: utilisateur.email,
+      ...emailEssaisConnexion({ prenom: utilisateur.prenom || utilisateur.nom, essais: MAX_ECHECS, dureeMin: DUREE_VERROU_MIN, lien: `${config.urlPublique}/mot-de-passe-oublie`, langue: utilisateur.langue || langueDe(req) }),
+    });
+  } catch (err) {
+    console.error('Email « essais de connexion » impossible :', err.message);
+  }
+}
 
 // Le mot de passe est bon (et le code, s'il en fallait un) : la session s'ouvre sur cet appareil.
 async function terminerConnexion(req, res, utilisateur, etat, { confiance = false } = {}) {
@@ -334,17 +369,19 @@ router.post('/mot-de-passe-oublie', limiteSensible, async (req, res) => {
 
 router.post('/reinitialiser', limiteSensible, async (req, res) => {
   const jeton = typeof req.body?.jeton === 'string' ? req.body.jeton : '';
-  const motDePasse = v.motDePasse(req.body?.motDePasse);
+  v.motDePasse(req.body?.motDePasse); // longueur et mots courants d'abord, sans rien lire en base
   const jetonHash = crypto.createHash('sha256').update(jeton).digest('hex');
 
   const { rows } = await db.query(
-    `SELECT id, utilisateur_id FROM reinitialisations_mdp
-      WHERE jeton_hash = $1 AND utilise_le IS NULL AND expire_le > now()`,
+    `SELECT r.id, r.utilisateur_id, u.prenom, u.nom_famille, u.identifiant FROM reinitialisations_mdp r
+       JOIN utilisateurs u ON u.id = r.utilisateur_id
+      WHERE r.jeton_hash = $1 AND r.utilise_le IS NULL AND r.expire_le > now()`,
     [jetonHash],
   );
   if (!rows[0]) {
     return res.status(400).json({ erreur: 'Ce lien n\'est plus valable. Fais une nouvelle demande.' });
   }
+  const motDePasse = v.motDePasse(req.body?.motDePasse, 'motDePasse', [rows[0].prenom, rows[0].nom_famille, rows[0].identifiant]);
 
   const hash = await bcrypt.hash(motDePasse, COUT_BCRYPT);
   const client = await db.pool.connect();
@@ -352,7 +389,7 @@ router.post('/reinitialiser', limiteSensible, async (req, res) => {
     await client.query('BEGIN');
     // Avoir reçu ce lien prouve que la boîte email est bien la sienne : l'email est confirmé du même coup.
     await client.query(
-      'UPDATE utilisateurs SET mot_de_passe_hash = $1, email_confirme_le = COALESCE(email_confirme_le, now()), sessions_depuis = now(), verrouille_le = NULL WHERE id = $2',
+      'UPDATE utilisateurs SET mot_de_passe_hash = $1, email_confirme_le = COALESCE(email_confirme_le, now()), sessions_depuis = now(), verrouille_le = NULL, echecs_connexion = 0, echecs_depuis = NULL, connexion_bloquee_jusqu_a = NULL WHERE id = $2',
       [hash, rows[0].utilisateur_id],
     );
     await client.query('UPDATE reinitialisations_mdp SET utilise_le = now() WHERE utilisateur_id = $1 AND utilise_le IS NULL', [rows[0].utilisateur_id]);

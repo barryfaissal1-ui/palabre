@@ -31,11 +31,11 @@ const appel = avecComptesPrets(appelBrut);
 const poster = (qui, chemin, donnees = {}) => appel(chemin, { methode: 'POST', qui, donnees });
 const regler = (qui, cle, valeur) => appel('/api/parametres/confidentialite', { methode: 'PUT', qui, donnees: { cle, valeur } });
 const cookieDe = (reponse) => reponse.entetes.get('set-cookie').split(';')[0];
-const connexion = (email, motDePasse = 'motdepasse1') => appelBrut('/api/auth/connexion', { methode: 'POST', donnees: { email, motDePasse } });
+const connexion = (email, motDePasse = 'kolatier-vert-48') => appelBrut('/api/auth/connexion', { methode: 'POST', donnees: { email, motDePasse } });
 const moi = async (cookie) => (await appelBrut('/api/auth/moi', { cookie })).corps.utilisateur;
 
 async function inscrire(cle, type = 'dev') {
-  const r = await appel('/api/auth/inscription', { methode: 'POST', donnees: { type, prenom: cle, nomFamille: `Param${lettres}`, email: adresse(cle), motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Koudougou', ...(type === 'client' ? { whatsapp: '+22670000009' } : {}) } });
+  const r = await appel('/api/auth/inscription', { methode: 'POST', donnees: { type, prenom: cle, nomFamille: `Param${lettres}`, email: adresse(cle), motDePasse: 'kolatier-vert-48', pays: 'Burkina Faso', ville: 'Koudougou', ...(type === 'client' ? { whatsapp: '+22670000009' } : {}) } });
   assert.equal(r.statut, 201);
   membres[cle] = { cookie: cookieDe(r), identifiant: r.corps.utilisateur.identifiant, id: r.corps.utilisateur.id };
 }
@@ -233,10 +233,10 @@ test('compte : prénom, nom et identifiant ; changement d\'email avec un code en
   const nouvelle = adresse('ese-neuf');
   const demander = (email, motDePasse) => poster('ese', '/api/parametres/email', { email, motDePasse });
   assert.equal((await demander(nouvelle, 'mauvais-mot')).statut, 400);
-  assert.equal((await demander(adresse('awa'), 'motdepasse1')).statut, 400, 'adresse déjà prise');
-  assert.equal((await demander(adresse('ese'), 'motdepasse1')).statut, 400, 'la même adresse');
+  assert.equal((await demander(adresse('awa'), 'kolatier-vert-48')).statut, 400, 'adresse déjà prise');
+  assert.equal((await demander(adresse('ese'), 'kolatier-vert-48')).statut, 400, 'la même adresse');
   const codeDInscription = dernierCode(adresse('ese'));
-  const envoi = await demander(nouvelle, 'motdepasse1');
+  const envoi = await demander(nouvelle, 'kolatier-vert-48');
   assert.equal(envoi.statut, 200);
   const code = dernierCode(nouvelle);
   assert.match(code, /^\d{6}$/);
@@ -244,7 +244,7 @@ test('compte : prénom, nom et identifiant ; changement d\'email avec un code en
   // Tant que le code n'est pas saisi, l'ancienne adresse reste la bonne.
   assert.equal((await moi(membres.ese.cookie)).email, adresse('ese'));
   assert.equal((await appel('/api/parametres', { qui: 'ese' })).corps.compte.emailEnAttente, nouvelle);
-  assert.equal((await demander(adresse('ese-autre'), 'motdepasse1')).statut, 429, 'un code par minute');
+  assert.equal((await demander(adresse('ese-autre'), 'kolatier-vert-48')).statut, 429, 'un code par minute');
   const faux = await poster('ese', '/api/parametres/email/confirmer', { code: code === '000000' ? '000001' : '000000' });
   assert.deepEqual([faux.statut, faux.corps.champ], [400, 'code']);
   assert.equal((await poster('awa', '/api/parametres/email/confirmer', { code })).statut, 400, 'le code d\'un autre ne sert à rien');
@@ -258,7 +258,7 @@ test('compte : prénom, nom et identifiant ; changement d\'email avec un code en
 
 test('sécurité : dernière connexion sans adresse IP, déconnexion des autres appareils, changement de mot de passe', async () => {
   const email = adresse('ese-neuf');
-  const telephone = await fetch(`${base}/api/auth/connexion`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/126.0 Mobile Safari/537.36' }, body: JSON.stringify({ email, motDePasse: 'motdepasse1' }) });
+  const telephone = await fetch(`${base}/api/auth/connexion`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/126.0 Mobile Safari/537.36' }, body: JSON.stringify({ email, motDePasse: 'kolatier-vert-48' }) });
   const cookieTelephone = telephone.headers.get('set-cookie').split(';')[0];
   const { securite } = (await appelBrut('/api/parametres', { cookie: cookieTelephone })).corps;
   assert.equal(securite.derniereConnexion.appareil, 'Chrome sur Android');
@@ -271,9 +271,9 @@ test('sécurité : dernière connexion sans adresse IP, déconnexion des autres 
   assert.equal((await moi(membres.ese.cookie)).email, email);
 
   const changer = (ancien, nouveau) => appelBrut('/api/parametres/mot-de-passe', { methode: 'PUT', cookie: membres.ese.cookie, donnees: { ancien, nouveau } });
-  assert.deepEqual([(await changer('pas-le-bon', 'nouveau-secret-9')).statut, (await changer('motdepasse1', 'court')).statut, (await changer('motdepasse1', 'motdepasse1')).statut], [400, 400, 400]);
+  assert.deepEqual([(await changer('pas-le-bon', 'nouveau-secret-9')).statut, (await changer('kolatier-vert-48', 'court')).statut, (await changer('kolatier-vert-48', 'kolatier-vert-48')).statut], [400, 400, 400]);
   const autre = cookieDe(await connexion(email));
-  const change = await changer('motdepasse1', 'nouveau-secret-9');
+  const change = await changer('kolatier-vert-48', 'nouveau-secret-9');
   assert.equal(change.statut, 200);
   assert.equal(await moi(autre), null, 'changer de mot de passe ferme les autres sessions');
   assert.ok(await moi(membres.ese.cookie));
@@ -326,8 +326,8 @@ test('supprimer mon compte : mes données partent, mes messages déjà envoyés 
   const supprimer = (motDePasse) => appel('/api/parametres/compte', { methode: 'DELETE', qui: 'dao', donnees: { motDePasse } });
   assert.equal((await supprimer('pas-le-bon')).statut, 400);
   assert.equal((await supprimer()).statut, 400);
-  assert.equal((await appelBrut('/api/parametres/compte', { methode: 'DELETE', donnees: { motDePasse: 'motdepasse1' } })).statut, 401);
-  assert.equal((await supprimer('motdepasse1')).statut, 200);
+  assert.equal((await appelBrut('/api/parametres/compte', { methode: 'DELETE', donnees: { motDePasse: 'kolatier-vert-48' } })).statut, 401);
+  assert.equal((await supprimer('kolatier-vert-48')).statut, 200);
 
   // Plus de compte : ni session, ni connexion, ni profil, ni publication.
   assert.equal(await moi(membres.dao.cookie), null);
@@ -371,7 +371,7 @@ test('un client supprime son compte : ses avis restent sur le profil du dev, sig
   assert.equal(avant.avis[0].client.identifiant, membres.lassina.identifiant);
   assert.equal(avant.avis[0].titreDemande, DEMANDE.titre);
 
-  assert.equal((await appel('/api/parametres/compte', { methode: 'DELETE', qui: 'lassina', donnees: { motDePasse: 'motdepasse1' } })).statut, 200);
+  assert.equal((await appel('/api/parametres/compte', { methode: 'DELETE', qui: 'lassina', donnees: { motDePasse: 'kolatier-vert-48' } })).statut, 200);
 
   // L'avis est toujours là, avec sa note et son texte : il compte dans la moyenne du dev.
   const apres = await profilDeCheick('awa');

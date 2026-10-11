@@ -35,7 +35,7 @@ test.before(async () => {
   base = `http://localhost:${serveur.address().port}`;
   for (const [cle, type] of Object.entries({ awa: 'dev', bintou: 'dev', cheick: 'dev', kadi: 'client' })) {
     const email = `secu-${cle}-${suffixe}@palabre.test`;
-    const r = await appel('/api/auth/inscription', { methode: 'POST', donnees: { type, prenom: cle, nomFamille: `Secu${lettres}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Koudougou' } });
+    const r = await appel('/api/auth/inscription', { methode: 'POST', donnees: { type, prenom: cle, nomFamille: `Secu${lettres}`, email, motDePasse: 'kolatier-vert-48', pays: 'Burkina Faso', ville: 'Koudougou' } });
     assert.equal(r.statut, 201);
     membres[cle] = { cookie: r.entetes.get('set-cookie').split(';')[0], identifiant: r.corps.utilisateur.identifiant, email };
   }
@@ -91,7 +91,7 @@ test('mot de passe réinitialisé : les sessions ouvertes avec l\'ancien sont fe
   assert.equal((await appel('/api/publications', { cookie: ancienne })).statut, 401);
   assert.equal((await appel('/api/publications', { methode: 'POST', cookie: ancienne, donnees: { type: 'idee', texte: 'Je ne devrais plus pouvoir écrire.' } })).statut, 401);
   // L'ancien mot de passe non plus ; le nouveau ouvre une session qui, elle, fonctionne.
-  assert.equal((await appel('/api/auth/connexion', { methode: 'POST', donnees: { email: membres.cheick.email, motDePasse: 'motdepasse1' } })).statut, 401);
+  assert.equal((await appel('/api/auth/connexion', { methode: 'POST', donnees: { email: membres.cheick.email, motDePasse: 'kolatier-vert-48' } })).statut, 401);
   const connexion = await appel('/api/auth/connexion', { methode: 'POST', donnees: { email: membres.cheick.email, motDePasse: 'tout-nouveau-secret' } });
   assert.equal(connexion.statut, 200);
   membres.cheick.cookie = connexion.entetes.get('set-cookie').split(';')[0];

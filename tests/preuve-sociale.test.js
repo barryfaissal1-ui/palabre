@@ -45,7 +45,7 @@ test.before(async () => {
     const r = await appel('/api/auth/inscription', {
       methode: 'POST',
       // un nom unique à ce test (Zz + date) : la recherche par nom ne trouve que ces comptes
-      donnees: { type, prenom, nomFamille: `Zz${lettres}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: `Ville${suffixe}` },
+      donnees: { type, prenom, nomFamille: `Zz${lettres}`, email, motDePasse: 'kolatier-vert-48', pays: 'Burkina Faso', ville: `Ville${suffixe}` },
     });
     assert.equal(r.statut, 201);
     const { rows } = await pool.query('SELECT id FROM utilisateurs WHERE email = $1', [email]);
@@ -115,7 +115,7 @@ test('recherche par nom : les accents ne comptent pas', async () => {
   const email = `preuve-faissal-${suffixe}@palabre.test`;
   const inscription = await appel('/api/auth/inscription', {
     methode: 'POST',
-    donnees: { type: 'dev', prenom: 'Faïssal', nomFamille: `Zé${lettres}`, email, motDePasse: 'motdepasse1', pays: 'Mali', ville: 'Bamako' },
+    donnees: { type: 'dev', prenom: 'Faïssal', nomFamille: `Zé${lettres}`, email, motDePasse: 'kolatier-vert-48', pays: 'Mali', ville: 'Bamako' },
   });
   assert.equal(inscription.statut, 201);
   membres.faissal = { cookie: '', identifiant: inscription.corps.utilisateur.identifiant, email };
@@ -170,7 +170,7 @@ test('suggestions : ni mes amis ni les demandes en cours, compétences en commun
   const [c1, c2, c3] = competences.map((c) => c.id);
   const creer = async (cle, ville, pays) => {
     const email = `preuve-${cle}-${suffixe}@palabre.test`;
-    const r = await appel('/api/auth/inscription', { methode: 'POST', donnees: { type: 'dev', prenom: cle, nomFamille: `Sugg${lettres}`, email, motDePasse: 'motdepasse1', pays, ville } });
+    const r = await appel('/api/auth/inscription', { methode: 'POST', donnees: { type: 'dev', prenom: cle, nomFamille: `Sugg${lettres}`, email, motDePasse: 'kolatier-vert-48', pays, ville } });
     assert.equal(r.statut, 201);
     const { rows } = await pool.query('SELECT id FROM utilisateurs WHERE email = $1', [email]);
     membres[cle] = { cookie: r.entetes.get('set-cookie').split(';')[0], identifiant: r.corps.utilisateur.identifiant, email, id: rows[0].id };

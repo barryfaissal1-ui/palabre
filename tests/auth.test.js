@@ -37,7 +37,7 @@ test.after(async () => {
 test('inscription puis session active', async () => {
   const r = await appel('/auth/inscription', {
     methode: 'POST',
-    donnees: { type: 'dev', prenom: 'Test', nomFamille: 'Palabre', email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Koudougou' },
+    donnees: { type: 'dev', prenom: 'Test', nomFamille: 'Palabre', email, motDePasse: 'kolatier-vert-48', pays: 'Burkina Faso', ville: 'Koudougou' },
   });
   assert.equal(r.statut, 201);
   assert.ok(r.cookie.includes('HttpOnly'));
@@ -52,7 +52,7 @@ test('inscription : prénom et nom séparés, nom affiché « Prénom Nom »', a
   const r = await appel('/auth/inscription', {
     methode: 'POST',
     // espaces en trop, tiret, apostrophe, accents : tout cela est accepté et nettoyé
-    donnees: { type: 'dev', prenom: '  Jean-Baptiste ', nomFamille: 'N\'Diaye   Kéïta', email: courriel, motDePasse: 'motdepasse1', pays: 'Mali', ville: 'Bamako' },
+    donnees: { type: 'dev', prenom: '  Jean-Baptiste ', nomFamille: 'N\'Diaye   Kéïta', email: courriel, motDePasse: 'kolatier-vert-48', pays: 'Mali', ville: 'Bamako' },
   });
   assert.equal(r.statut, 201);
   assert.equal(r.corps.utilisateur.prenom, 'Jean-Baptiste');
@@ -67,7 +67,7 @@ test('inscription : prénom et nom séparés, nom affiché « Prénom Nom »', a
 test('inscription : prénom ou nom vide, trop long ou avec autre chose que des lettres, refusé', async () => {
   const essai = (prenom, nomFamille) => appel('/auth/inscription', {
     methode: 'POST',
-    donnees: { type: 'dev', prenom, nomFamille, email: `test-refus-${Date.now()}@palabre.test`, motDePasse: 'motdepasse1', pays: 'Mali', ville: 'Bamako' },
+    donnees: { type: 'dev', prenom, nomFamille, email: `test-refus-${Date.now()}@palabre.test`, motDePasse: 'kolatier-vert-48', pays: 'Mali', ville: 'Bamako' },
   });
   for (const [prenom, nomFamille, champ] of [
     ['', 'Traoré', 'prenom'], ['   ', 'Traoré', 'prenom'], [undefined, 'Traoré', 'prenom'],
@@ -83,7 +83,7 @@ test('inscription : prénom ou nom vide, trop long ou avec autre chose que des l
   autresEmails.push(courriel);
   const long = await appel('/auth/inscription', {
     methode: 'POST',
-    donnees: { type: 'dev', prenom: 'A'.repeat(50), nomFamille: 'B'.repeat(50), email: courriel, motDePasse: 'motdepasse1', pays: 'Mali', ville: 'Bamako' },
+    donnees: { type: 'dev', prenom: 'A'.repeat(50), nomFamille: 'B'.repeat(50), email: courriel, motDePasse: 'kolatier-vert-48', pays: 'Mali', ville: 'Bamako' },
   });
   assert.equal(long.statut, 201);
   assert.equal(long.corps.utilisateur.nom.length, 101);
@@ -118,7 +118,7 @@ test('comptes d\'avant la séparation : prénom et nom remplis une seule fois pa
 test('email déjà utilisé refusé', async () => {
   const r = await appel('/auth/inscription', {
     methode: 'POST',
-    donnees: { type: 'client', prenom: 'Autre', nomFamille: 'Compte', email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Ouaga' },
+    donnees: { type: 'client', prenom: 'Autre', nomFamille: 'Compte', email, motDePasse: 'kolatier-vert-48', pays: 'Burkina Faso', ville: 'Ouaga' },
   });
   assert.equal(r.statut, 400);
   assert.equal(r.corps.champ, 'email');

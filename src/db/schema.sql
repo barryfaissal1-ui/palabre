@@ -658,3 +658,9 @@ CREATE TABLE IF NOT EXISTS alertes_connexion (
   utilise_le     TIMESTAMPTZ,
   cree_le        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Essais de mot de passe, comptés par compte (en plus de la limite par adresse IP) : après 10 mots de passe faux en
+-- 15 minutes, la connexion à ce compte est refusée pendant 15 minutes, même avec le bon mot de passe.
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS echecs_connexion INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS echecs_depuis TIMESTAMPTZ;
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS connexion_bloquee_jusqu_a TIMESTAMPTZ;

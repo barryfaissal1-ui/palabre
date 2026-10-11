@@ -167,7 +167,7 @@ const fermerLesAutresSessions = (req, client = db) => sessions.revoquerToutes(re
 // PUT /api/parametres/mot-de-passe  { ancien, nouveau }
 router.put('/mot-de-passe', limiteMotDePasse, async (req, res) => {
   const moi = req.utilisateur;
-  const nouveau = v.motDePasse(req.body?.nouveau, 'nouveau');
+  const nouveau = v.motDePasse(req.body?.nouveau, 'nouveau', [moi.prenom, moi.nom_famille, moi.identifiant]);
   await verifierMotDePasse(moi, req.body?.ancien, 'ancien');
   if (nouveau === req.body.ancien) throw new v.ErreurValidation('Choisis un mot de passe différent de l\'ancien.', 'nouveau');
   await db.query('UPDATE utilisateurs SET mot_de_passe_hash = $2 WHERE id = $1', [moi.id, await bcrypt.hash(nouveau, COUT_BCRYPT)]);

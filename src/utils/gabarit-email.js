@@ -139,4 +139,17 @@ function emailMotDePasse({ prenom, lien, dureeMin, langue = 'fr' }) {
   };
 }
 
-module.exports = { gabaritEmail, emailCode, emailMotDePasse, emailAlerteConnexion, dateGmt, echapperHtml };
+// Email « Quelqu'un essaie de se connecter à ton compte » : envoyé quand trop de mots de passe faux ont fermé la
+// connexion au compte pour un quart d'heure. Le bouton mène au choix d'un nouveau mot de passe (jamais bloqué).
+function emailEssaisConnexion({ prenom, essais, dureeMin, lien, langue = 'fr' }) {
+  const T = (cle, variables) => textes.t(langue, cle, variables);
+  const avant = [T('email.essais.avant', { essais, n: dureeMin }), T('email.essais.si-toi')];
+  const apres = [T('email.essais.pas-toi')];
+  return {
+    sujet: T('email.essais.sujet'),
+    texte: `${T('email.bonjour', { prenom })}\n\n${avant.join('\n\n')}\n${lien}\n\n${apres.join('\n\n')}\n\n${T('email.signature')}`,
+    html: gabaritEmail({ langue, titre: T('email.essais.sujet'), prenom, avant, bouton: { texte: T('email.essais.bouton'), lien }, apres }),
+  };
+}
+
+module.exports = { gabaritEmail, emailCode, emailMotDePasse, emailAlerteConnexion, emailEssaisConnexion, dateGmt, echapperHtml };

@@ -49,7 +49,7 @@ test.before(async () => {
   await pool.query('UPDATE defis SET statut = \'refuse\' WHERE id = ANY($1)', [misDeCote.map((d) => d.id)]);
   for (const [cle, type] of Object.entries({ chef: 'dev', awa: 'dev', bintou: 'dev', cheick: 'dev', dao: 'dev', kadi: 'client' })) {
     const email = `defi-${cle}-${suffixe}@palabre.test`;
-    const r = await appel('/api/auth/inscription', { methode: 'POST', donnees: { type, prenom: cle, nomFamille: `Defi${lettres}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Koudougou' } });
+    const r = await appel('/api/auth/inscription', { methode: 'POST', donnees: { type, prenom: cle, nomFamille: `Defi${lettres}`, email, motDePasse: 'kolatier-vert-48', pays: 'Burkina Faso', ville: 'Koudougou' } });
     assert.equal(r.statut, 201);
     membres[cle] = { cookie: r.entetes.get('set-cookie').split(';')[0], identifiant: r.corps.utilisateur.identifiant, email };
   }

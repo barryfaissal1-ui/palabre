@@ -28,7 +28,7 @@ test.before(async () => {
   base = `http://localhost:${serveur.address().port}`;
   for (const cle of ['awa', 'bintou']) {
     const email = `listes-${cle}-${suffixe}@palabre.test`;
-    const r = await appel('/api/auth/inscription', { methode: 'POST', donnees: { type: 'dev', prenom: cle, nomFamille: `Listes${lettres}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Koudougou' } });
+    const r = await appel('/api/auth/inscription', { methode: 'POST', donnees: { type: 'dev', prenom: cle, nomFamille: `Listes${lettres}`, email, motDePasse: 'kolatier-vert-48', pays: 'Burkina Faso', ville: 'Koudougou' } });
     assert.equal(r.statut, 201);
     const { rows } = await pool.query('SELECT id FROM utilisateurs WHERE email = $1', [email]);
     membres[cle] = { cookie: r.entetes.get('set-cookie').split(';')[0], id: rows[0].id };

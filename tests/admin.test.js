@@ -49,7 +49,7 @@ test.before(async () => {
     const email = `admin-${prenom}-${suffixe}@palabre.test`;
     const r = await appel('/api/auth/inscription', {
       methode: 'POST',
-      donnees: { type, prenom, nomFamille: `Admin${lettres}`, email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Bobo-Dioulasso' },
+      donnees: { type, prenom, nomFamille: `Admin${lettres}`, email, motDePasse: 'kolatier-vert-48', pays: 'Burkina Faso', ville: 'Bobo-Dioulasso' },
     });
     assert.equal(r.statut, 201);
     membres[prenom] = { cookie: r.entetes.get('set-cookie').split(';')[0], identifiant: r.corps.utilisateur.identifiant, email };
@@ -204,7 +204,7 @@ test('signalement : bloquer le membre, puis le débloquer', async () => {
   assert.equal((await appel(`/api/profils/${membres.dao.identifiant}`)).statut, 404);
   assert.equal((await appel(`/${membres.dao.identifiant}`)).statut, 404);
   assert.ok(!(await appel('/api/publications', { qui: 'awa' })).corps.publications.some((p) => p.id === publication.id));
-  const connexion = await appel('/api/auth/connexion', { methode: 'POST', donnees: { email: membres.dao.email, motDePasse: 'motdepasse1' } });
+  const connexion = await appel('/api/auth/connexion', { methode: 'POST', donnees: { email: membres.dao.email, motDePasse: 'kolatier-vert-48' } });
   assert.notEqual(connexion.statut, 200, 'il ne peut plus se connecter');
 
   const bloques = (await appel('/api/admin/membres-bloques', { qui: 'chef' })).corps.membres;

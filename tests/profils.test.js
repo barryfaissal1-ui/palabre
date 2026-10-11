@@ -35,7 +35,7 @@ test.before(async () => {
   base = `http://localhost:${serveur.address().port}`;
   const r = await appel('/api/auth/inscription', {
     methode: 'POST',
-    donnees: { type: 'dev', prenom: 'Profil', nomFamille: 'Test', email, motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Koudougou', whatsapp: '+22670000000' },
+    donnees: { type: 'dev', prenom: 'Profil', nomFamille: 'Test', email, motDePasse: 'kolatier-vert-48', pays: 'Burkina Faso', ville: 'Koudougou', whatsapp: '+22670000000' },
   });
   cookie = r.entetes.get('set-cookie').split(';')[0];
 });

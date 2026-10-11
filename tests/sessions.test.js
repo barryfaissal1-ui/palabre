@@ -32,12 +32,12 @@ async function appelBrut(chemin, { methode = 'GET', donnees, cookie, agent, ente
 const appel = avecComptesPrets(appelBrut);
 // Le cookie de session parmi ceux que pose une réponse.
 const cookieDe = (reponse) => reponse.entetes.getSetCookie().map((c) => c.split(';')[0]).find((c) => c.startsWith('palabre_session='));
-const connexion = (cle, agent) => appelBrut('/api/auth/connexion', { methode: 'POST', agent, donnees: { email: adresse(cle), motDePasse: 'motdepasse1' } });
+const connexion = (cle, agent) => appelBrut('/api/auth/connexion', { methode: 'POST', agent, donnees: { email: adresse(cle), motDePasse: 'kolatier-vert-48' } });
 const moi = async (cookie) => (await appelBrut('/api/auth/moi', { cookie })).corps.utilisateur;
 const sessionsDe = async (cookie) => (await appelBrut('/api/parametres/sessions', { cookie })).corps.sessions;
 
 async function inscrire(cle) {
-  const r = await appel('/api/auth/inscription', { methode: 'POST', agent: WINDOWS, donnees: { type: 'client', prenom: cle, nomFamille: `Session${lettres}`, email: adresse(cle), motDePasse: 'motdepasse1', pays: 'Burkina Faso', ville: 'Koudougou', whatsapp: '+22670000009' } });
+  const r = await appel('/api/auth/inscription', { methode: 'POST', agent: WINDOWS, donnees: { type: 'client', prenom: cle, nomFamille: `Session${lettres}`, email: adresse(cle), motDePasse: 'kolatier-vert-48', pays: 'Burkina Faso', ville: 'Koudougou', whatsapp: '+22670000009' } });
   assert.equal(r.statut, 201, JSON.stringify(r.corps));
   membres[cle] = { cookie: cookieDe(r), id: r.corps.utilisateur.id };
 }
@@ -156,14 +156,14 @@ test('mot de passe réinitialisé : toutes les sessions sont révoquées', async
 
 test('lieu approximatif : seulement si l\'hébergeur le donne dans un en-tête déclaré', async () => {
   // Sans réglage, un en-tête envoyé par le visiteur n'est pas cru.
-  const sans = cookieDe(await appelBrut('/api/auth/connexion', { methode: 'POST', agent: ANDROID, entetes: { 'X-Pays': 'Burkina Faso', 'X-Ville': 'Koudougou' }, donnees: { email: adresse('awa'), motDePasse: 'motdepasse1' } }));
+  const sans = cookieDe(await appelBrut('/api/auth/connexion', { methode: 'POST', agent: ANDROID, entetes: { 'X-Pays': 'Burkina Faso', 'X-Ville': 'Koudougou' }, donnees: { email: adresse('awa'), motDePasse: 'kolatier-vert-48' } }));
   assert.equal((await sessionsDe(sans))[0].lieu, null);
   // Avec ENTETE_PAYS et ENTETE_VILLE, le lieu est gardé et affiché ; une valeur bizarre est écartée.
   Object.assign(config, { entetePays: 'x-pays', enteteVille: 'x-ville' });
   try {
-    const avec = cookieDe(await appelBrut('/api/auth/connexion', { methode: 'POST', agent: ANDROID, entetes: { 'X-Pays': 'Burkina Faso', 'X-Ville': 'Koudougou' }, donnees: { email: adresse('awa'), motDePasse: 'motdepasse1' } }));
+    const avec = cookieDe(await appelBrut('/api/auth/connexion', { methode: 'POST', agent: ANDROID, entetes: { 'X-Pays': 'Burkina Faso', 'X-Ville': 'Koudougou' }, donnees: { email: adresse('awa'), motDePasse: 'kolatier-vert-48' } }));
     assert.equal((await sessionsDe(avec))[0].lieu, 'Koudougou, Burkina Faso');
-    const bizarre = cookieDe(await appelBrut('/api/auth/connexion', { methode: 'POST', agent: ANDROID, entetes: { 'X-Pays': '<script>1</script>', 'X-Ville': 'x'.repeat(90) }, donnees: { email: adresse('awa'), motDePasse: 'motdepasse1' } }));
+    const bizarre = cookieDe(await appelBrut('/api/auth/connexion', { methode: 'POST', agent: ANDROID, entetes: { 'X-Pays': '<script>1</script>', 'X-Ville': 'x'.repeat(90) }, donnees: { email: adresse('awa'), motDePasse: 'kolatier-vert-48' } }));
     assert.equal((await sessionsDe(bizarre))[0].lieu, null);
   } finally {
     Object.assign(config, { entetePays: '', enteteVille: '' });

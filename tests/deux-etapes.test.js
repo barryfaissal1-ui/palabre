@@ -15,7 +15,7 @@ let base;
 const suffixe = Date.now();
 const lettres = String(suffixe).replace(/\d/g, (chiffre) => 'abcdefghij'[chiffre]);
 const adresse = (cle) => `etapes-${cle}-${suffixe}@palabre.test`;
-const MOT_DE_PASSE = 'motdepasse1';
+const MOT_DE_PASSE = 'kolatier-vert-48';
 const ANDROID = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/126.0 Mobile Safari/537.36';
 
 // Un navigateur : il garde les cookies que le serveur lui donne et les renvoie à chaque appel.
