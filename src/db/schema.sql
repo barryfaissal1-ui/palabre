@@ -664,3 +664,16 @@ CREATE TABLE IF NOT EXISTS alertes_connexion (
 ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS echecs_connexion INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS echecs_depuis TIMESTAMPTZ;
 ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS connexion_bloquee_jusqu_a TIMESTAMPTZ;
+
+-- Journal de sécurité : ce qui s'est passé d'important sur un compte, lu par son propriétaire dans /parametres.
+-- Gardé 90 jours (src/utils/journal.js). Ni adresse IP ni texte libre : un type, un appareil, une date.
+CREATE TABLE IF NOT EXISTS journal_securite (
+  id             BIGSERIAL PRIMARY KEY,
+  utilisateur_id INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  type           TEXT NOT NULL CHECK (type IN ('connexion', 'connexion_refusee', 'nouvel_appareil', 'mot_de_passe_change', 'email_change',
+                   'deux_etapes_active', 'deux_etapes_coupee', 'session_revoquee', 'compte_desactive', 'compte_reactive')),
+  appareil       TEXT,
+  cree_le        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_journal_securite_membre ON journal_securite (utilisateur_id, id DESC);
+CREATE INDEX IF NOT EXISTS idx_journal_securite_date ON journal_securite (cree_le);

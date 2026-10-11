@@ -16,6 +16,7 @@ const { langueDe } = require('../utils/langue');
 const sessions = require('../utils/sessions');
 const { lireAppareil, assurerAppareil, etatAppareil, noterAppareil, oublierAppareils } = require('../utils/appareils');
 const deuxEtapes = require('../utils/deux-etapes');
+const { journaliser } = require('../utils/journal');
 
 const { typeAppareil } = sessions;
 
@@ -213,6 +214,7 @@ async function noterEchec(utilisateur, req) {
       WHERE id = $1 RETURNING echecs_connexion`,
     [utilisateur.id, DUREE_VERROU_MIN],
   );
+  await journaliser(utilisateur.id, 'connexion_refusee', req);
   if (compte.echecs_connexion < MAX_ECHECS) return;
   await db.query('UPDATE utilisateurs SET connexion_bloquee_jusqu_a = now() + make_interval(mins => $2), echecs_connexion = 0, echecs_depuis = NULL WHERE id = $1', [utilisateur.id, DUREE_VERROU_MIN]);
   if (!utilisateur.email_confirme_le || utilisateur.bloque || utilisateur.supprime_le) return;
@@ -232,6 +234,7 @@ async function terminerConnexion(req, res, utilisateur, etat, { confiance = fals
   await db.query('UPDATE utilisateurs SET derniere_connexion_le = now(), derniere_connexion_appareil = $2 WHERE id = $1', [utilisateur.id, typeAppareil(req.get('user-agent'))]);
   const sessionId = await ouvrirSession(req, res, utilisateur);
   await noterAppareil(utilisateur.id, assurerAppareil(req, res), { confiance });
+  await journaliser(utilisateur.id, etat.connu ? 'connexion' : 'nouvel_appareil', req);
   // Appareil inconnu : le propriétaire du compte est prévenu par email, avec un bouton « Ce n'était pas moi ».
   // Un email qui ne part pas ne doit pas empêcher la connexion.
   if (!etat.connu && utilisateur.email_confirme_le) {
@@ -305,6 +308,7 @@ router.post('/pas-moi', limiteSensible, async (req, res) => {
     if (!alerte) return null;
     const id = alerte.utilisateur_id;
     await sessions.revoquerToutes(id, {}, client);
+    await journaliser(id, 'session_revoquee', req, { appareil: null }, client);
     await client.query('UPDATE utilisateurs SET verrouille_le = now(), sessions_depuis = now() WHERE id = $1', [id]);
     // L'appareil de l'intrus est devenu « connu » en se connectant : tous les appareils redeviennent inconnus.
     await oublierAppareils(id, client);
@@ -395,6 +399,7 @@ router.post('/reinitialiser', limiteSensible, async (req, res) => {
     await client.query('UPDATE reinitialisations_mdp SET utilise_le = now() WHERE utilisateur_id = $1 AND utilise_le IS NULL', [rows[0].utilisateur_id]);
     // Tous les appareils sont déconnectés : celui qui connaissait l'ancien mot de passe aussi.
     await sessions.revoquerToutes(rows[0].utilisateur_id, {}, client);
+    await journaliser(rows[0].utilisateur_id, 'mot_de_passe_change', req, {}, client);
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');

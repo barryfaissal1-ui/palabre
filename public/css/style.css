@@ -2420,6 +2420,9 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
 .ligne-session .ligne-bloque-nom strong { overflow-wrap: anywhere; }
 .ligne-session .texte-discret { font-size: var(--t-13); }
 .session-ici { font-size: var(--t-13); font-weight: 600; color: var(--action); }
+/* Activité de sécurité : une ligne par événement ; la terre cuite signale ce qui mérite un coup d'œil. */
+.liste-journal .ligne-session { min-height: 56px; }
+.ligne-alerte .rubrique-icone { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
 /* État d'un réglage de sécurité (« Activée », « Désactivée ») et codes de secours, montrés une seule fois. */
 .etat-reglage { margin: 0; font-weight: 600; color: var(--texte-discret); }
 .etat-reglage.etat-actif { color: var(--action); }

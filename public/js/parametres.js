@@ -234,6 +234,7 @@
       : t('parametres.securite.aucune');
     dessinerSessions(securite.sessions);
     brancherDeuxEtapes(securite.deuxEtapes);
+    chargerJournal();
     zone.querySelector('[data-deconnecter-autres]').addEventListener('click', async () => {
       if (!await confirmer(t('parametres.securite.question'), { bouton: t('parametres.securite.deconnecter') })) return;
       try {
@@ -243,6 +244,46 @@
         toast(erreur.message, 'erreur');
       }
     });
+  }
+
+  // Activité de sécurité : les 30 derniers événements du compte, en langage simple. Ceux qui méritent un coup
+  // d'œil (mot de passe faux, nouvel appareil) portent une pastille terre cuite.
+  const EVENEMENTS = {
+    connexion: { texte: t('parametres.journal.connexion'), icone: 'valide' },
+    connexion_refusee: { texte: t('parametres.journal.connexion-refusee'), icone: 'alerte', alerte: true },
+    nouvel_appareil: { texte: t('parametres.journal.nouvel-appareil'), icone: 'smartphone', alerte: true },
+    mot_de_passe_change: { texte: t('parametres.journal.mot-de-passe-change'), icone: 'cadenas' },
+    email_change: { texte: t('parametres.journal.email-change'), icone: 'enveloppe' },
+    deux_etapes_active: { texte: t('parametres.journal.deux-etapes-active'), icone: 'bouclier' },
+    deux_etapes_coupee: { texte: t('parametres.journal.deux-etapes-coupee'), icone: 'bouclier', alerte: true },
+    session_revoquee: { texte: t('parametres.journal.session-revoquee'), icone: 'deconnexion' },
+    compte_desactive: { texte: t('parametres.journal.compte-desactive'), icone: 'masquer' },
+    compte_reactive: { texte: t('parametres.journal.compte-reactive'), icone: 'valide' },
+  };
+  async function chargerJournal() {
+    const zone = rubrique('securite').querySelector('[data-journal]');
+    const fini = chargement(zone, 3);
+    try {
+      const { journal } = await api('/parametres/journal');
+      fini();
+      if (journal.length === 0) {
+        zone.replaceChildren(el('p', { classe: 'texte-discret', texte: t('parametres.journal.vide') }));
+        return;
+      }
+      zone.replaceChildren(el('ul', { classe: 'liste-bloques liste-journal' }, journal.filter((e) => EVENEMENTS[e.type]).map((evenement) => {
+        const sorte = EVENEMENTS[evenement.type];
+        return el('li', { classe: `ligne-bloque ligne-session${sorte.alerte ? ' ligne-alerte' : ''}` }, [
+          el('span', { classe: 'rubrique-icone' }, [icone(sorte.icone)]),
+          el('div', { classe: 'ligne-bloque-nom' }, [
+            el('strong', { texte: sorte.texte }),
+            el('span', { classe: 'texte-discret', texte: [evenement.appareil, dateRelative(evenement.le)].filter(Boolean).join(', ') }),
+          ]),
+        ]);
+      })));
+    } catch (erreur) {
+      fini();
+      zone.replaceChildren(el('p', { classe: 'texte-discret', texte: erreur.message }));
+    }
   }
 
   // Validation en deux étapes : le mot de passe est redemandé pour l'activer comme pour la couper. À l'activation,

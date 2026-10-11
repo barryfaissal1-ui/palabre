@@ -13,6 +13,7 @@ const { exigerConnexion, fermerSession } = require('../middleware/auth');
 const sessions = require('../utils/sessions');
 const { assurerAppareil, noterAppareil } = require('../utils/appareils');
 const { creerCodesSecours } = require('../utils/deux-etapes');
+const { journaliser, journalDe } = require('../utils/journal');
 const { apercuMembre, COLONNES_MEMBRE } = require('../utils/membres');
 const { lireConfidentialite, reglageValide } = require('../utils/confidentialite');
 const { langueValide, langueDe, poserCookieLangue } = require('../utils/langue');
@@ -153,6 +154,7 @@ router.post('/email/confirmer', limiteMotDePasse, async (req, res) => {
     await client.query('DELETE FROM changements_email WHERE utilisateur_id = $1', [moi.id]);
     // Les liens « mot de passe oublié » envoyés à l'ancienne adresse ne valent plus rien.
     await client.query('UPDATE reinitialisations_mdp SET utilise_le = now() WHERE utilisateur_id = $1 AND utilise_le IS NULL', [moi.id]);
+    await journaliser(moi.id, 'email_change', req, {}, client);
     return { email: demande.email };
   });
   if (resultat.erreur) return res.status(400).json({ erreur: resultat.erreur, champ: 'code' });
@@ -173,6 +175,7 @@ router.put('/mot-de-passe', limiteMotDePasse, async (req, res) => {
   await db.query('UPDATE utilisateurs SET mot_de_passe_hash = $2 WHERE id = $1', [moi.id, await bcrypt.hash(nouveau, COUT_BCRYPT)]);
   // Les autres appareils sont déconnectés : si quelqu'un connaissait l'ancien mot de passe, il est dehors.
   await fermerLesAutresSessions(req);
+  await journaliser(moi.id, 'mot_de_passe_change', req);
   res.json({ message: 'Mot de passe modifié. Tes autres appareils ont été déconnectés.' });
 });
 
@@ -186,6 +189,8 @@ router.get('/sessions', async (req, res) => {
 router.delete('/sessions/:cle', async (req, res) => {
   const fermee = await sessions.revoquerParCle(req.utilisateur.id, req.params.cle);
   if (!fermee) throw new v.ErreurHttp(404, 'Cet appareil est déjà déconnecté.');
+  // Dans le journal : le nom de l'appareil qui vient d'être déconnecté.
+  await journaliser(req.utilisateur.id, 'session_revoquee', req, { appareil: fermee.appareil });
   const ici = fermee.id === req.session.id;
   if (ici) fermerSession(res);
   res.json({ ok: true, ici });
@@ -193,8 +198,14 @@ router.delete('/sessions/:cle', async (req, res) => {
 
 // POST /api/parametres/deconnecter-autres
 router.post('/deconnecter-autres', async (req, res) => {
-  await fermerLesAutresSessions(req);
+  const fermees = await fermerLesAutresSessions(req);
+  if (fermees > 0) await journaliser(req.utilisateur.id, 'session_revoquee', req, { appareil: null });
   res.json({ message: 'Tes autres appareils ont été déconnectés.' });
+});
+
+// Activité de sécurité : GET /api/parametres/journal → les 30 derniers événements de MON compte (gardés 90 jours).
+router.get('/journal', async (req, res) => {
+  res.set('Cache-Control', 'no-store').json({ journal: await journalDe(req.utilisateur.id) });
 });
 
 // Validation en deux étapes : PUT /api/parametres/deux-etapes  { active, motDePasse }
@@ -212,9 +223,11 @@ router.put('/deux-etapes', limiteMotDePasse, async (req, res) => {
       await client.query('DELETE FROM codes_secours WHERE utilisateur_id = $1', [moi.id]);
       await client.query('DELETE FROM confirmations_email WHERE utilisateur_id = $1 AND motif = \'connexion\'', [moi.id]);
       await client.query('UPDATE appareils_connus SET confiance = FALSE WHERE utilisateur_id = $1', [moi.id]);
+      await journaliser(moi.id, 'deux_etapes_coupee', req, {}, client);
       return null;
     }
     await noterAppareil(moi.id, numero, { confiance: true }, client);
+    await journaliser(moi.id, 'deux_etapes_active', req, {}, client);
     return creerCodesSecours(moi.id, client);
   });
   res.set('Cache-Control', 'no-store').json({ active, codesSecours });
