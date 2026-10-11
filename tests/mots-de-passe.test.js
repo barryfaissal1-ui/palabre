@@ -33,7 +33,7 @@ async function appel(chemin, { methode = 'GET', donnees, cookie, ip } = {}) {
 const connexion = (cle, motDePasse = BON, options = {}) => appel('/api/auth/connexion', { methode: 'POST', donnees: { email: adresse(cle), motDePasse }, ...options });
 const inscription = (cle, motDePasse, prenom = cle, nomFamille = `Secret${lettres}`) => appel('/api/auth/inscription', {
   methode: 'POST',
-  donnees: { type: 'client', prenom, nomFamille, email: adresse(cle), motDePasse, pays: 'Burkina Faso', ville: 'Koudougou', whatsapp: '+22670000009', jeton: jetonAncien() },
+  donnees: { type: 'client', prenom, nomFamille, email: adresse(cle), motDePasse, pays: 'Burkina Faso', ville: 'Koudougou', whatsapp: '+22670000009', jeton: jetonAncien(), accepteRegles: true },
 });
 async function inscrire(cle, prenom = cle) {
   const r = await inscription(cle, BON, prenom);
@@ -93,7 +93,7 @@ test('inscription : mot de passe court, courant ou contenant le nom refusé, ave
   const { rows } = await pool.query('SELECT 1 FROM utilisateurs WHERE email LIKE $1', [`mdp-refus-%-${suffixe}@palabre.test`]);
   assert.equal(rows.length, 0, 'aucun compte créé');
   // En anglais, le message est traduit et le code reste le même.
-  const r = await fetch(`${base}/api/auth/inscription`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: 'langue=en', 'X-Forwarded-For': '10.41.0.1' }, body: JSON.stringify({ type: 'client', prenom: 'Rasmata', nomFamille: 'Kaboré', email: adresse('refus-en'), motDePasse: 'azerty123', pays: 'Burkina Faso', ville: 'Koudougou', whatsapp: '+22670000009', jeton: jetonAncien() }) });
+  const r = await fetch(`${base}/api/auth/inscription`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: 'langue=en', 'X-Forwarded-For': '10.41.0.1' }, body: JSON.stringify({ type: 'client', prenom: 'Rasmata', nomFamille: 'Kaboré', email: adresse('refus-en'), motDePasse: 'azerty123', pays: 'Burkina Faso', ville: 'Koudougou', whatsapp: '+22670000009', jeton: jetonAncien(), accepteRegles: true }) });
   assert.match((await r.json()).erreur, /too common/);
 });
 

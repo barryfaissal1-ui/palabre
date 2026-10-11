@@ -38,7 +38,8 @@ async function validerCompte(email) {
 function avecComptesPrets(appel) {
   return async (chemin, options = {}) => {
     if (!chemin.endsWith('/auth/inscription')) return appel(chemin, options);
-    const reponse = await appel(chemin, { ...options, donnees: { jeton: jetonAncien(), ...options.donnees } });
+    // accepteRegles : la case « J'accepte les règles de la communauté », obligatoire (tests/regles.test.js).
+    const reponse = await appel(chemin, { ...options, donnees: { jeton: jetonAncien(), accepteRegles: true, ...options.donnees } });
     if (reponse.statut === 201) await validerCompte(options.donnees.email);
     return reponse;
   };

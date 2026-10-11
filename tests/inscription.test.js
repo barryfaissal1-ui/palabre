@@ -35,7 +35,7 @@ async function appel(chemin, { methode = 'GET', donnees, qui } = {}) {
 const poster = (qui, chemin, donnees = {}) => appel(chemin, { methode: 'POST', qui, donnees });
 
 const fiche = (cle, type, extra = {}) => ({
-  type, prenom: cle, nomFamille: `Inscr${lettres}`, email: adresse(cle), motDePasse: 'kolatier-vert-48', pays: 'Burkina Faso', ville: 'Koudougou', jeton: jetonAncien(), ...extra,
+  type, prenom: cle, nomFamille: `Inscr${lettres}`, email: adresse(cle), motDePasse: 'kolatier-vert-48', pays: 'Burkina Faso', ville: 'Koudougou', jeton: jetonAncien(), accepteRegles: true, ...extra,
 });
 
 // Inscription par la vraie route ; le compte reste « à confirmer » (aucun raccourci ici).

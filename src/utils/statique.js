@@ -63,7 +63,14 @@ function pagesHtml(req, res, next) {
   } catch {
     return next(); // pas de page de ce nom
   }
-  res.set('Cache-Control', 'no-cache').type('html').send(dansLaLangue(req, html, `titre.${trouve[1]}`));
+  res.set('Cache-Control', 'no-cache').type('html').send(dansLaLangue(req, avecContact(html), `titre.${trouve[1]}`));
+}
+
+// L'adresse de contact de la modération (variable CONTACT_MODERATION) : une page qui porte un lien vide
+// <a data-contact-moderation></a> le reçoit rempli. L'adresse n'est donc écrite dans aucune page.
+function avecContact(html) {
+  const adresse = config.contactModeration.replace(/[<>"&]/g, '');
+  return html.replace(/<a data-contact-moderation><\/a>/g, () => `<a data-contact-moderation href="mailto:${adresse}">${adresse}</a>`);
 }
 
 // La page dans la langue de la personne : en français, telle quelle ; sinon les textes marqués data-t sont remplacés

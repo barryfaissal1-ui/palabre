@@ -17,6 +17,7 @@ const sessions = require('../utils/sessions');
 const { lireAppareil, assurerAppareil, etatAppareil, noterAppareil, oublierAppareils } = require('../utils/appareils');
 const deuxEtapes = require('../utils/deux-etapes');
 const { journaliser } = require('../utils/journal');
+const { VERSION_REGLES, reglesAAccepter } = require('../utils/regles');
 
 const { typeAppareil } = sessions;
 
@@ -56,6 +57,8 @@ function profilPrive(u) {
     langue: u.langue || null, // 'fr', 'en', ou rien tant que le membre n'a pas choisi
     // Compte désactivé : la page l'envoie sur /bon-retour. La date n'est remplie que si la suppression est demandée.
     desactive: Boolean(u.desactive_le),
+    // Les règles ont changé depuis son acceptation : la page ouvre la fenêtre « Les règles ont changé ».
+    reglesAAccepter: reglesAAccepter(u),
     suppressionPrevueLe: u.suppression_prevue_le || null,
 
     id: u.id,
@@ -107,6 +110,11 @@ router.post('/inscription', limiteSensible, async (req, res) => {
   }
   // Formulaire envoyé moins de 3 secondes après l'ouverture de la page : ce n'est pas une personne.
   verifierOuverture(corps.jeton);
+  // La case « J'accepte les règles de la communauté et les conditions d'utilisation » : obligatoire, et vérifiée
+  // ici (la case de la page pourrait être contournée). Seule la valeur « vrai » compte.
+  if (corps.accepteRegles !== true) {
+    throw new v.ErreurValidation('Pour créer un compte, accepte les règles de la communauté et les conditions d\'utilisation.', 'accepteRegles');
+  }
   const donnees = {
     type: v.typeCompte(corps.type),
     prenom: v.nomPropre(corps.prenom, 'prenom'),
@@ -130,10 +138,11 @@ router.post('/inscription', limiteSensible, async (req, res) => {
   const identifiant = await identifiantLibre(nom);
   const { rows } = await db.query(
     // La langue du site au moment de l'inscription est gardée : le code de confirmation part dans cette langue.
-    `INSERT INTO utilisateurs (type, nom, prenom, nom_famille, identifiant, email, mot_de_passe_hash, pays, ville, whatsapp, langue)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    // regles_acceptees_le, regles_version : la preuve de l'acceptation, avec la version des règles lue ce jour-là.
+    `INSERT INTO utilisateurs (type, nom, prenom, nom_famille, identifiant, email, mot_de_passe_hash, pays, ville, whatsapp, langue, regles_acceptees_le, regles_version)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now(), $12)
      RETURNING *`,
-    [donnees.type, nom, donnees.prenom, donnees.nomFamille, identifiant, donnees.email, hash, donnees.pays, donnees.ville, donnees.whatsapp, langueDe(req)],
+    [donnees.type, nom, donnees.prenom, donnees.nomFamille, identifiant, donnees.email, hash, donnees.pays, donnees.ville, donnees.whatsapp, langueDe(req), VERSION_REGLES],
   );
 
   // Le compte existe, mais il ne sert à rien tant que le code envoyé par email n'a pas été saisi.
@@ -333,6 +342,13 @@ router.post('/deconnexion', async (req, res) => {
   if (req.session) await sessions.revoquer(req.session.id);
   fermerSession(res);
   res.json({ ok: true });
+});
+
+// Accepter les règles de la communauté (fenêtre « Les règles ont changé ») : POST /api/auth/regles  { accepte: true }
+router.post('/regles', exigerConnexion, async (req, res) => {
+  if (req.body?.accepte !== true) throw new v.ErreurValidation('Pour continuer, accepte les règles de la communauté.', 'accepte');
+  await db.query('UPDATE utilisateurs SET regles_acceptees_le = now(), regles_version = $2 WHERE id = $1', [req.utilisateur.id, VERSION_REGLES]);
+  res.json({ ok: true, version: VERSION_REGLES });
 });
 
 // ---------- Revenir : réactiver un compte désactivé, annuler une suppression ----------

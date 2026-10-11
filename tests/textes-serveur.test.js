@@ -66,7 +66,7 @@ test('erreurs de l\'API : un code stable, le texte dans la langue (cookie, puis 
   assert.equal((await appelBrut('/api/auth/connexion', { methode: 'POST', donnees: mauvais, langue: 'fr', navigateur: 'en-US' })).corps.erreur, 'Adresse email invalide.');
   assert.equal((await appelBrut('/api/auth/connexion', { methode: 'POST', donnees: mauvais, langue: 'xx' })).corps.erreur, 'Adresse email invalide.');
   // Un message à trou garde sa valeur, et son code ne dépend pas d'elle.
-  const court = await appelBrut('/api/auth/inscription', { methode: 'POST', langue: 'en', donnees: { type: 'dev', prenom: 'A', nomFamille: 'B', email: adresse('x'), motDePasse: 'kolatier-vert-48', pays: 'Ghana', ville: 'A', jeton: jetonAncien() } });
+  const court = await appelBrut('/api/auth/inscription', { methode: 'POST', langue: 'en', donnees: { type: 'dev', prenom: 'A', nomFamille: 'B', email: adresse('x'), motDePasse: 'kolatier-vert-48', pays: 'Ghana', ville: 'A', jeton: jetonAncien(), accepteRegles: true } });
   assert.deepEqual([court.corps.erreur, court.corps.code, court.corps.champ], ['At least 2 characters.', 'au-moins-caracteres', 'ville']);
   // Visiteur sans session, limites, routes inconnues : traduits aussi.
   assert.deepEqual((await appelBrut('/api/parametres', { langue: 'en' })).corps, { erreur: 'Log in to continue.', code: 'connecte-toi-pour-continuer' });
@@ -156,7 +156,7 @@ test('emails : dans la langue du destinataire ; en français, mot pour mot comme
 
 test('inscription en anglais : le compte garde la langue et le code part en anglais', async () => {
   const email = adresse('esi');
-  const r = await appelBrut('/api/auth/inscription', { methode: 'POST', langue: 'en', donnees: { type: 'client', prenom: 'Esi', nomFamille: `Langue${lettres}`, email, motDePasse: 'kolatier-vert-48', pays: 'Ghana', ville: 'Kumasi', jeton: jetonAncien() } });
+  const r = await appelBrut('/api/auth/inscription', { methode: 'POST', langue: 'en', donnees: { type: 'client', prenom: 'Esi', nomFamille: `Langue${lettres}`, email, motDePasse: 'kolatier-vert-48', pays: 'Ghana', ville: 'Kumasi', jeton: jetonAncien(), accepteRegles: true } });
   assert.equal(r.statut, 201, JSON.stringify(r.corps));
   assert.equal(r.corps.utilisateur.langue, 'en');
   const message = emailsEnvoyes.filter((m) => m.a === email).pop();

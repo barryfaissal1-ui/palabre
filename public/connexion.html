@@ -159,6 +159,13 @@
               <input id="site-web" name="siteWeb" type="text" tabindex="-1" autocomplete="off">
             </div>
 
+            <!-- Obligatoire, et vérifiée par le serveur : la date et la version des règles acceptées sont gardées. -->
+            <div class="champ">
+              <label class="case-regles" for="accepte-regles"><input id="accepte-regles" name="accepteRegles" type="checkbox" required>
+                <span><span data-t="acces.accepte.debut">J'accepte les</span> <a data-t="acces.accepte.regles" href="/regles" target="_blank" rel="noopener">règles de la communauté</a> <span data-t="acces.accepte.et">et les</span> <a data-t="acces.accepte.conditions" href="/conditions" target="_blank" rel="noopener">conditions d'utilisation</a>.</span></label>
+              <p class="erreur-champ" data-erreur="accepteRegles"></p>
+            </div>
+
             <p class="message" role="alert" data-message></p>
             <button data-t="acces.creer-mon-compte" class="bouton bouton-principal bouton-plein" type="submit">Créer mon compte</button>
           </form>

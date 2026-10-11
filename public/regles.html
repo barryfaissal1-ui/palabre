@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#171512">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Palabre">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="preload" href="/fonts/bricolage-grotesque-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="/js/theme.js"></script>
+  <link rel="stylesheet" href="/css/style.css">
+  <title>Règles de la communauté – Palabre</title>
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
+  <script src="/js/app.js" defer></script>
+</head>
+<!-- Les règles de la communauté. Leur version est dans src/utils/regles.js (VERSION_REGLES) : quand le texte change
+     sur le fond, on augmente ce numéro, et chaque membre doit les accepter de nouveau à sa prochaine visite. -->
+<body>
+  <div class="bande"></div>
+  <header class="entete"><div class="conteneur entete-interieur">
+    <a class="marque" href="/"><img src="/icons/logo-96.webp" alt="" width="32" height="32">Palabre</a>
+    <nav data-nav></nav>
+  </div></header>
+  <main class="conteneur page-fil page-texte">
+    <h1 data-t="regles.titre" class="titre-page">Règles de la communauté</h1>
+    <p data-t="regles.intro">Palabre est un lieu de travail et d'entraide. Ces règles protègent chaque membre, développeur ou client. Elles sont courtes pour être lues, et elles valent pour tout ce qui se voit ou s'envoie sur le site : profil, publications, commentaires, demandes, propositions, projets et messages.</p>
+    <h2 data-t="regles.interdit.titre">Ce qui est interdit</h2>
+    <ul class="liste-regles">
+      <li data-t="regles.interdit.arnaques">Les arnaques et les escroqueries : demander de l'argent d'avance, promettre un gain, vendre un travail qu'on ne fera pas.</li>
+      <li data-t="regles.interdit.insultes">Les insultes et le harcèlement : rabaisser quelqu’un, le relancer sans fin, le poursuivre de message en message.</li>
+      <li data-t="regles.interdit.haine">Les discours de haine : s'en prendre à une personne pour son origine, son pays, sa religion, son sexe, son handicap ou son orientation.</li>
+      <li data-t="regles.interdit.sexuel">Le contenu sexuel : images, textes ou propositions à caractère sexuel.</li>
+      <li data-t="regles.interdit.violence">La violence et les menaces, contre une personne ou un groupe.</li>
+      <li data-t="regles.interdit.faux-profils">Les faux profils et l'usurpation d'identité : se faire passer pour un autre, présenter comme le sien le projet de quelqu'un d'autre.</li>
+      <li data-t="regles.interdit.spam">Le spam et la publicité abusive : le même message répété, des liens sans rapport, de la réclame à la place des échanges.</li>
+      <li data-t="regles.interdit.illegal">La vente de produits ou de services illégaux.</li>
+      <li data-t="regles.interdit.donnees">La publication des données personnelles d'autrui : numéro, adresse, photo ou document d'une personne qui ne l'a pas voulu.</li>
+      <li data-t="regles.interdit.piratage">Le piratage et les logiciels malveillants : vol de compte, virus, outils faits pour nuire.</li>
+    </ul>
+    <h2 data-t="regles.sanctions.titre">Si une règle n'est pas respectée</h2>
+    <p data-t="regles.sanctions.contenu">Un contenu qui enfreint les règles peut être refusé avant publication, caché en attendant une vérification, ou retiré par l'équipe.</p>
+    <p data-t="regles.sanctions.intro">Pour le membre, les sanctions sont progressives :</p>
+    <ul class="liste-regles">
+      <li data-t="regles.sanctions.avertissement">première faute : un avertissement, par notification et par email ;</li>
+      <li data-t="regles.sanctions.suspension">deuxième faute : une suspension de 7 jours. Tu peux te connecter et lire, mais plus rien publier ni envoyer jusqu'à la date indiquée ;</li>
+      <li data-t="regles.sanctions.exclusion">troisième faute : l’exclusion. Le compte est bloqué.</li>
+    </ul>
+    <p data-t="regles.sanctions.grave">Pour une faute grave, comme une arnaque ou une menace, l'équipe peut décider tout de suite d'une sanction plus forte.</p>
+    <h2 data-t="regles.signaler.titre">Comment signaler</h2>
+    <p data-t="regles.signaler.texte">Chaque publication, commentaire, demande, projet, message et profil a un menu « … » avec le choix « Signaler ». Dis en quelques mots ce qui ne va pas : l'auteur ne sait pas qui l'a signalé. Un contenu signalé par trois membres différents est caché automatiquement en attendant la décision de l'équipe.</p>
+    <p><span data-t="regles.signaler.grave">Pour un cas grave (menace, arnaque en cours, usurpation), écris directement à l'équipe :</span> <a data-contact-moderation></a></p>
+    <h2 data-t="regles.contester.titre">Comment contester</h2>
+    <p data-t="regles.contester.texte">Tu penses qu'une sanction est une erreur ? Ouvre la page « Mes sanctions », depuis la notification ou depuis tes paramètres, et explique pourquoi. Tu peux contester une fois par sanction. Une personne de l'équipe relit la décision et peut l'annuler.</p>
+    <h2 data-t="regles.argent.titre">Avant d'envoyer de l'argent</h2>
+    <p data-t="regles.argent.texte">Ne paie jamais avant d'avoir vérifié le profil et les avis. Palabre ne te demandera jamais d'argent, ni ton mot de passe, ni un code reçu par SMS ou par email.</p>
+    <p data-t="regles.version" class="texte-discret">Version 1 de ces règles, du 11 octobre 2026.</p>
+    <p><a data-t="nav.conditions-utilisation" href="/conditions">Conditions d'utilisation</a></p>
+    <p class="choix-langue" data-choix-langue></p>
+  </main>
+</body>
+</html>

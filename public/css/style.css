@@ -348,6 +348,15 @@ a { color: var(--lien); text-underline-offset: 3px; }
   color: var(--gris);
   font-size: var(--t-15);
 }
+/* Liens du bas de page (règles, conditions) et liste des règles de la communauté. */
+.liens-pied { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 8px 0; font-size: var(--t-13); }
+.liens-pied a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; }
+.liste-regles { margin: 0 0 12px; padding-left: 20px; max-width: 65ch; }
+.liste-regles li { margin-bottom: 8px; }
+/* Inscription : la case « J'accepte les règles ». */
+.case-regles { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; font-weight: 400; cursor: pointer; }
+.case-regles input { flex: none; width: 22px; height: 22px; margin-top: 2px; accent-color: var(--action); }
+.dialogue-regles p { margin: 0 0 12px; }
 
 /* ---------- Formulaires ---------- */
 .page-formulaire {

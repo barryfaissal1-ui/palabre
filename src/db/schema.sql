@@ -712,3 +712,8 @@ CREATE INDEX IF NOT EXISTS idx_historique_textes_cible ON historique_textes (cib
 -- rubrique « Corbeille » de ses paramètres (restaurer, ou supprimer définitivement). Le ménage la vide ensuite.
 ALTER TABLE publications ADD COLUMN IF NOT EXISTS supprimee_le TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS idx_publications_corbeille ON publications (supprimee_le) WHERE supprimee_le IS NOT NULL;
+
+-- ============ Modération ============
+-- Acceptation des règles de la communauté : la date et la version acceptée (src/utils/regles.js).
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS regles_acceptees_le TIMESTAMPTZ;
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS regles_version INTEGER;

@@ -37,6 +37,8 @@
       if (!jetonOuverture) await demanderJeton();
       // Le numéro WhatsApp n'est demandé ici qu'aux clients (les devs le donnent à l'étape 2).
       if (formulaire.querySelector('[data-seulement-client]')?.hidden) delete donnees.whatsapp;
+      // La case des règles : une case cochée vaut « on » dans un formulaire ; le serveur attend vrai ou faux.
+      donnees.accepteRegles = formulaire.elements.accepteRegles.checked;
       await api('/auth/inscription', { methode: 'POST', donnees: { ...donnees, jeton: jetonOuverture } });
       await celebrer();
       // Étape suivante pour tout le monde : le code reçu par email.

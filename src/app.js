@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const config = require('./config');
 const { chargerUtilisateur, exigerEmailConfirme, exigerCompteActif } = require('./middleware/auth');
 const { langueDe } = require('./utils/langue');
+const { exigerReglesAcceptees } = require('./utils/regles');
 const { codeDe, traduireReponse } = require('./utils/textes');
 
 const { DOSSIER_PUBLIC, pagesHtml, entetesDeCache, pageErreur } = require('./utils/statique');
@@ -93,6 +94,8 @@ function creerApp() {
   app.use('/api', exigerEmailConfirme);
   // Compte désactivé par son propriétaire : seul /api/auth répond (réactiver, se déconnecter).
   app.use('/api', exigerCompteActif);
+  // Les règles de la communauté ont changé depuis son acceptation : il lit, mais n'écrit plus avant de les accepter.
+  app.use('/api', exigerReglesAcceptees);
   app.use('/api/auth', require('./routes/auth'));
   app.use('/api/profils', require('./routes/profils'));
   app.use('/api/publications', require('./routes/publications'));

@@ -50,7 +50,7 @@ function navigateur(agent = ANDROID) {
 
 async function inscrire(cle) {
   const n = navigateur();
-  const r = await n.poster('/api/auth/inscription', { type: 'client', prenom: cle, nomFamille: `Journal${lettres}`, email: adresse(cle), motDePasse: BON, pays: 'Burkina Faso', ville: 'Koudougou', whatsapp: '+22670000009', jeton: jetonAncien() });
+  const r = await n.poster('/api/auth/inscription', { type: 'client', prenom: cle, nomFamille: `Journal${lettres}`, email: adresse(cle), motDePasse: BON, pays: 'Burkina Faso', ville: 'Koudougou', whatsapp: '+22670000009', jeton: jetonAncien(), accepteRegles: true });
   assert.equal(r.statut, 201, JSON.stringify(r.corps));
   await validerCompte(adresse(cle));
   membres[cle] = { id: r.corps.utilisateur.id, navigateur: n };

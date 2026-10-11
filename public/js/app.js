@@ -862,7 +862,7 @@
     const envoyer = el('button', { classe: 'bouton bouton-principal', type: 'submit', texte: t('commun.envoyer') });
     const formulaire = el('form', {}, [
       el('h2', { id: 'signalement-titre', texte: t('signalement.titre') }),
-      el('p', { classe: 'texte-discret', texte: t('signalement.explication') }),
+      el('p', { classe: 'texte-discret' }, [t('signalement.explication'), ' ', el('a', { href: '/regles', target: '_blank', rel: 'noopener', texte: t('signalement.voir-regles') })]),
       el('div', { classe: 'champ' }, [el('label', { for: 'signalement-motif', texte: t('signalement.question') }), motif]),
       el('div', { classe: 'champ' }, [el('label', { for: 'signalement-precision', texte: t('signalement.precision') }), precision]),
       zoneMessage,
@@ -1037,7 +1037,7 @@
         ? el('a', { classe: 'bouton bouton-principal bouton-plein', href: '/projets' }, [icone('plus'), t('nav.ajouter-projet')])
         : el('a', { classe: 'bouton bouton-principal bouton-plein', href: '/demandes?publier=1' }, [icone('plus'), t('nav.publier-demande')]),
       el('p', { classe: 'pied-menu' }, [
-        el('a', { href: '/a-propos', texte: t('nav.a-propos') }), el('a', { href: '/conditions', texte: t('nav.conditions') }),
+        el('a', { href: '/a-propos', texte: t('nav.a-propos') }), el('a', { href: '/regles', texte: t('nav.regles-court') }), el('a', { href: '/conditions', texte: t('nav.conditions') }),
         el('span', { texte: t('nav.fait-au-burkina') }),
       ]),
     ]);
@@ -1364,6 +1364,41 @@
     zone.replaceChildren(lien);
   }
 
+  // « Les règles ont changé » : le membre les accepte pour continuer, ou se déconnecte. La fenêtre ne se ferme pas
+  // autrement ; et même si on la retirait de la page, le serveur refuse d'écrire tant qu'elles ne sont pas acceptées.
+  function fenetreRegles() {
+    if (document.querySelector('.dialogue-regles')) return;
+    const accepter = el('button', { classe: 'bouton bouton-principal', type: 'button', texte: t('regles-fenetre.accepter') });
+    const sortir = el('button', { classe: 'bouton bouton-lien', type: 'button', texte: t('nav.se-deconnecter') });
+    const message = el('p', { classe: 'message', role: 'alert' });
+    const dialogue = el('dialog', { classe: 'dialogue dialogue-regles', 'aria-labelledby': 'regles-fenetre-titre' }, [
+      el('h2', { id: 'regles-fenetre-titre', texte: t('regles-fenetre.titre') }),
+      el('p', {}, [t('regles-fenetre.texte'), ' ', el('a', { href: '/regles', target: '_blank', rel: 'noopener', texte: t('nav.regles') }), ', ', el('a', { href: '/conditions', target: '_blank', rel: 'noopener', texte: t('nav.conditions-utilisation') }), '.']),
+      message,
+      el('div', { classe: 'dialogue-actions' }, [sortir, accepter]),
+    ]);
+    // La touche Échap ne la ferme pas ; et si le navigateur la ferme quand même, elle se rouvre.
+    let accepte = false;
+    dialogue.addEventListener('cancel', (evenement) => evenement.preventDefault());
+    dialogue.addEventListener('close', () => { if (!accepte && dialogue.isConnected) dialogue.showModal(); });
+    sortir.addEventListener('click', seDeconnecter);
+    accepter.addEventListener('click', async () => {
+      accepter.disabled = true;
+      try {
+        await api('/auth/regles', { methode: 'POST', donnees: { accepte: true } });
+        accepte = true;
+        dialogue.close();
+        dialogue.remove();
+      } catch (erreur) {
+        message.textContent = erreur.message;
+        message.className = 'message erreur';
+        accepter.disabled = false;
+      }
+    });
+    document.body.append(dialogue);
+    dialogue.showModal();
+  }
+
   // Remplit la navigation de l'en-tête selon que la personne est connectée ou non.
   // En-tête : recherche, cloche, avatar. Sur téléphone, les onglets (et l'avatar) forment la barre du bas ;
   // sur ordinateur, ils sont dans la colonne de gauche.
@@ -1375,6 +1410,8 @@
     if (moi && !moi.emailConfirme) return window.location.replace('/confirmer-email');
     // Compte désactivé (ou suppression demandée) : il faut d'abord le réactiver.
     if (moi && moi.desactive) return window.location.replace('/bon-retour');
+    // Les règles de la communauté ont changé depuis son acceptation : une fenêtre, sauf sur les pages où on les lit.
+    if (moi && moi.reglesAAccepter && !['/regles', '/conditions'].includes(window.location.pathname)) fenetreRegles();
     // La langue choisie dans le compte suit le membre sur tous ses appareils. Un compte qui n'a pas encore de
     // langue reçoit celle de ce navigateur (le serveur écrit ainsi ses notifications et ses emails dans la bonne).
     if (moi && moi.langue && moi.langue !== langue) return changerLangue(moi.langue);

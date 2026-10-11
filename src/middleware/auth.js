@@ -41,7 +41,7 @@ const COLONNES_MEMBRE_CONNECTE = `id, type, est_admin, nom, prenom, nom_famille,
   email_confirme_le, profil_complete_le, specialite, experience,
   lien_github, lien_github_verifie_le, lien_gitlab, lien_gitlab_verifie_le,
   lien_portfolio, lien_portfolio_verifie_le, lien_linkedin, lien_linkedin_verifie_le, sessions_depuis,
-  vu_le, masquer_presence, preferences_notifications, confidentialite, derniere_connexion_le, derniere_connexion_appareil, langue, deux_etapes, desactive_le, suppression_prevue_le`
+  vu_le, masquer_presence, preferences_notifications, confidentialite, derniere_connexion_le, derniere_connexion_appareil, langue, deux_etapes, desactive_le, suppression_prevue_le, regles_version, cree_le`
   .split(',').map((colonne) => `u.${colonne.trim()}`).join(', ');
 
 // Ajoute req.utilisateur et req.session si la session est valide (sinon laisse vide).

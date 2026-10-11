@@ -15,6 +15,7 @@
 const zlib = require('node:zlib');
 const { signerJeton } = require('../src/middleware/auth');
 const { creerSession } = require('../src/utils/sessions');
+const { VERSION_REGLES } = require('../src/utils/regles');
 
 // Les sessions ouvertes par ce script portent ce nom d'appareil : elles sont retirées à la fin.
 const APPAREIL_DEMO = 'script-de-demonstration';
@@ -248,7 +249,7 @@ async function creer() {
       const [prenom, ...reste] = nom.split(' ');
       const nomFamille = reste.join(' ');
       // jeton : l'heure d'ouverture du formulaire, signée, que l'inscription exige (ici datée de 10 secondes plus tôt).
-      const inscription = await appel('/auth/inscription', { methode: 'POST', donnees: { type, prenom, nomFamille, email: email(cle), motDePasse: MOT_DE_PASSE, pays, ville, jeton: jetonOuverture(Date.now() - 10000) } });
+      const inscription = await appel('/auth/inscription', { methode: 'POST', donnees: { type, prenom, nomFamille, email: email(cle), motDePasse: MOT_DE_PASSE, pays, ville, jeton: jetonOuverture(Date.now() - 10000), accepteRegles: true } });
       // Pas de code à saisir pour ces comptes : leur email est confirmé tout de suite.
       const { rows } = await pool.query('UPDATE utilisateurs SET email_confirme_le = now() WHERE email = $1 RETURNING id', [email(cle)]);
       m[cle] = { cookie: inscription.entetes.get('set-cookie').split(';')[0], identifiant: inscription.corps.utilisateur.identifiant, id: rows[0].id };
@@ -584,7 +585,7 @@ async function creerComptesComplets(avecAdmin) {
     // 1. Les deux comptes : inscrits par le site, puis confirmés et complétés en base (comme les autres).
     const { corps: { competences } } = await appel('/competences');
     for (const [cle, [type, prenom, nomFamille, ville, pays, bio, noms]] of Object.entries(COMPLETS)) {
-      const inscription = await appel('/auth/inscription', { methode: 'POST', donnees: { type, prenom, nomFamille, email: email(cle), motDePasse: MOT_DE_PASSE, pays, ville, jeton: jetonOuverture(Date.now() - 10000) } });
+      const inscription = await appel('/auth/inscription', { methode: 'POST', donnees: { type, prenom, nomFamille, email: email(cle), motDePasse: MOT_DE_PASSE, pays, ville, jeton: jetonOuverture(Date.now() - 10000), accepteRegles: true } });
       const { rows } = await pool.query('UPDATE utilisateurs SET email_confirme_le = now() WHERE email = $1 RETURNING id', [email(cle)]);
       m[cle] = { cookie: inscription.entetes.get('set-cookie').split(';')[0], identifiant: inscription.corps.utilisateur.identifiant, id: rows[0].id };
       await appel('/profils/moi', { methode: 'PUT', qui: cle, donnees: { prenom, nomFamille, identifiant: m[cle].identifiant, pays, ville, bio, disponible: true, whatsapp: null, competences: competences.filter((c) => noms.includes(c.nom)).map((c) => c.id) } });
@@ -799,6 +800,9 @@ async function main() {
   const complets = await creerComptesComplets(!config.production || process.argv.includes('--admin'));
   if (complets) console.log(`Deux comptes « tout tester » ajoutés : ${complets.dev} (développeur${complets.admin ? ' et administrateur' : ''}) et ${complets.client} (cliente).`);
   const autres = await creerAutresComptes();
+  // Les comptes de démonstration ont accepté la version actuelle des règles de la communauté : le jury n'a pas à
+  // passer par la fenêtre « Les règles ont changé » en ouvrant un compte de démo.
+  await pool.query('UPDATE utilisateurs SET regles_acceptees_le = COALESCE(regles_acceptees_le, now()), regles_version = $2 WHERE email LIKE $1 AND COALESCE(regles_version, 0) < $2', [MOTIF_EMAIL, VERSION_REGLES]);
   if (autres) console.log(`${autres} comptes ajoutés : trois membres anglophones (${email('kwame')}, ${email('ngozi')}, ${email('wanjiru')}) et ${email('adama')}, dont les publications sont réservées à ses amis.`);
   if (!bilan) {
     console.log(`Les comptes de démonstration existent déjà : ${conversations || complets || autres ? 'seul ce qui manquait a été ajouté' : 'rien n\'a été modifié'}.\nPour repartir de zéro : npm run demo -- retirer, puis npm run demo`);

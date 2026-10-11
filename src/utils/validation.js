@@ -155,7 +155,7 @@ function idPositif(valeur) {
 
 // Mots réservés : ils servent d'adresses de pages (palabre.dev/connexion…) et ne peuvent pas être des identifiants.
 const IDENTIFIANTS_RESERVES = new Set([
-  'parametres', 'langues', 'pas-moi', 'bon-retour', 'annuler-suppression', 'membre-indisponible', 'membre-parti', 'corbeille',
+  'parametres', 'langues', 'regles', 'sanctions', 'moderation', 'pas-moi', 'bon-retour', 'annuler-suppression', 'membre-indisponible', 'membre-parti', 'corbeille',
   'a-propos', 'admin', 'aide', 'amis', 'api', 'bienvenue', 'calculateur', 'chercher', 'conditions', 'confidentialite',
   'confirmer-email', 'connexion',
   'css', 'defis', 'demande', 'demandes', 'equipes', 'fichiers', 'fil', 'fonts', 'icons', 'img', 'index', 'inscription',
