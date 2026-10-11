@@ -520,7 +520,7 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--er
   .onglet-nav:hover { background: transparent; }
   .onglet-nav .icone { width: 24px; height: 24px; }
   .onglet-moi { display: inline-flex; }
-  .nav-profil { display: none; }
+  .nav-profil, .menu-avatar { display: none; }
   body.avec-barre { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
   body.avec-barre .barre-enregistrer { bottom: calc(57px + env(safe-area-inset-bottom, 0px)); }
   body.avec-barre .toasts { bottom: calc(68px + env(safe-area-inset-bottom, 0px)); }
@@ -1735,6 +1735,16 @@ body.conversation-ouverte .messages-conversation {
   body.avec-barre .entete-interieur { max-width: none; }
   body.avec-barre > main { grid-column: 1; grid-row: 3; width: 100%; max-width: none; min-width: 0; margin: 0; padding: 16px 0 48px; }
   body.avec-barre > main.page-large { grid-column: 1 / -1; }
+  /* Paramètres : les rubriques à gauche, la rubrique choisie à droite, toujours les deux. */
+  main.page-parametres { display: grid; grid-template-columns: minmax(240px, 300px) minmax(0, 680px); gap: 24px; align-items: start; }
+  /* « main. » devant : ces règles doivent l'emporter sur celles du téléphone, écrites plus bas dans le fichier. */
+  main.page-parametres .parametres-rubriques, main.page-parametres.rubrique-ouverte .parametres-rubriques { display: block; position: sticky; top: var(--haut-colle); }
+  main.page-parametres .parametres-contenu, main.page-parametres.rubrique-ouverte .parametres-contenu { display: block; }
+  .page-parametres [data-retour] { display: none; }
+  .page-parametres .titre-page { font-size: var(--t-20); }
+  .lien-rubrique[aria-current="page"] { background: color-mix(in srgb, var(--action) 12%, transparent); }
+  .lien-rubrique[aria-current="page"] strong { color: var(--action); }
+  .lien-rubrique .rubrique-fleche { display: none; }
   /* Bandeau « Termine ton profil de dev » : il prend la rangée sous l'en-tête ; la page et les colonnes descendent d'une rangée */
   body.avec-barre > .bandeau-profil { grid-row: 3; margin-inline: -16px; justify-content: center; }
   body.avec-barre > .bandeau-profil span { flex: none; }
@@ -1906,6 +1916,8 @@ body.conversation-ouverte .messages-conversation {
   /* Le lien de la page où l'on se trouve : en vert sur un fond léger, icône pleine */
   .lien-menu[aria-current="page"] { background: color-mix(in srgb, var(--feuille-vive) 13%, transparent); color: var(--action); }
   .lien-menu[aria-current="page"] .icone { color: var(--action); fill: currentColor; }
+  /* L'engrenage rempli devient une tache : il reste au trait, même sur sa page. */
+  .lien-menu[href="/parametres"][aria-current="page"] .icone { fill: none; }
   .pied-menu { display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 4px 14px 0; color: var(--gris); font-size: var(--t-13); }
   .pied-menu a { display: inline-flex; align-items: center; min-height: 32px; color: inherit; }
   .pied-menu span { flex-basis: 100%; }
@@ -2368,6 +2380,37 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
 .familles-push[hidden] { display: none; }
 .familles-push legend { padding: 0; margin-bottom: 4px; font-weight: 700; }
 .familles-push .interrupteur { min-height: 44px; font-weight: 500; }
+
+/* ---------- Paramètres et confidentialité (/parametres) ---------- */
+/* Téléphone : la liste des rubriques, puis (classe rubrique-ouverte) la rubrique seule, avec son retour. */
+.page-parametres .parametres-contenu { display: none; }
+.page-parametres.rubrique-ouverte .parametres-rubriques { display: none; }
+.page-parametres.rubrique-ouverte .parametres-contenu { display: block; }
+.liste-rubriques { display: grid; gap: 0; margin: 0; padding: 6px; list-style: none; border: 1px solid var(--ligne); border-radius: var(--rayon); background: var(--surface); box-shadow: var(--ombre-1); }
+.lien-rubrique { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 10px; border-radius: var(--rayon-petit); color: var(--encre); text-decoration: none; }
+.lien-rubrique:hover { background: color-mix(in srgb, var(--gris) 12%, transparent); }
+.rubrique-icone { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: color-mix(in srgb, var(--action) 12%, transparent); color: var(--action); }
+.rubrique-texte { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.rubrique-texte strong { font: 700 var(--t-15)/1.3 var(--titre); }
+.rubrique-texte span { color: var(--gris); font-size: var(--t-13); }
+.rubrique-fleche { flex: none; width: 18px; height: 18px; color: var(--gris); }
+.titre-rubrique { margin: 4px 0 16px; font: 800 var(--t-24)/1.2 var(--titre); }
+.intro-rubrique { margin: -8px 0 16px; }
+.page-parametres .bloc-formulaire > .bouton { justify-self: start; }
+.page-parametres .interrupteur { min-height: 44px; }
+.page-parametres [data-zone-code] { justify-items: start; padding-top: 12px; border-top: 1px solid var(--ligne); }
+.page-parametres [data-zone-code] input { max-width: 180px; letter-spacing: 0.2em; }
+.page-parametres [data-zone-code][hidden] { display: none; }
+.bloc-danger { border-color: color-mix(in srgb, var(--erreur) 45%, var(--ligne)); }
+.bloc-danger h3 { color: var(--erreur); }
+:where([data-theme="sombre"]) .bloc-danger h3 { color: #FF8A80; }
+.liste-bloques { display: grid; gap: 0; margin: 0; padding: 6px 16px; list-style: none; border: 1px solid var(--ligne); border-radius: var(--rayon); background: var(--surface); }
+.ligne-bloque { display: flex; align-items: center; gap: 12px; min-height: 64px; }
+.ligne-bloque + .ligne-bloque { border-top: 1px solid var(--ligne); }
+.ligne-bloque-nom { flex: 1; min-width: 0; }
+/* Le menu de l'avatar (en-tête, ordinateur) : ses choix peuvent être des liens. */
+.menu-avatar .nav-profil { padding: 0; border: 0; background: transparent; cursor: pointer; }
+a.menu-choix { text-decoration: none; }
 
 /* ---------- Page des notifications ---------- */
 /* Sur téléphone, la liste est bord à bord comme le fil ; chaque ligne : avatar + pastille, texte, date. */

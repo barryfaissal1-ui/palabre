@@ -655,8 +655,8 @@
   // lister() renvoie les choix au moment de l'ouverture : [{ texte, icone, action, danger }] (les valeurs vides sont ignorées).
   // Le menu se ferme avec Échap, en touchant à côté, ou après un choix. Un seul menu est ouvert à la fois.
   let fermerMenuOuvert = null;
-  function menuOptions(lister, { cote = 'droite' } = {}) {
-    const bouton = el('button', {
+  function menuOptions(lister, { cote = 'droite', bouton: boutonChoisi = null } = {}) {
+    const bouton = boutonChoisi || el('button', {
       classe: 'bouton-icone', type: 'button', 'aria-label': 'Plus d\'options', title: 'Plus d\'options',
       'aria-haspopup': 'menu', 'aria-expanded': 'false',
     }, [icone('options')]);
@@ -695,6 +695,8 @@
       }
       if (fermerMenuOuvert) fermerMenuOuvert();
       liste.replaceChildren(...lister().filter(Boolean).map((choix) => {
+        // Un choix qui mène à une page (« Voir mon profil ») est un vrai lien : clic du milieu, « ouvrir dans un onglet ».
+        if (choix.href) return el('a', { classe: 'menu-choix', href: choix.href, role: 'menuitem' }, [icone(choix.icone), choix.texte]);
         const ligne = el('button', { classe: `menu-choix${choix.danger ? ' menu-danger' : ''}`, type: 'button', role: 'menuitem' }, [icone(choix.icone), choix.texte]);
         ligne.addEventListener('click', () => {
           fermer({ rendreFocus: true });
@@ -923,6 +925,7 @@
         estDev ? lien('/projets', 'projet', 'Mes projets') : null,
         lien('/defis', 'trophee', 'Défi de la semaine'),
         lien('/calculateur', 'calculatrice', 'Calculateur'),
+        lien('/parametres', 'parametres', 'Paramètres'),
         moi.estAdmin ? lien('/admin', 'admin', 'Administration') : null,
       ])]),
       estDev
@@ -1081,7 +1084,27 @@
       dessiner();
     });
     dessiner();
+    document.addEventListener('palabre:theme', dessiner); // le choix vient d'être fait dans les paramètres
     return bouton;
+  }
+
+  // Se déconnecter : coupe aussi le push sur cet appareil (la personne suivante ne recevra pas mes notifications).
+  async function seDeconnecter() {
+    if (window.Palabre.push) await window.Palabre.push.couper().catch(() => {});
+    await api('/auth/deconnexion', { methode: 'POST', donnees: {} }).catch(() => {});
+    window.location.href = '/';
+  }
+
+  // Le petit menu de l'avatar, en haut à droite : mon profil, les paramètres, la déconnexion.
+  function menuAvatar(moi) {
+    const bouton = el('button', { classe: 'nav-profil', type: 'button', 'aria-label': 'Mon compte', title: 'Mon compte', 'aria-haspopup': 'menu', 'aria-expanded': 'false' }, [avatar(moi, 'mini')]);
+    const menu = menuOptions(() => [
+      { texte: 'Voir mon profil', icone: 'utilisateur', href: `/${moi.identifiant}` },
+      { texte: 'Paramètres et confidentialité', icone: 'parametres', href: '/parametres' },
+      { texte: 'Se déconnecter', icone: 'deconnexion', action: seDeconnecter },
+    ], { bouton });
+    menu.classList.add('menu-avatar');
+    return menu;
   }
 
   // ---------- Messages : l'icône de l'en-tête et sa pastille de non lus ----------
@@ -1270,7 +1293,7 @@
           icone('cloche'),
           nonLues ? el('span', { classe: 'compteur compteur-cloche', 'aria-hidden': 'true', texte: nonLues > 99 ? '99+' : String(nonLues) }) : null,
         ]),
-        el('a', { classe: 'nav-profil', href: monProfil, 'aria-label': 'Mon profil' }, [avatar(moi, 'mini')]),
+        menuAvatar(moi),
       ].filter(Boolean));
       poserColonnes(moi);
       poserBandeauProfil(moi);
@@ -1290,5 +1313,5 @@
 
   document.addEventListener('DOMContentLoaded', remplirNavigation);
 
-  window.Palabre = { appeler, appelEntrant, listeChoix, chargementInfini, tempsRestant, etatDefi, api, utilisateurConnecte, el, avatar, nomMembre, badgeFeuille, prenom, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, copierLien, menuOptions, majPastilleMessages, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
+  window.Palabre = { appeler, appelEntrant, listeChoix, chargementInfini, tempsRestant, etatDefi, api, utilisateurConnecte, el, avatar, nomMembre, badgeFeuille, prenom, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, copierLien, menuOptions, majPastilleMessages, seDeconnecter, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
 })();

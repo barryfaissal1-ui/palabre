@@ -5,6 +5,7 @@
 // ses couleurs sous [data-theme="sombre"].
 //  - Sans choix de la personne : on suit le réglage du téléphone ou de l'ordinateur (prefers-color-scheme).
 //  - Si elle touche le bouton soleil / lune de l'en-tête : son choix est gardé dans ce navigateur (localStorage).
+//  - Les paramètres (rubrique « Apparence ») proposent les trois : Clair, Sombre, Automatique.
 (function () {
   const CLE = 'palabre-theme';
   const racine = document.documentElement;
@@ -28,6 +29,15 @@
 
   window.PalabreTheme = {
     actuel: () => racine.dataset.theme,
+    // Le choix de la personne : 'clair', 'sombre', ou 'auto' si elle laisse faire son appareil.
+    choix: () => choix() || 'auto',
+    choisir(valeur) {
+      try {
+        if (valeur === 'clair' || valeur === 'sombre') window.localStorage.setItem(CLE, valeur);
+        else window.localStorage.removeItem(CLE);
+      } catch { /* pas de stockage : le choix vaudra pour cette page seulement */ }
+      racine.dataset.theme = valeur === 'clair' || valeur === 'sombre' ? valeur : (systemeSombre.matches ? 'sombre' : 'clair');
+    },
     // Passe du clair au sombre (ou l'inverse) et retient ce choix.
     basculer() {
       const nouveau = racine.dataset.theme === 'sombre' ? 'clair' : 'sombre';

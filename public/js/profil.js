@@ -56,7 +56,10 @@
   function actions(profil) {
     const zone = el('div', { classe: 'profil-actions' });
     if (profil.estMoi) {
-      zone.append(el('a', { classe: 'bouton bouton-principal', href: '/modifier-profil' }, [icone('modifier'), 'Modifier mon profil']));
+      zone.append(
+        el('a', { classe: 'bouton bouton-principal', href: '/modifier-profil' }, [icone('modifier'), 'Modifier mon profil']),
+        el('a', { classe: 'bouton bouton-contour', href: '/parametres' }, [icone('parametres'), 'Paramètres']),
+      );
     } else {
       zone.append(...boutonsAmitie(profil));
       // « amitie » n'existe que pour un membre connecté : un visiteur ne voit pas ce bouton.

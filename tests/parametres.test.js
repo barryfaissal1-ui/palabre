@@ -359,3 +359,15 @@ test('supprimer mon compte : mes données partent, mes messages déjà envoyés 
   assert.ok(!(await appel('/api/devs?q=Membre parti', { qui: 'awa' })).corps.devs.some((d) => d.identifiant === parti.identifiant));
   assert.equal((await connexion(parti.email, '!')).statut, 401);
 });
+
+test('la page /parametres est servie, mise en cache par le service worker, et son nom est réservé', async () => {
+  const page = await appelBrut('/parametres');
+  assert.equal(page.statut, 200);
+  assert.ok(page.texte.includes('Paramètres et confidentialité') && /\/js\/parametres\.js\?v=/.test(page.texte), 'adresses versionnées par lirePage()');
+  for (const cle of ['compte', 'confidentialite', 'notifications', 'securite', 'bloques', 'apparence', 'donnees']) assert.ok(page.texte.includes(`data-rubrique="${cle}"`), cle);
+  assert.ok(!/<script(?![^>]*src=)|style="/.test(page.texte), 'ni script ni style en ligne');
+  const sw = (await appelBrut('/sw.js')).texte;
+  assert.ok(sw.includes("'/parametres'") && sw.includes("'/js/parametres.js'"));
+  const { IDENTIFIANTS_RESERVES } = require('../src/utils/validation');
+  assert.ok(IDENTIFIANTS_RESERVES.has('parametres'));
+});

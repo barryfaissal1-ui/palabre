@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#171512">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Palabre">
+  <meta name="robots" content="noindex">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="preload" href="/fonts/bricolage-grotesque-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="/js/theme.js"></script>
+  <link rel="stylesheet" href="/css/style.css">
+  <title>Paramètres et confidentialité – Palabre</title>
+  <script src="/js/app.js" defer></script>
+  <script src="/js/parametres.js" defer></script>
+  <script src="/js/push.js" defer></script>
+</head>
+<body>
+  <div class="bande"></div>
+  <header class="entete"><div class="conteneur entete-interieur">
+    <a class="marque" href="/"><img src="/icons/logo-96.webp" alt="" width="32" height="32">Palabre</a>
+    <nav data-nav></nav>
+  </div></header>
+  <!-- Sur téléphone : la liste des rubriques, puis la rubrique choisie avec un retour.
+       Sur ordinateur : les rubriques à gauche, la rubrique choisie à droite (parametres.js, adresse /parametres#compte). -->
+  <main class="conteneur page-parametres page-large">
+    <div class="parametres-rubriques">
+      <h1 class="titre-page">Paramètres et confidentialité</h1>
+      <nav aria-label="Rubriques des paramètres"><ul class="liste-rubriques" data-rubriques></ul></nav>
+    </div>
+
+    <div class="parametres-contenu" data-contenu>
+      <p class="retour" data-retour><a href="/parametres">Tous les paramètres</a></p>
+
+      <section data-rubrique="compte" hidden>
+        <h2 class="titre-rubrique">Compte</h2>
+        <div class="bloc-formulaire">
+          <h3>Ton nom</h3>
+          <div class="champs-cote-a-cote">
+            <div class="champ">
+              <label for="prenom">Prénom</label>
+              <input id="prenom" name="prenom" autocomplete="given-name" maxlength="50">
+              <p class="erreur-champ" data-erreur="prenom"></p>
+            </div>
+            <div class="champ">
+              <label for="nom-famille">Nom</label>
+              <input id="nom-famille" name="nomFamille" autocomplete="family-name" maxlength="50">
+              <p class="erreur-champ" data-erreur="nomFamille"></p>
+            </div>
+          </div>
+          <div class="champ">
+            <label for="identifiant">Lien de ton profil</label>
+            <div class="champ-prefixe">
+              <span data-prefixe>palabre.dev/</span>
+              <input id="identifiant" name="identifiant" minlength="3" maxlength="30" autocapitalize="none" spellcheck="false">
+            </div>
+            <span class="aide">Lettres minuscules, chiffres et tirets. Si tu le changes, ton ancien lien ne marche plus.</span>
+            <p class="erreur-champ" data-erreur="identifiant"></p>
+          </div>
+          <p class="aide">La photo, la ville et la présentation se changent dans <a href="/modifier-profil">Modifier mon profil</a>.</p>
+        </div>
+
+        <form class="bloc-formulaire" data-formulaire-email novalidate>
+          <h3>Adresse email</h3>
+          <p class="aide">Ton adresse actuelle : <strong data-email-actuel></strong>. Elle n'est jamais montrée aux autres membres.</p>
+          <div class="champ">
+            <label for="nouvel-email">Nouvelle adresse</label>
+            <input id="nouvel-email" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false">
+            <p class="erreur-champ" data-erreur="email"></p>
+          </div>
+          <div class="champ">
+            <label for="mot-de-passe-email">Ton mot de passe</label>
+            <input id="mot-de-passe-email" name="motDePasse" type="password" autocomplete="current-password">
+            <p class="erreur-champ" data-erreur="motDePasse"></p>
+          </div>
+          <button class="bouton bouton-contour" type="submit">Envoyer le code</button>
+          <div class="champ" data-zone-code hidden>
+            <p class="aide">Un code à 6 chiffres est parti à <strong data-email-attente></strong>. Ton adresse ne change qu'une fois le code saisi.</p>
+            <label for="code-email">Code reçu</label>
+            <input id="code-email" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}">
+            <p class="erreur-champ" data-erreur="code"></p>
+            <button class="bouton bouton-principal" type="button" data-confirmer-email>Confirmer la nouvelle adresse</button>
+          </div>
+        </form>
+
+        <form class="bloc-formulaire" data-formulaire-mot-de-passe novalidate>
+          <h3>Mot de passe</h3>
+          <div class="champ">
+            <label for="ancien-mot-de-passe">Mot de passe actuel</label>
+            <input id="ancien-mot-de-passe" name="ancien" type="password" autocomplete="current-password">
+            <p class="erreur-champ" data-erreur="ancien"></p>
+          </div>
+          <div class="champ">
+            <label for="nouveau-mot-de-passe">Nouveau mot de passe</label>
+            <input id="nouveau-mot-de-passe" name="nouveau" type="password" autocomplete="new-password" minlength="8">
+            <span class="aide">Au moins 8 caractères. Tes autres appareils seront déconnectés.</span>
+            <p class="erreur-champ" data-erreur="nouveau"></p>
+          </div>
+          <button class="bouton bouton-contour" type="submit">Changer le mot de passe</button>
+        </form>
+
+        <form class="bloc-formulaire bloc-danger" data-formulaire-suppression novalidate>
+          <h3>Supprimer mon compte</h3>
+          <p class="aide">Ton profil, tes publications, tes commentaires, tes projets, tes demandes et tes propositions sont supprimés pour de bon. Les messages que tu as déjà envoyés restent chez leurs destinataires, sous le nom « Membre parti ».</p>
+          <div class="champ">
+            <label for="mot-de-passe-suppression">Ton mot de passe</label>
+            <input id="mot-de-passe-suppression" name="motDePasse" type="password" autocomplete="current-password">
+            <p class="erreur-champ" data-erreur="motDePasse"></p>
+          </div>
+          <button class="bouton bouton-danger" type="submit">Supprimer mon compte</button>
+        </form>
+      </section>
+
+      <section data-rubrique="confidentialite" hidden>
+        <h2 class="titre-rubrique">Confidentialité</h2>
+        <p class="aide intro-rubrique">Ton profil public (nom, spécialité, projets vérifiés, avis) reste toujours visible : c'est ta vitrine pour les clients.</p>
+        <div class="bloc-formulaire" data-reglages-confidentialite></div>
+      </section>
+
+      <section data-rubrique="notifications" hidden>
+        <h2 class="titre-rubrique">Notifications</h2>
+        <div class="bloc-formulaire">
+          <h3>Dans Palabre</h3>
+          <label class="interrupteur">
+            <input type="checkbox" name="son-messages">
+            <span class="interrupteur-piste" aria-hidden="true"></span>
+            <span>Son des messages</span>
+          </label>
+          <p class="aide">Deux petites notes quand un message arrive pendant que Palabre est ouvert, sauf dans la conversation que tu regardes.</p>
+        </div>
+        <!-- Notifications sur le téléphone : rempli par push.js. -->
+        <div class="bloc-formulaire reglages-push" data-reglages-push hidden></div>
+      </section>
+
+      <section data-rubrique="securite" hidden>
+        <h2 class="titre-rubrique">Sécurité</h2>
+        <div class="bloc-formulaire">
+          <h3>Dernière connexion</h3>
+          <p data-derniere-connexion></p>
+          <p class="aide">Ce n'était pas toi ? Change ton mot de passe dans la rubrique <a href="#compte">Compte</a>.</p>
+        </div>
+        <div class="bloc-formulaire">
+          <h3>Tes appareils</h3>
+          <p class="aide">Un téléphone prêté, un ordinateur de cybercafé : ferme d'un coup toutes les sessions ouvertes ailleurs. Tu restes connecté ici.</p>
+          <button class="bouton bouton-contour" type="button" data-deconnecter-autres>Se déconnecter de tous les autres appareils</button>
+        </div>
+      </section>
+
+      <section data-rubrique="bloques" hidden>
+        <h2 class="titre-rubrique">Membres bloqués</h2>
+        <p class="aide intro-rubrique">Un membre bloqué ne peut plus t'écrire ni t'appeler. Il n'est pas prévenu.</p>
+        <div data-bloques aria-live="polite"></div>
+      </section>
+
+      <section data-rubrique="apparence" hidden>
+        <h2 class="titre-rubrique">Apparence</h2>
+        <div class="bloc-formulaire">
+          <div class="champ">
+            <label for="theme">Couleurs du site</label>
+            <select id="theme" name="theme">
+              <option value="clair" data-icone="soleil">Clair</option>
+              <option value="sombre" data-icone="lune">Sombre</option>
+              <option value="auto" data-icone="smartphone">Automatique</option>
+            </select>
+            <span class="aide">Automatique : Palabre suit le réglage de ton appareil. Ce choix vaut pour ce navigateur.</span>
+          </div>
+        </div>
+      </section>
+
+      <section data-rubrique="donnees" hidden>
+        <h2 class="titre-rubrique">Mes données</h2>
+        <div class="bloc-formulaire">
+          <h3>Télécharger mes données</h3>
+          <p class="aide">Un fichier avec ton profil, tes publications, tes commentaires, les messages que tu as envoyés, tes demandes et tes propositions. Des autres membres, il ne contient que le nom. 3 téléchargements par jour.</p>
+          <button class="bouton bouton-contour" type="button" data-telecharger>Télécharger mes données</button>
+        </div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

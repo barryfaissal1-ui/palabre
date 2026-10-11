@@ -17,7 +17,6 @@
   <title>Modifier mon profil – Palabre</title>
   <script src="/js/app.js" defer></script>
   <script src="/js/modifier-profil.js" defer></script>
-  <script src="/js/push.js" defer></script>
 </head>
 <body>
   <div class="bande"></div>
@@ -87,7 +86,7 @@
         <div class="champ">
           <label for="whatsapp">Numéro WhatsApp</label>
           <input id="whatsapp" name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="+226 70 00 00 00">
-          <span class="aide">Visible uniquement par les membres connectés.</span>
+          <span class="aide">Jamais visible sans compte. Tu choisis qui le voit dans <a href="/parametres#confidentialite">Paramètres</a>.</span>
           <p class="erreur-champ" data-erreur="whatsapp"></p>
         </div>
         <div class="champ">
@@ -173,26 +172,12 @@
       </div>
     </form>
 
-    <!-- Statut « en ligne » dans la messagerie : enregistré tout de suite (modifier-profil.js). -->
-    <section class="bloc-formulaire reglages-push" data-reglage-presence hidden>
-      <h2>Messagerie</h2>
-      <label class="interrupteur">
-        <input type="checkbox" name="montrer-presence">
-        <span class="interrupteur-piste" aria-hidden="true"></span>
-        <span>Montrer quand je suis en ligne</span>
-      </label>
-      <p class="aide">Dans la messagerie, tes contacts voient un point vert quand tu es là. Si tu le caches, tu ne vois plus le leur non plus.</p>
-      <label class="interrupteur">
-        <input type="checkbox" name="son-messages">
-        <span class="interrupteur-piste" aria-hidden="true"></span>
-        <span>Son des messages</span>
-      </label>
-      <p class="aide">Deux petites notes quand un message arrive pendant que Palabre est ouvert, sauf dans la conversation que tu regardes.</p>
+    <!-- Confidentialité, notifications, email, mot de passe : tout est dans /parametres. -->
+    <section class="bloc-formulaire reglages-push">
+      <h2>Paramètres et confidentialité</h2>
+      <p class="aide">Qui voit tes publications et ton numéro, les notifications, le son des messages, ton email et ton mot de passe se règlent dans les paramètres.</p>
+      <a class="bouton bouton-contour" href="/parametres">Ouvrir les paramètres</a>
     </section>
-
-    <!-- Notifications sur le téléphone : rempli par push.js. Ces réglages s'enregistrent tout de suite,
-         sans passer par le bouton « Enregistrer » du profil. -->
-    <section class="bloc-formulaire reglages-push" data-reglages-push hidden></section>
 
     <div class="zone-deconnexion">
       <button class="bouton bouton-lien" type="button" data-deconnexion>Se déconnecter</button>
