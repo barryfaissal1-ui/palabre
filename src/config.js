@@ -42,6 +42,10 @@ module.exports = {
   databaseUrl: obligatoire('DATABASE_URL', 'postgres://palabre:palabre@localhost:5432/palabre'),
   databaseSsl: process.env.DATABASE_SSL === 'true',
   jwtSecret: cleSecrete(),
+  // Lieu approximatif d'une connexion (facultatif) : le nom des en-têtes où l'hébergeur ou le proxy écrit le pays
+  // et la ville du visiteur. Sans eux, Palabre n'affiche simplement aucun lieu (src/utils/sessions.js).
+  entetePays: (process.env.ENTETE_PAYS || '').trim(),
+  enteteVille: (process.env.ENTETE_VILLE || '').trim(),
   smtp: {
     host: process.env.SMTP_HOST || '',
     port: Number(process.env.SMTP_PORT) || 587,

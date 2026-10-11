@@ -149,8 +149,8 @@ test('robots.txt : pages publiques ouvertes, API et pages privées fermées', as
 test('réglages de production : cookie de session sécurisé, proxy de l\'hébergeur reconnu', () => {
   const code = `
     const { creerApp } = require(${JSON.stringify(path.join(__dirname, '..', 'src', 'app'))});
-    const { ouvrirSession } = require(${JSON.stringify(path.join(__dirname, '..', 'src', 'middleware', 'auth'))});
-    let cookie; ouvrirSession({ cookie: (nom, valeur, options) => { cookie = options; } }, { id: 1 });
+    const { poserCookieSession } = require(${JSON.stringify(path.join(__dirname, '..', 'src', 'middleware', 'auth'))});
+    let cookie; poserCookieSession({ cookie: (nom, valeur, options) => { cookie = options; } }, 'jeton');
     console.log(JSON.stringify({ proxy: creerApp().get('trust proxy'), cookie }));
     process.exit(0);`;
   const r = spawnSync(process.execPath, ['-e', code], { cwd: os.tmpdir(), encoding: 'utf8', env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, NODE_ENV: 'production', ...BONS } });

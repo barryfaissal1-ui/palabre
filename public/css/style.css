@@ -2414,6 +2414,13 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
 .ligne-bloque { display: flex; align-items: center; gap: 12px; min-height: 64px; }
 .ligne-bloque + .ligne-bloque { border-top: 1px solid var(--ligne); }
 .ligne-bloque-nom { flex: 1; min-width: 0; }
+/* Appareils connectés (rubrique Sécurité) : le nom, « Cet appareil » ou « Actif il y a 2 h », puis « Déconnecter ». */
+.ligne-session { padding: 8px 0; }
+.ligne-session .ligne-bloque-nom { display: grid; gap: 2px; }
+.ligne-session .ligne-bloque-nom strong { overflow-wrap: anywhere; }
+.ligne-session .texte-discret { font-size: var(--t-13); }
+.session-ici { font-size: var(--t-13); font-weight: 600; color: var(--action); }
+.page-parametres [data-sessions] + .bouton[hidden] { display: none; }
 /* Le menu de l'avatar (en-tête, ordinateur) : ses choix peuvent être des liens. */
 .menu-avatar .nav-profil { padding: 0; border: 0; background: transparent; cursor: pointer; }
 a.menu-choix { text-decoration: none; }

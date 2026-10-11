@@ -13,6 +13,9 @@ const { jetonOuverture, verifierOuverture, envoyerCode, confirmerCode } = requir
 const { liensPublics } = require('../utils/profil-dev');
 const { compterNonLus } = require('./messages');
 const { langueDe } = require('../utils/langue');
+const sessions = require('../utils/sessions');
+
+const { typeAppareil } = sessions;
 
 const router = express.Router();
 const COUT_BCRYPT = 12;
@@ -67,15 +70,6 @@ function profilPrive(u) {
     experience: u.experience || null,
     liens: liensPublics(u),
   };
-}
-
-// « Chrome sur Android », « Safari sur iPhone »… d'après l'en-tête User-Agent. On ne garde que ces deux mots.
-function typeAppareil(agent) {
-  const a = String(agent || '');
-  const navigateur = [[/Edg\//, 'Edge'], [/OPR\/|Opera/, 'Opera'], [/Firefox\//, 'Firefox'], [/Chrome\//, 'Chrome'], [/Safari\//, 'Safari']].find(([motif]) => motif.test(a));
-  const systeme = [[/Android/, 'Android'], [/iPhone/, 'iPhone'], [/iPad/, 'iPad'], [/Windows/, 'Windows'], [/Mac OS X/, 'Mac'], [/Linux/, 'Linux']].find(([motif]) => motif.test(a));
-  if (!navigateur && !systeme) return 'Appareil inconnu';
-  return [navigateur ? navigateur[1] : 'Navigateur', systeme ? `sur ${systeme[1]}` : null].filter(Boolean).join(' ');
 }
 
 async function identifiantLibre(nom) {
@@ -139,7 +133,7 @@ router.post('/inscription', limiteSensible, async (req, res) => {
   } catch (err) {
     console.error('Envoi du code de confirmation impossible :', err.message); // « Renvoyer le code » reste possible
   }
-  ouvrirSession(res, rows[0]);
+  await ouvrirSession(req, res, rows[0]);
   res.status(201).json({ utilisateur: profilPrive(rows[0]) });
 });
 
@@ -178,11 +172,13 @@ router.post('/connexion', limiteSensible, async (req, res) => {
 
   // Dernière connexion (rubrique « Sécurité » des paramètres) : la date et le type d'appareil, jamais l'adresse IP.
   await db.query('UPDATE utilisateurs SET derniere_connexion_le = now(), derniere_connexion_appareil = $2 WHERE id = $1', [utilisateur.id, typeAppareil(req.get('user-agent'))]);
-  ouvrirSession(res, utilisateur);
+  await ouvrirSession(req, res, utilisateur);
   res.json({ utilisateur: profilPrive(utilisateur) });
 });
 
-router.post('/deconnexion', (req, res) => {
+// Se déconnecter : la session est révoquée en base (une copie du cookie ne vaut plus rien), puis le cookie effacé.
+router.post('/deconnexion', async (req, res) => {
+  if (req.session) await sessions.revoquer(req.session.id);
   fermerSession(res);
   res.json({ ok: true });
 });
@@ -250,6 +246,8 @@ router.post('/reinitialiser', limiteSensible, async (req, res) => {
       [hash, rows[0].utilisateur_id],
     );
     await client.query('UPDATE reinitialisations_mdp SET utilise_le = now() WHERE utilisateur_id = $1 AND utilise_le IS NULL', [rows[0].utilisateur_id]);
+    // Tous les appareils sont déconnectés : celui qui connaissait l'ancien mot de passe aussi.
+    await sessions.revoquerToutes(rows[0].utilisateur_id, {}, client);
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');

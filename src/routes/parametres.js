@@ -9,7 +9,8 @@ const config = require('../config');
 const v = require('../utils/validation');
 const mailer = require('../utils/mailer'); // appelé par « mailer.envoyerEmail » : les tests peuvent le remplacer
 const { emailCode } = require('../utils/gabarit-email');
-const { exigerConnexion, ouvrirSession, fermerSession } = require('../middleware/auth');
+const { exigerConnexion, fermerSession } = require('../middleware/auth');
+const sessions = require('../utils/sessions');
 const { apercuMembre, COLONNES_MEMBRE } = require('../utils/membres');
 const { lireConfidentialite, reglageValide } = require('../utils/confidentialite');
 const { langueValide, langueDe, poserCookieLangue } = require('../utils/langue');
@@ -54,8 +55,11 @@ router.get('/', async (req, res) => {
     compte: { prenom: moi.prenom, nomFamille: moi.nom_famille, identifiant: moi.identifiant, email: moi.email, emailEnAttente: enCours ? enCours.email : null, type: moi.type },
     confidentialite: { ...lireConfidentialite(moi), presence: !moi.masquer_presence },
     langue: langueDe(req),
-    // Jamais d'adresse IP : seulement la date et le type d'appareil (« Chrome sur Android »).
-    securite: { derniereConnexion: moi.derniere_connexion_le ? { le: moi.derniere_connexion_le, appareil: moi.derniere_connexion_appareil } : null },
+    // Jamais d'adresse IP : seulement la date, le type d'appareil (« Chrome sur Android ») et, s'il est connu, le lieu.
+    securite: {
+      derniereConnexion: moi.derniere_connexion_le ? { le: moi.derniere_connexion_le, appareil: moi.derniere_connexion_appareil } : null,
+      sessions: await sessions.sessionsDe(moi.id, req.session.id),
+    },
   });
 });
 
@@ -154,12 +158,8 @@ router.post('/email/confirmer', limiteMotDePasse, async (req, res) => {
 
 // ---------- Mot de passe et sessions ----------
 
-// Ferme toutes les sessions du membre, puis rouvre celle de cet appareil. sessions_depuis : toute session ouverte
-// avant cette date est refusée (src/middleware/auth.js).
-async function fermerLesAutresSessions(res, moi, client = db) {
-  await client.query('UPDATE utilisateurs SET sessions_depuis = now() WHERE id = $1', [moi.id]);
-  ouvrirSession(res, moi);
-}
+// Révoque toutes les sessions du membre, sauf celle de cet appareil (table « sessions »).
+const fermerLesAutresSessions = (req, client = db) => sessions.revoquerToutes(req.utilisateur.id, { sauf: req.session.id }, client);
 
 // PUT /api/parametres/mot-de-passe  { ancien, nouveau }
 router.put('/mot-de-passe', limiteMotDePasse, async (req, res) => {
@@ -169,13 +169,28 @@ router.put('/mot-de-passe', limiteMotDePasse, async (req, res) => {
   if (nouveau === req.body.ancien) throw new v.ErreurValidation('Choisis un mot de passe différent de l\'ancien.', 'nouveau');
   await db.query('UPDATE utilisateurs SET mot_de_passe_hash = $2 WHERE id = $1', [moi.id, await bcrypt.hash(nouveau, COUT_BCRYPT)]);
   // Les autres appareils sont déconnectés : si quelqu'un connaissait l'ancien mot de passe, il est dehors.
-  await fermerLesAutresSessions(res, moi);
+  await fermerLesAutresSessions(req);
   res.json({ message: 'Mot de passe modifié. Tes autres appareils ont été déconnectés.' });
+});
+
+// Les appareils connectés : GET /api/parametres/sessions
+router.get('/sessions', async (req, res) => {
+  res.set('Cache-Control', 'no-store').json({ sessions: await sessions.sessionsDe(req.utilisateur.id, req.session.id) });
+});
+
+// « Déconnecter » un appareil : DELETE /api/parametres/sessions/:cle  (cle : l'empreinte donnée par la liste)
+// Seules MES sessions peuvent être désignées : la requête filtre sur mon numéro de membre.
+router.delete('/sessions/:cle', async (req, res) => {
+  const fermee = await sessions.revoquerParCle(req.utilisateur.id, req.params.cle);
+  if (!fermee) throw new v.ErreurHttp(404, 'Cet appareil est déjà déconnecté.');
+  const ici = fermee.id === req.session.id;
+  if (ici) fermerSession(res);
+  res.json({ ok: true, ici });
 });
 
 // POST /api/parametres/deconnecter-autres
 router.post('/deconnecter-autres', async (req, res) => {
-  await fermerLesAutresSessions(res, req.utilisateur);
+  await fermerLesAutresSessions(req);
   res.json({ message: 'Tes autres appareils ont été déconnectés.' });
 });
 

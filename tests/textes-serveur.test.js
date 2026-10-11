@@ -232,7 +232,7 @@ test('aucune phrase du serveur n\'est oubliée : chacune a sa traduction (clé �
     'utils/statique.js': /./,
     // Compte « Membre parti » et nom du fichier d'export : des données, pas des messages.
     'routes/parametres.js': /^(Membre parti|Membre|parti|Autre|Mes données|—)$/,
-    'routes/auth.js': /^(Navigateur|sur \{\})$/,
+    'utils/sessions.js': /^(Navigateur|sur \{\})$/,
     'config.js': /./,
     // Morceaux de phrases assemblés par avecLesAutres() : la phrase entière, elle, est reconnue (testé plus haut).
     'utils/notifications.js': /^(a|ont) (aimé|commenté|répondu)|^\{\} et \{\} autre|^Un membre$|^un membre$/,

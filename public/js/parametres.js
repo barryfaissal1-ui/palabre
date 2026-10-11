@@ -232,14 +232,58 @@
     zone.querySelector('[data-derniere-connexion]').textContent = derniere
       ? `${derniere.appareil}, ${dateRelative(derniere.le)}`
       : t('parametres.securite.aucune');
+    dessinerSessions(securite.sessions);
     zone.querySelector('[data-deconnecter-autres]').addEventListener('click', async () => {
       if (!await confirmer(t('parametres.securite.question'), { bouton: t('parametres.securite.deconnecter') })) return;
       try {
         toast((await api('/parametres/deconnecter-autres', { methode: 'POST', donnees: {} })).message);
+        await rechargerSessions();
       } catch (erreur) {
         toast(erreur.message, 'erreur');
       }
     });
+  }
+
+  // Les appareils connectés : celui-ci d'abord, puis les autres, chacun avec son bouton « Déconnecter ».
+  // La déconnexion est faite par le serveur (la session est révoquée) : l'autre appareil perd l'accès tout de suite.
+  function dessinerSessions(liste) {
+    const zone = rubrique('securite').querySelector('[data-sessions]');
+    const activite = (date) => (Date.now() - new Date(date).getTime() > 7 * 86400000
+      ? t('parametres.securite.actif-le', { date: dateRelative(date) })
+      : t('parametres.securite.actif', { quand: dateRelative(date) }));
+    zone.replaceChildren(el('ul', { classe: 'liste-bloques' }, liste.map((session) => {
+      const bouton = el('button', { classe: 'bouton bouton-contour bouton-compact', type: 'button', texte: t('parametres.securite.deconnecter') });
+      const details = [session.lieu, session.actuelle ? null : activite(session.vuLe)].filter(Boolean).join(', ');
+      const ligne = el('li', { classe: 'ligne-bloque ligne-session' }, [
+        el('span', { classe: 'rubrique-icone' }, [icone(/Android|iPhone|iPad/.test(session.appareil) ? 'smartphone' : 'ordinateur')]),
+        el('div', { classe: 'ligne-bloque-nom' }, [
+          el('strong', { texte: session.appareil }),
+          session.actuelle ? el('span', { classe: 'session-ici', texte: t('parametres.securite.cet-appareil') }) : null,
+          details ? el('span', { classe: 'texte-discret', texte: details }) : null,
+        ].filter(Boolean)),
+        bouton,
+      ]);
+      bouton.addEventListener('click', async () => {
+        if (session.actuelle && !await confirmer(t('parametres.securite.question-ici'), { bouton: t('parametres.securite.deconnecter') })) return;
+        bouton.disabled = true;
+        try {
+          const { ici } = await api(`/parametres/sessions/${encodeURIComponent(session.cle)}`, { methode: 'DELETE', donnees: {} });
+          if (ici) { window.location.href = '/'; return; }
+          toast(t('parametres.securite.deconnecte', { appareil: session.appareil }));
+          ligne.remove();
+          rubrique('securite').querySelector('[data-deconnecter-autres]').hidden = zone.querySelectorAll('li').length < 2;
+        } catch (erreur) {
+          // Déjà déconnecté ailleurs : la liste est simplement relue.
+          toast(erreur.message, 'erreur');
+          rechargerSessions().catch(() => {});
+        }
+      });
+      return ligne;
+    })));
+    rubrique('securite').querySelector('[data-deconnecter-autres]').hidden = liste.length < 2;
+  }
+  async function rechargerSessions() {
+    dessinerSessions((await api('/parametres/sessions')).sessions);
   }
 
   // ---------- Membres bloqués ----------

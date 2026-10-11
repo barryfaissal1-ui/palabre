@@ -265,21 +265,16 @@ test('sécurité : dernière connexion sans adresse IP, déconnexion des autres 
   assert.ok(Date.now() - new Date(securite.derniereConnexion.le).getTime() < 60000);
   assert.ok(!/\d+\.\d+\.\d+\.\d+|::1/.test(JSON.stringify(securite)), 'jamais d\'adresse IP');
 
-  // Les sessions sont datées à la seconde : on laisse passer deux secondes avant de fermer les autres.
-  await attendre(2100);
   const ferme = await appelBrut('/api/parametres/deconnecter-autres', { methode: 'POST', cookie: membres.ese.cookie, donnees: {} });
   assert.equal(ferme.statut, 200);
-  membres.ese.cookie = cookieDe(ferme); // cet appareil reçoit une session neuve
   assert.equal(await moi(cookieTelephone), null, 'le téléphone est déconnecté');
   assert.equal((await moi(membres.ese.cookie)).email, email);
 
   const changer = (ancien, nouveau) => appelBrut('/api/parametres/mot-de-passe', { methode: 'PUT', cookie: membres.ese.cookie, donnees: { ancien, nouveau } });
   assert.deepEqual([(await changer('pas-le-bon', 'nouveau-secret-9')).statut, (await changer('motdepasse1', 'court')).statut, (await changer('motdepasse1', 'motdepasse1')).statut], [400, 400, 400]);
   const autre = cookieDe(await connexion(email));
-  await attendre(2100);
   const change = await changer('motdepasse1', 'nouveau-secret-9');
   assert.equal(change.statut, 200);
-  membres.ese.cookie = cookieDe(change);
   assert.equal(await moi(autre), null, 'changer de mot de passe ferme les autres sessions');
   assert.ok(await moi(membres.ese.cookie));
   assert.equal((await connexion(email)).statut, 401);

@@ -13,7 +13,11 @@
 // les mêmes règles que celles d'un vrai membre. Seuls les projets et les dates sont écrits directement en base.
 // Les images sont dessinées par le script lui-même (de fausses captures d'écran) : aucune photo de personne.
 const zlib = require('node:zlib');
-const jwt = require('jsonwebtoken');
+const { signerJeton } = require('../src/middleware/auth');
+const { creerSession } = require('../src/utils/sessions');
+
+// Les sessions ouvertes par ce script portent ce nom d'appareil : elles sont retirées à la fin.
+const APPAREIL_DEMO = 'script-de-demonstration';
 const config = require('../src/config');
 const { pool, transaction } = require('../src/db/pool');
 const { migrer } = require('../src/db/migrate');
@@ -558,10 +562,11 @@ async function creerComptesComplets(avecAdmin) {
   const serveur = creerApp().listen(0);
   const base = `http://localhost:${serveur.address().port}`;
   const m = {}; // cle → { cookie, identifiant, id }
-  // Les comptes déjà créés : on leur ouvre une session en signant le jeton ici, comme le fait ouvrirSession().
-  // Pas de connexion par le site : elle est limitée à 20 par quart d'heure.
+  // Les comptes déjà créés : on leur ouvre une session ici, comme le fait ouvrirSession() (une ligne dans
+  // « sessions », un jeton signé). Pas de connexion par le site : elle est limitée à 20 par quart d'heure.
   for (const c of comptes) {
-    m[c.email.split('@')[0]] = { id: c.id, identifiant: c.identifiant, cookie: `palabre_session=${jwt.sign({ id: c.id }, config.jwtSecret, { expiresIn: '1h' })}` };
+    const session = await creerSession({ get: () => APPAREIL_DEMO }, c.id);
+    m[c.email.split('@')[0]] = { id: c.id, identifiant: c.identifiant, cookie: `palabre_session=${signerJeton(c.id, session)}` };
   }
   async function appel(chemin, { methode = 'GET', donnees, qui } = {}) {
     const headers = {};
@@ -806,4 +811,8 @@ async function main() {
 
 main()
   .catch((erreur) => { console.error('Échec :', erreur.message); process.exitCode = 1; })
-  .finally(() => pool.end());
+  .finally(async () => {
+    // Les sessions qui ont servi à remplir la démonstration ne doivent pas rester dans « Appareils connectés ».
+    await pool.query('DELETE FROM sessions WHERE appareil = \'Appareil inconnu\' AND utilisateur_id IN (SELECT id FROM utilisateurs WHERE email LIKE $1)', [MOTIF_EMAIL]).catch(() => {});
+    return pool.end();
+  });

@@ -600,3 +600,19 @@ CREATE INDEX IF NOT EXISTS idx_exports_donnees_membre ON exports_donnees (utilis
 ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS langue TEXT;
 ALTER TABLE utilisateurs DROP CONSTRAINT IF EXISTS utilisateurs_langue_check;
 ALTER TABLE utilisateurs ADD CONSTRAINT utilisateurs_langue_check CHECK (langue IN ('fr', 'en'));
+
+-- ============ Sécurité des comptes ============
+-- Une session par appareil connecté. Le jeton du cookie porte l'identifiant de la session ; chaque requête vérifie
+-- qu'elle existe et n'est pas révoquée. L'adresse IP n'est gardée que pour les alertes : aucune route ne la renvoie.
+CREATE TABLE IF NOT EXISTS sessions (
+  id             TEXT PRIMARY KEY,
+  utilisateur_id INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  appareil       TEXT NOT NULL,
+  ip             TEXT,
+  pays           TEXT,
+  ville          TEXT,
+  cree_le        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  vu_le          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  revoquee_le    TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_membre ON sessions (utilisateur_id, vu_le DESC);
