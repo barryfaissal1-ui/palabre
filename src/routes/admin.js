@@ -35,7 +35,7 @@ router.get('/statistiques', async (req, res) => {
     `SELECT (SELECT count(*)::int FROM utilisateurs WHERE type = 'dev' AND bloque = FALSE AND desactive_le IS NULL) AS devs,
             (SELECT count(*)::int FROM utilisateurs WHERE type = 'client' AND bloque = FALSE AND desactive_le IS NULL) AS clients,
             (SELECT count(*)::int FROM utilisateurs WHERE bloque) AS bloques,
-            (SELECT count(*)::int FROM publications WHERE masque = FALSE) AS publications,
+            (SELECT count(*)::int FROM publications WHERE masque = FALSE AND supprimee_le IS NULL) AS publications,
             (SELECT count(*)::int FROM demandes WHERE masque = FALSE) AS demandes,
             (SELECT count(*)::int FROM projets WHERE masque = FALSE) AS projets,
             (SELECT count(*)::int FROM propositions WHERE statut = 'acceptee') AS propositions_acceptees,
@@ -105,6 +105,20 @@ router.get('/signalements', async (req, res) => {
         membreBloque: contenu.bloque,
         membreEstAdmin: contenu.est_admin,
       };
+    });
+  }
+  // Une publication ou un commentaire modifié après coup : l'administrateur voit aussi les textes d'avant
+  // (historique_textes). Personne d'autre n'y a accès.
+  const modifiables = cartes.filter((c) => c.cible && ['publication', 'commentaire'].includes(c.cibleType));
+  if (modifiables.length) {
+    const { rows: versions } = await db.query(
+      `SELECT cible_type, cible_id, left(texte, 300) AS texte, cree_le FROM historique_textes
+        WHERE (cible_type = 'publication' AND cible_id = ANY($1::int[])) OR (cible_type = 'commentaire' AND cible_id = ANY($2::int[]))
+        ORDER BY id DESC`,
+      [modifiables.filter((c) => c.cibleType === 'publication').map((c) => c.cibleId), modifiables.filter((c) => c.cibleType === 'commentaire').map((c) => c.cibleId)],
+    );
+    modifiables.forEach((carte) => {
+      carte.cible.historique = versions.filter((x) => x.cible_type === carte.cibleType && x.cible_id === carte.cibleId).map((x) => ({ texte: x.texte, remplaceLe: x.cree_le }));
     });
   }
   // cible reste null quand le contenu a été supprimé par son auteur entre-temps.

@@ -691,3 +691,24 @@ CREATE TABLE IF NOT EXISTS annulations_suppression (
   jeton_hash     TEXT NOT NULL UNIQUE,
   cree_le        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ============ Modifier, corbeille ============
+-- Une publication ou un commentaire peut être modifié par son auteur pendant 48 heures (le texte seulement).
+-- La page montre une mention discrète « modifiée » ; l'ancien texte est gardé dans historique_textes, que seul un
+-- administrateur lit (pour juger un signalement : on ne peut pas publier une insulte puis la maquiller).
+ALTER TABLE publications ADD COLUMN IF NOT EXISTS modifiee_le TIMESTAMPTZ;
+ALTER TABLE commentaires ADD COLUMN IF NOT EXISTS modifie_le TIMESTAMPTZ;
+CREATE TABLE IF NOT EXISTS historique_textes (
+  id         SERIAL PRIMARY KEY,
+  cible_type TEXT NOT NULL CHECK (cible_type IN ('publication', 'commentaire')),
+  cible_id   INTEGER NOT NULL,
+  auteur_id  INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  texte      TEXT NOT NULL,
+  cree_le    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_historique_textes_cible ON historique_textes (cible_type, cible_id, id);
+
+-- Corbeille : une publication supprimée par son auteur n'est plus visible de personne, mais reste 30 jours dans la
+-- rubrique « Corbeille » de ses paramètres (restaurer, ou supprimer définitivement). Le ménage la vide ensuite.
+ALTER TABLE publications ADD COLUMN IF NOT EXISTS supprimee_le TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_publications_corbeille ON publications (supprimee_le) WHERE supprimee_le IS NOT NULL;

@@ -14,7 +14,7 @@ const sessions = require('../utils/sessions');
 const { assurerAppareil, noterAppareil } = require('../utils/appareils');
 const { creerCodesSecours } = require('../utils/deux-etapes');
 const { journaliser, journalDe } = require('../utils/journal');
-const { DELAI_SUPPRESSION_JOURS } = require('../utils/purge');
+const { DELAI_SUPPRESSION_JOURS, DUREE_CORBEILLE_JOURS, effacerPublication } = require('../utils/purge');
 const { apercuMembre, COLONNES_MEMBRE } = require('../utils/membres');
 const { lireConfidentialite, reglageValide } = require('../utils/confidentialite');
 const { langueValide, langueDe, poserCookieLangue } = require('../utils/langue');
@@ -286,6 +286,39 @@ router.post('/export', async (req, res) => {
     },
     publications, commentaires, messagesEnvoyes: messages, demandes, propositions, projets, amis: amis.map((a) => a.nom),
   });
+});
+
+// ---------- Corbeille : mes publications supprimées depuis moins de 30 jours ----------
+
+// GET /api/parametres/corbeille
+router.get('/corbeille', async (req, res) => {
+  const { rows } = await db.query(
+    `SELECT id, type, left(texte, 240) AS texte, image IS NOT NULL AS avec_image, video_id IS NOT NULL AS avec_video, supprimee_le,
+            supprimee_le + make_interval(hours => $2 * 24) AS expire_le
+       FROM publications WHERE auteur_id = $1 AND supprimee_le IS NOT NULL ORDER BY supprimee_le DESC, id DESC LIMIT 100`,
+    [req.utilisateur.id, DUREE_CORBEILLE_JOURS],
+  );
+  res.set('Cache-Control', 'no-store').json({
+    publications: rows.map((p) => ({ id: p.id, type: p.type, texte: p.texte, avecImage: p.avec_image, avecVideo: p.avec_video, supprimeeLe: p.supprimee_le, expireLe: p.expire_le })),
+  });
+});
+
+// « Restaurer » : POST /api/parametres/corbeille/:id/restaurer — la publication revient telle qu'elle était, avec
+// ses j'aime et ses commentaires. Seulement les miennes : la requête filtre sur mon numéro de membre.
+router.post('/corbeille/:id/restaurer', async (req, res) => {
+  const { rowCount } = await db.query('UPDATE publications SET supprimee_le = NULL WHERE id = $1 AND auteur_id = $2 AND supprimee_le IS NOT NULL', [v.idPositif(req.params.id), req.utilisateur.id]);
+  if (!rowCount) throw new v.ErreurHttp(404, 'Cette publication n\'est plus dans la corbeille.');
+  res.json({ ok: true });
+});
+
+// « Supprimer définitivement » : DELETE /api/parametres/corbeille/:id
+router.delete('/corbeille/:id', async (req, res) => {
+  const efface = await db.transaction(async (client) => {
+    const { rows: [publication] } = await client.query('SELECT id FROM publications WHERE id = $1 AND auteur_id = $2 AND supprimee_le IS NOT NULL FOR UPDATE', [v.idPositif(req.params.id), req.utilisateur.id]);
+    return publication ? effacerPublication(client, publication.id) : false;
+  });
+  if (!efface) throw new v.ErreurHttp(404, 'Cette publication n\'est plus dans la corbeille.');
+  res.json({ ok: true });
 });
 
 // ---------- Désactiver ou supprimer mon compte ----------

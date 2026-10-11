@@ -13,6 +13,7 @@
     { cle: 'bloques', icone: 'bloquer', titre: t('parametres.bloques.titre'), texte: t('parametres.bloques.resume') },
     { cle: 'apparence', icone: 'soleil', titre: t('parametres.apparence.titre'), texte: t('parametres.apparence.resume') },
     { cle: 'donnees', icone: 'telecharger', titre: t('parametres.donnees.titre'), texte: t('parametres.donnees.resume') },
+    { cle: 'corbeille', icone: 'supprimer', titre: t('parametres.corbeille.titre'), texte: t('parametres.corbeille.resume') },
   ];
 
   // Les réglages de confidentialité : la clé et les valeurs sont celles de src/utils/confidentialite.js.
@@ -64,6 +65,7 @@
     });
     if (connue) window.scrollTo(0, 0);
     if (cle === 'bloques') chargerBloques();
+    if (cle === 'corbeille') chargerCorbeille();
   }
 
   // ---------- Petits composants ----------
@@ -396,6 +398,51 @@
   }
   async function rechargerSessions() {
     dessinerSessions((await api('/parametres/sessions')).sessions);
+  }
+
+  // ---------- Corbeille : mes publications supprimées depuis moins de 30 jours ----------
+  async function chargerCorbeille() {
+    const zone = document.querySelector('[data-corbeille]');
+    const fini = chargement(zone, 2);
+    try {
+      const { publications } = await api('/parametres/corbeille');
+      fini();
+      if (publications.length === 0) {
+        zone.replaceChildren(etatVide('calme', t('parametres.corbeille.vide'), t('parametres.corbeille.vide-aide')));
+        return;
+      }
+      const jour = (date) => new Date(date).toLocaleDateString(REGION, { day: 'numeric', month: 'long' });
+      zone.replaceChildren(el('ul', { classe: 'liste-corbeille' }, publications.map((publication) => {
+        const restaurer = el('button', { classe: 'bouton bouton-contour bouton-compact', type: 'button', texte: t('parametres.corbeille.restaurer') });
+        const effacer = el('button', { classe: 'bouton bouton-lien bouton-compact', type: 'button', texte: t('parametres.corbeille.effacer') });
+        const pieces = [publication.avecImage ? t('parametres.corbeille.avec-photo') : null, publication.avecVideo ? t('parametres.corbeille.avec-video') : null].filter(Boolean);
+        const ligne = el('li', { classe: 'ligne-corbeille' }, [
+          el('p', { texte: publication.texte }),
+          el('p', { classe: 'texte-discret', texte: [t('parametres.corbeille.dates', { quand: dateRelative(publication.supprimeeLe), date: jour(publication.expireLe) }), ...pieces].join(' ') }),
+          el('div', { classe: 'corbeille-actions' }, [restaurer, effacer]),
+        ]);
+        const agir = async (bouton, appel, message) => {
+          bouton.disabled = true;
+          try {
+            await appel();
+            toast(message);
+            chargerCorbeille();
+          } catch (erreur) {
+            bouton.disabled = false;
+            toast(erreur.message, 'erreur');
+          }
+        };
+        restaurer.addEventListener('click', () => agir(restaurer, () => api(`/parametres/corbeille/${publication.id}/restaurer`, { methode: 'POST', donnees: {} }), t('parametres.corbeille.restauree')));
+        effacer.addEventListener('click', async () => {
+          if (!await confirmer(t('parametres.corbeille.question'), { bouton: t('parametres.corbeille.effacer'), danger: true })) return;
+          agir(effacer, () => api(`/parametres/corbeille/${publication.id}`, { methode: 'DELETE', donnees: {} }), t('parametres.corbeille.effacee'));
+        });
+        return ligne;
+      })));
+    } catch (erreur) {
+      fini();
+      toast(erreur.message, 'erreur');
+    }
   }
 
   // ---------- Membres bloqués ----------

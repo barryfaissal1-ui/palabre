@@ -229,6 +229,11 @@ test('signalement : un administrateur ne peut pas être bloqué ; contenu suppri
   await signaler('awa', 'publication', ephemere.id);
   await appel(`/api/publications/${ephemere.id}`, { methode: 'DELETE', qui: 'bintou', donnees: {} });
   const { rows: [ligne] } = await pool.query('SELECT id FROM signalements WHERE cible_type = \'publication\' AND cible_id = $1', [ephemere.id]);
+  // Tant qu'elle est dans la corbeille de son auteur, l'administrateur la voit encore : mettre à la corbeille ne
+  // permet pas d'échapper à un signalement.
+  const enCorbeille = (await appel('/api/admin/signalements', { qui: 'chef' })).corps.signalements.find((c) => c.id === ligne.id);
+  assert.equal(enCorbeille.cible.texte, 'Publication vite supprimée');
+  await appel(`/api/parametres/corbeille/${ephemere.id}`, { methode: 'DELETE', qui: 'bintou', donnees: {} });
   const orpheline = (await appel('/api/admin/signalements', { qui: 'chef' })).corps.signalements.find((c) => c.id === ligne.id);
   assert.equal(orpheline.cible, null, 'la carte signale que le contenu n\'existe plus');
   assert.equal((await traiter(orpheline, 'bloquer')).statut, 400);

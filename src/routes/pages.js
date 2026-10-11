@@ -209,7 +209,7 @@ router.get('/publication/:id', async (req, res, next) => {
   const { rows: [publication] } = id ? await db.query(
     `SELECT p.texte, p.image, u.nom, COALESCE(u.confidentialite->>'publications', 'tous') = 'tous' AS publique FROM publications p
        JOIN utilisateurs u ON u.id = p.auteur_id
-      WHERE p.id = $1 AND p.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL`,
+      WHERE p.id = $1 AND p.masque = FALSE AND p.supprimee_le IS NULL AND u.bloque = FALSE AND u.desactive_le IS NULL`,
     [id],
   ) : { rows: [] };
   if (!publication) return pageErreur(res, 404);

@@ -1,5 +1,6 @@
 // Le ménage : ce qui doit disparaître tout seul, à son échéance.
 //  - les comptes dont la suppression a été demandée il y a 30 jours ;
+//  - les publications restées plus de 30 jours dans la corbeille de leur auteur ;
 //  - le journal de sécurité de plus de 90 jours ;
 //  - les sessions fermées ou expirées, les codes et les liens périmés.
 // Lancé au démarrage du serveur puis toutes les heures (server.js), et à la main par « npm run purger ».
@@ -8,6 +9,26 @@ const db = require('../db/pool');
 const { purgerJournal } = require('./journal');
 
 const DELAI_SUPPRESSION_JOURS = 30;
+const DUREE_CORBEILLE_JOURS = 30;
+
+// Suppression DÉFINITIVE d'une publication (client : une transaction) : la ligne, sa photo, son historique.
+// Ses j'aime et ses commentaires partent avec elle (ON DELETE CASCADE).
+async function effacerPublication(client, id) {
+  const { rows: [publication] } = await client.query('DELETE FROM publications WHERE id = $1 RETURNING image', [id]);
+  if (publication && publication.image) await client.query('DELETE FROM fichiers WHERE id = $1', [publication.image]);
+  await client.query('DELETE FROM historique_textes WHERE cible_type = \'publication\' AND cible_id = $1', [id]);
+  return Boolean(publication);
+}
+
+// La corbeille : les publications supprimées par leur auteur depuis plus de 30 jours partent pour de bon.
+// On en profite pour retirer l'historique des textes dont la publication ou le commentaire n'existe plus.
+async function purgerCorbeille() {
+  const { rows } = await db.query('SELECT id FROM publications WHERE supprimee_le < now() - make_interval(hours => $1 * 24) ORDER BY id LIMIT 500', [DUREE_CORBEILLE_JOURS]);
+  for (const { id } of rows) await db.transaction((client) => effacerPublication(client, id));
+  await db.query('DELETE FROM historique_textes h WHERE h.cible_type = \'publication\' AND NOT EXISTS (SELECT 1 FROM publications p WHERE p.id = h.cible_id)');
+  await db.query('DELETE FROM historique_textes h WHERE h.cible_type = \'commentaire\' AND NOT EXISTS (SELECT 1 FROM commentaires c WHERE c.id = h.cible_id)');
+  return rows.length;
+}
 
 // Suppression DÉFINITIVE d'un compte, dans une transaction (client). Tout ce qui est au membre est réellement
 // supprimé (publications, commentaires, projets, demandes, propositions, amis, photos, vocaux…) : les tables sont
@@ -87,7 +108,7 @@ async function purgerPerimes() {
 
 // Tout le ménage. Renvoie ce qui a été fait (écrit dans le journal du serveur quand il y a quelque chose).
 async function purger() {
-  const bilan = { comptes: await purgerComptes(), journal: await purgerJournal(), perimes: await purgerPerimes() };
+  const bilan = { comptes: await purgerComptes(), corbeille: await purgerCorbeille(), journal: await purgerJournal(), perimes: await purgerPerimes() };
   return bilan;
 }
 
@@ -100,4 +121,4 @@ function lancerMenage(intervalleMs = 60 * 60 * 1000) {
   return setInterval(passer, intervalleMs).unref();
 }
 
-module.exports = { DELAI_SUPPRESSION_JOURS, supprimerDefinitivement, purger, purgerComptes, lancerMenage };
+module.exports = { DELAI_SUPPRESSION_JOURS, DUREE_CORBEILLE_JOURS, supprimerDefinitivement, effacerPublication, purger, purgerComptes, purgerCorbeille, lancerMenage };

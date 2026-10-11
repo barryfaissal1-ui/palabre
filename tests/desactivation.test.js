@@ -54,7 +54,8 @@ async function visible(cle) {
     publication: (await appelBrut(`/api/publications/${m.publication}`)).statut,
     // le fil d'un auteur (l'onglet Publications de son profil) : le fil général est limité à 10, d'autres tests y publient
     fil: (await appel(`/api/publications?auteur=${m.identifiant}`, { qui: 'bintou' })).texte.includes(m.identifiant),
-    recherche: (await appel(`/api/devs?q=${cle}`, { qui: 'bintou' })).texte.includes(m.identifiant),
+    // recherche par le nom de famille propre à ce fichier : d'autres tests ont aussi une « awa »
+    recherche: (await appel(`/api/devs?q=Pause${lettres}`, { qui: 'bintou' })).texte.includes(m.identifiant),
     amis: (await appel('/api/amis', { qui: 'bintou' })).texte.includes(m.identifiant),
     proposition: (await appel(`/api/demandes/${membres.kadi.demande}`, { qui: 'kadi' })).texte.includes(m.identifiant),
   };

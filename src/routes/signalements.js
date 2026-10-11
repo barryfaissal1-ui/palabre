@@ -12,7 +12,7 @@ const limiteSignalements = limiteParMembre(20, 60, 'Trop de signalements. Réess
 // Pour chaque type de cible : comment retrouver sa ligne et son auteur.
 // Un profil est désigné par son identifiant public, le reste par son numéro.
 const CIBLES = {
-  publication: (cible) => ['SELECT id, auteur_id FROM publications WHERE id = $1', v.idPositif(cible)],
+  publication: (cible) => ['SELECT id, auteur_id FROM publications WHERE id = $1 AND supprimee_le IS NULL', v.idPositif(cible)],
   commentaire: (cible) => ['SELECT id, auteur_id FROM commentaires WHERE id = $1', v.idPositif(cible)],
   demande: (cible) => ['SELECT id, client_id AS auteur_id FROM demandes WHERE id = $1', v.idPositif(cible)],
   projet: (cible) => ['SELECT id, dev_id AS auteur_id FROM projets WHERE id = $1', v.idPositif(cible)],

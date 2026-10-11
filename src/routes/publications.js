@@ -9,6 +9,7 @@ const v = require('../utils/validation');
 const { exigerConnexion } = require('../middleware/auth');
 const { lireImageDataUrl } = require('../utils/images');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
+const { effacerPublication } = require('../utils/purge');
 const { lireLienVideo } = require('../utils/videos');
 const { notifier, retirerActeur, avecLesAutres } = require('../utils/notifications');
 const { publicationsVisibles } = require('../utils/confidentialite');
@@ -22,17 +23,21 @@ const COMMENTAIRES_PAGE = 3;   // sur la page publique d'une publication
 
 const limitePublications = limiteParMembre(30, 15, 'Tu publies très vite. Réessaie dans quelques minutes.');
 const limiteCommentaires = limiteParMembre(60, 15, 'Tu commentes très vite. Réessaie dans quelques minutes.');
+// L'auteur peut corriger son texte pendant 48 heures : assez pour une faute, pas assez pour réécrire l'histoire.
+const DUREE_MODIFICATION_H = 48;
+const encoreModifiable = (creeLe) => Date.now() - new Date(creeLe).getTime() < DUREE_MODIFICATION_H * 3600 * 1000;
 const limiteJaime = limiteParMembre(300, 15, 'Doucement sur les j\'aime. Réessaie dans quelques minutes.');
 
 // Une publication avec son auteur et ses compteurs. $1 est toujours le membre connecté.
-// Les publications masquées par un administrateur et celles des comptes bloqués n'apparaissent jamais.
+// Les publications masquées par un administrateur, celles des comptes bloqués et celles qui sont dans la corbeille
+// de leur auteur (supprimee_le) n'apparaissent jamais.
 // Confidentialité : l'auteur choisit qui voit ses publications (tout le monde, les membres, ses amis). La condition
 // est dans cette requête commune : le fil, le profil, la page publique et la lecture d'une publication la suivent tous.
 // Tout ce qu'il faut pour afficher le fil arrive en UNE requête (sous-requêtes et LATERAL), jamais une par publication :
 //  - « aime » : une personne qui a aimé, autre que moi, un de mes amis en priorité (« Aimé par Awa et 12 autres ») ;
 //  - « apercu » : les 2 derniers commentaires, avec leur auteur.
 const selection = (nbCommentaires = COMMENTAIRES_APERCU) => `
-  SELECT p.id, p.type, p.texte, p.image, p.image_largeur, p.image_hauteur, p.video_plateforme, p.video_id, p.cree_le, p.auteur_id, ${COLONNES_MEMBRE},
+  SELECT p.id, p.type, p.texte, p.image, p.image_largeur, p.image_hauteur, p.video_plateforme, p.video_id, p.cree_le, p.modifiee_le, p.auteur_id, ${COLONNES_MEMBRE},
          aime.nom AS aime_nom, aime.prenom AS aime_prenom, aime.identifiant AS aime_identifiant, apercu.liste AS apercu_commentaires,
          (SELECT count(*)::int FROM jaime j WHERE j.publication_id = p.id) AS nb_jaime,
          (SELECT count(*)::int FROM commentaires c
@@ -55,14 +60,14 @@ const selection = (nbCommentaires = COMMENTAIRES_APERCU) => `
     ) aime ON TRUE
     LEFT JOIN LATERAL (
       SELECT json_agg(to_jsonb(d) ORDER BY d.id) AS liste
-        FROM (SELECT c.id, c.texte, c.cree_le, c.auteur_id, ${COLONNES_MEMBRE}
+        FROM (SELECT c.id, c.texte, c.cree_le, c.modifie_le, c.auteur_id, ${COLONNES_MEMBRE}
                 FROM commentaires c
                 JOIN utilisateurs u ON u.id = c.auteur_id -- ici « u » est l'auteur du commentaire
                WHERE c.publication_id = p.id AND c.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL
                ORDER BY c.id DESC
                LIMIT ${nbCommentaires}) d
     ) apercu ON TRUE
-   WHERE p.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL AND ${publicationsVisibles('$1')}`;
+   WHERE p.masque = FALSE AND p.supprimee_le IS NULL AND u.bloque = FALSE AND u.desactive_le IS NULL AND ${publicationsVisibles('$1')}`;
 const SELECTION = selection();
 
 function versPublication(ligne, moi) {
@@ -76,6 +81,9 @@ function versPublication(ligne, moi) {
     // Vidéo jointe : la plateforme et l'identifiant, rien d'autre. Le navigateur reconstruit l'adresse du lecteur officiel.
     video: ligne.video_plateforme ? { plateforme: ligne.video_plateforme, id: ligne.video_id } : null,
     creeLe: ligne.cree_le,
+    // « modifiée » : la mention discrète ; « modifiable » : c'est la mienne et elle a moins de 48 heures.
+    modifiee: Boolean(ligne.modifiee_le),
+    modifiable: ligne.auteur_id === moi.id && encoreModifiable(ligne.cree_le),
     auteur: apercuMembre(ligne),
     nbJaime: ligne.nb_jaime,
     aimePar: ligne.aime_nom ? { nom: ligne.aime_nom, prenom: ligne.aime_prenom || ligne.aime_nom.split(' ')[0], identifiant: ligne.aime_identifiant } : null,
@@ -93,6 +101,8 @@ function versCommentaire(ligne, moi) {
     id: ligne.id,
     texte: ligne.texte,
     creeLe: ligne.cree_le,
+    modifie: Boolean(ligne.modifie_le),
+    modifiable: ligne.auteur_id === moi.id && encoreModifiable(ligne.cree_le),
     auteur: apercuMembre(ligne),
     estMoi: ligne.auteur_id === moi.id,
   };
@@ -107,7 +117,7 @@ async function publicationDeLaRoute(req, res) {
       // (Un administrateur doit pouvoir la supprimer après un signalement.)
       `SELECT p.id, p.auteur_id, p.image FROM publications p
          JOIN utilisateurs u ON u.id = p.auteur_id
-        WHERE p.id = $1 AND p.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL AND ($3::boolean OR ${publicationsVisibles('$2')})`,
+        WHERE p.id = $1 AND p.masque = FALSE AND p.supprimee_le IS NULL AND u.bloque = FALSE AND u.desactive_le IS NULL AND ($3::boolean OR ${publicationsVisibles('$2')})`,
       [id, req.utilisateur.id, Boolean(req.utilisateur.est_admin)],
     );
     if (rows[0]) return rows[0];
@@ -229,7 +239,32 @@ router.post('/', limitePublications, async (req, res) => {
   res.status(201).json({ publication: versPublication(rows[0], moi) });
 });
 
+// Modifier sa publication : PUT /api/publications/:id  { texte }
+// Le texte seulement : le type, l'image et la vidéo restent. Pendant 48 heures, par son auteur (pas même un
+// administrateur : il masque ou supprime, il ne réécrit pas). L'ancien texte part dans historique_textes.
+router.put('/:id', limitePublications, async (req, res) => {
+  const moi = req.utilisateur;
+  const texte = v.texte(req.body?.texte, 'texte', { max: 3000 });
+  const publication = await publicationDeLaRoute(req, res);
+  if (!publication) return;
+  if (publication.auteur_id !== moi.id) return res.status(403).json({ erreur: 'Tu ne peux modifier que tes propres publications.' });
+  const faite = await db.transaction(async (client) => {
+    // La limite des 48 heures est vérifiée ici, avec l'horloge de la base, jamais avec celle du navigateur.
+    const { rows: [avant] } = await client.query('SELECT texte FROM publications WHERE id = $1 AND cree_le > now() - make_interval(hours => $2) FOR UPDATE', [publication.id, DUREE_MODIFICATION_H]);
+    if (!avant) return false;
+    if (avant.texte === texte) return true; // rien n'a changé : pas de mention « modifiée » pour rien
+    await client.query('INSERT INTO historique_textes (cible_type, cible_id, auteur_id, texte) VALUES (\'publication\', $1, $2, $3)', [publication.id, moi.id, avant.texte]);
+    await client.query('UPDATE publications SET texte = $2, modifiee_le = now() WHERE id = $1', [publication.id, texte]);
+    return true;
+  });
+  if (!faite) return res.status(403).json({ erreur: 'Une publication ne peut être modifiée que pendant 48 heures.' });
+  const { rows } = await db.query(`${SELECTION} AND p.id = $2`, [moi.id, publication.id]);
+  res.json({ publication: versPublication(rows[0], moi) });
+});
+
 // Supprimer sa publication : DELETE /api/publications/:id
+// Par son auteur : elle part dans SA corbeille (invisible pour tous, restaurable 30 jours dans /parametres).
+// Par un administrateur, après un signalement : elle est supprimée pour de bon.
 router.delete('/:id', async (req, res) => {
   const moi = req.utilisateur;
   const publication = await publicationDeLaRoute(req, res);
@@ -237,15 +272,16 @@ router.delete('/:id', async (req, res) => {
   if (publication.auteur_id !== moi.id && !moi.est_admin) {
     return res.status(403).json({ erreur: 'Tu ne peux supprimer que tes propres publications.' });
   }
+  if (publication.auteur_id === moi.id) {
+    await db.query('UPDATE publications SET supprimee_le = now() WHERE id = $1', [publication.id]);
+    return res.json({ ok: true, corbeille: true });
+  }
 
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
     // Les j'aime et les commentaires partent avec la publication (ON DELETE CASCADE).
-    await client.query('DELETE FROM publications WHERE id = $1', [publication.id]);
-    if (publication.image) {
-      await client.query('DELETE FROM fichiers WHERE id = $1', [publication.image]);
-    }
+    await effacerPublication(client, publication.id);
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');
@@ -298,7 +334,7 @@ router.get('/:id/commentaires', async (req, res) => {
   const publication = await publicationDeLaRoute(req, res);
   if (!publication) return;
   const { rows } = await db.query(
-    `SELECT c.id, c.texte, c.cree_le, c.auteur_id, ${COLONNES_MEMBRE}
+    `SELECT c.id, c.texte, c.cree_le, c.modifie_le, c.auteur_id, ${COLONNES_MEMBRE}
        FROM commentaires c
        JOIN utilisateurs u ON u.id = c.auteur_id
       WHERE c.publication_id = $1 AND c.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL
@@ -342,7 +378,38 @@ router.post('/:id/commentaires', limiteCommentaires, async (req, res) => {
   res.status(201).json({ commentaire: versCommentaire(rows[0], moi) });
 });
 
+// Modifier son commentaire : PUT /api/publications/:id/commentaires/:commentaireId  { texte }
+// Mêmes règles que pour une publication : par son auteur, pendant 48 heures, l'ancien texte est gardé.
+router.put('/:id/commentaires/:commentaireId', limiteCommentaires, async (req, res) => {
+  const moi = req.utilisateur;
+  const texte = v.texte(req.body?.texte, 'texte', { max: 1000 });
+  const publication = await publicationDeLaRoute(req, res);
+  if (!publication) return;
+  const commentaireId = v.idPositif(req.params.commentaireId);
+  const resultat = await db.transaction(async (client) => {
+    const { rows: [avant] } = await client.query(
+      'SELECT texte, auteur_id, cree_le > now() - make_interval(hours => $3) AS recent FROM commentaires WHERE id = $1 AND publication_id = $2 AND masque = FALSE FOR UPDATE',
+      [commentaireId, publication.id, DUREE_MODIFICATION_H],
+    );
+    if (!avant) return { statut: 404, erreur: 'Ce commentaire n\'existe plus.' };
+    if (avant.auteur_id !== moi.id) return { statut: 403, erreur: 'Tu ne peux modifier que tes propres commentaires.' };
+    if (!avant.recent) return { statut: 403, erreur: 'Un commentaire ne peut être modifié que pendant 48 heures.' };
+    if (avant.texte !== texte) {
+      await client.query('INSERT INTO historique_textes (cible_type, cible_id, auteur_id, texte) VALUES (\'commentaire\', $1, $2, $3)', [commentaireId, moi.id, avant.texte]);
+      await client.query('UPDATE commentaires SET texte = $2, modifie_le = now() WHERE id = $1', [commentaireId, texte]);
+    }
+    return {};
+  });
+  if (resultat.erreur) return res.status(resultat.statut).json({ erreur: resultat.erreur });
+  const { rows } = await db.query(
+    `SELECT c.id, c.texte, c.cree_le, c.modifie_le, c.auteur_id, ${COLONNES_MEMBRE} FROM commentaires c JOIN utilisateurs u ON u.id = c.auteur_id WHERE c.id = $1`,
+    [commentaireId],
+  );
+  res.json({ commentaire: versCommentaire(rows[0], moi) });
+});
+
 // Supprimer son commentaire : DELETE /api/publications/:id/commentaires/:commentaireId
+// Un commentaire supprimé part tout de suite : la corbeille ne concerne que les publications.
 router.delete('/:id/commentaires/:commentaireId', async (req, res) => {
   const moi = req.utilisateur;
   const publicationId = v.idPositif(req.params.id);

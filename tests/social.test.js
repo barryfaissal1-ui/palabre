@@ -246,6 +246,8 @@ test('seul l\'auteur peut supprimer sa publication, et son image part avec', asy
   assert.equal((await appel(chemin, { methode: 'DELETE', qui: 'bintou', donnees: {} })).statut, 403);
   assert.equal((await appel(chemin, { methode: 'DELETE', qui: 'awa', donnees: {} })).statut, 200);
   assert.equal((await appel(chemin, { methode: 'DELETE', qui: 'awa', donnees: {} })).statut, 404);
+  // Elle est dans la corbeille d'Awa (voir tests/corbeille.test.js) ; supprimée définitivement, son image part avec.
+  assert.equal((await appel(`/api/parametres/corbeille/${publication.id}`, { methode: 'DELETE', qui: 'awa', donnees: {} })).statut, 200);
   assert.equal((await fetch(`${base}${publication.image}`)).status, 404);
 });
 

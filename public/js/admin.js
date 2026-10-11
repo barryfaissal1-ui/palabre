@@ -77,6 +77,11 @@
       const etat = [cible.membreEstAdmin ? t('admin.etat.administrateur') : null, cible.membreBloque ? t('admin.etat.deja-bloque') : null, cible.dejaMasque ? t('admin.etat.deja-masque') : null].filter(Boolean).join(', ');
       contenu = [
         cible.texte ? el('blockquote', { classe: 'contenu-signale', texte: cible.texte }) : null,
+        // Le texte a été modifié après coup : les versions d'avant, de la plus récente à la plus ancienne.
+        cible.historique && cible.historique.length ? el('div', { classe: 'versions-precedentes' }, [
+          el('p', { classe: 'texte-discret', texte: t('admin.versions-precedentes', { n: cible.historique.length }) }),
+          ...cible.historique.map((version) => el('blockquote', { classe: 'contenu-signale', texte: version.texte })),
+        ]) : null,
         el('p', { classe: 'texte-discret' }, [
           carte.cibleType === 'profil' ? t('admin.profil-de') : t('commun.par'),
           lienMembre(cible.membre),

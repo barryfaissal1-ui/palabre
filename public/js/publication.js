@@ -30,6 +30,41 @@
     return nbJaime === 1 ? t('publication.aime-par', { prenom: prenom(aimePar) }) : t('publication.aime-par-et', { prenom: prenom(aimePar), autres });
   }
 
+  // ---------- Modifier un texte (publication ou commentaire), pendant 48 heures ----------
+  // La règle est vérifiée par le serveur ; ici on évite seulement de proposer « Modifier » trop tard.
+  const encoreModifiable = (creeLe) => Date.now() - new Date(creeLe).getTime() < 48 * 3600 * 1000;
+  // « il y a 2 h », ou « il y a 2 h, modifiée » : la mention reste discrète, à côté de la date.
+  const dateEtMention = (creeLe, modifie, cle) => (modifie ? t(cle, { quand: dateRelative(creeLe) }) : dateRelative(creeLe));
+  // Remplace un texte par un champ, avec « Annuler » et « Enregistrer ». Le texte revient à la fin, modifié ou non.
+  function champModification({ element, texte, max, enregistrer, apres = () => {} }) {
+    if (element.hidden) return; // déjà en cours de modification
+    const zone = el('textarea', { classe: 'champ-modification', rows: '3', maxlength: String(max), 'aria-label': t('publication.modifier-texte') });
+    zone.value = texte;
+    const erreurZone = el('p', { classe: 'erreur-champ', role: 'alert' });
+    const annuler = el('button', { classe: 'bouton bouton-lien', type: 'button', texte: t('commun.annuler') });
+    const valider = el('button', { classe: 'bouton bouton-principal bouton-compact', type: 'submit', texte: t('commun.enregistrer') });
+    const formulaire = el('form', { classe: 'formulaire-modification' }, [zone, erreurZone, el('div', { classe: 'modification-actions' }, [annuler, valider])]);
+    const fermer = () => { formulaire.remove(); element.hidden = false; apres(); };
+    annuler.addEventListener('click', fermer);
+    formulaire.addEventListener('submit', async (evenement) => {
+      evenement.preventDefault();
+      erreurZone.textContent = '';
+      valider.disabled = true;
+      try {
+        await enregistrer(zone.value);
+        fermer();
+        toast(t('commun.enregistre'));
+      } catch (erreur) {
+        erreurZone.textContent = erreur.message;
+        valider.disabled = false;
+      }
+    });
+    element.hidden = true;
+    element.after(formulaire);
+    zone.focus();
+    zone.setSelectionRange(zone.value.length, zone.value.length);
+  }
+
   // ---------- Commentaires ----------
   function elementCommentaire(commentaire, publication, apresSuppression, visiteur) {
     async function supprimer() {
@@ -43,19 +78,36 @@
         toast(erreur.message, 'erreur');
       }
     }
+    const texteCommentaire = el('p', { classe: 'commentaire-texte', texte: commentaire.texte });
+    const quand = el('span', { classe: 'texte-discret' });
+    const ecrireDate = () => { quand.textContent = dateEtMention(commentaire.creeLe, commentaire.modifie, t('publication.date-modifie')); };
+    ecrireDate();
+    // Modifier son commentaire (48 heures) : le texte devient un champ, juste là où il est.
+    const modifier = () => champModification({
+      element: texteCommentaire,
+      texte: commentaire.texte,
+      max: 1000,
+      enregistrer: async (nouveau) => {
+        const reponse = await api(`/publications/${publication.id}/commentaires/${commentaire.id}`, { methode: 'PUT', donnees: { texte: nouveau } });
+        Object.assign(commentaire, reponse.commentaire);
+        texteCommentaire.textContent = commentaire.texte;
+        ecrireDate();
+      },
+    });
     // Un visiteur ne peut ni signaler ni supprimer : pas de menu « … » pour lui.
     const menu = visiteur ? null : menuOptions(() => [
-      commentaire.estMoi ? null : { texte: t('signalement.titre'), icone: 'signaler', action: () => signaler('commentaire', commentaire.id) },
+      commentaire.modifiable && encoreModifiable(commentaire.creeLe) ? { texte: t('commun.modifier'), icone: 'modifier', action: modifier } : null,
       commentaire.estMoi || estAdmin ? { texte: t('commun.supprimer'), icone: 'supprimer', danger: true, action: supprimer } : null,
+      commentaire.estMoi ? null : { texte: t('signalement.titre'), icone: 'signaler', action: () => signaler('commentaire', commentaire.id) },
     ], { cote: 'gauche' });
     const element = el('li', { classe: 'commentaire' }, [
       lienAuteur(commentaire.auteur, 'mini'),
       el('div', { classe: 'commentaire-corps' }, [
         el('div', { classe: 'commentaire-bulle' }, [
           nomMembre(commentaire.auteur),
-          el('p', { classe: 'commentaire-texte', texte: commentaire.texte }),
+          texteCommentaire,
         ]),
-        el('div', { classe: 'commentaire-pied' }, [el('span', { classe: 'texte-discret', texte: dateRelative(commentaire.creeLe) }), menu]),
+        el('div', { classe: 'commentaire-pied' }, [quand, menu]),
       ]),
     ]);
     return element;
@@ -208,11 +260,14 @@
     const boutonJaime = el('button', { classe: 'bouton-action bouton-jaime', type: 'button' }, [icone('coeur'), t('publication.jaime')]);
     const boutonCommenter = el('button', { classe: 'bouton-action', type: 'button' }, [icone('commentaire'), t('publication.commenter')]);
     async function supprimer() {
-      if (!(await confirmer(t('publication.supprimer'), { bouton: t('commun.supprimer'), danger: true }))) return;
+      // La mienne part dans ma corbeille (30 jours pour changer d'avis) ; celle d'un autre, supprimée par un
+      // administrateur, part pour de bon.
+      const question = publication.estMoi ? t('publication.supprimer') : t('publication.supprimer-admin');
+      if (!(await confirmer(question, { bouton: t('commun.supprimer'), danger: true }))) return;
       try {
-        await api(`/publications/${publication.id}`, { methode: 'DELETE', donnees: {} });
+        const { corbeille } = await api(`/publications/${publication.id}`, { methode: 'DELETE', donnees: {} });
         carte.remove();
-        toast(t('publication.supprimee'));
+        toast(corbeille ? t('publication.dans-corbeille') : t('publication.supprimee'));
       } catch (erreur) {
         toast(erreur.message, 'erreur');
       }
@@ -223,8 +278,10 @@
     const menu = menuOptions(() => [
       { texte: t('commun.partager'), icone: 'partager', action: () => partager({ titre: t('publication.sur-palabre', { nom: publication.auteur.nom }), texte: apercu.length > 120 ? `${apercu.slice(0, 119)}…` : apercu, url: lien }) },
       { texte: t('commun.copier-le-lien'), icone: 'lien', action: () => copierLien(lien) },
-      publication.estMoi || visiteur ? null : { texte: t('signalement.titre'), icone: 'signaler', action: () => signaler('publication', publication.id) },
+      // Modifier (l'auteur, pendant 48 heures), Supprimer (l'auteur), Signaler (les autres).
+      publication.modifiable && !visiteur && encoreModifiable(publication.creeLe) ? { texte: t('commun.modifier'), icone: 'modifier', action: modifier } : null,
       publication.estMoi || estAdmin ? { texte: t('commun.supprimer'), icone: 'supprimer', danger: true, action: supprimer } : null,
+      publication.estMoi || visiteur ? null : { texte: t('signalement.titre'), icone: 'signaler', action: () => signaler('publication', publication.id) },
     ]);
     menu.classList.add('publication-menu');
 
@@ -253,6 +310,27 @@
       texte.classList.remove('coupe');
       voirPlus.remove();
     });
+    const corps = el('div', { classe: 'publication-corps' }, [texte, voirPlus]);
+    const quand = el('span', { classe: 'texte-discret' });
+    const ecrireDate = () => { quand.textContent = dateEtMention(publication.creeLe, publication.modifiee, t('publication.date-modifiee')); };
+    ecrireDate();
+    // Modifier sa publication : le texte seulement (le type, l'image et la vidéo restent).
+    function modifier() {
+      voirPlus.hidden = true;
+      champModification({
+        element: texte,
+        texte: publication.texte,
+        max: 3000,
+        enregistrer: async (nouveau) => {
+          const reponse = await api(`/publications/${publication.id}`, { methode: 'PUT', donnees: { texte: nouveau } });
+          publication.texte = reponse.publication.texte;
+          publication.modifiee = reponse.publication.modifiee;
+          texte.textContent = publication.texte;
+          ecrireDate();
+        },
+        apres: () => texte.classList.remove('coupe'), // après une modification, on montre le texte en entier
+      });
+    }
     requestAnimationFrame(() => { // au prochain affichage, la carte est dans la page : on peut mesurer le texte
       if (texte.scrollHeight > texte.clientHeight + 2) voirPlus.hidden = false;
       else texte.classList.remove('coupe');
@@ -264,13 +342,13 @@
         el('div', { classe: 'publication-qui' }, [
           nomMembre(publication.auteur),
           el('p', { classe: 'publication-meta' }, [
-            el('span', { classe: 'texte-discret', texte: dateRelative(publication.creeLe) }),
+            quand,
             el('span', { classe: `badge-type badge-${publication.type}` }, [icone(type.icone), type.nom]),
           ]),
         ]),
         menu,
       ]),
-      el('div', { classe: 'publication-corps' }, [texte, voirPlus]),
+      corps,
       publication.image ? imagePublication(publication) : null,
       publication.video ? videoPublication(publication.video) : null,
       preuve,
