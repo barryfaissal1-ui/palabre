@@ -616,3 +616,45 @@ CREATE TABLE IF NOT EXISTS sessions (
   revoquee_le    TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_membre ON sessions (utilisateur_id, vu_le DESC);
+
+-- Appareils connus d'un membre : l'empreinte du numéro porté par le cookie d'appareil (src/utils/appareils.js).
+-- confiance : « Faire confiance à cet appareil », qui dispense du code de la validation en deux étapes.
+CREATE TABLE IF NOT EXISTS appareils_connus (
+  utilisateur_id INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  appareil_hash  TEXT NOT NULL,
+  confiance      BOOLEAN NOT NULL DEFAULT FALSE,
+  cree_le        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  vu_le          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (utilisateur_id, appareil_hash)
+);
+
+-- Validation en deux étapes (coupée par défaut) et verrou posé par « Ce n'était pas moi » : tant que verrouille_le
+-- est rempli, la connexion est refusée ; choisir un nouveau mot de passe (lien reçu par email) rouvre le compte.
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS deux_etapes BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS verrouille_le TIMESTAMPTZ;
+
+-- Les codes à 6 chiffres servent à deux choses : confirmer l'email à l'inscription, et valider une connexion.
+ALTER TABLE confirmations_email ADD COLUMN IF NOT EXISTS motif TEXT NOT NULL DEFAULT 'inscription';
+ALTER TABLE confirmations_email DROP CONSTRAINT IF EXISTS confirmations_email_motif_check;
+ALTER TABLE confirmations_email ADD CONSTRAINT confirmations_email_motif_check CHECK (motif IN ('inscription', 'connexion'));
+
+-- Codes de secours de la validation en deux étapes : 8 par membre, à usage unique, gardés hachés.
+CREATE TABLE IF NOT EXISTS codes_secours (
+  id             SERIAL PRIMARY KEY,
+  utilisateur_id INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  code_hash      TEXT NOT NULL,
+  utilise_le     TIMESTAMPTZ,
+  cree_le        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_codes_secours_membre ON codes_secours (utilisateur_id);
+
+-- Lien « Ce n'était pas moi » de l'email d'alerte : à usage unique, 24 heures, gardé haché.
+CREATE TABLE IF NOT EXISTS alertes_connexion (
+  id             SERIAL PRIMARY KEY,
+  utilisateur_id INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  jeton_hash     TEXT NOT NULL UNIQUE,
+  session_id     TEXT,
+  expire_le      TIMESTAMPTZ NOT NULL,
+  utilise_le     TIMESTAMPTZ,
+  cree_le        TIMESTAMPTZ NOT NULL DEFAULT now()
+);

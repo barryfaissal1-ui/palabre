@@ -167,6 +167,25 @@
           <div data-sessions aria-live="polite"></div>
           <button data-t="parametres.securite.deconnecter-autres" class="bouton bouton-contour" type="button" data-deconnecter-autres>Déconnecter tous les autres appareils</button>
         </div>
+        <div class="bloc-formulaire" data-deux-etapes>
+          <h3 data-t="parametres.deux-etapes.titre">Validation en deux étapes</h3>
+          <p data-t="parametres.deux-etapes.aide" class="aide">Quand tu te connectes depuis un appareil que Palabre ne connaît pas, un code à 6 chiffres est envoyé à ton email, en plus du mot de passe. Même avec ton mot de passe, personne n'entre sans ta boîte email.</p>
+          <p class="etat-reglage" data-etat-deux-etapes aria-live="polite"></p>
+          <div data-codes-secours hidden>
+            <h4 data-t="parametres.deux-etapes.codes-titre">Tes 8 codes de secours</h4>
+            <p data-t="parametres.deux-etapes.codes-aide" class="aide">Note-les maintenant, sur papier ou dans un endroit sûr : ils ne seront plus jamais affichés. Chacun ne sert qu'une fois, le jour où tu n'as plus accès à ton email.</p>
+            <ul class="codes-secours" data-liste-codes></ul>
+            <button data-t="parametres.deux-etapes.copier" class="bouton bouton-contour" type="button" data-copier-codes>Copier les codes</button>
+          </div>
+          <form data-formulaire-deux-etapes novalidate>
+            <div class="champ">
+              <label data-t="parametres.ton-mot-de-passe" for="mot-de-passe-deux-etapes">Ton mot de passe</label>
+              <input id="mot-de-passe-deux-etapes" name="motDePasse" type="password" autocomplete="current-password">
+              <p class="erreur-champ" data-erreur="motDePasse"></p>
+            </div>
+            <button class="bouton bouton-principal" type="submit" data-bouton-deux-etapes></button>
+          </form>
+        </div>
       </section>
 
       <section data-rubrique="bloques" hidden>

@@ -11,6 +11,8 @@ const mailer = require('../utils/mailer'); // appelé par « mailer.envoyerEmail
 const { emailCode } = require('../utils/gabarit-email');
 const { exigerConnexion, fermerSession } = require('../middleware/auth');
 const sessions = require('../utils/sessions');
+const { assurerAppareil, noterAppareil } = require('../utils/appareils');
+const { creerCodesSecours } = require('../utils/deux-etapes');
 const { apercuMembre, COLONNES_MEMBRE } = require('../utils/membres');
 const { lireConfidentialite, reglageValide } = require('../utils/confidentialite');
 const { langueValide, langueDe, poserCookieLangue } = require('../utils/langue');
@@ -59,6 +61,7 @@ router.get('/', async (req, res) => {
     securite: {
       derniereConnexion: moi.derniere_connexion_le ? { le: moi.derniere_connexion_le, appareil: moi.derniere_connexion_appareil } : null,
       sessions: await sessions.sessionsDe(moi.id, req.session.id),
+      deuxEtapes: { active: moi.deux_etapes, codesRestants: moi.deux_etapes ? (await db.query('SELECT count(*)::int AS nb FROM codes_secours WHERE utilisateur_id = $1 AND utilise_le IS NULL', [moi.id])).rows[0].nb : 0 },
     },
   });
 });
@@ -192,6 +195,29 @@ router.delete('/sessions/:cle', async (req, res) => {
 router.post('/deconnecter-autres', async (req, res) => {
   await fermerLesAutresSessions(req);
   res.json({ message: 'Tes autres appareils ont été déconnectés.' });
+});
+
+// Validation en deux étapes : PUT /api/parametres/deux-etapes  { active, motDePasse }
+// Le mot de passe est redemandé pour l'activer comme pour la couper. À l'activation, 8 codes de secours sont
+// fabriqués et renvoyés une seule fois, et cet appareil devient « de confiance ».
+router.put('/deux-etapes', limiteMotDePasse, async (req, res) => {
+  const moi = req.utilisateur;
+  const active = req.body?.active;
+  if (typeof active !== 'boolean') throw new v.ErreurValidation('Choix non reconnu.', 'active');
+  await verifierMotDePasse(moi, req.body?.motDePasse);
+  const numero = active ? assurerAppareil(req, res) : null;
+  const codesSecours = await db.transaction(async (client) => {
+    await client.query('UPDATE utilisateurs SET deux_etapes = $2 WHERE id = $1', [moi.id, active]);
+    if (!active) {
+      await client.query('DELETE FROM codes_secours WHERE utilisateur_id = $1', [moi.id]);
+      await client.query('DELETE FROM confirmations_email WHERE utilisateur_id = $1 AND motif = \'connexion\'', [moi.id]);
+      await client.query('UPDATE appareils_connus SET confiance = FALSE WHERE utilisateur_id = $1', [moi.id]);
+      return null;
+    }
+    await noterAppareil(moi.id, numero, { confiance: true }, client);
+    return creerCodesSecours(moi.id, client);
+  });
+  res.set('Cache-Control', 'no-store').json({ active, codesSecours });
 });
 
 // ---------- Membres bloqués ----------

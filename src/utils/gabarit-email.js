@@ -76,18 +76,48 @@ function gabaritEmail({ titre, prenom, avant = [], code = null, bouton = null, a
 }
 
 // Email du code de confirmation : { sujet, texte, html }. Aucun lien de connexion : seulement le code à recopier.
-function emailCode({ prenom, code, dureeMin, langue = 'fr' }) {
+// motif 'connexion' : le code de la validation en deux étapes (« Confirme que c'est toi »).
+function emailCode({ prenom, code, dureeMin, langue = 'fr', motif = 'inscription' }) {
+  const famille = motif === 'connexion' ? 'email.connexion' : 'email.code';
   const T = (cle, variables) => textes.t(langue, cle, variables);
   return {
-    sujet: T('email.code.sujet', { code }),
-    texte: `${T('email.bonjour', { prenom })}\n\n${T('email.code.texte-code', { code })}\n\n${T('email.code.texte-suite', { n: dureeMin })}\n\n${T('email.signature')}`,
+    sujet: T(`${famille}.sujet`, { code }),
+    texte: `${T('email.bonjour', { prenom })}\n\n${T(`${famille}.texte-code`, { code })}\n\n${T(`${famille}.texte-suite`, { n: dureeMin })}\n\n${T('email.signature')}`,
     html: gabaritEmail({
       langue,
-      titre: T('email.code.titre'),
+      titre: T(`${famille}.titre`),
       prenom,
-      avant: [T('email.code.avant')],
+      avant: [T(`${famille}.avant`)],
       code,
-      apres: [T('email.code.valable', { n: dureeMin }), T('email.code.ignore')],
+      apres: [T('email.code.valable', { n: dureeMin }), T(`${famille}.ignore`)],
+    }),
+  };
+}
+
+// « 11 octobre 2026 à 14:32 GMT » : l'heure de Ouagadougou, la même pour tous les membres.
+function dateGmt(date, langue) {
+  return `${new Intl.DateTimeFormat(langue === 'en' ? 'en-GB' : 'fr-FR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC' }).format(date)} GMT`;
+}
+
+// Email « Nouvelle connexion à ton compte Palabre » : l'appareil, la date, le pays s'il est connu, et un bouton
+// « Ce n'était pas moi » (lien à usage unique, src/utils/deux-etapes.js).
+function emailAlerteConnexion({ prenom, appareil, date, pays = null, lien, langue = 'fr' }) {
+  const T = (cle, variables) => textes.t(langue, cle, variables);
+  const details = [
+    T('email.alerte.appareil', { appareil: textes.traduire(langue, appareil) }),
+    T('email.alerte.date', { date: dateGmt(date, langue) }),
+    pays ? T('email.alerte.pays', { pays }) : null,
+  ].filter(Boolean);
+  return {
+    sujet: T('email.alerte.sujet'),
+    texte: `${T('email.bonjour', { prenom })}\n\n${T('email.alerte.avant')}\n${details.join('\n')}\n\n${T('email.alerte.c-etait-toi')}\n\n${T('email.alerte.texte-pas-toi')}\n${lien}\n\n${T('email.signature')}`,
+    html: gabaritEmail({
+      langue,
+      titre: T('email.alerte.sujet'),
+      prenom,
+      avant: [T('email.alerte.avant'), ...details, T('email.alerte.c-etait-toi')],
+      bouton: { texte: T('email.alerte.bouton'), lien },
+      apres: [T('email.alerte.apres')],
     }),
   };
 }
@@ -109,4 +139,4 @@ function emailMotDePasse({ prenom, lien, dureeMin, langue = 'fr' }) {
   };
 }
 
-module.exports = { gabaritEmail, emailCode, emailMotDePasse, echapperHtml };
+module.exports = { gabaritEmail, emailCode, emailMotDePasse, emailAlerteConnexion, dateGmt, echapperHtml };

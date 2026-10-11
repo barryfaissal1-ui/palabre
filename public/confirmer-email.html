@@ -57,10 +57,22 @@
           </div>
           <p class="erreur-champ" data-erreur="code" role="alert"></p>
           <p class="visuellement-cache" aria-live="polite" data-annonce></p>
+          <!-- Validation en deux étapes seulement (?motif=connexion) : ne plus demander de code sur cet appareil. -->
+          <label class="feuille-confiance" data-confiance hidden><input type="checkbox" name="confiance"><span data-t="code.confiance">Faire confiance à cet appareil</span></label>
           <button class="bouton bouton-principal bouton-plein" type="submit" data-confirmer><span class="rond-attente" aria-hidden="true" hidden></span><span data-t="commun.confirmer" data-libelle>Confirmer</span></button>
         </form>
 
         <p class="feuille-renvoi"><span data-t="code.rien-recu">Tu n'as rien reçu ?</span> <button data-t="code.renvoyer" class="bouton bouton-lien" type="button" data-renvoyer>Renvoyer le code</button></p>
+        <!-- Validation en deux étapes seulement : plus d'accès à sa boîte email ? Un des 8 codes de secours. -->
+        <div class="feuille-secours" data-zone-secours hidden>
+          <button data-t="code.secours.ouvrir" class="bouton bouton-lien" type="button" data-ouvrir-secours>Utiliser un code de secours</button>
+          <form data-secours hidden novalidate>
+            <label data-t="code.secours.label" for="secours">Code de secours</label>
+            <input id="secours" name="secours" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="12">
+            <p class="erreur-champ" data-erreur="secours" role="alert"></p>
+            <button data-t="code.secours.valider" class="bouton bouton-contour bouton-plein" type="submit">Valider ce code</button>
+          </form>
+        </div>
         <p class="feuille-sortie"><button data-t="code.mauvaise-adresse" class="bouton bouton-lien" type="button" data-deconnexion>Mauvaise adresse ? Se déconnecter</button></p>
       </div>
     </div>

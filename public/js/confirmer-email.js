@@ -11,7 +11,13 @@
   const ATTENTE_RENVOI_S = 60;   // le serveur refuse plus d'un code par minute
   const VERIFICATION_MIN_MS = 800; // le tourbillon dure au moins cela, même si le serveur répond tout de suite
   const AVANT_DE_PARTIR_MS = 1500; // temps laissé pour voir l'arbre avant de changer de page
-  const CLE_ENVOI = 'palabre-code-envoye-le';
+  // Deux usages de cette page : confirmer son email à l'inscription, ou valider une connexion depuis un appareil
+  // inconnu (validation en deux étapes, adresse /confirmer-email?motif=connexion).
+  const connexion = new URLSearchParams(window.location.search).get('motif') === 'connexion';
+  const CLE_ENVOI = connexion ? 'palabre-code-connexion-envoye-le' : 'palabre-code-envoye-le';
+  const ROUTES = connexion
+    ? { confirmer: '/auth/deux-etapes', renvoyer: '/auth/deux-etapes/renvoyer' }
+    : { confirmer: '/auth/confirmer-email', renvoyer: '/auth/renvoyer-code' };
   // « Réduire les animations » (réglage du téléphone) : pas de tourbillon ni d'arbre, seulement des fondus.
   const calme = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const pause = (ms) => new Promise((suite) => setTimeout(suite, ms));
@@ -42,10 +48,27 @@
     const rond = bouton.querySelector('.rond-attente');
     const boutonRenvoyer = document.querySelector('[data-renvoyer]');
 
-    const moi = await utilisateurConnecte();
-    if (!moi) return window.location.replace('/connexion');
-    if (moi.emailConfirme) return continuer(moi.profilComplet);
-    document.querySelector('[data-email]').textContent = moi.email;
+    const caseConfiance = formulaire.querySelector('[name="confiance"]');
+    if (connexion) {
+      // Pas encore de session : le serveur dit seulement à quelle adresse (masquée) le code est parti.
+      let attente;
+      try {
+        attente = await api('/auth/deux-etapes');
+      } catch {
+        return window.location.replace('/connexion');
+      }
+      document.title = t('titre.deux-etapes');
+      document.querySelector('[data-titre]').textContent = t('code.deux-etapes.titre');
+      document.querySelector('[data-email]').textContent = attente.email;
+      document.querySelector('[data-confiance]').hidden = false;
+      document.querySelector('[data-zone-secours]').hidden = false;
+      document.querySelector('[data-deconnexion]').textContent = t('code.deux-etapes.annuler');
+    } else {
+      const moi = await utilisateurConnecte();
+      if (!moi) return window.location.replace('/connexion');
+      if (moi.emailConfirme) return continuer(moi.profilComplet);
+      document.querySelector('[data-email]').textContent = moi.email;
+    }
 
     // ---------- La saisie : six champs qui se comportent comme un seul ----------
     const code = () => champs.map((c) => c.value).join('');
@@ -172,7 +195,7 @@
     // Code bon : les feuilles se posent en couronne, le tronc pousse, le badge « vérifié » apparaît.
     async function reussir(profilComplet) {
       enVol = false;
-      annonce.textContent = t('code.confirme-annonce');
+      annonce.textContent = t(connexion ? 'code.deux-etapes.reussi-annonce' : 'code.confirme-annonce');
       const tronc = branche.querySelector('[data-tronc]');
       const coche = branche.querySelector('[data-coche]');
       const onde = branche.querySelector('[data-onde]');
@@ -206,8 +229,10 @@
           { duration: 420, delay: 900, easing: 'ease-out', fill: 'both' },
         ));
       }
-      document.querySelector('[data-titre]').textContent = t('code.confirme');
-      document.querySelector('[data-texte]').textContent = profilComplet ? t('code.bienvenue') : t('code.encore-une-etape');
+      document.querySelector('[data-titre]').textContent = t(connexion ? 'code.deux-etapes.reussi' : 'code.confirme');
+      document.querySelector('[data-texte]').textContent = profilComplet ? t(connexion ? 'code.deux-etapes.bon-retour' : 'code.bienvenue') : t('code.encore-une-etape');
+      document.querySelector('[data-confiance]').hidden = true;
+      document.querySelector('[data-zone-secours]').hidden = true;
       rond.hidden = true;
       libelle.textContent = t('code.c-est-parti');
       bouton.disabled = false;
@@ -282,7 +307,8 @@
       decoller();
       const debut = performance.now();
       // Le tourbillon continue tant que le serveur n'a pas répondu, et dure au moins 800 ms.
-      const reponse = await api('/auth/confirmer-email', { methode: 'POST', donnees: { code: saisi } }).then((corps) => ({ corps }), (erreur) => ({ erreur }));
+      const donnees = connexion ? { code: saisi, confiance: caseConfiance.checked } : { code: saisi };
+      const reponse = await api(ROUTES.confirmer, { methode: 'POST', donnees }).then((corps) => ({ corps }), (erreur) => ({ erreur }));
       await pause(Math.max(0, VERIFICATION_MIN_MS - (performance.now() - debut)));
       if (reponse.corps) {
         await reussir(reponse.corps.profilComplet);
@@ -327,7 +353,7 @@
     boutonRenvoyer.addEventListener('click', async () => {
       boutonRenvoyer.disabled = true;
       try {
-        const reponse = await api('/auth/renvoyer-code', { methode: 'POST', donnees: {} });
+        const reponse = await api(ROUTES.renvoyer, { methode: 'POST', donnees: {} });
         toast(reponse.message);
         effacerErreur();
         champs.forEach((c) => { c.value = ''; });
@@ -341,9 +367,35 @@
     });
 
     document.querySelector('[data-deconnexion]').addEventListener('click', async () => {
-      await api('/auth/deconnexion', { methode: 'POST', donnees: {} }).catch(() => {});
+      await api(connexion ? '/auth/deux-etapes/annuler' : '/auth/deconnexion', { methode: 'POST', donnees: {} }).catch(() => {});
       try { sessionStorage.removeItem(CLE_ENVOI); } catch { /* rien à retirer */ }
-      window.location.href = '/inscription';
+      window.location.href = connexion ? '/connexion' : '/inscription';
     });
+
+    // ---------- Code de secours (deux étapes) : pour qui n'a plus accès à sa boîte email ----------
+    if (connexion) {
+      const zone = document.querySelector('[data-zone-secours]');
+      const formulaireSecours = zone.querySelector('[data-secours]');
+      const erreurSecours = formulaireSecours.querySelector('[data-erreur]');
+      zone.querySelector('[data-ouvrir-secours]').addEventListener('click', (evenement) => {
+        evenement.currentTarget.hidden = true;
+        formulaireSecours.hidden = false;
+        formulaireSecours.elements.secours.focus();
+      });
+      formulaireSecours.addEventListener('submit', async (evenement) => {
+        evenement.preventDefault();
+        erreurSecours.textContent = '';
+        const boutonSecours = formulaireSecours.querySelector('button');
+        boutonSecours.disabled = true;
+        try {
+          const corps = await api(ROUTES.confirmer, { methode: 'POST', donnees: { secours: formulaireSecours.elements.secours.value, confiance: caseConfiance.checked } });
+          try { sessionStorage.removeItem(CLE_ENVOI); } catch { /* rien à retirer */ }
+          continuer(corps.profilComplet);
+        } catch (erreur) {
+          erreurSecours.textContent = erreur.message;
+          boutonSecours.disabled = false;
+        }
+      });
+    }
   });
 })();

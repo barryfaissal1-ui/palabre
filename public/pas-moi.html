@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#171512">
+  <meta name="robots" content="noindex">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="preload" href="/fonts/bricolage-grotesque-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="/js/theme.js"></script>
+  <link rel="stylesheet" href="/css/style.css">
+  <title>Protéger mon compte – Palabre</title>
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
+  <script src="/js/app.js" defer></script>
+  <script src="/js/pas-moi.js" defer></script>
+</head>
+<!-- Page ouverte par le bouton « Ce n'était pas moi » de l'email « Nouvelle connexion à ton compte Palabre ».
+     Ouvrir la page ne fait rien : c'est le bouton qui agit (certaines messageries ouvrent les liens toutes seules). -->
+<body class="page-formulaire">
+  <div>
+    <div class="bande"></div>
+    <header class="entete"><div class="conteneur entete-interieur">
+      <a class="marque" href="/"><img src="/icons/logo-96.webp" alt="" width="32" height="32">Palabre</a>
+    </div></header>
+  </div>
+  <main class="conteneur">
+    <div class="carte-formulaire">
+      <h1 data-t="pas-moi.titre">Ce n'était pas toi ?</h1>
+      <p data-t="pas-moi.texte" class="sous-titre">Quelqu'un s'est connecté à ton compte depuis un appareil inconnu. Ce bouton déconnecte tous les appareils, verrouille ton compte et te fait choisir un nouveau mot de passe.</p>
+      <p class="message" role="alert" data-message></p>
+      <button data-t="pas-moi.bouton" class="bouton bouton-principal bouton-plein" type="button" data-proteger>Protéger mon compte</button>
+      <div class="liens-formulaire">
+        <p><a data-t="pas-moi.c-etait-moi" href="/">C'était moi : retour à Palabre</a></p>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

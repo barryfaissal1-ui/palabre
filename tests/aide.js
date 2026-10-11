@@ -11,9 +11,13 @@ mailer.envoyerEmail = async (message) => { emailsEnvoyes.push(message); };
 
 // Le dernier code à 6 chiffres envoyé à cette adresse (lu dans le texte de l'email, comme le ferait le membre).
 function dernierCode(adresse) {
-  const message = emailsEnvoyes.filter((m) => m.a === adresse).pop();
-  return message ? /code de confirmation Palabre : (\d{6})/.exec(message.texte)[1] : null;
+  const motif = /code de confirmation Palabre : (\d{6})/;
+  const message = emailsEnvoyes.filter((m) => m.a === adresse && motif.test(m.texte)).pop();
+  return message ? motif.exec(message.texte)[1] : null;
 }
+
+// Le dernier email envoyé à cette adresse dont le sujet correspond (alerte de connexion, code de connexion…).
+const dernierEmail = (adresse, sujet = /./) => emailsEnvoyes.filter((m) => m.a === adresse && sujet.test(m.sujet)).pop() || null;
 
 // Heure d'ouverture du formulaire, signée comme le fait le serveur, mais datée de 10 secondes plus tôt :
 // les tests n'ont pas à attendre les 3 secondes imposées aux inscriptions.
@@ -40,4 +44,4 @@ function avecComptesPrets(appel) {
   };
 }
 
-module.exports = { avecComptesPrets, validerCompte, jetonAncien, dernierCode, emailsEnvoyes };
+module.exports = { avecComptesPrets, validerCompte, jetonAncien, dernierCode, dernierEmail, emailsEnvoyes };

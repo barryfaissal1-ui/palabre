@@ -2420,6 +2420,14 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
 .ligne-session .ligne-bloque-nom strong { overflow-wrap: anywhere; }
 .ligne-session .texte-discret { font-size: var(--t-13); }
 .session-ici { font-size: var(--t-13); font-weight: 600; color: var(--action); }
+/* État d'un réglage de sécurité (« Activée », « Désactivée ») et codes de secours, montrés une seule fois. */
+.etat-reglage { margin: 0; font-weight: 600; color: var(--texte-discret); }
+.etat-reglage.etat-actif { color: var(--action); }
+.page-parametres [data-codes-secours] { display: grid; gap: 10px; padding: 14px 16px; border: 1px solid var(--ligne); border-radius: var(--rayon); background: color-mix(in srgb, var(--action) 6%, var(--surface)); }
+.page-parametres [data-codes-secours][hidden] { display: none; }
+.page-parametres [data-codes-secours] h4 { margin: 0; font-size: var(--t-15); }
+.page-parametres [data-codes-secours] .bouton { justify-self: start; }
+.codes-secours { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; margin: 0; padding: 0; list-style: none; font-family: Consolas, Menlo, monospace; font-size: var(--t-17); letter-spacing: 0.06em; }
 .page-parametres [data-sessions] + .bouton[hidden] { display: none; }
 /* Le menu de l'avatar (en-tête, ordinateur) : ses choix peuvent être des liens. */
 .menu-avatar .nav-profil { padding: 0; border: 0; background: transparent; cursor: pointer; }

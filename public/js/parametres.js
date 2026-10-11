@@ -233,6 +233,7 @@
       ? `${derniere.appareil}, ${dateRelative(derniere.le)}`
       : t('parametres.securite.aucune');
     dessinerSessions(securite.sessions);
+    brancherDeuxEtapes(securite.deuxEtapes);
     zone.querySelector('[data-deconnecter-autres]').addEventListener('click', async () => {
       if (!await confirmer(t('parametres.securite.question'), { bouton: t('parametres.securite.deconnecter') })) return;
       try {
@@ -240,6 +241,52 @@
         await rechargerSessions();
       } catch (erreur) {
         toast(erreur.message, 'erreur');
+      }
+    });
+  }
+
+  // Validation en deux étapes : le mot de passe est redemandé pour l'activer comme pour la couper. À l'activation,
+  // le serveur renvoie les 8 codes de secours : ils sont montrés ici une seule fois.
+  function brancherDeuxEtapes(deuxEtapes) {
+    const zone = rubrique('securite').querySelector('[data-deux-etapes]');
+    const formulaire = zone.querySelector('[data-formulaire-deux-etapes]');
+    const etat = zone.querySelector('[data-etat-deux-etapes]');
+    const zoneCodes = zone.querySelector('[data-codes-secours]');
+    let active = deuxEtapes.active;
+    let codes = [];
+    const dessiner = (restants) => {
+      etat.textContent = active ? t('parametres.deux-etapes.activee', { n: restants }) : t('parametres.deux-etapes.coupee');
+      etat.classList.toggle('etat-actif', active);
+      formulaire.querySelector('[data-bouton-deux-etapes]').textContent = active ? t('parametres.deux-etapes.couper') : t('parametres.deux-etapes.activer');
+    };
+    dessiner(deuxEtapes.codesRestants);
+    zone.querySelector('[data-copier-codes]').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(codes.join('\n'));
+        toast(t('parametres.deux-etapes.copies'));
+      } catch {
+        toast(t('parametres.deux-etapes.copie-impossible'), 'erreur');
+      }
+    });
+    formulaire.addEventListener('submit', async (evenement) => {
+      evenement.preventDefault();
+      effacerErreurs(formulaire);
+      if (!formulaire.motDePasse.value) {
+        erreurDe(formulaire, 'motDePasse').textContent = t('parametres.suppression.mot-de-passe');
+        return;
+      }
+      if (active && !await confirmer(t('parametres.deux-etapes.question-couper'), { bouton: t('parametres.deux-etapes.couper'), danger: true })) return;
+      try {
+        const reponse = await api('/parametres/deux-etapes', { methode: 'PUT', donnees: { active: !active, motDePasse: formulaire.motDePasse.value } });
+        active = reponse.active;
+        codes = reponse.codesSecours || [];
+        formulaire.reset();
+        dessiner(codes.length);
+        zoneCodes.hidden = codes.length === 0;
+        zoneCodes.querySelector('[data-liste-codes]').replaceChildren(...codes.map((code) => el('li', { texte: code })));
+        toast(active ? t('parametres.deux-etapes.toast-activee') : t('parametres.deux-etapes.toast-coupee'));
+      } catch (erreur) {
+        montrerErreur(formulaire, erreur);
       }
     });
   }

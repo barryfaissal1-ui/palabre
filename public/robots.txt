@@ -15,4 +15,7 @@ Disallow: /amis
 Disallow: /notifications
 Disallow: /modifier-profil
 Disallow: /reinitialiser
+Disallow: /pas-moi
+Disallow: /bon-retour
+Disallow: /annuler-suppression
 Disallow: /mot-de-passe-oublie

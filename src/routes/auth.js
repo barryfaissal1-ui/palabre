@@ -14,6 +14,8 @@ const { liensPublics } = require('../utils/profil-dev');
 const { compterNonLus } = require('./messages');
 const { langueDe } = require('../utils/langue');
 const sessions = require('../utils/sessions');
+const { lireAppareil, assurerAppareil, etatAppareil, noterAppareil, oublierAppareils } = require('../utils/appareils');
+const deuxEtapes = require('../utils/deux-etapes');
 
 const { typeAppareil } = sessions;
 
@@ -134,6 +136,8 @@ router.post('/inscription', limiteSensible, async (req, res) => {
     console.error('Envoi du code de confirmation impossible :', err.message); // « Renvoyer le code » reste possible
   }
   await ouvrirSession(req, res, rows[0]);
+  // L'appareil de l'inscription est connu : s'y reconnecter ne déclenchera pas d'alerte.
+  await noterAppareil(rows[0].id, assurerAppareil(req, res));
   res.status(201).json({ utilisateur: profilPrive(rows[0]) });
 });
 
@@ -170,10 +174,116 @@ router.post('/connexion', limiteSensible, async (req, res) => {
     return res.status(403).json({ erreur: 'Ce compte a été suspendu. Contacte l\'équipe Palabre.' });
   }
 
+  // Verrou posé par « Ce n'était pas moi » : seul un nouveau mot de passe (lien reçu par email) rouvre le compte.
+  if (utilisateur.verrouille_le) {
+    return res.status(403).json({ erreur: 'Ce compte est verrouillé par sécurité. Choisis un nouveau mot de passe pour le rouvrir.', suite: '/mot-de-passe-oublie' });
+  }
+
+  // Validation en deux étapes : depuis un appareil qui n'est pas « de confiance », le bon mot de passe ne suffit pas.
+  // Aucune session n'est ouverte : un code part par email, et le navigateur garde un cookie d'attente de 15 minutes.
+  const etat = await etatAppareil(utilisateur.id, lireAppareil(req));
+  if (utilisateur.deux_etapes && !etat.confiance) {
+    await envoyerCode(utilisateur, { motif: 'connexion' });
+    deuxEtapes.poserAttente(res, utilisateur.id);
+    return res.json({ deuxEtapes: true });
+  }
+  await terminerConnexion(req, res, utilisateur, etat);
+  res.json({ utilisateur: profilPrive(utilisateur) });
+});
+
+// Le mot de passe est bon (et le code, s'il en fallait un) : la session s'ouvre sur cet appareil.
+async function terminerConnexion(req, res, utilisateur, etat, { confiance = false } = {}) {
   // Dernière connexion (rubrique « Sécurité » des paramètres) : la date et le type d'appareil, jamais l'adresse IP.
   await db.query('UPDATE utilisateurs SET derniere_connexion_le = now(), derniere_connexion_appareil = $2 WHERE id = $1', [utilisateur.id, typeAppareil(req.get('user-agent'))]);
-  await ouvrirSession(req, res, utilisateur);
-  res.json({ utilisateur: profilPrive(utilisateur) });
+  const sessionId = await ouvrirSession(req, res, utilisateur);
+  await noterAppareil(utilisateur.id, assurerAppareil(req, res), { confiance });
+  // Appareil inconnu : le propriétaire du compte est prévenu par email, avec un bouton « Ce n'était pas moi ».
+  // Un email qui ne part pas ne doit pas empêcher la connexion.
+  if (!etat.connu && utilisateur.email_confirme_le) {
+    try {
+      await deuxEtapes.alerterNouvelleConnexion(utilisateur, req, sessionId);
+    } catch (err) {
+      console.error('Alerte de nouvelle connexion impossible :', err.message);
+    }
+  }
+}
+
+// ---------- Validation en deux étapes : la suite de la connexion ----------
+
+// Le membre qui a donné le bon mot de passe et attend son code (cookie d'attente), ou rien.
+async function membreEnAttente(req) {
+  const id = deuxEtapes.lireAttente(req);
+  if (!id) return null;
+  const { rows } = await db.query('SELECT * FROM utilisateurs WHERE id = $1 AND bloque = FALSE AND supprime_le IS NULL AND verrouille_le IS NULL AND deux_etapes = TRUE', [id]);
+  return rows[0] || null;
+}
+
+// La page du code demande à qui le code a été envoyé : GET /api/auth/deux-etapes → { email: « a•••@gmail.com » }
+router.get('/deux-etapes', async (req, res) => {
+  const membre = await membreEnAttente(req);
+  if (!membre) return res.status(401).json({ erreur: 'Connecte-toi pour continuer.' });
+  res.set('Cache-Control', 'no-store').json({ email: deuxEtapes.masquerEmail(membre.email) });
+});
+
+// Saisir le code : POST /api/auth/deux-etapes  { code, confiance? }  ou  { secours, confiance? }
+router.post('/deux-etapes', limiteCodes, async (req, res) => {
+  const membre = await membreEnAttente(req);
+  if (!membre) return res.status(401).json({ erreur: 'Connecte-toi pour continuer.' });
+  const corps = req.body || {};
+  const parSecours = corps.secours !== undefined;
+  const { erreur } = parSecours ? await deuxEtapes.utiliserCodeSecours(membre, corps.secours) : await confirmerCode(membre, corps.code, { motif: 'connexion' });
+  if (erreur) return res.status(400).json({ erreur, champ: parSecours ? 'secours' : 'code' });
+  const etat = await etatAppareil(membre.id, lireAppareil(req));
+  // « Faire confiance à cet appareil » : la prochaine connexion d'ici ne demandera pas de code.
+  await terminerConnexion(req, res, membre, etat, { confiance: corps.confiance === true });
+  deuxEtapes.effacerAttente(res);
+  res.json({ ok: true, profilComplet: !profilDevIncomplet(membre), utilisateur: profilPrive(membre) });
+});
+
+// « Renvoyer le code » : POST /api/auth/deux-etapes/renvoyer (1 par minute, 5 par heure)
+router.post('/deux-etapes/renvoyer', limiteCodes, async (req, res) => {
+  const membre = await membreEnAttente(req);
+  if (!membre) return res.status(401).json({ erreur: 'Connecte-toi pour continuer.' });
+  await envoyerCode(membre, { renvoi: true, motif: 'connexion' });
+  res.json({ message: 'Un nouveau code vient de partir. Regarde ta boîte de réception.' });
+});
+
+// Renoncer : POST /api/auth/deux-etapes/annuler
+router.post('/deux-etapes/annuler', (req, res) => {
+  deuxEtapes.effacerAttente(res);
+  res.json({ ok: true });
+});
+
+// ---------- « Ce n'était pas moi » : le bouton de l'email d'alerte ----------
+// POST /api/auth/pas-moi  { jeton }
+// Le lien de l'email ouvre une page ; c'est le bouton de cette page qui appelle cette route (jamais l'ouverture du
+// lien : certaines messageries ouvrent les liens toutes seules pour les contrôler).
+// Tous les appareils sont déconnectés, le compte est verrouillé, et la réponse donne un lien pour choisir un nouveau
+// mot de passe : avoir reçu l'email prouve que la boîte est bien celle du membre.
+router.post('/pas-moi', limiteSensible, async (req, res) => {
+  const jeton = typeof req.body?.jeton === 'string' ? req.body.jeton : '';
+  const nouveau = await db.transaction(async (client) => {
+    const { rows: [alerte] } = await client.query(
+      'UPDATE alertes_connexion SET utilise_le = now() WHERE jeton_hash = $1 AND utilise_le IS NULL AND expire_le > now() RETURNING utilisateur_id',
+      [deuxEtapes.hacher(jeton)],
+    );
+    if (!alerte) return null;
+    const id = alerte.utilisateur_id;
+    await sessions.revoquerToutes(id, {}, client);
+    await client.query('UPDATE utilisateurs SET verrouille_le = now(), sessions_depuis = now() WHERE id = $1', [id]);
+    // L'appareil de l'intrus est devenu « connu » en se connectant : tous les appareils redeviennent inconnus.
+    await oublierAppareils(id, client);
+    await client.query('DELETE FROM confirmations_email WHERE utilisateur_id = $1 AND motif = \'connexion\'', [id]);
+    await client.query('UPDATE alertes_connexion SET utilise_le = now() WHERE utilisateur_id = $1 AND utilise_le IS NULL', [id]);
+    const jetonMdp = crypto.randomBytes(32).toString('hex');
+    await client.query(
+      'INSERT INTO reinitialisations_mdp (utilisateur_id, jeton_hash, expire_le) VALUES ($1, $2, now() + make_interval(mins => $3))',
+      [id, crypto.createHash('sha256').update(jetonMdp).digest('hex'), DUREE_JETON_MIN],
+    );
+    return jetonMdp;
+  });
+  if (!nouveau) return res.status(400).json({ erreur: 'Ce lien n\'est plus valable. Si tu as un doute, change ton mot de passe.' });
+  res.set('Cache-Control', 'no-store').json({ message: 'Ton compte est protégé : tous les appareils sont déconnectés. Choisis maintenant un nouveau mot de passe.', suite: `/reinitialiser?jeton=${nouveau}` });
 });
 
 // Se déconnecter : la session est révoquée en base (une copie du cookie ne vaut plus rien), puis le cookie effacé.
@@ -242,7 +352,7 @@ router.post('/reinitialiser', limiteSensible, async (req, res) => {
     await client.query('BEGIN');
     // Avoir reçu ce lien prouve que la boîte email est bien la sienne : l'email est confirmé du même coup.
     await client.query(
-      'UPDATE utilisateurs SET mot_de_passe_hash = $1, email_confirme_le = COALESCE(email_confirme_le, now()), sessions_depuis = now() WHERE id = $2',
+      'UPDATE utilisateurs SET mot_de_passe_hash = $1, email_confirme_le = COALESCE(email_confirme_le, now()), sessions_depuis = now(), verrouille_le = NULL WHERE id = $2',
       [hash, rows[0].utilisateur_id],
     );
     await client.query('UPDATE reinitialisations_mdp SET utilise_le = now() WHERE utilisateur_id = $1 AND utilise_le IS NULL', [rows[0].utilisateur_id]);

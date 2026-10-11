@@ -43,7 +43,13 @@
       window.location.href = etape('/confirmer-email');
     },
     async connexion(donnees) {
-      const { utilisateur } = await api('/auth/connexion', { methode: 'POST', donnees });
+      const { utilisateur, deuxEtapes } = await api('/auth/connexion', { methode: 'POST', donnees });
+      // Validation en deux étapes : le mot de passe est bon, mais la session ne s'ouvrira qu'avec le code reçu par email.
+      if (deuxEtapes) {
+        const suite = suiteDemandee();
+        window.location.href = `/confirmer-email?motif=connexion${suite ? `&suite=${encodeURIComponent(suite)}` : ''}`;
+        return;
+      }
       await celebrer();
       // Une inscription laissée en route reprend là où elle s'était arrêtée.
       if (!utilisateur.emailConfirme) window.location.href = etape('/confirmer-email');

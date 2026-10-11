@@ -204,3 +204,13 @@
   .medaillon { width: 54px; height: 54px; }
   .feuille-contenu { gap: 12px; }
 }
+
+/* Validation en deux étapes : « Faire confiance à cet appareil » et le champ du code de secours. */
+.feuille-confiance { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 44px; margin: 0; font-size: var(--t-15); color: var(--feuille-encre); cursor: pointer; }
+.feuille-confiance[hidden], .feuille-secours[hidden], .feuille-secours form[hidden] { display: none; }
+.feuille-confiance input { width: 20px; height: 20px; accent-color: var(--action); }
+.feuille-secours { display: grid; gap: 8px; justify-items: center; }
+.feuille-secours .bouton-lien { font-size: var(--t-13); font-weight: 600; color: var(--feuille-encre); text-decoration: underline; text-underline-offset: 3px; }
+.feuille-secours form { display: grid; gap: 8px; width: 100%; max-width: 280px; text-align: left; }
+.feuille-secours label { font-size: var(--t-13); font-weight: 600; color: var(--feuille-encre); }
+.feuille-secours input { min-height: 48px; font-size: 16px; letter-spacing: 0.12em; text-align: center; font-family: Consolas, Menlo, monospace; }

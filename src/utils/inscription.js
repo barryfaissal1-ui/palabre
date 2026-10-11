@@ -1,4 +1,5 @@
 // Protections de l'inscription contre les robots : heure d'ouverture signée et code de confirmation de l'email.
+// Le même code à 6 chiffres sert à la validation en deux étapes (motif « connexion », src/utils/deux-etapes.js).
 const crypto = require('node:crypto');
 const config = require('../config');
 const db = require('../db/pool');
@@ -42,34 +43,40 @@ function verifierOuverture(jeton, maintenant = Date.now()) {
 
 // ---------- Code de confirmation ----------
 // L'empreinte dépend du membre et du secret du serveur : une copie de la base ne suffit pas à retrouver les codes.
-function empreinteCode(utilisateurId, code) {
-  return signer(`code:${utilisateurId}:${code}`);
+// Le motif entre dans l'empreinte : un code d'inscription ne peut pas servir à valider une connexion.
+function empreinteCode(utilisateurId, code, motif = 'inscription') {
+  return signer(motif === 'inscription' ? `code:${utilisateurId}:${code}` : `code:${motif}:${utilisateurId}:${code}`);
 }
 
 // Fabrique un nouveau code, le garde (haché) et l'envoie. `renvoi` applique les limites du bouton « Renvoyer le code ».
-async function envoyerCode(utilisateur, { renvoi = false } = {}) {
-  if (renvoi) {
+// motif : 'inscription' (confirmer son email) ou 'connexion' (validation en deux étapes).
+async function envoyerCode(utilisateur, { renvoi = false, motif = 'inscription' } = {}) {
+  // Une connexion en deux étapes envoie un code à chaque bon mot de passe : les mêmes limites s'appliquent, sinon
+  // quelqu'un qui connaît le mot de passe pourrait remplir la boîte email du membre.
+  if (renvoi || motif === 'connexion') {
     const { rows: [envois] } = await db.query(
       `SELECT count(*) FILTER (WHERE cree_le > now() - interval '1 minute')::int AS minute,
               count(*) FILTER (WHERE cree_le > now() - interval '1 hour')::int AS heure
-         FROM confirmations_email WHERE utilisateur_id = $1`,
-      [utilisateur.id],
+         FROM confirmations_email WHERE utilisateur_id = $1 AND motif = $2`,
+      [utilisateur.id, motif],
     );
+    // Nouvelle tentative de connexion dans la minute : le code déjà parti reste le bon, on n'en envoie pas d'autre.
+    if (envois.minute >= 1 && !renvoi) return;
     if (envois.minute >= 1) throw new ErreurHttp(429, 'Un code vient de partir. Attends une minute avant d\'en demander un autre.');
     if (envois.heure >= MAX_ENVOIS_PAR_HEURE + 1) throw new ErreurHttp(429, 'Trop de codes demandés. Réessaie dans une heure.');
   }
   const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0'); // randomInt : hasard de qualité cryptographique
   await db.query(
-    `INSERT INTO confirmations_email (utilisateur_id, code_hash, expire_le)
-     VALUES ($1, $2, now() + make_interval(mins => $3))`,
-    [utilisateur.id, empreinteCode(utilisateur.id, code), DUREE_CODE_MIN],
+    `INSERT INTO confirmations_email (utilisateur_id, code_hash, expire_le, motif)
+     VALUES ($1, $2, now() + make_interval(mins => $3), $4)`,
+    [utilisateur.id, empreinteCode(utilisateur.id, code, motif), DUREE_CODE_MIN, motif],
   );
   // L'email part en deux versions : texte, et HTML aux couleurs de Palabre (src/utils/gabarit-email.js).
-  await mailer.envoyerEmail({ a: utilisateur.email, ...emailCode({ prenom: utilisateur.prenom || utilisateur.nom, code, dureeMin: DUREE_CODE_MIN, langue: utilisateur.langue || 'fr' }) });
+  await mailer.envoyerEmail({ a: utilisateur.email, ...emailCode({ prenom: utilisateur.prenom || utilisateur.nom, code, dureeMin: DUREE_CODE_MIN, langue: utilisateur.langue || 'fr', motif }) });
 }
 
 // Vérifie le code saisi. Seul le dernier code envoyé compte ; chaque erreur consomme un des 5 essais.
-async function confirmerCode(utilisateur, valeur) {
+async function confirmerCode(utilisateur, valeur, { motif = 'inscription' } = {}) {
   const code = typeof valeur === 'string' ? valeur.replace(/\s/g, '') : '';
   if (!/^\d{6}$/.test(code)) throw new ErreurValidation('Le code fait 6 chiffres.', 'code');
 
@@ -77,18 +84,18 @@ async function confirmerCode(utilisateur, valeur) {
     // FOR UPDATE : deux essais envoyés au même instant passent l'un après l'autre, le compteur ne peut pas être contourné.
     const { rows: [dernier] } = await client.query(
       `SELECT id, code_hash, essais, expire_le > now() AS valable FROM confirmations_email
-        WHERE utilisateur_id = $1 ORDER BY id DESC LIMIT 1 FOR UPDATE`,
-      [utilisateur.id],
+        WHERE utilisateur_id = $1 AND motif = $2 ORDER BY id DESC LIMIT 1 FOR UPDATE`,
+      [utilisateur.id, motif],
     );
     if (!dernier || !dernier.valable) return { erreur: 'Ce code a expiré. Demande un nouveau code.' };
     if (dernier.essais >= MAX_ESSAIS) return { erreur: 'Trop d\'essais. Demande un nouveau code.' };
-    if (!egales(dernier.code_hash, empreinteCode(utilisateur.id, code))) {
+    if (!egales(dernier.code_hash, empreinteCode(utilisateur.id, code, motif))) {
       await client.query('UPDATE confirmations_email SET essais = essais + 1 WHERE id = $1', [dernier.id]);
       const restants = MAX_ESSAIS - dernier.essais - 1;
       return { erreur: restants > 0 ? `Code incorrect. Il te reste ${restants} essai${restants > 1 ? 's' : ''}.` : 'Code incorrect. Demande un nouveau code.' };
     }
-    await client.query('UPDATE utilisateurs SET email_confirme_le = now() WHERE id = $1', [utilisateur.id]);
-    await client.query('DELETE FROM confirmations_email WHERE utilisateur_id = $1', [utilisateur.id]);
+    if (motif === 'inscription') await client.query('UPDATE utilisateurs SET email_confirme_le = now() WHERE id = $1', [utilisateur.id]);
+    await client.query('DELETE FROM confirmations_email WHERE utilisateur_id = $1 AND motif = $2', [utilisateur.id, motif]);
     return { erreur: null };
   });
 }
