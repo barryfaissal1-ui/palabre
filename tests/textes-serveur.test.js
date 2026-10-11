@@ -237,6 +237,8 @@ test('aucune phrase du serveur n\'est oubliée : chacune a sa traduction (clé �
     'utils/membres.js': /^Membre$/,
     // Les listes du filtre de modération : des mots à reconnaître, pas des messages.
     'utils/moderation-listes.js': /./,
+    // Le libellé du motif d'un signalement, lu par l'équipe dans /admin : il reste en français, comme le texte libre.
+    'utils/sanctions.js': /^(Arnaque|Insulte ou harcèlement|Haine|Contenu sexuel|Violence ou menace|Faux profil|Spam|Autre)$/,
     'config.js': /./,
     // Morceaux de phrases assemblés par avecLesAutres() : la phrase entière, elle, est reconnue (testé plus haut).
     'utils/notifications.js': /^(a|ont) (aimé|commenté|répondu)|^\{\} et \{\} autre|^Un membre$|^un membre$/,

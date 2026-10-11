@@ -1,12 +1,13 @@
 // Le ménage : ce qui doit disparaître tout seul, à son échéance.
 //  - les comptes dont la suppression a été demandée il y a 30 jours ;
 //  - les publications restées plus de 30 jours dans la corbeille de leur auteur ;
-//  - le journal de sécurité de plus de 90 jours ;
+//  - le journal de sécurité de plus de 90 jours, le journal de modération de plus d'un an ;
 //  - les sessions fermées ou expirées, les codes et les liens périmés.
 // Lancé au démarrage du serveur puis toutes les heures (server.js), et à la main par « npm run purger ».
 const crypto = require('node:crypto');
 const db = require('../db/pool');
 const { purgerJournal } = require('./journal');
+const { purgerJournalModeration } = require('./sanctions');
 
 const DELAI_SUPPRESSION_JOURS = 30;
 const DUREE_CORBEILLE_JOURS = 30;
@@ -108,7 +109,7 @@ async function purgerPerimes() {
 
 // Tout le ménage. Renvoie ce qui a été fait (écrit dans le journal du serveur quand il y a quelque chose).
 async function purger() {
-  const bilan = { comptes: await purgerComptes(), corbeille: await purgerCorbeille(), journal: await purgerJournal(), perimes: await purgerPerimes() };
+  const bilan = { comptes: await purgerComptes(), corbeille: await purgerCorbeille(), journal: await purgerJournal(), moderation: await purgerJournalModeration(), perimes: await purgerPerimes() };
   return bilan;
 }
 

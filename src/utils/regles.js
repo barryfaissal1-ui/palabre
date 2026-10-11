@@ -11,7 +11,7 @@ const reglesAAccepter = (utilisateur) => (utilisateur.regles_version || 0) < VER
 // Placé sur tout /api après la session. Lire reste possible (GET) ; écrire, non, sauf /api/auth (accepter, se
 // déconnecter). Cacher la fenêtre dans le navigateur ne sert donc à rien : c'est ici que la règle s'applique.
 function exigerReglesAcceptees(req, res, next) {
-  if (!req.utilisateur || !reglesAAccepter(req.utilisateur) || req.method === 'GET' || req.method === 'HEAD' || req.path.startsWith('/auth/')) return next();
+  if (!req.utilisateur || !reglesAAccepter(req.utilisateur) || req.method === 'GET' || req.method === 'HEAD' || req.path.startsWith('/auth/') || req.path.startsWith('/sanctions')) return next();
   res.status(403).json({ erreur: 'Les règles de la communauté ont changé. Accepte-les pour continuer.', suite: '/regles' });
 }
 

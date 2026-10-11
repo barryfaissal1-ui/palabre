@@ -4,6 +4,7 @@ const express = require('express');
 const db = require('../db/pool');
 const v = require('../utils/validation');
 const { oublierDomaines } = require('../utils/moderation');
+const { sanctionner, annulerSanction, journalModeration, TYPES: TYPES_SANCTION, PHRASES: PHRASES_SANCTION } = require('../utils/sanctions');
 const { exigerConnexion, exigerAdmin } = require('../middleware/auth');
 const { apercuMembre, COLONNES_MEMBRE } = require('../utils/membres');
 const { notifier, court } = require('../utils/notifications');
@@ -134,7 +135,9 @@ const CONTENUS = {
   projet: { table: 'projets', auteur: 'dev_id', texte: 'left(t.titre || \' : \' || COALESCE(t.description, \'\'), 400)', approuve: 'Ton projet a été vérifié : il est maintenant visible.', retire: "Ton projet n'a pas été publié : il ne respecte pas les règles de la communauté." },
 };
 
-// GET /api/admin/moderation/attente : les contenus retenus par le filtre, du plus ancien au plus récent.
+// GET /api/admin/moderation/attente : la file « À modérer ». Deux origines (champ « raison ») :
+//   'arnaque'      : retenu par le filtre automatique avant publication ;
+//   'signalements' : caché parce que trois membres différents l'ont signalé.
 router.get('/moderation/attente', async (req, res) => {
   const { rows: attentes } = await db.query(
     `SELECT a.id, a.cible_type, a.cible_id, a.raison, a.cree_le, ${COLONNES_MEMBRE}
@@ -143,34 +146,126 @@ router.get('/moderation/attente', async (req, res) => {
     [MAX_AFFICHES],
   );
   const textes = new Map();
+  const motifs = new Map();
   for (const [type, contenu] of Object.entries(CONTENUS)) {
     const ids = attentes.filter((a) => a.cible_type === type).map((a) => a.cible_id);
     if (ids.length === 0) continue;
     const { rows } = await db.query(`SELECT t.id, ${contenu.texte} AS texte FROM ${contenu.table} t WHERE t.id = ANY($1::int[])`, [ids]);
     rows.forEach((ligne) => textes.set(`${type}:${ligne.id}`, ligne.texte));
+    // Pour un contenu caché par des signalements : ce que les membres ont dit.
+    const { rows: signales } = await db.query('SELECT cible_id, motif FROM signalements WHERE cible_type = $1 AND cible_id = ANY($2::int[]) AND statut = \'ouvert\' ORDER BY id', [type, ids]);
+    signales.forEach((s) => motifs.set(`${type}:${s.cible_id}`, [...(motifs.get(`${type}:${s.cible_id}`) || []), s.motif]));
   }
   res.json({
-    attente: attentes.map((a) => ({ id: a.id, cibleType: a.cible_type, raison: a.raison, creeLe: a.cree_le, auteur: apercuMembre(a), texte: textes.get(`${a.cible_type}:${a.cible_id}`) || null })),
+    attente: attentes.map((a) => {
+      const cle = `${a.cible_type}:${a.cible_id}`;
+      return { id: a.id, cibleType: a.cible_type, raison: a.raison, creeLe: a.cree_le, auteur: apercuMembre(a), texte: textes.get(cle) || null, motifs: motifs.get(cle) || [] };
+    }),
   });
 });
 
-// POST /api/admin/moderation/attente/:id  { decision: 'approuver' | 'retirer' }
-//   approuver : le contenu devient visible ; retirer : il reste caché. Dans les deux cas l'auteur est prévenu.
+// Les signalements ouverts sur un contenu sont fermés avec la décision. Un signalement rejeté (le contenu était
+// correct) est compté contre son auteur : au bout de trois, ses signalements ne pèsent plus dans le masquage automatique.
+async function fermerSignalements(client, cibleType, cibleId, fondes) {
+  const { rows } = await client.query(
+    'UPDATE signalements SET statut = $3 WHERE cible_type = $1 AND cible_id = $2 AND statut = \'ouvert\' RETURNING auteur_id',
+    [cibleType, cibleId, fondes ? 'traite' : 'rejete'],
+  );
+  if (!fondes && rows.length) {
+    await client.query('UPDATE utilisateurs SET signalements_rejetes = signalements_rejetes + 1 WHERE id = ANY($1::int[])', [rows.map((ligne) => ligne.auteur_id)]);
+  }
+}
+const MOTIF_PAR_DEFAUT = 'Contenu contraire aux règles de la communauté.';
+const lireSanction = (corps) => ({
+  type: corps?.sanction === undefined || corps.sanction === null || corps.sanction === '' ? null : v.parmi(corps.sanction, TYPES_SANCTION, 'sanction'),
+  motif: v.texte(corps?.motif, 'motif', { max: 300, optionnel: true }) || MOTIF_PAR_DEFAUT,
+});
+
+// POST /api/admin/moderation/attente/:id  { decision: 'approuver' | 'retirer' | 'sanctionner', sanction?, motif? }
+//   approuver   : le contenu devient visible ;
+//   retirer     : il reste caché ;
+//   sanctionner : il reste caché ET son auteur est sanctionné. Sans « sanction », la progression s'applique
+//                 (avertissement, puis suspension, puis exclusion) ; avec, l'administrateur choisit directement.
+// Dans tous les cas l'auteur est prévenu, et la décision est notée dans le journal de modération.
 router.post('/moderation/attente/:id', async (req, res) => {
-  const decision = v.parmi(req.body?.decision, ['approuver', 'retirer'], 'decision');
-  const attente = await db.transaction(async (client) => {
-    const { rows: [ligne] } = await client.query('SELECT id, cible_type, cible_id, auteur_id FROM moderation_attente WHERE id = $1 AND decide_le IS NULL FOR UPDATE', [v.idPositif(req.params.id)]);
+  const decision = v.parmi(req.body?.decision, ['approuver', 'retirer', 'sanctionner'], 'decision');
+  const choix = decision === 'sanctionner' ? lireSanction(req.body) : null;
+  const resultat = await db.transaction(async (client) => {
+    const { rows: [ligne] } = await client.query('SELECT id, cible_type, cible_id, auteur_id, raison FROM moderation_attente WHERE id = $1 AND decide_le IS NULL FOR UPDATE', [v.idPositif(req.params.id)]);
     if (!ligne) return null;
     const contenu = CONTENUS[ligne.cible_type];
-    if (decision === 'approuver') await client.query(`UPDATE ${contenu.table} SET masque = FALSE WHERE id = $1`, [ligne.cible_id]);
-    await client.query('UPDATE moderation_attente SET decide_le = now(), decision = $2, decide_par = $3 WHERE id = $1', [ligne.id, decision === 'approuver' ? 'approuve' : 'retire', req.utilisateur.id]);
-    await notifier(client, ligne.auteur_id, decision === 'approuver' ? 'contenu_approuve' : 'contenu_retire',
-      decision === 'approuver' ? contenu.approuve : contenu.retire,
-      decision === 'approuver' && ligne.cible_type === 'publication' ? `/publication/${ligne.cible_id}` : '/regles');
-    return ligne;
+    const approuve = decision === 'approuver';
+    if (approuve) await client.query(`UPDATE ${contenu.table} SET masque = FALSE WHERE id = $1`, [ligne.cible_id]);
+    await client.query('UPDATE moderation_attente SET decide_le = now(), decision = $2, decide_par = $3 WHERE id = $1', [ligne.id, approuve ? 'approuve' : 'retire', req.utilisateur.id]);
+    await fermerSignalements(client, ligne.cible_type, ligne.cible_id, !approuve);
+    await journalModeration(client, req.utilisateur.id, approuve ? 'contenu_approuve' : 'contenu_retire', { cibleType: ligne.cible_type, cibleId: ligne.cible_id, membreId: ligne.auteur_id, detail: ligne.raison });
+    await notifier(client, ligne.auteur_id, approuve ? 'contenu_approuve' : 'contenu_retire', approuve ? contenu.approuve : contenu.retire,
+      approuve && ligne.cible_type === 'publication' ? `/publication/${ligne.cible_id}` : '/regles');
+    const sanction = choix ? await sanctionner(client, { membreId: ligne.auteur_id, adminId: req.utilisateur.id, type: choix.type, motif: choix.motif, cibleType: ligne.cible_type, cibleId: ligne.cible_id }) : null;
+    return { sanction };
   });
-  if (!attente) throw new v.ErreurHttp(404, 'Ce contenu a déjà été traité.');
+  if (!resultat) throw new v.ErreurHttp(404, 'Ce contenu a déjà été traité.');
+  if (resultat.sanction) await resultat.sanction.apres();
+  res.json({ ok: true, sanction: resultat.sanction ? resultat.sanction.sanction.type : null });
+});
+
+// ---------- Sanctions et contestations ----------
+
+// GET /api/admin/moderation/contestations : les sanctions contestées qui attendent une réponse.
+router.get('/moderation/contestations', async (req, res) => {
+  const { rows } = await db.query(
+    `SELECT s.id, s.type, s.motif, s.debut, s.fin, s.contestation, s.contestee_le, ${COLONNES_MEMBRE}
+       FROM sanctions s JOIN utilisateurs u ON u.id = s.utilisateur_id
+      WHERE s.contestee_le IS NOT NULL AND s.contestation_decision IS NULL AND s.annulee_le IS NULL
+      ORDER BY s.contestee_le LIMIT $1`,
+    [MAX_AFFICHES],
+  );
+  res.json({ contestations: rows.map((s) => ({ id: s.id, type: s.type, motif: s.motif, debut: s.debut, fin: s.fin, texte: s.contestation, contesteeLe: s.contestee_le, membre: apercuMembre(s) })) });
+});
+
+// POST /api/admin/sanctions/:id/annuler : la sanction est annulée (contestée ou non), le compte retrouve ses droits.
+router.post('/sanctions/:id/annuler', async (req, res) => {
+  const annulee = await db.transaction((client) => annulerSanction(client, v.idPositif(req.params.id), req.utilisateur.id));
+  if (!annulee) throw new v.ErreurHttp(404, 'Cette sanction est déjà annulée.');
   res.json({ ok: true });
+});
+
+// POST /api/admin/sanctions/:id/maintenir : la contestation est rejetée, la sanction reste.
+router.post('/sanctions/:id/maintenir', async (req, res) => {
+  const maintenue = await db.transaction(async (client) => {
+    const { rows: [sanction] } = await client.query(
+      `UPDATE sanctions SET contestation_decision = 'rejetee', contestation_decidee_le = now()
+        WHERE id = $1 AND contestee_le IS NOT NULL AND contestation_decision IS NULL AND annulee_le IS NULL RETURNING utilisateur_id, type`,
+      [v.idPositif(req.params.id)],
+    );
+    if (!sanction) return null;
+    await journalModeration(client, req.utilisateur.id, 'contestation_rejetee', { membreId: sanction.utilisateur_id, detail: sanction.type });
+    await notifier(client, sanction.utilisateur_id, 'contestation_rejetee', PHRASES_SANCTION.contestationRejetee, '/sanctions');
+    return sanction;
+  });
+  if (!maintenue) throw new v.ErreurHttp(404, 'Cette contestation a déjà reçu une réponse.');
+  res.json({ ok: true });
+});
+
+// POST /api/admin/membres/:identifiant/sanctionner  { sanction?, motif }  — sanctionner un membre directement
+// (faute grave vue hors d'un signalement).
+router.post('/membres/:identifiant/sanctionner', async (req, res) => {
+  const choix = lireSanction(req.body);
+  const { rows: [membre] } = await db.query('SELECT id FROM utilisateurs WHERE identifiant = $1 AND supprime_le IS NULL', [String(req.params.identifiant).toLowerCase()]);
+  if (!membre) throw new v.ErreurHttp(404, 'Ce membre n\'existe pas.');
+  const { sanction, apres } = await db.transaction((client) => sanctionner(client, { membreId: membre.id, adminId: req.utilisateur.id, type: choix.type, motif: choix.motif }));
+  await apres();
+  res.status(201).json({ ok: true, sanction: sanction.type });
+});
+
+// GET /api/admin/moderation/journal : qui a décidé quoi, quand (gardé un an).
+router.get('/moderation/journal', async (req, res) => {
+  const { rows } = await db.query(
+    `SELECT j.id, j.action, j.cible_type, j.detail, j.cree_le, a.nom AS admin_nom, m.nom AS membre_nom, m.identifiant AS membre_identifiant
+       FROM journal_moderation j LEFT JOIN utilisateurs a ON a.id = j.admin_id LEFT JOIN utilisateurs m ON m.id = j.membre_id
+      ORDER BY j.id DESC LIMIT 100`,
+  );
+  res.json({ journal: rows.map((j) => ({ id: j.id, action: j.action, cibleType: j.cible_type, detail: j.detail, le: j.cree_le, admin: j.admin_nom, membre: j.membre_nom ? { nom: j.membre_nom, identifiant: j.membre_identifiant } : null })) });
 });
 
 // Les domaines interdits dans les liens, en plus des listes du filtre : GET, POST { domaine }, DELETE /:domaine
@@ -202,9 +297,11 @@ router.delete('/domaines-interdits/:domaine', async (req, res) => {
 // La décision vaut pour tous les signalements ouverts qui visent le même contenu.
 router.post('/signalements/:id/traiter', async (req, res) => {
   const moi = req.utilisateur;
-  const action = v.parmi(req.body?.action, ['masquer', 'bloquer', 'classer'], 'action');
+  const action = v.parmi(req.body?.action, ['masquer', 'bloquer', 'classer', 'sanctionner'], 'action');
+  const choix = action === 'sanctionner' ? lireSanction(req.body) : null;
 
-  await db.transaction(async (client) => {
+  const suite = await db.transaction(async (client) => {
+    let sanction = null;
     const { rows: [signalement] } = await client.query(
       'SELECT cible_type, cible_id FROM signalements WHERE id = $1 AND statut = \'ouvert\' FOR UPDATE',
       [v.idPositif(req.params.id)],
@@ -225,12 +322,32 @@ router.post('/signalements/:id/traiter', async (req, res) => {
       if (membre.est_admin || membre.id === moi.id) throw new v.ErreurValidation('Un administrateur ne peut pas être bloqué.', 'action');
       await client.query('UPDATE utilisateurs SET bloque = TRUE WHERE id = $1', [membre.id]);
     }
-    await client.query(
-      'UPDATE signalements SET statut = $3 WHERE cible_type = $1 AND cible_id = $2 AND statut = \'ouvert\'',
-      [signalement.cible_type, signalement.cible_id, action === 'classer' ? 'rejete' : 'traite'],
+    // « Sanctionner » : le contenu est caché (s'il peut l'être) et son auteur reçoit la sanction qui vient
+    // (avertissement, suspension, exclusion), ou celle que l'administrateur a choisie.
+    if (action === 'sanctionner') {
+      const { rows: [membre] } = await client.query(
+        `SELECT u.id FROM ${cible.table} t JOIN utilisateurs u ON u.id = t.${cible.auteur} WHERE t.id = $1`,
+        [signalement.cible_id],
+      );
+      if (!membre) throw new v.ErreurValidation('Ce contenu a été supprimé par son auteur : classe le signalement.', 'action');
+      if (cible.masquable) await client.query(`UPDATE ${cible.table} SET masque = TRUE WHERE id = $1`, [signalement.cible_id]);
+      sanction = await sanctionner(client, { membreId: membre.id, adminId: moi.id, type: choix.type, motif: choix.motif, cibleType: signalement.cible_type, cibleId: signalement.cible_id });
+    }
+    await fermerSignalements(client, signalement.cible_type, signalement.cible_id, action !== 'classer');
+    // Si ce contenu était aussi dans la file « À modérer », la décision vaut pour elle.
+    const { rows: enFile } = await client.query(
+      'UPDATE moderation_attente SET decide_le = now(), decision = $3, decide_par = $4 WHERE cible_type = $1 AND cible_id = $2 AND decide_le IS NULL RETURNING raison',
+      [signalement.cible_type, signalement.cible_id, action === 'classer' ? 'approuve' : 'retire', moi.id],
     );
+    // Classé sans suite : un contenu que trois signalements avaient caché redevient visible.
+    if (action === 'classer' && cible.masquable && enFile.some((ligne) => ligne.raison === 'signalements')) {
+      await client.query(`UPDATE ${cible.table} SET masque = FALSE WHERE id = $1`, [signalement.cible_id]);
+    }
+    if (action !== 'sanctionner') await journalModeration(client, moi.id, `signalement_${action}`, { cibleType: signalement.cible_type, cibleId: signalement.cible_id });
+    return sanction;
   });
-  res.json({ ok: true });
+  if (suite) await suite.apres();
+  res.json({ ok: true, sanction: suite ? suite.sanction.type : null });
 });
 
 // ---------- Membres bloqués (pour pouvoir revenir sur une erreur) ----------

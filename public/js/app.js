@@ -845,13 +845,16 @@
   }
 
   // Fenêtre « Signaler » : la même pour une publication, un commentaire ou un profil.
-  // La valeur envoyée au serveur (lue par l'équipe dans /admin) reste en français ; seul le libellé est traduit.
+  // La page envoie le code du motif ; le serveur écrit le libellé français que l'équipe lit dans /admin.
   const MOTIFS_SIGNALEMENT = [
-    ['Spam ou arnaque', 'signalement.motif.spam'],
-    ['Insultes ou harcèlement', 'signalement.motif.insultes'],
-    ['Contenu choquant ou illégal', 'signalement.motif.choquant'],
-    ['Faux profil ou usurpation', 'signalement.motif.faux-profil'],
-    ['Autre raison', 'signalement.motif.autre'],
+    ['arnaque', 'signalement.motif.arnaque'],
+    ['insulte', 'signalement.motif.insulte'],
+    ['haine', 'signalement.motif.haine'],
+    ['sexuel', 'signalement.motif.sexuel'],
+    ['violence', 'signalement.motif.violence'],
+    ['faux_profil', 'signalement.motif.faux-profil'],
+    ['spam', 'signalement.motif.spam'],
+    ['autre', 'signalement.motif.autre'],
   ];
 
   function signaler(cibleType, cible) {
@@ -880,7 +883,7 @@
       try {
         const reponse = await api('/signalements', {
           methode: 'POST',
-          donnees: { cibleType, cible, motif: detail ? `${motif.value} : ${detail}` : motif.value },
+          donnees: { cibleType, cible, categorie: motif.value, motif: detail },
         });
         zoneMessage.textContent = reponse.dejaSignale ? t('signalement.deja') : t('signalement.merci');
         zoneMessage.className = 'message succes';
@@ -1172,6 +1175,20 @@
     ]));
   }
 
+  // Compte suspendu (sanction) : un bandeau dit jusqu'à quand, et mène à la page où lire le motif et contester.
+  // Le membre peut tout lire ; c'est le serveur qui refuse ce qu'il essaierait de publier.
+  function poserBandeauSuspension(moi) {
+    const entete = document.querySelector('body > .entete');
+    if (!moi.suspenduJusquA || !entete || document.querySelector('.bandeau-suspension')) return;
+    const date = new Date(moi.suspenduJusquA).toLocaleDateString(REGION, { day: 'numeric', month: 'long' });
+    document.body.classList.add('avec-bandeau');
+    entete.after(el('a', { classe: 'bandeau-profil bandeau-suspension', href: '/sanctions' }, [
+      icone('alerte'),
+      el('span', { texte: t('bandeau.suspension', { date }) }),
+      el('strong', { texte: t('bandeau.suspension-voir') }),
+    ]));
+  }
+
   // Bouton soleil / lune : passe du mode clair au mode sombre (voir public/js/theme.js, qui retient le choix).
   function boutonTheme() {
     const theme = window.PalabreTheme;
@@ -1459,7 +1476,9 @@
         menuAvatar(moi),
       ].filter(Boolean));
       poserColonnes(moi);
-      poserBandeauProfil(moi);
+      // Un seul bandeau à la fois : la suspension passe avant le profil à terminer.
+      if (moi.suspenduJusquA) poserBandeauSuspension(moi);
+      else poserBandeauProfil(moi);
       majPastilleMessages(moi.messagesNonLus || 0);
       surveillerMessages();
       veiller();

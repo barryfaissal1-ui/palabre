@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#171512">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Palabre">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="preload" href="/fonts/bricolage-grotesque-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="/js/theme.js"></script>
+  <link rel="stylesheet" href="/css/style.css">
+  <meta name="robots" content="noindex">
+  <title>Mes sanctions – Palabre</title>
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
+  <script src="/js/app.js" defer></script>
+  <script src="/js/sanctions.js" defer></script>
+</head>
+<!-- Les sanctions prises contre le compte, avec la possibilité de contester chacune une fois.
+     Ouverte connecté, ou par le lien de l'email (/sanctions?jeton=…) quand le compte est bloqué. -->
+<body>
+  <div class="bande"></div>
+  <header class="entete"><div class="conteneur entete-interieur">
+    <a class="marque" href="/"><img src="/icons/logo-96.webp" alt="" width="32" height="32">Palabre</a>
+    <nav data-nav></nav>
+  </div></header>
+  <main class="conteneur page-fil page-texte">
+    <h1 data-t="sanctions.titre" class="titre-page">Mes sanctions</h1>
+    <p><span data-t="sanctions.intro">Quand un contenu ne respecte pas les</span> <a data-t="acces.accepte.regles" href="/regles">règles de la communauté</a><span data-t="sanctions.intro-suite">, l'équipe peut avertir, suspendre ou exclure un compte. Tu peux contester chaque sanction une fois : une personne de l'équipe la relit.</span></p>
+    <div class="liste-sanctions" data-sanctions aria-live="polite"></div>
+  </main>
+</body>
+</html>

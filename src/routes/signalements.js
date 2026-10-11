@@ -3,6 +3,7 @@
 const express = require('express');
 const db = require('../db/pool');
 const v = require('../utils/validation');
+const { CATEGORIES, cacherSiTropSignale } = require('../utils/sanctions');
 const { exigerConnexion } = require('../middleware/auth');
 const { limiteParMembre } = require('../utils/membres');
 
@@ -30,12 +31,17 @@ const CIBLES = {
   ],
 };
 
-// Signaler : POST /api/signalements  { cibleType, cible, motif }
+// Signaler : POST /api/signalements  { cibleType, cible, categorie?, motif? }
+// categorie : le motif choisi dans la liste (arnaque, insulte, haine, sexuel, violence, faux_profil, spam, autre) ;
+// motif : le texte libre. Avec une catégorie, le texte est facultatif.
 router.post('/', exigerConnexion, limiteSignalements, async (req, res) => {
   const corps = req.body || {};
   const moi = req.utilisateur;
   const cibleType = v.parmi(corps.cibleType, Object.keys(CIBLES), 'cibleType');
-  const motif = v.texte(corps.motif, 'motif', { min: 3, max: 500 });
+  const categorie = corps.categorie === undefined || corps.categorie === null ? null : v.parmi(corps.categorie, Object.keys(CATEGORIES), 'categorie');
+  const precision = v.texte(corps.motif, 'motif', { min: categorie ? 0 : 3, max: 400, optionnel: Boolean(categorie) });
+  // Ce que lit l'équipe dans /admin : le libellé du motif, puis ce que le membre a ajouté.
+  const motif = categorie ? [CATEGORIES[categorie], precision].filter(Boolean).join(' : ') : precision;
 
   const [requete, valeur, ...autres] = CIBLES[cibleType](corps.cible, moi);
   const { rows } = valeur === null ? { rows: [] } : await db.query(requete, [valeur, ...autres]);
@@ -44,12 +50,18 @@ router.post('/', exigerConnexion, limiteSignalements, async (req, res) => {
     throw new v.ErreurValidation('Tu ne peux pas signaler ton propre contenu.', 'cible');
   }
 
-  // Un membre ne signale qu'une fois la même cible (contrainte UNIQUE de la table).
-  const { rowCount } = await db.query(
-    `INSERT INTO signalements (auteur_id, cible_type, cible_id, motif) VALUES ($1, $2, $3, $4)
-     ON CONFLICT (auteur_id, cible_type, cible_id) DO NOTHING`,
-    [moi.id, cibleType, rows[0].id, motif],
-  );
+  // Un membre ne signale qu'une fois la même cible (contrainte UNIQUE de la table) : signaler trois fois le même
+  // contenu avec le même compte ne compte que pour un.
+  const rowCount = await db.transaction(async (client) => {
+    const insere = await client.query(
+      `INSERT INTO signalements (auteur_id, cible_type, cible_id, motif, categorie) VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (auteur_id, cible_type, cible_id) DO NOTHING`,
+      [moi.id, cibleType, rows[0].id, motif, categorie],
+    );
+    // Trois membres différents : le contenu est caché en attendant la décision de l'équipe (src/utils/sanctions.js).
+    if (insere.rowCount) await cacherSiTropSignale(client, cibleType, rows[0].id, rows[0].auteur_id);
+    return insere.rowCount;
+  });
   res.status(rowCount ? 201 : 200).json({ ok: true, dejaSignale: rowCount === 0 });
 });
 

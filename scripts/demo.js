@@ -736,6 +736,42 @@ const AUTRES_PUBLICATIONS = [
   ['adama', 'question', 'Entre nous : qui a déjà facturé une maintenance au mois ? Je cherche le bon tarif avant d\'en parler à un client.'],
 ];
 
+// De quoi montrer la modération au jury, dans /admin, section « À modérer » : un compte douteux, « Promo Rapide »,
+// avec une publication que le filtre automatique a retenue (elle ressemble à une arnaque) et une autre que trois
+// membres ont signalée (cachée automatiquement). Écrit directement en base : c'est l'état d'arrivée qu'on veut
+// montrer, pas le chemin (testé dans tests/moderation.test.js et tests/sanctions.test.js).
+async function creerModeration() {
+  const { rows: [modele] } = await pool.query('SELECT mot_de_passe_hash FROM utilisateurs WHERE email = $1', [email('awa')]);
+  const { rows: [deja] } = await pool.query('SELECT 1 FROM utilisateurs WHERE email = $1', [email('promo')]);
+  const { rows: signaleurs } = await pool.query('SELECT id FROM utilisateurs WHERE email = ANY($1) ORDER BY id', [[email('awa'), email('bintou'), email('kwame')]]);
+  if (!modele || deja || signaleurs.length < 3) return 0;
+  return transaction(async (client) => {
+    const { rows: [douteux] } = await client.query(
+      `INSERT INTO utilisateurs (type, nom, prenom, nom_famille, identifiant, email, mot_de_passe_hash, pays, ville, bio, email_confirme_le, profil_complete_le, regles_acceptees_le, regles_version, cree_le)
+       VALUES ('dev', 'Promo Rapide', 'Promo', 'Rapide', 'promo-rapide', $1, $2, 'Burkina Faso', 'Ouagadougou', 'Compte de démonstration : il sert à montrer la modération.', now(), now(), now(), $3, now() - interval '6 days')
+       RETURNING id`,
+      [email('promo'), modele.mot_de_passe_hash, VERSION_REGLES],
+    );
+    // 1. Retenue par le filtre automatique avant publication.
+    const { rows: [arnaque] } = await client.query(
+      "INSERT INTO publications (auteur_id, type, texte, masque) VALUES ($1, 'idee', $2, TRUE) RETURNING id",
+      [douteux.id, 'Gains garantis ! Envoie 5 000 FCFA d\'abord pour débloquer ton compte, et double ton argent en 24 h. Écris-moi vite.'],
+    );
+    await client.query("INSERT INTO moderation_attente (cible_type, cible_id, auteur_id, raison) VALUES ('publication', $1, $2, 'arnaque')", [arnaque.id, douteux.id]);
+    // 2. Publiée normalement, puis signalée par trois membres : cachée en attendant la décision de l'équipe.
+    const { rows: [signalee] } = await client.query(
+      "INSERT INTO publications (auteur_id, type, texte, masque, cree_le) VALUES ($1, 'idee', $2, TRUE, now() - interval '5 hours') RETURNING id",
+      [douteux.id, 'Je vends des comptes de réseaux sociaux déjà vérifiés et des abonnés par milliers. Prix cassés, écrivez-moi en privé.'],
+    );
+    const motifs = [['spam', 'Spam : Publicité sans rapport avec le site.'], ['arnaque', 'Arnaque : Il vend des comptes volés.'], ['spam', 'Spam']];
+    for (const [rang, signaleur] of signaleurs.entries()) {
+      await client.query("INSERT INTO signalements (auteur_id, cible_type, cible_id, motif, categorie) VALUES ($1, 'publication', $2, $3, $4)", [signaleur.id, signalee.id, motifs[rang][1], motifs[rang][0]]);
+    }
+    await client.query("INSERT INTO moderation_attente (cible_type, cible_id, auteur_id, raison) VALUES ('publication', $1, $2, 'signalements')", [signalee.id, douteux.id]);
+    return 2;
+  });
+}
+
 async function creerAutresComptes() {
   const { rows: [modele] } = await pool.query('SELECT mot_de_passe_hash FROM utilisateurs WHERE email = $1', [email('awa')]);
   const { rows: [deja] } = await pool.query('SELECT 1 FROM utilisateurs WHERE email = $1', [email('kwame')]);
@@ -800,12 +836,14 @@ async function main() {
   const complets = await creerComptesComplets(!config.production || process.argv.includes('--admin'));
   if (complets) console.log(`Deux comptes « tout tester » ajoutés : ${complets.dev} (développeur${complets.admin ? ' et administrateur' : ''}) et ${complets.client} (cliente).`);
   const autres = await creerAutresComptes();
+  const moderation = await creerModeration();
+  if (moderation) console.log('File « À modérer » de /admin : une publication retenue par le filtre (arnaque) et une publication cachée par trois signalements.');
   // Les comptes de démonstration ont accepté la version actuelle des règles de la communauté : le jury n'a pas à
   // passer par la fenêtre « Les règles ont changé » en ouvrant un compte de démo.
   await pool.query('UPDATE utilisateurs SET regles_acceptees_le = COALESCE(regles_acceptees_le, now()), regles_version = $2 WHERE email LIKE $1 AND COALESCE(regles_version, 0) < $2', [MOTIF_EMAIL, VERSION_REGLES]);
   if (autres) console.log(`${autres} comptes ajoutés : trois membres anglophones (${email('kwame')}, ${email('ngozi')}, ${email('wanjiru')}) et ${email('adama')}, dont les publications sont réservées à ses amis.`);
   if (!bilan) {
-    console.log(`Les comptes de démonstration existent déjà : ${conversations || complets || autres ? 'seul ce qui manquait a été ajouté' : 'rien n\'a été modifié'}.\nPour repartir de zéro : npm run demo -- retirer, puis npm run demo`);
+    console.log(`Les comptes de démonstration existent déjà : ${conversations || complets || autres || moderation ? 'seul ce qui manquait a été ajouté' : 'rien n\'a été modifié'}.\nPour repartir de zéro : npm run demo -- retirer, puis npm run demo`);
     return;
   }
   console.log(`Contenu de démonstration créé : ${bilan.membres} membres, ${bilan.publications} publications, des projets, 6 demandes, 2 avis.`);

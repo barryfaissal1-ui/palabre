@@ -1,7 +1,7 @@
 // Tableau de bord administrateur : statistiques, signalements, projets pour Facebook, membres bloqués.
 // La page n'est qu'un affichage : c'est le serveur qui refuse tout à un membre qui n'est pas administrateur.
 (function () {
-  const { t, nombre, REGION, lieuDe, api, el, avatar, utilisateurConnecte, dateRelative, carteProjet, etatVide, confirmer, icone, toast } = window.Palabre;
+  const { t, nombre, REGION, lieuDe, api, el, avatar, utilisateurConnecte, dateRelative, carteProjet, etatVide, confirmer, icone, toast, listeChoix } = window.Palabre;
 
   const NOMS_CIBLES = { publication: t('publication.titre'), commentaire: t('admin.cible.commentaire'), profil: t('nav.profil'), projet: t('publication.projet'), demande: t('admin.cible.demande'), message: t('admin.cible.message') };
 
@@ -69,6 +69,10 @@
       }));
     }
     boutons.push(boutonAction(t('admin.classer'), 'bouton-contour', traiter('classer'), { succes: t('admin.classe') }));
+    // Sanctionner l'auteur (le contenu est caché du même coup) : avertissement, suspension ou exclusion.
+    const sanction = cible && !cible.membreEstAdmin && !cible.membreBloque
+      ? zoneSanction((choix) => api(`/admin/signalements/${carte.id}/traiter`, { methode: 'POST', donnees: { action: 'sanctionner', ...choix } }), cible.membre.nom)
+      : null;
 
     let contenu;
     if (!cible) {
@@ -103,6 +107,7 @@
         el('span', { classe: 'texte-discret' }, [', par ', lienMembre(s.auteur), `, ${dateRelative(s.creeLe)}`]),
       ]))),
       el('div', { classe: 'profil-actions' }, boutons),
+      sanction,
     ]);
   }
 
@@ -116,6 +121,24 @@
   }
 
   // ---------- Le filtre automatique : contenus retenus, domaines interdits ----------
+  // Le choix d'une sanction : suivre la progression (avertissement, puis suspension de 7 jours, puis exclusion),
+  // ou choisir directement une sanction plus forte pour une faute grave. Le motif est lu par le membre.
+  function zoneSanction(envoyer, nom) {
+    const choix = el('select', { 'aria-label': t('admin.sanction.choix') }, [
+      el('option', { value: '', texte: t('admin.sanction.progressive') }),
+      el('option', { value: 'avertissement', texte: t('sanctions.type.avertissement') }),
+      el('option', { value: 'suspension', texte: t('sanctions.type.suspension') }),
+      el('option', { value: 'exclusion', texte: t('sanctions.type.exclusion') }),
+    ]);
+    const motif = el('input', { type: 'text', maxlength: '300', placeholder: t('admin.sanction.motif'), 'aria-label': t('admin.sanction.motif') });
+    const bouton = boutonAction(t('admin.sanction.bouton'), 'bouton-or', () => envoyer({ sanction: choix.value || null, motif: motif.value }), {
+      confirmation: t('admin.sanction.question', { nom }), succes: t('admin.sanction.faite', { nom }), danger: true,
+    });
+    const zone = el('div', { classe: 'zone-sanction' }, [choix, motif, bouton]);
+    listeChoix(choix); // une liste créée après le chargement de la page : on l'habille à la main
+    return zone;
+  }
+
   const TYPES_ATTENTE = { publication: t('admin.attente.type.publication'), commentaire: t('admin.attente.type.commentaire'), demande: t('admin.attente.type.demande'), projet: t('admin.attente.type.projet') };
   function carteAttente(attente) {
     const decider = (decision) => () => api(`/admin/moderation/attente/${attente.id}`, { methode: 'POST', donnees: { decision } });
@@ -124,11 +147,15 @@
         el('span', { classe: 'type-signalement', texte: TYPES_ATTENTE[attente.cibleType] }),
         el('span', { classe: 'texte-discret' }, [t('commun.par'), lienMembre(attente.auteur), `, ${dateRelative(attente.creeLe)}`]),
       ]),
+      // Pourquoi il est là : retenu par le filtre, ou caché par les signalements de plusieurs membres.
+      el('p', { classe: 'origine-attente', texte: attente.raison === 'signalements' ? t('admin.attente.origine.signalements', { n: attente.motifs.length }) : t('admin.attente.origine.filtre') }),
       attente.texte ? el('blockquote', { classe: 'contenu-signale', texte: attente.texte }) : null,
+      attente.motifs.length ? el('ul', { classe: 'motifs' }, attente.motifs.map((motif) => el('li', { texte: motif }))) : null,
       el('div', { classe: 'profil-actions' }, [
         boutonAction(t('admin.attente.approuver'), 'bouton-principal', decider('approuver'), { succes: t('admin.attente.approuve') }),
         boutonAction(t('admin.attente.retirer'), 'bouton-contour', decider('retirer'), { succes: t('admin.attente.retire') }),
       ]),
+      zoneSanction((choix) => api(`/admin/moderation/attente/${attente.id}`, { methode: 'POST', donnees: { decision: 'sanctionner', ...choix } }), attente.auteur.nom),
     ]);
   }
   function sectionAttente(attente) {
@@ -140,6 +167,46 @@
         : el('p', { classe: 'texte-discret', texte: t('admin.attente.vide') }),
     ]);
   }
+  // Les sanctions contestées : le membre a écrit pourquoi, un administrateur annule ou maintient.
+  function sectionContestations(contestations) {
+    if (!contestations.length) return null;
+    return el('section', { classe: 'section-profil', id: 'contestations' }, [
+      el('h2', { texte: t('admin.contestations.titre', { n: contestations.length }) }),
+      el('div', { classe: 'liste-publications' }, contestations.map((c) => el('article', { classe: 'publication carte-signalement' }, [
+        el('p', { classe: 'publication-meta' }, [
+          el('span', { classe: 'type-signalement', texte: t(`sanctions.type.${c.type}`) }),
+          el('span', { classe: 'texte-discret' }, [lienMembre(c.membre), `, ${dateRelative(c.contesteeLe)}`]),
+        ]),
+        el('p', {}, [el('span', { classe: 'texte-discret', texte: t('sanctions.motif') }), ' ', el('span', { texte: c.motif })]),
+        el('blockquote', { classe: 'contenu-signale', texte: c.texte }),
+        el('div', { classe: 'profil-actions' }, [
+          boutonAction(t('admin.contestations.annuler'), 'bouton-principal', () => api(`/admin/sanctions/${c.id}/annuler`, { methode: 'POST', donnees: {} }), { confirmation: t('admin.contestations.annuler-question', { nom: c.membre.nom }), succes: t('admin.contestations.annulee') }),
+          boutonAction(t('admin.contestations.maintenir'), 'bouton-contour', () => api(`/admin/sanctions/${c.id}/maintenir`, { methode: 'POST', donnees: {} }), { succes: t('admin.contestations.maintenue') }),
+        ]),
+      ]))),
+    ]);
+  }
+
+  // Le journal de modération : qui a décidé quoi, quand. Gardé un an par le serveur.
+  const ACTIONS_JOURNAL = {
+    contenu_approuve: t('admin.journal.contenu-approuve'), contenu_retire: t('admin.journal.contenu-retire'),
+    sanction_avertissement: t('admin.journal.avertissement'), sanction_suspension: t('admin.journal.suspension'), sanction_exclusion: t('admin.journal.exclusion'),
+    sanction_annulee: t('admin.journal.sanction-annulee'), contestation_rejetee: t('admin.journal.contestation-rejetee'),
+    signalement_masquer: t('admin.journal.masquer'), signalement_bloquer: t('admin.journal.bloquer'), signalement_classer: t('admin.journal.classer'),
+  };
+  function sectionJournal(journal) {
+    return el('section', { classe: 'section-profil', id: 'journal-moderation' }, [
+      el('h2', { texte: t('admin.journal.titre') }),
+      el('p', { classe: 'texte-discret', texte: t('admin.journal.aide') }),
+      journal.length
+        ? el('ul', { classe: 'liste-journal-moderation' }, journal.slice(0, 30).map((ligne) => el('li', {}, [
+          el('strong', { texte: ACTIONS_JOURNAL[ligne.action] || ligne.action }),
+          el('span', { classe: 'texte-discret', texte: [ligne.membre ? ligne.membre.nom : null, ligne.detail, ligne.admin ? t('admin.journal.par', { nom: ligne.admin }) : null, dateRelative(ligne.le)].filter(Boolean).join(', ') }),
+        ])))
+        : el('p', { classe: 'texte-discret', texte: t('admin.journal.vide') }),
+    ]);
+  }
+
   function sectionDomaines(domaines) {
     const champ = el('input', { id: 'domaine-interdit', type: 'text', autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false', maxlength: '100' });
     const formulaire = el('form', { classe: 'formulaire-domaine' }, [
@@ -355,14 +422,16 @@
   }
 
   async function afficher() {
-    const [{ statistiques }, { signalements }, { projets }, { membres }, { membres: recents }, aPublier, { defis }, { attente }, { domaines }] = await Promise.all([
+    const [{ statistiques }, { signalements }, { projets }, { membres }, { membres: recents }, aPublier, { defis }, { attente }, { domaines }, { contestations }, { journal }] = await Promise.all([
       api('/admin/statistiques'), api('/admin/signalements'), api('/admin/projets-facebook'), api('/admin/membres-bloques'), api('/admin/membres-recents'), api('/admin/facebook-a-publier'), api('/admin/defis'),
-      api('/admin/moderation/attente'), api('/admin/domaines-interdits'),
+      api('/admin/moderation/attente'), api('/admin/domaines-interdits'), api('/admin/moderation/contestations'), api('/admin/moderation/journal'),
     ]);
     document.querySelector('[data-admin]').replaceChildren(...[
       sectionStatistiques(statistiques),
       sectionAttente(attente),
+      sectionContestations(contestations),
       sectionSignalements(signalements),
+      sectionJournal(journal),
       sectionDomaines(domaines),
       sectionFacebook(projets),
       sectionAPublier(aPublier),

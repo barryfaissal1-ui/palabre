@@ -9,6 +9,7 @@ const config = require('./config');
 const { chargerUtilisateur, exigerEmailConfirme, exigerCompteActif } = require('./middleware/auth');
 const { langueDe } = require('./utils/langue');
 const { exigerReglesAcceptees } = require('./utils/regles');
+const { exigerNonSuspendu } = require('./utils/sanctions');
 const { codeDe, traduireReponse } = require('./utils/textes');
 
 const { DOSSIER_PUBLIC, pagesHtml, entetesDeCache, pageErreur } = require('./utils/statique');
@@ -96,6 +97,8 @@ function creerApp() {
   app.use('/api', exigerCompteActif);
   // Les règles de la communauté ont changé depuis son acceptation : il lit, mais n'écrit plus avant de les accepter.
   app.use('/api', exigerReglesAcceptees);
+  // Compte suspendu (sanction) : lecture seule jusqu'à la date de fin.
+  app.use('/api', exigerNonSuspendu);
   app.use('/api/auth', require('./routes/auth'));
   app.use('/api/profils', require('./routes/profils'));
   app.use('/api/publications', require('./routes/publications'));
@@ -110,6 +113,7 @@ function creerApp() {
   app.use('/api/messages', require('./routes/messages'));
   app.use('/api/defis', require('./routes/defis'));
   app.use('/api/parametres', require('./routes/parametres'));
+  app.use('/api/sanctions', require('./routes/sanctions'));
   app.use('/api/admin', require('./routes/admin'));
   app.use('/api', require('./routes/references'));
 

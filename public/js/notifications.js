@@ -21,6 +21,10 @@
     projet_facebook: ['facebook', 'bleu'],
     contenu_approuve: ['valide', 'vert'],
     contenu_retire: ['alerte', 'terre'],
+    contenu_cache: ['masquer', 'terre'],
+    sanction: ['alerte', 'terre'],
+    sanction_annulee: ['valide', 'vert'],
+    contestation_rejetee: ['alerte', 'terre'],
   };
   const PERIODES = { jour: t('notifications.aujourd-hui'), semaine: t('notifications.cette-semaine'), avant: t('notifications.plus-ancien') };
 

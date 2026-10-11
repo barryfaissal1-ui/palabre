@@ -25,7 +25,7 @@ const FAMILLES = {
   messages: ['message', 'demande_message', 'appel', 'appel_manque'],
   demandes: ['nouvelle_proposition', 'proposition_acceptee', 'avis_recu'],
   equipes: ['invitation_equipe', 'equipe_reponses'],
-  social: ['jaime', 'commentaire', 'reponse_commentaire', 'demande_ami', 'ami_accepte', 'projet_facebook', 'contenu_approuve', 'contenu_retire'],
+  social: ['jaime', 'commentaire', 'reponse_commentaire', 'demande_ami', 'ami_accepte', 'projet_facebook', 'contenu_approuve', 'contenu_retire', 'contenu_cache', 'sanction', 'sanction_annulee', 'contestation_rejetee'],
   defis: ['defi_gagne'],
 };
 const familleDe = (type) => Object.keys(FAMILLES).find((famille) => FAMILLES[famille].includes(type)) || 'social';

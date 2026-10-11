@@ -59,6 +59,8 @@ function profilPrive(u) {
     desactive: Boolean(u.desactive_le),
     // Les règles ont changé depuis son acceptation : la page ouvre la fenêtre « Les règles ont changé ».
     reglesAAccepter: reglesAAccepter(u),
+    // Suspension en cours (sanction) : la page affiche le bandeau « lecture seule » avec la date de fin.
+    suspenduJusquA: u.suspendu_jusqu_a && new Date(u.suspendu_jusqu_a).getTime() > Date.now() ? u.suspendu_jusqu_a : null,
     suppressionPrevueLe: u.suppression_prevue_le || null,
 
     id: u.id,

@@ -86,6 +86,10 @@ const TITRES_PUSH = {
   projet_facebook: () => 'Ton projet et la page Facebook',
   contenu_approuve: () => 'Ton contenu est maintenant visible',
   contenu_retire: () => 'Ton contenu n\'a pas été publié',
+  contenu_cache: () => 'Un de tes contenus est caché',
+  sanction: () => 'Message de l\'équipe Palabre',
+  sanction_annulee: () => 'Sanction annulée',
+  contestation_rejetee: () => 'Réponse à ta contestation',
 };
 // Quand le titre dit déjà tout, le texte du push ne le répète pas.
 const CORPS_PUSH = {

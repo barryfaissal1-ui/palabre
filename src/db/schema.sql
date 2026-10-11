@@ -739,3 +739,49 @@ CREATE TABLE IF NOT EXISTS domaines_interdits (
   ajoute_par INTEGER REFERENCES utilisateurs(id) ON DELETE SET NULL,
   cree_le    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Signalements : le motif choisi dans la liste (en plus du texte libre), et le « poids » du signaleur :
+-- signalements_rejetes compte ses signalements classés sans suite ; à partir de trois, ils ne pèsent plus dans le
+-- masquage automatique (un contenu signalé par trois membres différents est caché en attendant l'équipe).
+ALTER TABLE signalements ADD COLUMN IF NOT EXISTS categorie TEXT;
+ALTER TABLE signalements DROP CONSTRAINT IF EXISTS signalements_categorie_check;
+ALTER TABLE signalements ADD CONSTRAINT signalements_categorie_check CHECK (categorie IN ('arnaque', 'insulte', 'haine', 'sexuel', 'violence', 'faux_profil', 'spam', 'autre'));
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS signalements_rejetes INTEGER NOT NULL DEFAULT 0;
+
+-- Sanctions progressives : avertissement, suspension (7 jours, lecture seule), exclusion (compte bloqué).
+-- contestation : le membre peut contester une fois ; annulee_le : un administrateur a annulé la sanction.
+-- jeton_hash : le lien « Contester » de l'email, pour le membre qui ne peut plus se connecter.
+CREATE TABLE IF NOT EXISTS sanctions (
+  id                      SERIAL PRIMARY KEY,
+  utilisateur_id          INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  type                    TEXT NOT NULL CHECK (type IN ('avertissement', 'suspension', 'exclusion')),
+  motif                   TEXT NOT NULL CHECK (char_length(motif) BETWEEN 1 AND 300),
+  cible_type              TEXT,
+  cible_id                INTEGER,
+  decide_par              INTEGER REFERENCES utilisateurs(id) ON DELETE SET NULL,
+  debut                   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  fin                     TIMESTAMPTZ,
+  jeton_hash              TEXT UNIQUE,
+  contestation            TEXT,
+  contestee_le            TIMESTAMPTZ,
+  contestation_decision   TEXT CHECK (contestation_decision IN ('acceptee', 'rejetee')),
+  contestation_decidee_le TIMESTAMPTZ,
+  annulee_le              TIMESTAMPTZ,
+  annulee_par             INTEGER REFERENCES utilisateurs(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sanctions_membre ON sanctions (utilisateur_id, id DESC);
+-- Fin de la suspension en cours, recopiée sur le compte : chaque requête la lit sans interroger « sanctions ».
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS suspendu_jusqu_a TIMESTAMPTZ;
+
+-- Journal de modération : qui a décidé quoi, quand. Gardé un an.
+CREATE TABLE IF NOT EXISTS journal_moderation (
+  id         BIGSERIAL PRIMARY KEY,
+  admin_id   INTEGER REFERENCES utilisateurs(id) ON DELETE SET NULL,
+  action     TEXT NOT NULL,
+  cible_type TEXT,
+  cible_id   INTEGER,
+  membre_id  INTEGER REFERENCES utilisateurs(id) ON DELETE SET NULL,
+  detail     TEXT,
+  cree_le    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_journal_moderation_date ON journal_moderation (cree_le);

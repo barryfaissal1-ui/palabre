@@ -16,6 +16,7 @@ Disallow: /notifications
 Disallow: /modifier-profil
 Disallow: /reinitialiser
 Disallow: /pas-moi
+Disallow: /sanctions
 Disallow: /bon-retour
 Disallow: /annuler-suppression
 Disallow: /mot-de-passe-oublie

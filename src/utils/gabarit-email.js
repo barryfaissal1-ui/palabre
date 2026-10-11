@@ -166,4 +166,18 @@ function emailSuppressionPrevue({ prenom, date, jours, lien, langue = 'fr' }) {
   };
 }
 
-module.exports = { gabaritEmail, emailCode, emailMotDePasse, emailAlerteConnexion, emailEssaisConnexion, emailSuppressionPrevue, dateGmt, echapperHtml };
+// Email d'une sanction (avertissement, suspension, exclusion) : le motif, ce que cela change, et le bouton
+// « Contester », qui mène à la page /sanctions (le lien porte un jeton : il marche même si le compte est bloqué).
+function emailSanction({ prenom, type, motif, fin = null, lien, langue = 'fr' }) {
+  const T = (cle, variables) => textes.t(langue, cle, variables);
+  const jour = fin ? new Intl.DateTimeFormat(langue === 'en' ? 'en-GB' : 'fr-FR', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(fin)) : '';
+  const avant = [T(`email.sanction.${type}`, { date: jour }), T('email.sanction.motif', { motif }), T('email.sanction.contester')];
+  const apres = [T('email.sanction.regles')];
+  return {
+    sujet: T(`email.sanction.sujet.${type}`),
+    texte: `${T('email.bonjour', { prenom })}\n\n${avant.join('\n\n')}\n${lien}\n\n${apres.join('\n\n')}\n\n${T('email.signature')}`,
+    html: gabaritEmail({ langue, titre: T(`email.sanction.sujet.${type}`), prenom, avant, bouton: { texte: T('email.sanction.bouton'), lien }, apres }),
+  };
+}
+
+module.exports = { gabaritEmail, emailCode, emailMotDePasse, emailAlerteConnexion, emailEssaisConnexion, emailSuppressionPrevue, emailSanction, dateGmt, echapperHtml };
