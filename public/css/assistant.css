@@ -1,0 +1,69 @@
+/* Le Griot de Palabre : la fenêtre d'aide. Chargée seulement au premier toucher du bouton « Besoin d'aide ? ».
+   Le bouton rond, lui, est dans style.css (il est sur la page dès son ouverture).
+   Sur téléphone : une feuille qui monte du bas. Sur ordinateur : un petit panneau en bas à droite. */
+.griot {
+  width: 100%;
+  max-width: none;
+  max-height: min(86dvh, 640px);
+  margin: auto 0 0;
+  padding: 0;
+  border: 0;
+  /* Le coin « feuille » de Palabre : un grand arrondi, un petit. */
+  border-radius: 28px 10px 0 0;
+  background: var(--surface);
+  color: var(--encre);
+  box-shadow: var(--ombre-3);
+  overflow: hidden;
+}
+.griot[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; }
+.griot::backdrop { background: rgba(15, 12, 8, 0.45); }
+
+.griot-entete { display: flex; align-items: flex-start; gap: 12px; padding: 16px 12px 12px 16px; border-bottom: 1px solid var(--ligne); background: color-mix(in srgb, var(--action) 7%, var(--surface)); }
+.griot-medaillon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--action); color: var(--sur-action); }
+.griot-medaillon .icone { width: 22px; height: 22px; }
+.griot-qui { flex: 1; min-width: 0; }
+.griot-qui h2 { margin: 0; font: 800 var(--t-17)/1.25 var(--titre); }
+.griot-automatique { margin: 2px 0 0; font-size: var(--t-13); line-height: 1.35; color: var(--gris); }
+.griot-fermer { flex: none; display: grid; place-items: center; width: 44px; height: 44px; margin: -6px 0 0; border: 0; border-radius: 50%; background: transparent; color: var(--encre); cursor: pointer; }
+.griot-fermer:hover { background: color-mix(in srgb, var(--encre) 8%, transparent); }
+
+.griot-fil { display: flex; flex-direction: column; gap: 10px; min-height: 120px; padding: 14px 16px; overflow-y: auto; overscroll-behavior: contain; }
+.griot-bulle { max-width: 92%; padding: 10px 14px; font-size: var(--t-15); line-height: 1.45; overflow-wrap: anywhere; }
+.griot-bulle p { margin: 0; }
+.griot-bulle p + p { margin-top: 6px; }
+.griot-bulle-griot { align-self: flex-start; border-radius: 4px 18px 18px 18px; background: color-mix(in srgb, var(--encre) 6%, var(--surface)); }
+.griot-bulle-moi { align-self: flex-end; border-radius: 18px 18px 4px 18px; background: var(--action); color: var(--sur-action); }
+.griot-boutons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.griot-boutons .bouton { min-height: 44px; background: var(--surface); }
+
+/* Les suggestions : des puces à toucher, sur une ligne qui défile. */
+.griot-sujets { display: flex; gap: 8px; padding: 10px 16px; overflow-x: auto; border-top: 1px solid var(--ligne); scrollbar-width: none; }
+.griot-sujets::-webkit-scrollbar { display: none; }
+.griot-puce { flex: none; min-height: 44px; padding: 0 14px; border: 1px solid color-mix(in srgb, var(--action) 45%, var(--ligne)); border-radius: 999px; background: var(--surface); color: var(--action); font: 600 var(--t-13)/1.2 var(--texte); cursor: pointer; white-space: nowrap; }
+.griot-puce:hover { background: color-mix(in srgb, var(--action) 9%, var(--surface)); }
+
+.griot-forme { display: flex; align-items: center; gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)) 16px; border-top: 1px solid var(--ligne); }
+.griot-champ { flex: 1; min-width: 0; min-height: 44px; padding: 0 14px; border: 1px solid var(--ligne); border-radius: 999px; background: var(--surface-2); color: var(--encre); font: inherit; font-size: 16px; }
+.griot-envoyer { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--action); color: var(--sur-action); cursor: pointer; }
+.griot-envoyer .icone { width: 20px; height: 20px; }
+
+.griot-fermer:focus-visible, .griot-puce:focus-visible, .griot-envoyer:focus-visible, .griot-champ:focus-visible, .griot-fil:focus-visible { outline: 2px solid var(--action); outline-offset: 2px; }
+
+/* Mode sombre : les bulles du Griot se détachent un peu plus du fond. */
+:where([data-theme="sombre"]) .griot-bulle-griot { background: color-mix(in srgb, #fff 9%, var(--surface)); }
+:where([data-theme="sombre"]) .griot::backdrop { background: rgba(0, 0, 0, 0.6); }
+
+/* Le seul mouvement : la fenêtre monte en s'ouvrant. Coupé si l'appareil demande moins d'animations. */
+@media (prefers-reduced-motion: no-preference) {
+  .griot[open] { animation: griot-monte 0.24s ease-out; }
+  @keyframes griot-monte { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+}
+
+/* Ordinateur et tablette : un petit panneau en bas à droite, sans voile sur la page. */
+@media (min-width: 768px) {
+  .griot { width: 392px; max-height: min(620px, calc(100dvh - 48px)); margin: auto 24px 24px auto; border-radius: 28px 10px 28px 10px; }
+  .griot::backdrop { background: transparent; }
+  :where([data-theme="sombre"]) .griot::backdrop { background: transparent; }
+  .griot-sujets { flex-wrap: wrap; overflow-x: visible; }
+  .griot-puce { white-space: normal; text-align: left; min-height: 36px; padding-block: 6px; }
+}

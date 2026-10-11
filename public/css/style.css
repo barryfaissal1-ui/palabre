@@ -539,7 +539,33 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--er
   body.avec-barre { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
   body.avec-barre .barre-enregistrer { bottom: calc(57px + env(safe-area-inset-bottom, 0px)); }
   body.avec-barre .toasts { bottom: calc(68px + env(safe-area-inset-bottom, 0px)); }
+  /* Le bouton du Griot reste au-dessus du menu du bas : il ne le cache jamais. */
+  body.avec-barre .bouton-griot { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
 }
+/* Le Griot de Palabre : le bouton rond « Besoin d'aide ? », en bas à droite. La fenêtre est dans css/assistant.css,
+   chargée au premier toucher. Caché pendant un appel et dans une conversation ouverte. */
+.bouton-griot {
+  position: fixed;
+  z-index: 18;
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border: 0;
+  /* le coin « feuille » de Palabre */
+  border-radius: 50% 50% 14px 50%;
+  background: var(--action);
+  color: var(--sur-action);
+  box-shadow: var(--ombre-2);
+  cursor: pointer;
+}
+.bouton-griot .icone { width: 26px; height: 26px; }
+.bouton-griot:hover { filter: brightness(1.08); }
+.bouton-griot:focus-visible { outline: 3px solid var(--surface); outline-offset: 0; box-shadow: 0 0 0 5px var(--action), var(--ombre-2); }
+body:has(dialog.ecran-appel) .bouton-griot, body.conversation-ouverte .bouton-griot { display: none; }
+@media print { .bouton-griot { display: none; } }
 .compteur {
   display: inline-grid;
   place-items: center;
@@ -1191,7 +1217,7 @@ a.nom-auteur:hover { text-decoration: underline; }
 .commentaire-pied { display: flex; align-items: center; gap: 4px; padding-left: 12px; font-size: var(--t-13); }
 /* Modifier sa publication ou son commentaire : le texte devient un champ, à sa place. */
 .formulaire-modification { display: grid; gap: 8px; width: 100%; }
-.champ-modification { width: 100%; min-height: 88px; padding: 10px 12px; border: 1px solid var(--ligne); border-radius: var(--rayon-petit); background: var(--surface); color: var(--texte); font: inherit; font-size: 16px; resize: vertical; }
+.champ-modification { width: 100%; min-height: 88px; padding: 10px 12px; border: 1px solid var(--ligne); border-radius: var(--rayon-petit); background: var(--surface); color: var(--encre); font: inherit; font-size: 16px; resize: vertical; }
 .champ-modification:focus-visible { outline: 2px solid var(--action); outline-offset: 1px; }
 .modification-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
 .modification-actions .bouton { min-height: 44px; }
@@ -1224,11 +1250,11 @@ a.nom-auteur:hover { text-decoration: underline; }
 .sanction-contestation { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--ligne); }
 .formulaire-contestation { display: grid; gap: 8px; }
 .formulaire-contestation label { font-weight: 600; }
-.formulaire-contestation textarea { width: 100%; min-height: 110px; padding: 10px 12px; border: 1px solid var(--ligne); border-radius: var(--rayon-petit); background: var(--surface); color: var(--texte); font: inherit; font-size: 16px; }
+.formulaire-contestation textarea { width: 100%; min-height: 110px; padding: 10px 12px; border: 1px solid var(--ligne); border-radius: var(--rayon-petit); background: var(--surface); color: var(--encre); font: inherit; font-size: 16px; }
 .formulaire-contestation .bouton { justify-self: start; }
 /* Tableau de bord : choisir une sanction, origine d'un contenu « à modérer », journal de modération. */
 .zone-sanction { display: grid; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--ligne); }
-.zone-sanction input { min-height: 44px; padding: 0 12px; border: 1px solid var(--ligne); border-radius: var(--rayon-petit); background: var(--surface); color: var(--texte); font: inherit; font-size: 16px; }
+.zone-sanction input { min-height: 44px; padding: 0 12px; border: 1px solid var(--ligne); border-radius: var(--rayon-petit); background: var(--surface); color: var(--encre); font: inherit; font-size: 16px; }
 .zone-sanction .bouton { justify-self: start; }
 .carte-signalement .publication-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
 .origine-attente { margin: 0; font-size: var(--t-13); font-weight: 600; color: var(--accent); }
@@ -2487,7 +2513,7 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 100px var(--surface-2) inset, 0
 .liste-journal .ligne-session { min-height: 56px; }
 .ligne-alerte .rubrique-icone { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
 /* État d'un réglage de sécurité (« Activée », « Désactivée ») et codes de secours, montrés une seule fois. */
-.etat-reglage { margin: 0; font-weight: 600; color: var(--texte-discret); }
+.etat-reglage { margin: 0; font-weight: 600; color: var(--gris); }
 .etat-reglage.etat-actif { color: var(--action); }
 .page-parametres [data-codes-secours] { display: grid; gap: 10px; padding: 14px 16px; border: 1px solid var(--ligne); border-radius: var(--rayon); background: color-mix(in srgb, var(--action) 6%, var(--surface)); }
 .page-parametres [data-codes-secours][hidden] { display: none; }

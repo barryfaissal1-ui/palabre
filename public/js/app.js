@@ -1269,6 +1269,54 @@
     chargerAppels().then((appels) => appels.lancer(conversation, type)).catch((erreur) => toast(erreur.message, 'erreur'));
   }
 
+  // ---------- Le Griot de Palabre : l'aide ----------
+  // Un bouton rond « Besoin d'aide ? », en bas à droite, sur les pages où l'on peut se poser des questions. Pas dans
+  // la messagerie, ni sur /admin. La fenêtre et la recherche (assistant.js, assistant-recherche.js, assistant.css)
+  // ne sont chargées qu'au premier toucher : rien de plus à télécharger à l'ouverture d'une page, même en 3G.
+  // Rien n'est envoyé au serveur : la recherche se fait dans le navigateur.
+  const PAGES_GRIOT = {
+    '/': 'accueil', '/connexion': 'connexion', '/inscription': 'inscription', '/calculateur': 'calculateur', '/regles': 'regles',
+    '/a-propos': 'a-propos', '/fil': 'fil', '/demandes': 'demandes', '/demande': 'demande', '/parametres': 'parametres',
+  };
+  function pageDuGriot() {
+    const chemin = window.location.pathname.replace(/\.html$/, '');
+    if (PAGES_GRIOT[chemin]) return PAGES_GRIOT[chemin];
+    return document.querySelector('[data-profil]') ? 'profil' : null; // la page d'un membre : /awa-ouedraogo
+  }
+  let fichiersGriot = null;
+  function chargerGriot() {
+    if (window.Palabre.griot) return Promise.resolve(window.Palabre.griot);
+    const charger = (src) => new Promise((pret, echec) => {
+      const script = el('script', { src });
+      script.addEventListener('load', pret);
+      script.addEventListener('error', () => echec(new Error(t('assistant.indisponible'))));
+      document.head.append(script);
+    });
+    fichiersGriot = fichiersGriot || (async () => {
+      document.head.append(el('link', { rel: 'stylesheet', href: '/css/assistant.css' }));
+      await charger('/js/assistant-recherche.js'); // les sujets et la recherche d'abord : la fenêtre s'en sert
+      await charger('/js/assistant.js');
+      return window.Palabre.griot;
+    })().catch((erreur) => { fichiersGriot = null; throw erreur; });
+    return fichiersGriot;
+  }
+  function poserGriot() {
+    const page = pageDuGriot();
+    if (!page || document.querySelector('.bouton-griot')) return;
+    const bouton = el('button', { classe: 'bouton-griot', type: 'button', 'aria-label': t('assistant.ouvrir'), 'aria-haspopup': 'dialog', title: t('assistant.besoin-aide') }, [icone('feuille')]);
+    bouton.addEventListener('click', async () => {
+      try {
+        const [griot, moi] = await Promise.all([chargerGriot(), utilisateurConnecte().catch(() => null)]);
+        // Les suggestions et les boutons des réponses dépendent de la personne : visiteur, développeur ou client.
+        griot.ouvrir({ profil: moi ? moi.type : 'visiteur', page, bouton });
+      } catch (erreur) {
+        toast(erreur.message, 'erreur');
+      }
+    });
+    document.body.append(bouton);
+  }
+  document.addEventListener('DOMContentLoaded', poserGriot);
+
   // La veille : toutes les 5 secondes, une petite requête demande « un appel sonne-t-il pour moi ? ».
   // Seulement quand l'onglet est visible : onglet caché ou site fermé, c'est la notification push qui prévient.
   // (Rien pendant un appel : la page interroge déjà le serveur chaque seconde.)
