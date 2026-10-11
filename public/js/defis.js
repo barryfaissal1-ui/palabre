@@ -2,15 +2,15 @@
 // les réponses, puis le vote. Le serveur dit dans quelle phase on est et ce que le membre peut faire
 // (peutRepondre, peutVoter) : la page ne fait que l'afficher.
 (function () {
-  const { api, el, avatar, nomMembre, icone, etatVide, toast, confirmer, utilisateurConnecte, tempsRestant } = window.Palabre;
+  const { t, deNom, api, el, avatar, nomMembre, icone, etatVide, toast, confirmer, utilisateurConnecte, tempsRestant } = window.Palabre;
   const zone = () => document.querySelector('[data-defi]');
-  const PHASES = { reponses: 'Réponses ouvertes', vote: 'Vote en cours', termine: 'Terminé' };
+  const PHASES = { reponses: t('defis.phase.reponses'), vote: t('defis.phase.vote'), termine: t('defis.phase.termine') };
 
   // « Il reste 2 jours et 5 heures pour répondre. »
   function compteARebours(defi) {
-    if (defi.phase === 'termine') return 'Ce défi est terminé.';
+    if (defi.phase === 'termine') return t('defis.termine');
     const reste = tempsRestant(defi.phase === 'reponses' ? defi.finReponsesLe : defi.finVoteLe);
-    return `Il reste ${reste} pour ${defi.phase === 'reponses' ? 'répondre' : 'voter'}.`;
+    return t(defi.phase === 'reponses' ? 'defis.il-reste-repondre' : 'defis.il-reste-voter', { temps: reste });
   }
 
   function carteDefi(defi) {
@@ -26,7 +26,7 @@
 
   // ---------- Répondre (ou modifier sa réponse) ----------
   function formulaireReponse(defi, mienne) {
-    const texte = el('textarea', { id: 'reponse-texte', rows: 6, minlength: 20, maxlength: 2000, required: true, placeholder: 'Explique ta solution : l\'idée, les outils, pourquoi ça marche…' });
+    const texte = el('textarea', { id: 'reponse-texte', rows: 6, minlength: 20, maxlength: 2000, required: true, placeholder: t('defis.solution-aide') });
     texte.value = mienne ? mienne.texte : '';
     const lien = el('input', { id: 'reponse-lien', type: 'url', inputmode: 'url', autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false', maxlength: 300, placeholder: 'https://github.com/…' });
     lien.value = mienne && mienne.lien ? mienne.lien : '';
@@ -34,18 +34,18 @@
     const erreurLien = el('p', { classe: 'erreur-champ' });
     const message = el('p', { classe: 'message', role: 'alert' });
     const compteur = el('span', { classe: 'aide' });
-    const compter = () => { compteur.textContent = `${texte.value.trim().length} / 2000 (20 au moins)`; };
+    const compter = () => { compteur.textContent = t('defis.compteur', { n: texte.value.trim().length }); };
     texte.addEventListener('input', compter);
     compter();
-    const envoyer = el('button', { classe: 'bouton bouton-principal', type: 'submit' }, [icone('envoyer'), mienne ? 'Enregistrer ma réponse' : 'Envoyer ma réponse']);
-    const retirer = mienne ? el('button', { classe: 'bouton bouton-lien', type: 'button', texte: 'Retirer ma réponse' }) : null;
+    const envoyer = el('button', { classe: 'bouton bouton-principal', type: 'submit' }, [icone('envoyer'), mienne ? t('defis.enregistrer-reponse') : t('defis.envoyer-reponse')]);
+    const retirer = mienne ? el('button', { classe: 'bouton bouton-lien', type: 'button', texte: t('defis.retirer-reponse') }) : null;
 
     const formulaire = el('form', { classe: 'bloc-formulaire formulaire-defi', novalidate: true }, [
-      el('h2', { texte: mienne ? 'Ta réponse' : 'Ta réponse au défi' }),
-      mienne ? el('p', { classe: 'texte-discret', texte: 'Tu peux la modifier tant que les réponses sont ouvertes.' }) : null,
-      el('div', { classe: 'champ' }, [el('label', { for: 'reponse-texte', texte: 'Ta solution' }), texte, compteur, erreurTexte]),
+      el('h2', { texte: mienne ? t('defis.ta-reponse') : t('defis.ta-reponse-au-defi') }),
+      mienne ? el('p', { classe: 'texte-discret', texte: t('defis.modifiable') }) : null,
+      el('div', { classe: 'champ' }, [el('label', { for: 'reponse-texte', texte: t('defis.ta-solution') }), texte, compteur, erreurTexte]),
       el('div', { classe: 'champ' }, [
-        el('label', { for: 'reponse-lien' }, ['Lien ', el('span', { classe: 'aide', texte: '(facultatif : code, démonstration…)' })]),
+        el('label', { for: 'reponse-lien' }, [t('defis.lien'), el('span', { classe: 'aide', texte: t('defis.lien-aide') })]),
         lien, erreurLien,
       ]),
       message,
@@ -61,7 +61,7 @@
       envoyer.disabled = true;
       try {
         const reponse = await api(`/defis/${defi.id}/reponse`, { methode: 'POST', donnees: { texte: texte.value, lien: lien.value } });
-        toast(reponse.modifiee ? 'Réponse modifiée.' : 'Réponse envoyée. Bonne chance !');
+        toast(reponse.modifiee ? t('defis.reponse-modifiee') : t('defis.reponse-envoyee'));
         await afficher();
       } catch (erreur) {
         if (erreur.champ === 'texte') { erreurTexte.textContent = erreur.message; texte.focus(); }
@@ -72,10 +72,10 @@
     });
     if (retirer) {
       retirer.addEventListener('click', async () => {
-        if (!(await confirmer('Retirer ta réponse ? Tu pourras en écrire une autre tant que les réponses sont ouvertes.', { bouton: 'Retirer', danger: true }))) return;
+        if (!(await confirmer(t('defis.retirer-question'), { bouton: t('commun.retirer'), danger: true }))) return;
         try {
           await api(`/defis/${defi.id}/reponse`, { methode: 'DELETE', donnees: {} });
-          toast('Réponse retirée.');
+          toast(t('defis.reponse-retiree'));
           await afficher();
         } catch (erreur) {
           toast(erreur.message, 'erreur');
@@ -89,18 +89,18 @@
   function carteReponse(defi, reponse, peutVoter) {
     const pied = [];
     if (defi.phase === 'termine') {
-      pied.push(el('span', { classe: 'texte-discret', texte: `${reponse.nbVotes} vote${reponse.nbVotes > 1 ? 's' : ''}` }));
+      pied.push(el('span', { classe: 'texte-discret', texte: t('defis.votes', { n: reponse.nbVotes }) }));
     } else if (defi.phase === 'vote' && reponse.estMoi) {
-      pied.push(el('span', { classe: 'texte-discret', texte: 'C\'est ta réponse : tu ne peux pas voter pour elle.' }));
+      pied.push(el('span', { classe: 'texte-discret', texte: t('defis.pas-pour-soi') }));
     } else if (peutVoter) {
       const bouton = el('button', { classe: `bouton ${reponse.monVote ? 'bouton-principal' : 'bouton-contour'}`, type: 'button', 'aria-pressed': String(reponse.monVote) },
-        [icone(reponse.monVote ? 'valide' : 'coeur'), reponse.monVote ? 'Ton vote' : 'Voter pour cette réponse']);
+        [icone(reponse.monVote ? 'valide' : 'coeur'), reponse.monVote ? t('defis.ton-vote') : t('defis.voter')]);
       bouton.addEventListener('click', async () => {
         if (reponse.monVote) return;
         bouton.disabled = true;
         try {
           await api(`/defis/${defi.id}/vote`, { methode: 'POST', donnees: { reponseId: reponse.id } });
-          toast('Vote enregistré. Tu peux changer d\'avis jusqu\'à la fin du vote.');
+          toast(t('defis.vote-enregistre'));
           await afficher();
         } catch (erreur) {
           toast(erreur.message, 'erreur');
@@ -110,9 +110,9 @@
       pied.push(bouton);
     }
     return el('article', { classe: `carte-publication reponse-defi${reponse.gagnante ? ' gagnante' : ''}` }, [
-      reponse.gagnante ? el('p', { classe: 'pastille pastille-gagnant' }, [icone('trophee'), 'Réponse gagnante']) : null,
+      reponse.gagnante ? el('p', { classe: 'pastille pastille-gagnant' }, [icone('trophee'), t('defis.gagnante')]) : null,
       el('header', { classe: 'publication-entete' }, [
-        el('a', { classe: 'lien-avatar', href: `/${reponse.auteur.identifiant}`, 'aria-label': `Profil de ${reponse.auteur.nom}` }, [avatar(reponse.auteur, 'moyen')]),
+        el('a', { classe: 'lien-avatar', href: `/${reponse.auteur.identifiant}`, 'aria-label': t('commun.profil-de', { nom: reponse.auteur.nom, deNom: deNom(reponse.auteur.nom) }) }, [avatar(reponse.auteur, 'moyen')]),
         el('div', { classe: 'publication-qui' }, [
           nomMembre(reponse.auteur),
           el('p', { classe: 'texte-discret publication-meta', texte: [reponse.auteur.ville, reponse.auteur.pays].filter(Boolean).join(', ') }),
@@ -120,8 +120,8 @@
       ]),
       el('p', { classe: 'publication-texte', texte: reponse.texte }),
       reponse.lien ? el('p', { classe: 'reponse-lien' }, [
-        el('a', { classe: 'avec-icone', href: reponse.lien, target: '_blank', rel: 'noopener nofollow' }, [icone('lien'), 'Voir le lien']),
-        reponse.lienVerifie ? el('span', { classe: 'badge-verifie' }, [icone('verifie'), 'Lien vérifié']) : null,
+        el('a', { classe: 'avec-icone', href: reponse.lien, target: '_blank', rel: 'noopener nofollow' }, [icone('lien'), t('defis.voir-lien')]),
+        reponse.lienVerifie ? el('span', { classe: 'badge-verifie' }, [icone('verifie'), t('commun.lien-verifie')]) : null,
       ]) : null,
       pied.length ? el('div', { classe: 'reponse-pied' }, pied) : null,
     ]);
@@ -132,13 +132,13 @@
     const { defi } = donnees;
     if (defi.phase === 'termine') return null;
     if (!moi) {
-      return el('p', { classe: 'encart-defi' }, [`Connecte-toi pour ${defi.phase === 'reponses' ? 'répondre ou suivre le défi' : 'voter'}. `, el('a', { classe: 'bouton bouton-contour', href: '/connexion?suite=/defis', texte: 'Se connecter' })]);
+      return el('p', { classe: 'encart-defi' }, [t(defi.phase === 'reponses' ? 'defis.connecte-repondre' : 'defis.connecte-voter'), el('a', { classe: 'bouton bouton-contour', href: '/connexion?suite=/defis', texte: t('nav.se-connecter') })]);
     }
     if (donnees.profilIncomplet && defi.phase === 'reponses') {
-      return el('p', { classe: 'encart-defi' }, ['Termine ton profil de dev pour répondre au défi. ', el('a', { classe: 'bouton bouton-contour', href: '/bienvenue?suite=/defis', texte: 'Terminer mon profil' })]);
+      return el('p', { classe: 'encart-defi' }, [t('defis.termine-profil'), el('a', { classe: 'bouton bouton-contour', href: '/bienvenue?suite=/defis', texte: t('defis.terminer-profil') })]);
     }
     if (defi.phase === 'reponses' && moi.type === 'client') {
-      return el('p', { classe: 'encart-defi', texte: 'Les développeurs répondent en ce moment. Tu pourras voter dès que les réponses seront closes.' });
+      return el('p', { classe: 'encart-defi', texte: t('defis.en-cours') });
     }
     return null;
   }
@@ -147,28 +147,28 @@
     const [donnees, moi] = await Promise.all([api('/defis/courant'), utilisateurConnecte()]);
     const { defi, reponses } = donnees;
     if (!defi) {
-      zone().replaceChildren(etatVide('projets', 'Pas de défi en ce moment', 'Le prochain défi arrive bientôt : un problème concret, tes idées, et le vote des membres.'));
+      zone().replaceChildren(etatVide('projets', t('defis.pas-de-defi'), t('defis.pas-de-defi-aide')));
       return;
     }
     const mienne = reponses.find((r) => r.estMoi) || null;
     const titreReponses = reponses.length
-      ? `${reponses.length} réponse${reponses.length > 1 ? 's' : ''}`
-      : 'Réponses';
+      ? t('commun.reponses', { n: reponses.length })
+      : t('defis.reponses');
     zone().replaceChildren(...[
       carteDefi(defi),
       invitation(donnees, moi),
       donnees.peutRepondre ? formulaireReponse(defi, mienne) : null,
       el('h2', { classe: 'titre-reponses', texte: titreReponses }),
-      defi.phase === 'vote' ? el('p', { classe: 'texte-discret', texte: 'Un seul vote par membre. Le nombre de votes sera montré à la fin.' }) : null,
+      defi.phase === 'vote' ? el('p', { classe: 'texte-discret', texte: t('defis.un-vote') }) : null,
       reponses.length
         ? el('div', { classe: 'liste-publications' }, reponses.map((r) => carteReponse(defi, r, donnees.peutVoter)))
-        : etatVide('palabre', 'Aucune réponse pour l\'instant', defi.phase === 'reponses' ? 'Sois le premier à proposer une solution.' : 'Personne n\'a répondu à ce défi.'),
+        : etatVide('palabre', t('defis.aucune-reponse'), defi.phase === 'reponses' ? t('defis.sois-premier') : t('defis.personne')),
     ].filter(Boolean));
   }
 
   document.addEventListener('DOMContentLoaded', () => {
     afficher().catch((erreur) => {
-      zone().replaceChildren(etatVide('calme', 'Le défi ne s\'affiche pas', erreur.message));
+      zone().replaceChildren(etatVide('calme', t('defis.ne-s-affiche-pas'), erreur.message));
     });
   });
 })();

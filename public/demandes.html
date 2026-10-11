@@ -15,6 +15,8 @@
   <script src="/js/theme.js"></script>
   <link rel="stylesheet" href="/css/style.css">
   <title>Demandes des clients – Palabre</title>
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
   <script src="/js/app.js" defer></script>
   <script src="/js/demandes.js" defer></script>
 </head>
@@ -25,63 +27,63 @@
     <nav data-nav></nav>
   </div></header>
   <main class="conteneur page-fil page-large page-filtres">
-    <h1 class="titre-page">Demandes des clients</h1>
-    <p class="intro-page">Tu ne sais pas quel budget prévoir ? <a href="/calculateur">Estime le prix de ton projet</a> en quatre questions.</p>
+    <h1 data-t="demandes.titre" class="titre-page">Demandes des clients</h1>
+    <p class="intro-page"><span data-t="demandes.quel-budget">Tu ne sais pas quel budget prévoir ?</span> <a data-t="demandes.estime" href="/calculateur">Estime le prix de ton projet</a> <span data-t="demandes.en-quatre">en quatre questions.</span></p>
     <p class="message" role="status" data-message-page></p>
 
     <div data-zone-client hidden>
-      <button class="bouton bouton-or bouton-plein" type="button" data-ouvrir-formulaire aria-expanded="false">Publier une demande</button>
+      <button data-t="nav.publier-demande" class="bouton bouton-or bouton-plein" type="button" data-ouvrir-formulaire aria-expanded="false">Publier une demande</button>
       <form class="bloc-formulaire formulaire-demande" data-publier novalidate hidden>
-        <h2>Nouvelle demande</h2>
+        <h2 data-t="demandes.nouvelle">Nouvelle demande</h2>
         <div class="champ">
-          <label for="titre">Titre</label>
-          <input id="titre" name="titre" maxlength="120" placeholder="Ex. Site pour mon restaurant">
+          <label data-t="champ.titre" for="titre">Titre</label>
+          <input id="titre" name="titre" maxlength="120" placeholder="Ex. Site pour mon restaurant" data-t-placeholder="demandes.titre-exemple">
           <p class="erreur-champ" data-erreur="titre"></p>
         </div>
         <div class="champ">
-          <label for="categorie">Catégorie</label>
+          <label data-t="champ.categorie" for="categorie">Catégorie</label>
           <select id="categorie" name="categorie"></select>
           <p class="erreur-champ" data-erreur="categorie"></p>
         </div>
         <div class="champ">
-          <label for="description">Description</label>
-          <textarea id="description" name="description" rows="5" maxlength="3000" placeholder="Explique ce que tu veux : à quoi ça sert, pour qui, ce qui est important pour toi…"></textarea>
+          <label data-t="champ.description" for="description">Description</label>
+          <textarea id="description" name="description" rows="5" maxlength="3000" placeholder="Explique ce que tu veux : à quoi ça sert, pour qui, ce qui est important pour toi…" data-t-placeholder="demandes.description-aide"></textarea>
           <p class="erreur-champ" data-erreur="description"></p>
         </div>
         <div class="champ">
-          <label for="budget">Budget en FCFA</label>
-          <input id="budget" name="budgetFcfa" inputmode="numeric" autocomplete="off" placeholder="Ex. 250 000">
-          <span class="aide">Laisse vide si tu préfères en discuter.</span>
+          <label data-t="demandes.budget-fcfa" for="budget">Budget en FCFA</label>
+          <input id="budget" name="budgetFcfa" inputmode="numeric" autocomplete="off" placeholder="Ex. 250 000" data-t-placeholder="demandes.budget-exemple">
+          <span data-t="demandes.laisse-vide" class="aide">Laisse vide si tu préfères en discuter.</span>
           <p class="erreur-champ" data-erreur="budgetFcfa"></p>
         </div>
         <div class="champ">
-          <label for="delai">Délai souhaité</label>
-          <input id="delai" name="delai" maxlength="60" placeholder="Ex. 3 semaines">
+          <label data-t="demandes.delai-souhaite" for="delai">Délai souhaité</label>
+          <input id="delai" name="delai" maxlength="60" placeholder="Ex. 3 semaines" data-t-placeholder="demandes.delai-exemple">
           <p class="erreur-champ" data-erreur="delai"></p>
         </div>
         <p class="message" role="status" data-message></p>
-        <button class="bouton bouton-principal bouton-plein" type="submit">Publier la demande</button>
+        <button data-t="demandes.publier" class="bouton bouton-principal bouton-plein" type="submit">Publier la demande</button>
       </form>
     </div>
 
     <!-- Les filtres : dans le fil de la page sur téléphone, dans une colonne collée à droite sur ordinateur (.cote-page) -->
     <div class="cote-page cote-carte">
-    <h2 class="cote-titre">Filtrer</h2>
-    <div class="onglets" role="group" aria-label="Filtrer les demandes">
-      <button class="onglet" type="button" data-filtre="ouvertes" aria-pressed="true">Ouvertes</button>
-      <button class="onglet" type="button" data-filtre="miennes" aria-pressed="false" data-onglet-miennes>Mes demandes</button>
+    <h2 data-t="demandes.filtrer" class="cote-titre">Filtrer</h2>
+    <div class="onglets" role="group" aria-label="Filtrer les demandes" data-t-aria-label="demandes.filtrer-les">
+      <button data-t="demandes.ouvertes" class="onglet" type="button" data-filtre="ouvertes" aria-pressed="true">Ouvertes</button>
+      <button data-t="cote.mes-demandes" class="onglet" type="button" data-filtre="miennes" aria-pressed="false" data-onglet-miennes>Mes demandes</button>
     </div>
     <div class="champ filtre-categorie">
-      <label class="visuellement-cache" for="filtre-categorie">Catégorie</label>
+      <label data-t="champ.categorie" class="visuellement-cache" for="filtre-categorie">Catégorie</label>
       <select id="filtre-categorie" data-filtre-categorie>
-        <option value="">Toutes les catégories</option>
+        <option data-t="demandes.toutes-categories" value="">Toutes les catégories</option>
       </select>
     </div>
     </div>
 
     <div class="liste-publications" data-liste></div>
     <div role="status" data-etat hidden></div>
-    <button class="bouton bouton-contour bouton-plein" type="button" data-charger-plus hidden>Voir plus de demandes</button>
+    <button data-t="demandes.voir-plus" class="bouton bouton-contour bouton-plein" type="button" data-charger-plus hidden>Voir plus de demandes</button>
   </main>
 </body>
 </html>

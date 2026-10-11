@@ -3,7 +3,11 @@
 // Le serveur reçoit toujours « AAAA-MM-JJ », comme avant, et c'est lui qui vérifie les 18 ans.
 // Le calcul (dateComposee) est aussi chargé par les tests : tests/date-naissance.test.js.
 (function (racine) {
-  const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  // Les textes : t() de app.js dans le navigateur ; dans les tests (Node), le dictionnaire français lu directement.
+  const t = racine.Palabre ? racine.Palabre.t : ((cle, variables = {}) => require('../langues/fr.js')[cle].replace(/\{(\w+)\}/g, (tout, nom) => variables[nom]));
+  // Les douze mois, écrits par le navigateur dans la langue du site : « janvier », « January ».
+  const REGION = racine.Palabre ? racine.Palabre.REGION : 'fr-FR';
+  const MOIS = Array.from({ length: 12 }, (_, i) => new Date(Date.UTC(2000, i, 15)).toLocaleDateString(REGION, { month: 'long', timeZone: 'UTC' }));
   const AGE_MINIMUM = 18;
   const PREMIERE_ANNEE = 1940;
 
@@ -25,9 +29,9 @@
 
   // Ce que la page doit faire de ce qui est choisi : { date } si tout va bien, sinon { erreur } à montrer.
   function lireDate(jour, mois, annee) {
-    if (!jour || !mois || !annee) return { erreur: 'Choisis le jour, le mois et l\'année de ta naissance.' };
+    if (!jour || !mois || !annee) return { erreur: t('naissance.incomplete') };
     const date = dateComposee(jour, mois, annee);
-    if (!date) return { erreur: `Cette date n'existe pas : il n'y a pas de ${Number(jour)} ${MOIS[Number(mois) - 1]}${Number(jour) === 29 ? ` en ${annee}` : ''}.` };
+    if (!date) return { erreur: t(Number(jour) === 29 ? 'naissance.inexistante-annee' : 'naissance.inexistante', { jour: Number(jour), mois: MOIS[Number(mois) - 1], annee }) };
     return { date };
   }
 

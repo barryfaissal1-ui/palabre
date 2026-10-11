@@ -15,6 +15,8 @@
   <script src="/js/theme.js"></script>
   <link rel="stylesheet" href="/css/style.css">
   <title>Combien coûte mon projet ? – Palabre</title>
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
   <script src="/js/app.js" defer></script>
   <script src="/js/grille-prix.js" defer></script>
   <script src="/js/calcul-prix.js" defer></script>
@@ -27,18 +29,19 @@
     <nav data-nav></nav>
   </div></header>
   <main class="conteneur page-fil">
-    <h1 class="titre-page">Combien coûte mon projet&nbsp;?</h1>
+    <h1 data-t="accueil.calculateur.titre" class="titre-page">Combien coûte mon projet&nbsp;?</h1>
 
     <div class="progression" data-progression>
-      <p class="texte-discret" data-texte-progression aria-live="polite">Étape 1 sur 4</p>
-      <progress max="4" value="1" data-barre aria-label="Avancement du calculateur"></progress>
+      <p data-t="calcul.etape-1" class="texte-discret" data-texte-progression aria-live="polite">Étape 1 sur 4</p>
+      <progress max="4" value="1" data-barre aria-label="Avancement du calculateur" data-t-aria-label="calcul.avancement"></progress>
     </div>
 
     <form class="bloc-formulaire" data-calculateur novalidate>
-      <noscript><p class="message erreur">Le calculateur a besoin de JavaScript pour fonctionner.</p></noscript>
+      <noscript><p data-t="calcul.javascript" class="message erreur">Le calculateur a besoin de JavaScript pour fonctionner.</p></noscript>
     </form>
 
     <section class="bloc-formulaire resultat" data-resultat hidden aria-live="polite"></section>
+    <p class="choix-langue" data-choix-langue></p>
   </main>
 </body>
 </html>

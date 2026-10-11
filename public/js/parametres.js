@@ -2,29 +2,30 @@
 // Une liste de rubriques ; chaque réglage s'enregistre tout seul au changement, avec un toast « Enregistré ».
 // La rubrique ouverte est dans l'adresse (/parametres#confidentialite) : le bouton « retour » du téléphone marche.
 (function () {
-  const { api, utilisateurConnecte, el, icone, avatar, nomMembre, toast, confirmer, listeChoix, etatVide, chargement, dateRelative } = window.Palabre;
+  const { t, langue, changerLangue, api, utilisateurConnecte, el, icone, avatar, nomMembre, toast, confirmer, listeChoix, etatVide, chargement, dateRelative } = window.Palabre;
 
   const RUBRIQUES = [
-    { cle: 'compte', icone: 'utilisateur', titre: 'Compte', texte: 'Nom, lien du profil, email, mot de passe' },
-    { cle: 'confidentialite', icone: 'cadenas', titre: 'Confidentialité', texte: 'Qui voit quoi, qui peut te contacter' },
-    { cle: 'notifications', icone: 'cloche', titre: 'Notifications', texte: 'Sons et notifications sur tes appareils' },
-    { cle: 'securite', icone: 'bouclier', titre: 'Sécurité', texte: 'Dernière connexion, autres appareils' },
-    { cle: 'bloques', icone: 'bloquer', titre: 'Membres bloqués', texte: 'Voir la liste, débloquer' },
-    { cle: 'apparence', icone: 'soleil', titre: 'Apparence', texte: 'Clair, sombre ou automatique' },
-    { cle: 'donnees', icone: 'telecharger', titre: 'Mes données', texte: 'Télécharger tout ce que tu as écrit' },
+    { cle: 'compte', icone: 'utilisateur', titre: t('parametres.compte.titre'), texte: t('parametres.compte.resume') },
+    { cle: 'langue', icone: 'globe', titre: t('parametres.langue.titre'), texte: 'Français, English' },
+    { cle: 'confidentialite', icone: 'cadenas', titre: t('parametres.confidentialite.titre'), texte: t('parametres.confidentialite.resume') },
+    { cle: 'notifications', icone: 'cloche', titre: t('nav.notifications'), texte: t('parametres.notifications.resume') },
+    { cle: 'securite', icone: 'bouclier', titre: t('parametres.securite.titre'), texte: t('parametres.securite.resume') },
+    { cle: 'bloques', icone: 'bloquer', titre: t('parametres.bloques.titre'), texte: t('parametres.bloques.resume') },
+    { cle: 'apparence', icone: 'soleil', titre: t('parametres.apparence.titre'), texte: t('parametres.apparence.resume') },
+    { cle: 'donnees', icone: 'telecharger', titre: t('parametres.donnees.titre'), texte: t('parametres.donnees.resume') },
   ];
 
   // Les réglages de confidentialité : la clé et les valeurs sont celles de src/utils/confidentialite.js.
   // C'est le serveur qui applique chaque réglage ; cette page ne fait que l'enregistrer.
   const CONFIDENTIALITE = [
-    { cle: 'publications', titre: 'Qui peut voir mes publications', choix: [['tous', 'Tout le monde, même sans compte'], ['membres', 'Les membres de Palabre'], ['amis', 'Mes amis']] },
-    { cle: 'listeAmis', titre: 'Qui peut voir ma liste d\'amis', choix: [['membres', 'Les membres de Palabre'], ['amis', 'Mes amis'], ['moi', 'Moi seulement']] },
-    { cle: 'whatsapp', titre: 'Qui peut voir mon numéro WhatsApp', choix: [['membres', 'Les membres connectés'], ['amis', 'Mes amis'], ['personne', 'Personne']] },
-    { cle: 'messages', titre: 'Qui peut m\'envoyer un message', aide: 'Tout le monde : un inconnu t\'envoie d\'abord une demande de message, que tu acceptes ou non.', choix: [['tous', 'Tout le monde'], ['proches', 'Mes amis et mes clients seulement']] },
-    { cle: 'appels', titre: 'Qui peut m\'appeler', aide: 'Un appel n\'est possible que dans une conversation que tu as acceptée.', choix: [['proches', 'Mes amis et mes clients'], ['amis', 'Mes amis seulement'], ['personne', 'Personne']] },
-    { cle: 'equipes', titre: 'Qui peut m\'inviter dans une équipe éclair', choix: [['amis', 'Mes amis'], ['personne', 'Personne']] },
-    { cle: 'recherche', titre: 'Apparaître dans la recherche de devs et « Devs à découvrir »', aide: 'Si tu dis non, les clients à qui tu as envoyé une proposition te retrouvent quand même.', interrupteur: true, seulementDev: true },
-    { cle: 'presence', titre: 'Afficher quand je suis en ligne', aide: 'Dans la messagerie, tes contacts voient un point vert quand tu es là. Si tu le caches, tu ne vois plus le leur non plus.', interrupteur: true },
+    { cle: 'publications', titre: t('confidentialite.publications'), choix: [['tous', t('confidentialite.choix.tous-sans-compte')], ['membres', t('confidentialite.choix.membres')], ['amis', t('fil.mes-amis')]] },
+    { cle: 'listeAmis', titre: t('confidentialite.liste-amis'), choix: [['membres', t('confidentialite.choix.membres')], ['amis', t('fil.mes-amis')], ['moi', t('confidentialite.choix.moi')]] },
+    { cle: 'whatsapp', titre: t('confidentialite.whatsapp'), choix: [['membres', t('confidentialite.choix.membres-connectes')], ['amis', t('fil.mes-amis')], ['personne', t('confidentialite.choix.personne')]] },
+    { cle: 'messages', titre: t('confidentialite.messages'), aide: t('confidentialite.messages-aide'), choix: [['tous', t('fil.tout-le-monde')], ['proches', t('confidentialite.choix.proches-seulement')]] },
+    { cle: 'appels', titre: t('confidentialite.appels'), aide: t('confidentialite.appels-aide'), choix: [['proches', t('confidentialite.choix.proches')], ['amis', t('confidentialite.choix.amis-seulement')], ['personne', t('confidentialite.choix.personne')]] },
+    { cle: 'equipes', titre: t('confidentialite.equipes'), choix: [['amis', t('fil.mes-amis')], ['personne', t('confidentialite.choix.personne')]] },
+    { cle: 'recherche', titre: t('confidentialite.recherche'), aide: t('confidentialite.recherche-aide'), interrupteur: true, seulementDev: true },
+    { cle: 'presence', titre: t('confidentialite.presence'), aide: t('confidentialite.presence-aide'), interrupteur: true },
   ];
 
   const page = () => document.querySelector('.page-parametres');
@@ -77,7 +78,7 @@
       try {
         await enregistrer(select.value);
         actuelle = select.value;
-        toast('Enregistré');
+        toast(t('commun.enregistre'));
       } catch (erreur) {
         select.value = actuelle;
         select.dispatchEvent(new Event('change')); // la liste habillée se redessine
@@ -93,7 +94,7 @@
     caseACocher.addEventListener('change', async () => {
       try {
         await enregistrer(caseACocher.checked);
-        toast('Enregistré');
+        toast(t('commun.enregistre'));
       } catch (erreur) {
         caseACocher.checked = !caseACocher.checked;
         toast(erreur.message, 'erreur');
@@ -121,7 +122,7 @@
           const { compte: neuf } = await api('/parametres/compte', { methode: 'PUT', donnees: { [nom]: champ.value } });
           champ.value = neuf[nom];
           enregistree = neuf[nom];
-          toast('Enregistré');
+          toast(t('commun.enregistre'));
         } catch (erreur) {
           montrerErreur(zone, erreur);
         }
@@ -157,7 +158,7 @@
         formEmail.querySelector('[data-email-actuel]').textContent = email;
         formEmail.reset();
         montrerAttente(null);
-        toast('Ton adresse email est changée.');
+        toast(t('parametres.email.changee'));
       } catch (erreur) {
         montrerErreur(formEmail, erreur);
       }
@@ -181,10 +182,10 @@
       evenement.preventDefault();
       effacerErreurs(formSuppression);
       if (!formSuppression.motDePasse.value) {
-        erreurDe(formSuppression, 'motDePasse').textContent = 'Écris ton mot de passe pour confirmer.';
+        erreurDe(formSuppression, 'motDePasse').textContent = t('parametres.suppression.mot-de-passe');
         return;
       }
-      if (!await confirmer('Supprimer ton compte ? Ton profil et tout ce que tu as publié seront effacés pour de bon. C\'est définitif.', { bouton: 'Supprimer mon compte', danger: true })) return;
+      if (!await confirmer(t('parametres.suppression.question'), { bouton: t('parametres.suppression.titre'), danger: true })) return;
       try {
         if (window.Palabre.push) await window.Palabre.push.couper().catch(() => {});
         await api('/parametres/compte', { methode: 'DELETE', donnees: { motDePasse: formSuppression.motDePasse.value } });
@@ -216,7 +217,7 @@
       try {
         await api('/profils/moi/son-messages', { methode: 'PUT', donnees: { actif: caseSon.checked } });
         moi.sonMessages = caseSon.checked; // le son suit tout de suite, sans recharger la page
-        toast('Enregistré');
+        toast(t('commun.enregistre'));
       } catch (erreur) {
         caseSon.checked = !caseSon.checked;
         toast(erreur.message, 'erreur');
@@ -230,9 +231,9 @@
     const derniere = securite.derniereConnexion;
     zone.querySelector('[data-derniere-connexion]').textContent = derniere
       ? `${derniere.appareil}, ${dateRelative(derniere.le)}`
-      : 'Aucune connexion enregistrée depuis que cette rubrique existe.';
+      : t('parametres.securite.aucune');
     zone.querySelector('[data-deconnecter-autres]').addEventListener('click', async () => {
-      if (!await confirmer('Déconnecter tes autres appareils ? Il faudra s\'y reconnecter avec ton mot de passe.', { bouton: 'Déconnecter' })) return;
+      if (!await confirmer(t('parametres.securite.question'), { bouton: t('parametres.securite.deconnecter') })) return;
       try {
         toast((await api('/parametres/deconnecter-autres', { methode: 'POST', donnees: {} })).message);
       } catch (erreur) {
@@ -249,17 +250,17 @@
       const { bloques } = await api('/parametres/bloques');
       fini();
       if (bloques.length === 0) {
-        zone.replaceChildren(etatVide('calme', 'Personne n\'est bloqué', 'Pour bloquer quelqu\'un, ouvre votre conversation puis le menu « … ».'));
+        zone.replaceChildren(etatVide('calme', t('parametres.bloques.personne'), t('parametres.bloques.personne-aide')));
         return;
       }
       zone.replaceChildren(el('ul', { classe: 'liste-bloques' }, bloques.map((membre) => {
-        const bouton = el('button', { classe: 'bouton bouton-contour bouton-compact', type: 'button', texte: 'Débloquer' });
+        const bouton = el('button', { classe: 'bouton bouton-contour bouton-compact', type: 'button', texte: t('messages.debloquer') });
         const ligne = el('li', { classe: 'ligne-bloque' }, [avatar(membre, 'moyen'), el('div', { classe: 'ligne-bloque-nom' }, [nomMembre(membre)]), bouton]);
         bouton.addEventListener('click', async () => {
           bouton.disabled = true;
           try {
             await api(`/messages/blocages/${encodeURIComponent(membre.identifiant)}`, { methode: 'DELETE', donnees: {} });
-            toast(`${membre.prenom} est débloqué.`);
+            toast(t('messages.est-debloque', { prenom: membre.prenom }));
             chargerBloques();
           } catch (erreur) {
             bouton.disabled = false;
@@ -283,8 +284,16 @@
       window.PalabreTheme.choisir(select.value);
       // Le bouton soleil / lune de l'en-tête doit montrer le bon dessin.
       document.dispatchEvent(new Event('palabre:theme'));
-      toast('Enregistré');
+      toast(t('commun.enregistre'));
     });
+  }
+
+  // ---------- Langue : le cookie, le compte, puis la page est relue dans la nouvelle langue ----------
+  function brancherLangue() {
+    const select = rubrique('langue').querySelector('[name="langue"]');
+    select.value = langue;
+    select.dispatchEvent(new Event('change')); // la liste habillée affiche la langue actuelle
+    select.addEventListener('change', () => changerLangue(select.value, { connecte: true }));
   }
 
   // ---------- Mes données ----------
@@ -301,7 +310,7 @@
         lien.click();
         lien.remove();
         setTimeout(() => URL.revokeObjectURL(adresse), 10000);
-        toast('Tes données sont téléchargées.');
+        toast(t('parametres.donnees.telechargees'));
       } catch (erreur) {
         toast(erreur.message, 'erreur');
       }
@@ -317,6 +326,7 @@
     }
     dessinerListe();
     brancherApparence();
+    brancherLangue();
     brancherDonnees();
     brancherNotifications(moi);
     window.addEventListener('hashchange', ouvrirRubrique);

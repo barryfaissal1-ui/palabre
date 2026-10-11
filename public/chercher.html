@@ -15,7 +15,9 @@
   <script src="/js/theme.js"></script>
   <link rel="stylesheet" href="/css/style.css">
   <title>Trouver un développeur – Palabre</title>
-  <meta name="description" content="Cherche un développeur africain par compétence, pays, ville et disponibilité, avec ses projets vérifiés et les avis de ses clients.">
+  <meta name="description" content="Cherche un développeur africain par compétence, pays, ville et disponibilité, avec ses projets vérifiés et les avis de ses clients." data-t-content="chercher.description">
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
   <script src="/js/app.js" defer></script>
   <script src="/js/chercher.js" defer></script>
 </head>
@@ -26,38 +28,38 @@
     <nav data-nav></nav>
   </div></header>
   <main class="conteneur page-fil page-large page-filtres">
-    <h1 class="titre-page">Trouver un développeur</h1>
+    <h1 data-t="accueil.vitrine.trouver" class="titre-page">Trouver un développeur</h1>
 
     <!-- Les critères : en haut de la page sur téléphone, dans une colonne collée à droite sur ordinateur (.cote-page) -->
     <div class="cote-page">
     <form class="bloc-formulaire" data-recherche role="search">
       <div class="champ">
-        <label for="competence">Compétence</label>
+        <label data-t="chercher.competence" for="competence">Compétence</label>
         <select id="competence" name="competence">
-          <option value="">Toutes les compétences</option>
+          <option data-t="chercher.toutes-competences" value="">Toutes les compétences</option>
         </select>
       </div>
       <div class="champ">
-        <label for="pays">Pays</label>
+        <label data-t="champ.pays" for="pays">Pays</label>
         <select id="pays" name="pays">
-          <option value="">Tous les pays</option>
+          <option data-t="chercher.tous-pays" value="">Tous les pays</option>
         </select>
       </div>
       <div class="champ">
-        <label for="ville">Ville</label>
-        <input id="ville" name="ville" maxlength="60" autocomplete="off" placeholder="Ex. Ouagadougou">
+        <label data-t="champ.ville" for="ville">Ville</label>
+        <input id="ville" name="ville" maxlength="60" autocomplete="off" placeholder="Ex. Ouagadougou" data-t-placeholder="chercher.ville-exemple">
       </div>
       <label class="case-a-cocher">
         <input type="checkbox" name="disponible">
-        <span>Seulement les devs disponibles</span>
+        <span data-t="chercher.seulement-disponibles">Seulement les devs disponibles</span>
       </label>
-      <button class="bouton bouton-principal bouton-plein" type="submit">Chercher</button>
+      <button data-t="chercher.bouton" class="bouton bouton-principal bouton-plein" type="submit">Chercher</button>
     </form>
     </div>
 
     <div role="status" data-etat hidden></div>
     <div class="liste-publications" data-resultats></div>
-    <button class="bouton bouton-contour bouton-plein" type="button" data-charger-plus hidden>Voir plus de développeurs</button>
+    <button data-t="chercher.voir-plus" class="bouton bouton-contour bouton-plein" type="button" data-charger-plus hidden>Voir plus de développeurs</button>
   </main>
 </body>
 </html>

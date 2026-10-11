@@ -7,6 +7,8 @@ const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const config = require('./config');
 const { chargerUtilisateur, exigerEmailConfirme } = require('./middleware/auth');
+const { langueDe } = require('./utils/langue');
+const { codeDe, traduireReponse } = require('./utils/textes');
 
 const { DOSSIER_PUBLIC, pagesHtml, entetesDeCache, pageErreur } = require('./utils/statique');
 
@@ -53,6 +55,25 @@ function creerApp() {
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && !req.is('application/json')) {
       return res.status(415).json({ erreur: 'Format de requête non accepté.' });
     }
+    next();
+  });
+
+  // Langue des réponses. Le code du serveur écrit ses messages en français ; juste avant l'envoi, chaque réponse
+  // de l'API passe ici :
+  //  - une erreur reçoit un « code » stable (« adresse-email-invalide »), le même dans toutes les langues ;
+  //  - pour une personne qui lit l'anglais, les textes écrits par le serveur sont traduits (src/utils/textes.js).
+  // La langue : le cookie « langue », sinon celle du compte, sinon celle du navigateur (src/utils/langue.js).
+  app.use('/api', (req, res, next) => {
+    const envoyer = res.json.bind(res);
+    res.json = (corps) => {
+      if (!corps || typeof corps !== 'object' || Array.isArray(corps)) return envoyer(corps);
+      const langue = langueDe(req);
+      // On travaille sur une copie : certains messages (limites de fréquence) sont des objets partagés par toutes
+      // les requêtes, qu'il ne faut surtout pas modifier.
+      const reponse = langue === 'fr' ? { ...corps } : JSON.parse(JSON.stringify(corps));
+      if (typeof corps.erreur === 'string') reponse.code = codeDe(corps.erreur);
+      return envoyer(traduireReponse(langue, reponse));
+    };
     next();
   });
 

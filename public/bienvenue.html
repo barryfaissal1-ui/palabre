@@ -11,6 +11,8 @@
   <script src="/js/theme.js"></script>
   <link rel="stylesheet" href="/css/style.css">
   <title>Ton profil de dev – Palabre</title>
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
   <script src="/js/app.js" defer></script>
   <script src="/js/date-naissance.js" defer></script>
   <script src="/js/bienvenue.js" defer></script>
@@ -22,65 +24,65 @@
   <main class="acces etape">
     <div class="etape-carte">
       <a class="etape-marque" href="/"><img src="/icons/logo-96.webp" alt="" width="36" height="36">Palabre</a>
-      <p class="etape-indicateur"><span class="etape-barre" aria-hidden="true"><span class="faite"></span><span class="faite"></span></span>Étape 2 sur 2</p>
-      <h1 class="acces-titre">Ton profil de dev</h1>
-      <p class="etape-texte">Quelques informations pour montrer aux clients que tu es un vrai développeur. Tu pourras les modifier plus tard.</p>
+      <p class="etape-indicateur"><span class="etape-barre" aria-hidden="true"><span class="faite"></span><span class="faite"></span></span><span data-t="bienvenue.etape">Étape 2 sur 2</span></p>
+      <h1 data-t="bienvenue.titre" class="acces-titre">Ton profil de dev</h1>
+      <p data-t="bienvenue.texte" class="etape-texte">Quelques informations pour montrer aux clients que tu es un vrai développeur. Tu pourras les modifier plus tard.</p>
 
       <form data-profil-dev novalidate>
         <!-- Date de naissance : trois listes (jour, mois, année) remplies par date-naissance.js.
              La page envoie au serveur « AAAA-MM-JJ », comme avec un champ de date. -->
         <fieldset class="champ date-naissance" aria-describedby="aide-naissance">
-          <legend>Date de naissance</legend>
+          <legend data-t="champ.date-naissance">Date de naissance</legend>
           <div class="trois-listes">
             <div class="ligne-saisie">
-              <label class="visuellement-cache" for="jour-naissance">Jour</label>
-              <select id="jour-naissance" name="jourNaissance" required autocomplete="bday-day"><option value="">Jour</option></select>
+              <label data-t="champ.jour" class="visuellement-cache" for="jour-naissance">Jour</label>
+              <select id="jour-naissance" name="jourNaissance" required autocomplete="bday-day"><option data-t="champ.jour" value="">Jour</option></select>
               <span class="trait"></span>
             </div>
             <div class="ligne-saisie">
-              <label class="visuellement-cache" for="mois-naissance">Mois</label>
-              <select id="mois-naissance" name="moisNaissance" required autocomplete="bday-month"><option value="">Mois</option></select>
+              <label data-t="champ.mois" class="visuellement-cache" for="mois-naissance">Mois</label>
+              <select id="mois-naissance" name="moisNaissance" required autocomplete="bday-month"><option data-t="champ.mois" value="">Mois</option></select>
               <span class="trait"></span>
             </div>
             <div class="ligne-saisie">
-              <label class="visuellement-cache" for="annee-naissance">Année</label>
-              <select id="annee-naissance" name="anneeNaissance" required autocomplete="bday-year"><option value="">Année</option></select>
+              <label data-t="champ.annee" class="visuellement-cache" for="annee-naissance">Année</label>
+              <select id="annee-naissance" name="anneeNaissance" required autocomplete="bday-year"><option data-t="champ.annee" value="">Année</option></select>
               <span class="trait"></span>
             </div>
           </div>
-          <span class="aide" id="aide-naissance">Elle n'est jamais affichée sur le site. Il faut avoir 18 ans.</span>
+          <span data-t="bienvenue.naissance-aide" class="aide" id="aide-naissance">Elle n'est jamais affichée sur le site. Il faut avoir 18 ans.</span>
           <p class="erreur-champ" data-erreur="dateNaissance" role="alert"></p>
         </fieldset>
 
         <div class="etape-deux-colonnes">
           <div class="champ">
-            <label for="specialite">Spécialité principale</label>
+            <label data-t="champ.specialite" for="specialite">Spécialité principale</label>
             <div class="ligne-saisie">
               <select id="specialite" name="specialite" required>
-                <option value="">Choisir</option>
-                <option value="web" data-icone="code">Développement web</option>
-                <option value="mobile" data-icone="smartphone">Mobile</option>
-                <option value="back-end" data-icone="serveur">Back-end</option>
-                <option value="front-end" data-icone="disposition">Front-end</option>
-                <option value="design" data-icone="palette">Design UI/UX</option>
-                <option value="data-ia" data-icone="cerveau">Data et IA</option>
-                <option value="devops" data-icone="nuage">DevOps et cloud</option>
-                <option value="jeux" data-icone="manette">Jeux vidéo</option>
-                <option value="autre" data-icone="options">Autre</option>
+                <option data-t="commun.choisir" value="">Choisir</option>
+                <option data-t="specialite.web" value="web" data-icone="code">Développement web</option>
+                <option data-t="specialite.mobile" value="mobile" data-icone="smartphone">Mobile</option>
+                <option data-t="specialite.back-end" value="back-end" data-icone="serveur">Back-end</option>
+                <option data-t="specialite.front-end" value="front-end" data-icone="disposition">Front-end</option>
+                <option data-t="specialite.design" value="design" data-icone="palette">Design UI/UX</option>
+                <option data-t="specialite.data-ia" value="data-ia" data-icone="cerveau">Data et IA</option>
+                <option data-t="specialite.devops" value="devops" data-icone="nuage">DevOps et cloud</option>
+                <option data-t="specialite.jeux" value="jeux" data-icone="manette">Jeux vidéo</option>
+                <option data-t="specialite.autre" value="autre" data-icone="options">Autre</option>
               </select>
               <span class="trait"></span>
             </div>
             <p class="erreur-champ" data-erreur="specialite"></p>
           </div>
           <div class="champ">
-            <label for="experience">Années d'expérience</label>
+            <label data-t="champ.experience" for="experience">Années d'expérience</label>
             <div class="ligne-saisie">
               <select id="experience" name="experience" required>
-                <option value="">Choisir</option>
-                <option value="moins-1">Moins d'1 an</option>
-                <option value="1-2">1 à 2 ans</option>
-                <option value="3-5">3 à 5 ans</option>
-                <option value="plus-5">Plus de 5 ans</option>
+                <option data-t="commun.choisir" value="">Choisir</option>
+                <option data-t="experience.moins-1" value="moins-1">Moins d'1 an</option>
+                <option data-t="experience.1-2" value="1-2">1 à 2 ans</option>
+                <option data-t="experience.3-5" value="3-5">3 à 5 ans</option>
+                <option data-t="experience.plus-5" value="plus-5">Plus de 5 ans</option>
               </select>
               <span class="trait"></span>
             </div>
@@ -89,13 +91,13 @@
         </div>
 
         <fieldset class="etape-groupe">
-          <legend>Tes liens <span class="aide">(au moins un)</span></legend>
-          <p class="aide">Palabre visite chaque lien : s'il répond, il reçoit le badge « Lien vérifié » sur ton profil.</p>
+          <legend><span data-t="bienvenue.tes-liens">Tes liens</span> <span data-t="bienvenue.au-moins-un" class="aide">(au moins un)</span></legend>
+          <p data-t="bienvenue.liens-aide" class="aide">Palabre visite chaque lien : s'il répond, il reçoit le badge « Lien vérifié » sur ton profil.</p>
           <div class="etape-deux-colonnes" data-liens>
             <div class="champ">
               <label for="lien-github">GitHub</label>
               <div class="ligne-saisie">
-                <input id="lien-github" name="github" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="github.com/ton-nom">
+                <input id="lien-github" name="github" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="github.com/ton-nom" data-t-placeholder="champ.github.aide">
                 <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#lien"></use></svg>
                 <span class="trait"></span>
               </div>
@@ -104,16 +106,16 @@
             <div class="champ">
               <label for="lien-gitlab">GitLab</label>
               <div class="ligne-saisie">
-                <input id="lien-gitlab" name="gitlab" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="gitlab.com/ton-nom">
+                <input id="lien-gitlab" name="gitlab" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="gitlab.com/ton-nom" data-t-placeholder="champ.gitlab.aide">
                 <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#lien"></use></svg>
                 <span class="trait"></span>
               </div>
               <p class="erreur-champ" data-erreur="gitlab"></p>
             </div>
             <div class="champ">
-              <label for="lien-portfolio">Portfolio ou site</label>
+              <label data-t="champ.portfolio" for="lien-portfolio">Portfolio ou site</label>
               <div class="ligne-saisie">
-                <input id="lien-portfolio" name="portfolio" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="monsite.com">
+                <input id="lien-portfolio" name="portfolio" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="monsite.com" data-t-placeholder="champ.portfolio.aide">
                 <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#lien"></use></svg>
                 <span class="trait"></span>
               </div>
@@ -122,7 +124,7 @@
             <div class="champ">
               <label for="lien-linkedin">LinkedIn</label>
               <div class="ligne-saisie">
-                <input id="lien-linkedin" name="linkedin" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="linkedin.com/in/ton-nom">
+                <input id="lien-linkedin" name="linkedin" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="linkedin.com/in/ton-nom" data-t-placeholder="champ.linkedin.aide">
                 <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#lien"></use></svg>
                 <span class="trait"></span>
               </div>
@@ -131,38 +133,38 @@
           </div>
           <label class="etape-case">
             <input type="checkbox" name="sansLien">
-            <span>Je n'ai pas encore de lien<span class="aide">Ton profil portera la mention « Profil à confirmer » jusqu'à ce que tu en ajoutes un.</span></span>
+            <span><span data-t="bienvenue.pas-de-lien">Je n'ai pas encore de lien</span><span data-t="bienvenue.pas-de-lien-aide" class="aide">Ton profil portera la mention « Profil à confirmer » jusqu'à ce que tu en ajoutes un.</span></span>
           </label>
           <p class="erreur-champ" data-erreur="liens"></p>
         </fieldset>
 
         <div class="champ">
-          <label for="whatsapp">Numéro WhatsApp <span class="aide">(facultatif)</span></label>
+          <label for="whatsapp"><span data-t="champ.whatsapp">Numéro WhatsApp</span> <span data-t="champ.facultatif" class="aide">(facultatif)</span></label>
           <div class="ligne-saisie">
             <input id="whatsapp" name="whatsapp" type="tel" autocomplete="tel" inputmode="tel" placeholder="+226 70 00 00 00" aria-describedby="aide-whatsapp">
             <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#commentaire"></use></svg>
             <span class="trait"></span>
           </div>
-          <span class="aide" id="aide-whatsapp">Visible seulement par les membres connectés.</span>
+          <span data-t="bienvenue.whatsapp-aide" class="aide" id="aide-whatsapp">Visible seulement par les membres connectés.</span>
           <p class="erreur-champ" data-erreur="whatsapp"></p>
         </div>
 
         <div class="champ">
-          <label for="bio">Courte présentation</label>
+          <label data-t="bienvenue.presentation" for="bio">Courte présentation</label>
           <div class="ligne-saisie">
-            <textarea id="bio" name="bio" rows="3" minlength="20" maxlength="300" required placeholder="Ce que tu sais faire, ce que tu aimes construire…" aria-describedby="compteur-bio"></textarea>
+            <textarea id="bio" name="bio" rows="3" minlength="20" maxlength="300" required placeholder="Ce que tu sais faire, ce que tu aimes construire…" data-t-placeholder="bienvenue.presentation-aide" aria-describedby="compteur-bio"></textarea>
             <span class="trait"></span>
           </div>
-          <span class="aide" id="compteur-bio" data-compteur-bio>0 / 300 (20 au moins)</span>
+          <span class="aide" id="compteur-bio" data-compteur-bio></span>
           <p class="erreur-champ" data-erreur="bio"></p>
         </div>
 
         <p class="message" role="alert" data-message></p>
-        <button class="bouton bouton-principal bouton-plein" type="submit">Terminer mon profil</button>
+        <button data-t="bienvenue.terminer" class="bouton bouton-principal bouton-plein" type="submit">Terminer mon profil</button>
       </form>
 
       <div class="liens-formulaire">
-        <p><a href="/fil" data-plus-tard>Plus tard, je regarde d'abord le site</a></p>
+        <p><a data-t="bienvenue.plus-tard" href="/fil" data-plus-tard>Plus tard, je regarde d'abord le site</a></p>
       </div>
     </div>
   </main>

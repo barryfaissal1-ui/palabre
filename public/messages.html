@@ -15,6 +15,8 @@
   <script src="/js/theme.js"></script>
   <link rel="stylesheet" href="/css/style.css">
   <title>Messages – Palabre</title>
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
   <script src="/js/app.js" defer></script>
   <script src="/js/messages.js" defer></script>
 </head>
@@ -27,20 +29,20 @@
   <main class="conteneur page-fil page-large page-messages" data-messagerie>
     <!-- La liste des conversations (à gauche sur ordinateur, seule à l'écran sur téléphone) -->
     <section class="messages-liste" aria-labelledby="titre-messages">
-      <h1 class="titre-page" id="titre-messages">Messages</h1>
-      <div class="onglets" role="group" aria-label="Type de conversations">
-        <button class="onglet" type="button" data-onglet="principal" aria-pressed="true">Messages</button>
-        <button class="onglet" type="button" data-onglet="demandes" aria-pressed="false">Demandes <span class="compteur" data-nb-demandes hidden></span></button>
+      <h1 data-t="nav.messages" class="titre-page" id="titre-messages">Messages</h1>
+      <div class="onglets" role="group" aria-label="Type de conversations" data-t-aria-label="messages.type-conversations">
+        <button data-t="nav.messages" class="onglet" type="button" data-onglet="principal" aria-pressed="true">Messages</button>
+        <button class="onglet" type="button" data-onglet="demandes" aria-pressed="false"><span data-t="nav.demandes">Demandes</span> <span class="compteur" data-nb-demandes hidden></span></button>
       </div>
       <div class="champ">
-        <label class="visuellement-cache" for="recherche-conversations">Chercher une conversation par nom</label>
-        <input id="recherche-conversations" type="search" placeholder="Chercher par nom" autocomplete="off" data-recherche>
+        <label data-t="messages.chercher-nom" class="visuellement-cache" for="recherche-conversations">Chercher une conversation par nom</label>
+        <input id="recherche-conversations" type="search" placeholder="Chercher par nom" data-t-placeholder="messages.chercher" autocomplete="off" data-recherche>
       </div>
       <ul class="liste-conversations" data-conversations></ul>
       <div role="status" data-etat-liste hidden></div>
     </section>
     <!-- La conversation ouverte, remplie par messages.js (plein écran sur téléphone) -->
-    <section class="messages-conversation" data-conversation aria-label="Conversation"></section>
+    <section class="messages-conversation" data-conversation aria-label="Conversation" data-t-aria-label="messages.conversation"></section>
   </main>
 </body>
 </html>

@@ -10,6 +10,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const config = require('../config');
+const { langueDe } = require('./langue');
+const textes = require('./textes');
 
 const DOSSIER_PUBLIC = path.join(__dirname, '..', '..', 'public');
 const DOSSIER_VUES = path.join(__dirname, '..', 'vues'); // pages d'erreur : jamais servies directement
@@ -30,7 +32,7 @@ function empreinte(chemin) {
 
 // Ajoute « ?v=empreinte » à chaque feuille de style et à chaque script cités dans une page.
 function versionner(html) {
-  return html.replace(/\b(href|src)="(\/(?:css|js)\/[A-Za-z0-9._/-]+\.(?:css|js))"/g, (tout, attribut, chemin) => {
+  return html.replace(/\b(href|src)="(\/(?:css|js|langues)\/[A-Za-z0-9._/-]+\.(?:css|js))"/g, (tout, attribut, chemin) => {
     try {
       return `${attribut}="${chemin}?v=${empreinte(chemin)}"`;
     } catch {
@@ -61,14 +63,25 @@ function pagesHtml(req, res, next) {
   } catch {
     return next(); // pas de page de ce nom
   }
-  res.set('Cache-Control', 'no-cache').type('html').send(html);
+  res.set('Cache-Control', 'no-cache').type('html').send(dansLaLangue(req, html, `titre.${trouve[1]}`));
+}
+
+// La page dans la langue de la personne : en français, telle quelle ; sinon les textes marqués data-t sont remplacés
+// (src/utils/textes.js) et le titre de l'onglet prend la clé « titre.<page> ». Le navigateur refait la même chose
+// avec public/js/app.js : la page est simplement déjà juste à l'arrivée, sans clignotement.
+function dansLaLangue(req, html, cleTitre = null) {
+  const langue = langueDe(req);
+  if (langue === 'fr') return html;
+  let page = textes.traduirePage(langue, html);
+  if (cleTitre && textes.DICTIONNAIRES.fr[cleTitre]) page = page.replace(/<title>[^<]*<\/title>/, () => `<title>${textes.t(langue, cleTitre)}</title>`);
+  return page;
 }
 
 // En-têtes de cache des autres fichiers (appelé par express.static pour chaque fichier servi).
 function entetesDeCache(res, fichier) {
   const relatif = path.relative(DOSSIER_PUBLIC, fichier).replace(/\\/g, '/');
   let cache = 'no-cache'; // par défaut : gardé, mais revérifié à chaque fois (réponse « 304 » de quelques octets)
-  if (/^(css|js)\//.test(relatif) && res.req.query.v) cache = `public, max-age=${UN_AN}, immutable`; // adresse versionnée
+  if (/^(css|js|langues)\//.test(relatif) && res.req.query.v) cache = `public, max-age=${UN_AN}, immutable`; // adresse versionnée
   else if (/^fonts\//.test(relatif)) cache = `public, max-age=${UN_AN}, immutable`; // le nom d'une police contient sa version
   else if (/\.(png|jpg|webp)$/.test(relatif)) cache = 'public, max-age=2592000'; // logos et photos : 30 jours
   res.setHeader('Cache-Control', cache);
@@ -82,7 +95,7 @@ function pageErreur(res, statut) {
   } catch {
     html = `<!doctype html><meta charset="utf-8"><title>Erreur ${statut}</title><p>Erreur ${statut}. <a href="/">Retour à l'accueil</a></p>`;
   }
-  res.status(statut).set('Cache-Control', 'no-store').type('html').send(html);
+  res.status(statut).set('Cache-Control', 'no-store').type('html').send(dansLaLangue(res.req, html, `titre.erreur-${statut}`));
 }
 
-module.exports = { DOSSIER_PUBLIC, versionner, lirePage, pagesHtml, entetesDeCache, pageErreur, empreinte };
+module.exports = { DOSSIER_PUBLIC, versionner, lirePage, pagesHtml, entetesDeCache, pageErreur, empreinte, dansLaLangue };

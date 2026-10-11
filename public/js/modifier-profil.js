@@ -1,6 +1,6 @@
 // Page « Modifier mon profil » : informations, compétences, photo, déconnexion.
 (function () {
-  const { api, el, avatar, utilisateurConnecte } = window.Palabre;
+  const { t, nomPays, api, el, avatar, utilisateurConnecte } = window.Palabre;
   const MAX_COMPETENCES = 15;
   const TAILLE_PHOTO = 400; // pixels : largement suffisant pour une photo de profil
 
@@ -64,18 +64,18 @@
       input.value = '';
       if (!fichier) return;
       if (!fichier.type.startsWith('image/')) {
-        message(zoneMessage, 'Choisis une image (photo JPEG ou PNG).', 'erreur');
+        message(zoneMessage, t('modifier.choisis-image'), 'erreur');
         return;
       }
-      message(zoneMessage, 'Envoi de la photo…', '');
+      message(zoneMessage, t('modifier.envoi-photo'), '');
       try {
         const image = await compresserImage(fichier);
         const { avatar: url } = await api('/profils/moi/avatar', { methode: 'POST', donnees: { image } });
         profil.avatar = url;
         afficherPhoto();
-        message(zoneMessage, 'Photo mise à jour.', 'succes');
+        message(zoneMessage, t('modifier.photo-a-jour'), 'succes');
       } catch (erreur) {
-        message(zoneMessage, erreur.message || 'Impossible de lire cette image.', 'erreur');
+        message(zoneMessage, erreur.message || t('modifier.image-illisible'), 'erreur');
       }
     });
 
@@ -84,7 +84,7 @@
         await api('/profils/moi/avatar', { methode: 'DELETE', donnees: {} });
         profil.avatar = null;
         afficherPhoto();
-        message(zoneMessage, 'Photo retirée.', 'succes');
+        message(zoneMessage, t('modifier.photo-retiree'), 'succes');
       } catch (erreur) {
         message(zoneMessage, erreur.message, 'erreur');
       }
@@ -107,7 +107,7 @@
       case_.addEventListener('change', () => {
         if (case_.checked && competencesChoisies.size >= MAX_COMPETENCES) {
           case_.checked = false;
-          erreurSurChamp(document.querySelector('form'), 'competences', `${MAX_COMPETENCES} compétences au maximum.`);
+          erreurSurChamp(document.querySelector('form'), 'competences', t('modifier.max-competences', { n: MAX_COMPETENCES }));
           return;
         }
         if (case_.checked) competencesChoisies.add(c.id);
@@ -147,7 +147,7 @@
 
   async function remplirPays(select) {
     const { pays } = await api('/pays');
-    select.replaceChildren(...pays.map((nom) => new Option(nom, nom, false, nom === profil.pays)));
+    select.replaceChildren(...pays.map((nom) => new Option(nomPays(nom), nom, false, nom === profil.pays)));
   }
 
   function brancherFormulaire(formulaire) {
@@ -187,8 +187,8 @@
         }
         const resultat = await api('/profils/moi', { methode: 'PUT', donnees });
         profil = resultat.profil;
-        message(zoneMessage, 'Profil enregistré.', 'succes');
-        const lien = el('a', { href: `/${profil.identifiant}`, texte: ' Voir mon profil' });
+        message(zoneMessage, t('modifier.enregistre'), 'succes');
+        const lien = el('a', { href: `/${profil.identifiant}`, texte: ` ${t('nav.voir-mon-profil')}` });
         zoneMessage.append(lien);
       } catch (erreur) {
         if (!(erreur.champ && erreurSurChamp(formulaire, erreur.champ, erreur.message))) {

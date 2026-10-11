@@ -1,6 +1,6 @@
 // Gestion des formulaires d'authentification (inscription, connexion, mot de passe).
 (function () {
-  const { api } = window.Palabre;
+  const { api, t, nomPays } = window.Palabre;
 
   // Page où aller après l'inscription ou la connexion : le paramètre « suite » de l'adresse.
   // On n'accepte qu'une adresse interne (« /… ») : jamais un autre site, même si quelqu'un fabrique le lien.
@@ -61,7 +61,7 @@
         methode: 'POST',
         donnees: { ...donnees, jeton },
       });
-      afficherMessage(formulaire, `${message} Redirection…`, 'succes');
+      afficherMessage(formulaire, t('acces.redirection', { message }), 'succes');
       setTimeout(() => { window.location.href = '/connexion'; }, 1800);
     },
   };
@@ -93,7 +93,7 @@
       const { pays } = await api('/pays');
       const actuel = select.value;
       select.innerHTML = '';
-      pays.forEach((nom) => select.add(new Option(nom, nom, false, nom === actuel)));
+      pays.forEach((nom) => select.add(new Option(nomPays(nom), nom, false, nom === actuel)));
     } catch {
       // On garde l'option par défaut si la liste ne charge pas.
     }

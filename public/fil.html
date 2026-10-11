@@ -15,6 +15,8 @@
   <script src="/js/theme.js"></script>
   <link rel="stylesheet" href="/css/style.css">
   <title>Fil d'actualité – Palabre</title>
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
   <script src="/js/app.js" defer></script>
   <script src="/js/publication.js" defer></script>
   <script src="/js/fil.js" defer></script>
@@ -27,60 +29,60 @@
     <nav data-nav></nav>
   </div></header>
   <main class="conteneur page-fil">
-    <h1 class="visuellement-cache">Fil d'actualité</h1>
+    <h1 data-t="fil.titre" class="visuellement-cache">Fil d'actualité</h1>
 
     <!-- Zone « Publier » : un champ compact et trois raccourcis ; le reste (.composer-suite) apparaît quand on écrit. -->
     <form class="bloc-fil composer" data-publier novalidate>
       <div class="composer-champ">
         <span data-mon-avatar></span>
         <div class="champ">
-          <label class="visuellement-cache" for="texte">Ta publication</label>
-          <textarea id="texte" name="texte" rows="1" maxlength="3000" placeholder="Quoi de neuf ?"></textarea>
+          <label data-t="fil.ta-publication" class="visuellement-cache" for="texte">Ta publication</label>
+          <textarea id="texte" name="texte" rows="1" maxlength="3000" placeholder="Quoi de neuf ?" data-t-placeholder="fil.quoi-de-neuf"></textarea>
           <p class="erreur-champ" data-erreur="texte"></p>
         </div>
       </div>
       <div class="composer-suite">
         <fieldset class="choix-puces">
-          <legend class="visuellement-cache">Type de publication</legend>
+          <legend data-t="fil.type" class="visuellement-cache">Type de publication</legend>
           <input type="radio" name="type" id="type-idee" value="idee" checked>
-          <label for="type-idee"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#idee"></use></svg>Idée</label>
+          <label for="type-idee"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#idee"></use></svg><span data-t="publication.idee">Idée</span></label>
           <input type="radio" name="type" id="type-question" value="question">
-          <label for="type-question"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#question"></use></svg>Question</label>
+          <label for="type-question"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#question"></use></svg><span data-t="publication.question">Question</span></label>
           <input type="radio" name="type" id="type-projet" value="projet">
-          <label for="type-projet"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#projet"></use></svg>Projet</label>
+          <label for="type-projet"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#projet"></use></svg><span data-t="publication.projet">Projet</span></label>
         </fieldset>
         <div class="apercu-image" data-apercu hidden>
-          <img alt="Aperçu de l'image choisie" data-apercu-image>
-          <button class="bouton bouton-lien" type="button" data-retirer-image>Retirer l'image</button>
+          <img alt="Aperçu de l'image choisie" data-t-alt="fil.apercu-image" data-apercu-image>
+          <button data-t="fil.retirer-image" class="bouton bouton-lien" type="button" data-retirer-image>Retirer l'image</button>
         </div>
         <!-- Lien vidéo (YouTube, TikTok, Facebook) : ouvert par le bouton « Vidéo ». L'aperçu est dessiné par fil.js
              une fois que le serveur a reconnu le lien. -->
         <div class="champ zone-video" data-zone-video hidden>
-          <label for="video">Lien de la vidéo <span class="aide">YouTube, TikTok ou Facebook</span></label>
+          <label for="video"><span data-t="fil.lien-video">Lien de la vidéo</span> <span data-t="fil.plateformes" class="aide">YouTube, TikTok ou Facebook</span></label>
           <div class="ligne-video">
             <input id="video" name="video" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="300" placeholder="https://youtu.be/…">
-            <button class="bouton bouton-lien" type="button" data-retirer-video>Retirer</button>
+            <button data-t="commun.retirer" class="bouton bouton-lien" type="button" data-retirer-video>Retirer</button>
           </div>
           <p class="erreur-champ" data-erreur="video"></p>
           <div data-apercu-video></div>
         </div>
         <div class="actions-publier">
           <div class="actions-joindre">
-            <label class="bouton bouton-contour" for="choisir-image"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#image"></use></svg>Image</label>
-            <button class="bouton bouton-contour" type="button" data-ouvrir-video aria-expanded="false"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#video"></use></svg>Vidéo</button>
+            <label class="bouton bouton-contour" for="choisir-image"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#image"></use></svg><span data-t="fil.image">Image</span></label>
+            <button class="bouton bouton-contour" type="button" data-ouvrir-video aria-expanded="false"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#video"></use></svg><span data-t="fil.video">Vidéo</span></button>
           </div>
-          <button class="bouton bouton-principal" type="submit"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#envoyer"></use></svg>Publier</button>
+          <button class="bouton bouton-principal" type="submit"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#envoyer"></use></svg><span data-t="fil.publier">Publier</span></button>
         </div>
       </div>
       <p class="message" role="status" data-message></p>
       <!-- Raccourcis : ils préchoisissent le type de publication (ou ouvrent le choix d'une photo). -->
       <div class="composer-raccourcis">
-        <label class="raccourci raccourci-photo" for="choisir-image"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#image"></use></svg>Photo</label>
-        <button class="raccourci raccourci-video" type="button" data-ouvrir-video><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#video"></use></svg>Vidéo</button>
-        <button class="raccourci raccourci-question" type="button" data-raccourci="question"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#question"></use></svg>Question</button>
-        <button class="raccourci raccourci-projet" type="button" data-raccourci="projet"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#projet"></use></svg>Projet</button>
+        <label class="raccourci raccourci-photo" for="choisir-image"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#image"></use></svg><span data-t="fil.photo">Photo</span></label>
+        <button class="raccourci raccourci-video" type="button" data-ouvrir-video><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#video"></use></svg><span data-t="fil.video">Vidéo</span></button>
+        <button class="raccourci raccourci-question" type="button" data-raccourci="question"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#question"></use></svg><span data-t="publication.question">Question</span></button>
+        <button class="raccourci raccourci-projet" type="button" data-raccourci="projet"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#projet"></use></svg><span data-t="publication.projet">Projet</span></button>
       </div>
-      <input type="file" id="choisir-image" accept="image/*" data-choisir-image class="visuellement-cache" aria-label="Choisir une image">
+      <input type="file" id="choisir-image" accept="image/*" data-choisir-image class="visuellement-cache" aria-label="Choisir une image" data-t-aria-label="fil.choisir-image">
     </form>
 
     <!-- « Active les notifications » : proposé une fois par push.js, jamais sans une action de la personne. -->
@@ -91,18 +93,18 @@
 
     <!-- « Disponibles maintenant » : remplie par fil.js, cachée s'il n'y a personne. -->
     <section class="bloc-fil disponibles" data-disponibles aria-labelledby="titre-disponibles" hidden>
-      <h2 id="titre-disponibles">Disponibles maintenant</h2>
+      <h2 data-t="fil.disponibles" id="titre-disponibles">Disponibles maintenant</h2>
       <ul class="rangee-disponibles" data-rangee></ul>
     </section>
 
-    <div class="bloc-fil filtres-fil" role="group" aria-label="Filtrer le fil">
-      <button class="filtre-fil" type="button" data-filtre="tout" aria-pressed="true">Tout le monde</button>
-      <button class="filtre-fil" type="button" data-filtre="amis" aria-pressed="false">Mes amis</button>
+    <div class="bloc-fil filtres-fil" role="group" aria-label="Filtrer le fil" data-t-aria-label="fil.filtrer">
+      <button data-t="fil.tout-le-monde" class="filtre-fil" type="button" data-filtre="tout" aria-pressed="true">Tout le monde</button>
+      <button data-t="fil.mes-amis" class="filtre-fil" type="button" data-filtre="amis" aria-pressed="false">Mes amis</button>
     </div>
 
     <div class="fil-social" data-fil></div>
     <div role="status" data-etat-fil hidden></div>
-    <button class="bouton bouton-contour bouton-plein charger-plus" type="button" data-charger-plus hidden>Voir plus de publications</button>
+    <button data-t="fil.voir-plus" class="bouton bouton-contour bouton-plein charger-plus" type="button" data-charger-plus hidden>Voir plus de publications</button>
   </main>
 </body>
 </html>

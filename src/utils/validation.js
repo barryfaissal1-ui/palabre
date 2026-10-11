@@ -4,7 +4,12 @@ const PAYS = [
   'Bénin', 'Burkina Faso', 'Burundi', 'Cameroun', 'Centrafrique', 'Comores', 'Congo',
   'Côte d\'Ivoire', 'Djibouti', 'Gabon', 'Guinée', 'Guinée équatoriale', 'Madagascar',
   'Mali', 'Maroc', 'Mauritanie', 'Niger', 'RD Congo', 'Rwanda', 'Sénégal', 'Seychelles',
-  'Tchad', 'Togo', 'Tunisie', 'Algérie', 'Autre',
+  'Tchad', 'Togo', 'Tunisie', 'Algérie',
+  // Pays anglophones et lusophones. Le nom reste en français dans la base ; la page l'affiche dans la langue du
+  // membre (clés « pays.… » de public/langues).
+  'Afrique du Sud', 'Angola', 'Botswana', 'Cap-Vert', 'Égypte', 'Éthiopie', 'Gambie', 'Ghana', 'Guinée-Bissau', 'Kenya',
+  'Liberia', 'Malawi', 'Maurice', 'Mozambique', 'Namibie', 'Nigeria', 'Ouganda', 'Sierra Leone', 'Tanzanie', 'Zambie', 'Zimbabwe',
+  'Autre',
 ];
 
 class ErreurValidation extends Error {

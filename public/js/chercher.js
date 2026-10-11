@@ -1,37 +1,37 @@
 // Recherche de développeurs par compétence, pays, ville et disponibilité. Visible sans compte.
 (function () {
-  const { api, el, avatar, etoiles, icone, etatVide, chargement, chargementInfini, nomMembre } = window.Palabre;
+  const { t, deNom, nombre, nomPays, lieuDe, api, el, avatar, etoiles, icone, etatVide, chargement, chargementInfini, nomMembre } = window.Palabre;
 
   const MAX_COMPETENCES_AFFICHEES = 5;
   let pageSuivante = null;
 
   function carteDev(dev) {
-    const lieu = [dev.ville, dev.pays].filter(Boolean).join(', ');
+    const lieu = lieuDe(dev);
     const visibles = dev.competences.slice(0, MAX_COMPETENCES_AFFICHEES);
     const reste = dev.competences.length - visibles.length;
     const preuves = [];
     if (dev.nbAvis) {
-      preuves.push(el('span', {}, [etoiles(dev.noteMoyenne), ` ${String(dev.noteMoyenne).replace('.', ',')} (${dev.nbAvis} avis)`]));
+      preuves.push(el('span', {}, [etoiles(dev.noteMoyenne), t('chercher.note', { note: nombre(dev.noteMoyenne), n: dev.nbAvis })]));
     }
     if (dev.projetsVerifies) {
-      preuves.push(el('span', { classe: 'badge-verifie' }, [icone('verifie'), `${dev.projetsVerifies} projet${dev.projetsVerifies > 1 ? 's' : ''} vérifié${dev.projetsVerifies > 1 ? 's' : ''}`]));
+      preuves.push(el('span', { classe: 'badge-verifie' }, [icone('verifie'), t('chercher.projets-verifies', { n: dev.projetsVerifies })]));
     } else if (dev.nbProjets) {
-      preuves.push(el('span', { classe: 'texte-discret', texte: `${dev.nbProjets} projet${dev.nbProjets > 1 ? 's' : ''}` }));
+      preuves.push(el('span', { classe: 'texte-discret', texte: t('commun.projets', { n: dev.nbProjets }) }));
     }
     return el('article', { classe: 'carte-publication carte-dev' }, [
       el('div', { classe: 'publication-entete' }, [
-        el('a', { classe: 'lien-avatar', href: `/${dev.identifiant}`, 'aria-label': `Profil de ${dev.nom}` }, [avatar(dev, 'moyen')]),
+        el('a', { classe: 'lien-avatar', href: `/${dev.identifiant}`, 'aria-label': t('commun.profil-de', { nom: dev.nom, deNom: deNom(dev.nom) }) }, [avatar(dev, 'moyen')]),
         el('div', {}, [
           el('h2', {}, [nomMembre(dev)]),
           el('p', { classe: 'texte-discret publication-meta avec-icone' }, [icone('lieu'), lieu]),
         ]),
       ]),
-      el('span', { classe: `pastille ${dev.disponible ? 'pastille-dispo' : 'pastille-occupe'}`, texte: dev.disponible ? 'Disponible' : 'Occupé en ce moment' }),
+      el('span', { classe: `pastille ${dev.disponible ? 'pastille-dispo' : 'pastille-occupe'}`, texte: dev.disponible ? t('chercher.disponible') : t('profil.occupe') }),
       preuves.length ? el('p', { classe: 'preuves' }, preuves) : null,
       visibles.length
         ? el('ul', { classe: 'puces' }, [...visibles.map((c) => el('li', { texte: c })), reste > 0 ? el('li', { texte: `+ ${reste}` }) : null])
         : null,
-      el('a', { classe: 'bouton bouton-contour', href: `/${dev.identifiant}`, texte: 'Voir le profil' }),
+      el('a', { classe: 'bouton bouton-contour', href: `/${dev.identifiant}`, texte: t('chercher.voir-profil') }),
     ]);
   }
 
@@ -58,7 +58,7 @@
   async function chercher() {
     const resultats = document.querySelector('[data-resultats]');
     const etat = document.querySelector('[data-etat]');
-    if (!infini) infini = chargementInfini(resultats, () => page(pageSuivante), { fin: 'Tu as vu tous les développeurs trouvés.', bouton: document.querySelector('[data-charger-plus]') });
+    if (!infini) infini = chargementInfini(resultats, () => page(pageSuivante), { fin: t('chercher.tous-vus'), bouton: document.querySelector('[data-charger-plus]') });
     recherche += 1;
     const maRecherche = recherche;
     resultats.replaceChildren();
@@ -70,11 +70,11 @@
       if (maRecherche !== recherche) return;
       infini.reprendre(encore);
       etat.hidden = resultats.children.length > 0;
-      etat.replaceChildren(etatVide('recherche', 'Aucun développeur ne correspond', 'Essaie avec moins de critères, ou une autre ville.'));
+      etat.replaceChildren(etatVide('recherche', t('chercher.aucun'), t('chercher.aucun-aide')));
     } catch (erreur) {
       fini();
       etat.hidden = false;
-      etat.replaceChildren(etatVide('calme', 'La recherche ne répond pas', erreur.message));
+      etat.replaceChildren(etatVide('calme', t('chercher.ne-repond-pas'), erreur.message));
     }
   }
 
@@ -88,7 +88,7 @@
     try {
       const [{ competences }, { pays }] = await Promise.all([api('/competences'), api('/pays')]);
       formulaire.elements.competence.append(...competences.map((c) => el('option', { value: c.id, texte: c.nom })));
-      formulaire.elements.pays.append(...pays.map((p) => el('option', { value: p, texte: p })));
+      formulaire.elements.pays.append(...pays.map((p) => el('option', { value: p, texte: nomPays(p) })));
     } catch { /* sans les listes, la recherche par ville reste possible */ }
   });
 })();

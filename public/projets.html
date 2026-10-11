@@ -15,6 +15,8 @@
   <script src="/js/theme.js"></script>
   <link rel="stylesheet" href="/css/style.css">
   <title>Mes projets – Palabre</title>
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
   <script src="/js/app.js" defer></script>
   <script src="/js/projets.js" defer></script>
 </head>
@@ -25,52 +27,52 @@
     <nav data-nav></nav>
   </div></header>
   <main class="conteneur page-fil">
-    <h1 class="titre-page">Mes projets</h1>
-    <p class="texte-discret intro-page">Montre ce que tu as déjà construit. Si le lien de ton projet répond, il reçoit le badge « Lien vérifié ».</p>
+    <h1 data-t="nav.mes-projets" class="titre-page">Mes projets</h1>
+    <p data-t="projets.intro" class="texte-discret intro-page">Montre ce que tu as déjà construit. Si le lien de ton projet répond, il reçoit le badge « Lien vérifié ».</p>
 
     <form class="bloc-formulaire" data-ajouter novalidate>
-      <h2>Ajouter un projet</h2>
+      <h2 data-t="nav.ajouter-projet">Ajouter un projet</h2>
       <div class="champ">
-        <label for="titre">Titre</label>
-        <input id="titre" name="titre" maxlength="100" placeholder="Ex. Gestion de stock pour pharmacie">
+        <label data-t="champ.titre" for="titre">Titre</label>
+        <input id="titre" name="titre" maxlength="100" placeholder="Ex. Gestion de stock pour pharmacie" data-t-placeholder="projets.titre-exemple">
         <p class="erreur-champ" data-erreur="titre"></p>
       </div>
       <div class="champ">
-        <label for="secteur">Secteur</label>
+        <label data-t="champ.secteur" for="secteur">Secteur</label>
         <select id="secteur" name="secteur"></select>
         <p class="erreur-champ" data-erreur="secteur"></p>
       </div>
       <div class="champ">
-        <label for="description">Description</label>
-        <textarea id="description" name="description" rows="4" maxlength="1000" placeholder="À quoi sert le projet, pour qui, ce que tu as fait…"></textarea>
+        <label data-t="champ.description" for="description">Description</label>
+        <textarea id="description" name="description" rows="4" maxlength="1000" placeholder="À quoi sert le projet, pour qui, ce que tu as fait…" data-t-placeholder="projets.description-aide"></textarea>
         <p class="erreur-champ" data-erreur="description"></p>
       </div>
       <div class="champ">
-        <label for="lien">Lien du projet</label>
-        <input id="lien" name="lien" type="url" inputmode="url" autocapitalize="none" spellcheck="false" maxlength="300" placeholder="https://monprojet.com">
-        <span class="aide">Facultatif. Palabre visitera ce lien pour vérifier qu'il fonctionne.</span>
+        <label data-t="projets.lien" for="lien">Lien du projet</label>
+        <input id="lien" name="lien" type="url" inputmode="url" autocapitalize="none" spellcheck="false" maxlength="300" placeholder="https://monprojet.com" data-t-placeholder="projets.lien-exemple">
+        <span data-t="projets.lien-aide" class="aide">Facultatif. Palabre visitera ce lien pour vérifier qu'il fonctionne.</span>
         <p class="erreur-champ" data-erreur="lien"></p>
       </div>
       <div class="apercu-image" data-apercu hidden>
-        <img alt="Aperçu de la capture d'écran" data-apercu-image>
-        <button class="bouton bouton-lien" type="button" data-retirer-image>Retirer l'image</button>
+        <img alt="Aperçu de la capture d'écran" data-t-alt="projets.apercu" data-apercu-image>
+        <button data-t="fil.retirer-image" class="bouton bouton-lien" type="button" data-retirer-image>Retirer l'image</button>
       </div>
       <div class="actions-publier">
         <label class="bouton bouton-contour">
-          Ajouter une capture d'écran
+          <span data-t="projets.ajouter-capture">Ajouter une capture d'écran</span>
           <input type="file" accept="image/*" data-choisir-image class="visuellement-cache">
         </label>
       </div>
       <label class="case-a-cocher">
         <input type="checkbox" name="publierFacebook">
-        <span>J'accepte que ce projet soit présenté sur la page Facebook « Palabre Dev ».</span>
+        <span data-t="projets.accord-facebook">J'accepte que ce projet soit présenté sur la page Facebook « Palabre Dev ».</span>
       </label>
       <p class="message" role="status" data-message></p>
-      <button class="bouton bouton-principal bouton-plein" type="submit">Ajouter le projet</button>
+      <button data-t="projets.ajouter" class="bouton bouton-principal bouton-plein" type="submit">Ajouter le projet</button>
     </form>
 
     <section class="section-profil">
-      <h2 data-titre-liste>Mes projets</h2>
+      <h2 data-t="nav.mes-projets" data-titre-liste>Mes projets</h2>
       <p class="message" role="status" data-message-liste></p>
       <div class="liste-publications" data-liste aria-live="polite"></div>
       <div data-etat hidden></div>

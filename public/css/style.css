@@ -229,6 +229,12 @@ a { color: var(--lien); text-underline-offset: 3px; }
 .bouton-icone:hover { background: color-mix(in srgb, var(--gris) 14%, transparent); color: var(--encre); }
 .bouton-lien { min-height: 44px; padding: 0 12px; color: var(--encre); background: transparent; }
 .bouton-lien:hover { text-decoration: underline; }
+/* Le petit lien « English » / « Français » en bas des pages publiques (visiteurs seulement, voir poserChoixLangue). */
+.choix-langue { display: block; margin: 8px 0 0; text-align: center; }
+.choix-langue:empty { display: none; }
+.lien-langue { gap: 6px; color: var(--gris); font-size: var(--t-13); font-weight: 600; }
+.lien-langue .icone { width: 16px; height: 16px; }
+.page-acces .choix-langue { margin: 12px 0 0; }
 .bouton-plein { width: 100%; }
 
 /* ---------- Accueil ---------- */

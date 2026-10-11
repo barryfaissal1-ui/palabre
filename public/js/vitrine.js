@@ -1,5 +1,6 @@
 // Vitrine de la page d'accueil : les projets réalisés, filtrés par secteur. Visible sans compte.
 (function () {
+  const { t } = window.Palabre;
   const { api, el, carteProjet, chargement } = window.Palabre;
 
   let secteur = '';
@@ -28,8 +29,8 @@
       boutonPlus.hidden = !suivant;
       vide.hidden = grille.children.length > 0;
       document.querySelector('[data-vitrine-texte]').textContent = secteur
-        ? 'Pas encore de projet dans ce secteur. Le tien sera peut-être le premier.'
-        : 'La vitrine attend ses premiers projets. Inscris-toi et publie ce que tu as déjà construit.';
+        ? t('accueil.vitrine.vide-secteur')
+        : t('accueil.vitrine.vide');
     } catch {
       fini();
       vide.hidden = grille.children.length > 0; // hors connexion : on garde ce qui est déjà affiché
@@ -53,7 +54,7 @@
     try {
       const { secteurs } = await api('/secteurs');
       document.querySelector('[data-secteurs]').append(
-        boutonSecteur('', 'Tous'),
+        boutonSecteur('', t('commun.tous')),
         ...secteurs.map((s) => boutonSecteur(s.id, s.nom)),
       );
     } catch { /* sans la liste des secteurs, la vitrine reste affichée sans filtre */ }

@@ -15,6 +15,8 @@
   <script src="/js/theme.js"></script>
   <link rel="stylesheet" href="/css/style.css">
   <title>Notifications – Palabre</title>
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
   <script src="/js/app.js" defer></script>
   <script src="/js/notifications.js" defer></script>
 </head>
@@ -26,8 +28,8 @@
   </div></header>
   <main class="conteneur page-fil">
     <div class="titre-avec-action">
-      <h1 class="titre-page">Notifications</h1>
-      <button class="bouton bouton-lien" type="button" data-tout-lire hidden>Tout marquer comme lu</button>
+      <h1 data-t="nav.notifications" class="titre-page">Notifications</h1>
+      <button data-t="notifications.tout-lire" class="bouton bouton-lien" type="button" data-tout-lire hidden>Tout marquer comme lu</button>
     </div>
     <ul class="liste-notifications" data-notifications></ul>
     <div role="status" data-etat hidden></div>

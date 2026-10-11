@@ -15,6 +15,8 @@
   <script src="/js/theme.js"></script>
   <link rel="stylesheet" href="/css/style.css">
   <title>Modifier mon profil – Palabre</title>
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
   <script src="/js/app.js" defer></script>
   <script src="/js/modifier-profil.js" defer></script>
 </head>
@@ -25,162 +27,162 @@
     <nav data-nav></nav>
   </div></header>
   <main class="conteneur page-profil">
-    <h1 class="titre-page">Modifier mon profil</h1>
+    <h1 data-t="profil.modifier" class="titre-page">Modifier mon profil</h1>
     <div data-chargement>
     <div class="squelettes" aria-hidden="true">
       <div class="squelette"><div class="squelette-entete"><span class="os os-rond"></span><span class="os os-court"></span></div><span class="os"></span><span class="os os-moyen"></span></div>
       <div class="squelette"><span class="os os-moyen"></span><span class="os"></span><span class="os os-court"></span></div>
     </div>
-    <p class="visuellement-cache">Chargement…</p>
+    <p data-t="commun.chargement" class="visuellement-cache">Chargement…</p>
     </div>
 
     <form data-profil novalidate hidden>
       <section class="bloc-formulaire">
-        <h2>Photo</h2>
+        <h2 data-t="fil.photo">Photo</h2>
         <div class="zone-photo">
           <div data-photo></div>
           <div class="boutons-photo">
             <label class="bouton bouton-contour">
-              Changer la photo
+              <span data-t="modifier.changer-photo">Changer la photo</span>
               <input type="file" accept="image/*" data-choisir-photo class="visuellement-cache">
             </label>
-            <button class="bouton bouton-lien" type="button" data-retirer-photo hidden>Retirer</button>
+            <button data-t="commun.retirer" class="bouton bouton-lien" type="button" data-retirer-photo hidden>Retirer</button>
           </div>
         </div>
         <p class="message" role="status" data-message-photo></p>
       </section>
 
       <section class="bloc-formulaire">
-        <h2>Informations</h2>
+        <h2 data-t="modifier.informations">Informations</h2>
         <div class="champs-cote-a-cote">
           <div class="champ">
-            <label for="prenom">Prénom</label>
+            <label data-t="champ.prenom" for="prenom">Prénom</label>
             <input id="prenom" name="prenom" autocomplete="given-name" required maxlength="50">
             <p class="erreur-champ" data-erreur="prenom"></p>
           </div>
           <div class="champ">
-            <label for="nom-famille">Nom</label>
+            <label data-t="champ.nom" for="nom-famille">Nom</label>
             <input id="nom-famille" name="nomFamille" autocomplete="family-name" required maxlength="50">
             <p class="erreur-champ" data-erreur="nomFamille"></p>
           </div>
         </div>
         <div class="champ">
-          <label for="identifiant">Lien de ton profil</label>
+          <label data-t="champ.lien-profil" for="identifiant">Lien de ton profil</label>
           <div class="champ-prefixe">
             <span data-prefixe>palabre.dev/</span>
             <input id="identifiant" name="identifiant" required minlength="3" maxlength="30" autocapitalize="none" spellcheck="false">
           </div>
-          <span class="aide">Lettres minuscules, chiffres et tirets. C'est le lien que tu partageras.</span>
+          <span data-t="modifier.lien-aide" class="aide">Lettres minuscules, chiffres et tirets. C'est le lien que tu partageras.</span>
           <p class="erreur-champ" data-erreur="identifiant"></p>
         </div>
         <div class="champ">
-          <label for="pays">Pays</label>
+          <label data-t="champ.pays" for="pays">Pays</label>
           <select id="pays" name="pays"></select>
           <p class="erreur-champ" data-erreur="pays"></p>
         </div>
         <div class="champ">
-          <label for="ville">Ville</label>
+          <label data-t="champ.ville" for="ville">Ville</label>
           <input id="ville" name="ville" autocomplete="address-level2" required>
           <p class="erreur-champ" data-erreur="ville"></p>
         </div>
         <div class="champ">
-          <label for="whatsapp">Numéro WhatsApp</label>
+          <label data-t="champ.whatsapp" for="whatsapp">Numéro WhatsApp</label>
           <input id="whatsapp" name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="+226 70 00 00 00">
-          <span class="aide">Jamais visible sans compte. Tu choisis qui le voit dans <a href="/parametres#confidentialite">Paramètres</a>.</span>
+          <span class="aide"><span data-t="modifier.whatsapp-aide">Jamais visible sans compte. Tu choisis qui le voit dans</span> <a data-t="nav.parametres" href="/parametres#confidentialite">Paramètres</a>.</span>
           <p class="erreur-champ" data-erreur="whatsapp"></p>
         </div>
         <div class="champ">
-          <label for="bio">Présentation</label>
-          <textarea id="bio" name="bio" rows="4" maxlength="500" placeholder="Ce que tu fais, ce que tu aimes construire, ton expérience…"></textarea>
+          <label data-t="profil.presentation" for="bio">Présentation</label>
+          <textarea id="bio" name="bio" rows="4" maxlength="500" placeholder="Ce que tu fais, ce que tu aimes construire, ton expérience…" data-t-placeholder="modifier.presentation-aide"></textarea>
           <span class="aide" data-compteur-bio>0 / 500</span>
           <p class="erreur-champ" data-erreur="bio"></p>
         </div>
         <label class="interrupteur" data-seulement-dev>
           <input type="checkbox" name="disponible">
           <span class="interrupteur-piste" aria-hidden="true"></span>
-          <span>Disponible pour de nouveaux projets</span>
+          <span data-t="modifier.disponible">Disponible pour de nouveaux projets</span>
         </label>
       </section>
 
       <section class="bloc-formulaire" data-seulement-dev>
-        <h2>Profil de dev</h2>
+        <h2 data-t="modifier.profil-dev">Profil de dev</h2>
         <div class="champs-cote-a-cote champs-larges">
           <div class="champ">
-            <label for="specialite">Spécialité principale</label>
+            <label data-t="champ.specialite" for="specialite">Spécialité principale</label>
             <select id="specialite" name="specialite">
-              <option value="">Choisir</option>
-              <option value="web" data-icone="code">Développement web</option>
-              <option value="mobile" data-icone="smartphone">Mobile</option>
-              <option value="back-end" data-icone="serveur">Back-end</option>
-              <option value="front-end" data-icone="disposition">Front-end</option>
-              <option value="design" data-icone="palette">Design UI/UX</option>
-              <option value="data-ia" data-icone="cerveau">Data et IA</option>
-              <option value="devops" data-icone="nuage">DevOps et cloud</option>
-              <option value="jeux" data-icone="manette">Jeux vidéo</option>
-              <option value="autre" data-icone="options">Autre</option>
+              <option data-t="commun.choisir" value="">Choisir</option>
+              <option data-t="specialite.web" value="web" data-icone="code">Développement web</option>
+              <option data-t="specialite.mobile" value="mobile" data-icone="smartphone">Mobile</option>
+              <option data-t="specialite.back-end" value="back-end" data-icone="serveur">Back-end</option>
+              <option data-t="specialite.front-end" value="front-end" data-icone="disposition">Front-end</option>
+              <option data-t="specialite.design" value="design" data-icone="palette">Design UI/UX</option>
+              <option data-t="specialite.data-ia" value="data-ia" data-icone="cerveau">Data et IA</option>
+              <option data-t="specialite.devops" value="devops" data-icone="nuage">DevOps et cloud</option>
+              <option data-t="specialite.jeux" value="jeux" data-icone="manette">Jeux vidéo</option>
+              <option data-t="specialite.autre" value="autre" data-icone="options">Autre</option>
             </select>
             <p class="erreur-champ" data-erreur="specialite"></p>
           </div>
           <div class="champ">
-            <label for="experience">Années d'expérience</label>
+            <label data-t="champ.experience" for="experience">Années d'expérience</label>
             <select id="experience" name="experience">
-              <option value="">Choisir</option>
-              <option value="moins-1">Moins d'1 an</option>
-              <option value="1-2">1 à 2 ans</option>
-              <option value="3-5">3 à 5 ans</option>
-              <option value="plus-5">Plus de 5 ans</option>
+              <option data-t="commun.choisir" value="">Choisir</option>
+              <option data-t="experience.moins-1" value="moins-1">Moins d'1 an</option>
+              <option data-t="experience.1-2" value="1-2">1 à 2 ans</option>
+              <option data-t="experience.3-5" value="3-5">3 à 5 ans</option>
+              <option data-t="experience.plus-5" value="plus-5">Plus de 5 ans</option>
             </select>
             <p class="erreur-champ" data-erreur="experience"></p>
           </div>
         </div>
-        <p class="aide">Tes liens : Palabre les visite à l'enregistrement. Un lien qui répond reçoit le badge « Lien vérifié ».</p>
+        <p data-t="modifier.liens-aide" class="aide">Tes liens : Palabre les visite à l'enregistrement. Un lien qui répond reçoit le badge « Lien vérifié ».</p>
         <div class="champ">
           <label for="lien-github">GitHub</label>
-          <input id="lien-github" name="github" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="github.com/ton-nom">
+          <input id="lien-github" name="github" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="github.com/ton-nom" data-t-placeholder="champ.github.aide">
           <p class="erreur-champ" data-erreur="github"></p>
         </div>
         <div class="champ">
           <label for="lien-gitlab">GitLab</label>
-          <input id="lien-gitlab" name="gitlab" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="gitlab.com/ton-nom">
+          <input id="lien-gitlab" name="gitlab" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="gitlab.com/ton-nom" data-t-placeholder="champ.gitlab.aide">
           <p class="erreur-champ" data-erreur="gitlab"></p>
         </div>
         <div class="champ">
-          <label for="lien-portfolio">Portfolio ou site</label>
-          <input id="lien-portfolio" name="portfolio" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="monsite.com">
+          <label data-t="champ.portfolio" for="lien-portfolio">Portfolio ou site</label>
+          <input id="lien-portfolio" name="portfolio" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="monsite.com" data-t-placeholder="champ.portfolio.aide">
           <p class="erreur-champ" data-erreur="portfolio"></p>
         </div>
         <div class="champ">
           <label for="lien-linkedin">LinkedIn</label>
-          <input id="lien-linkedin" name="linkedin" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="linkedin.com/in/ton-nom">
+          <input id="lien-linkedin" name="linkedin" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="linkedin.com/in/ton-nom" data-t-placeholder="champ.linkedin.aide">
           <p class="erreur-champ" data-erreur="linkedin"></p>
         </div>
       </section>
 
       <section class="bloc-formulaire" data-seulement-dev>
         <div class="titre-avec-compteur">
-          <h2>Compétences</h2>
+          <h2 data-t="modifier.competences">Compétences</h2>
           <span class="aide" data-compteur-competences>0 / 15</span>
         </div>
-        <input type="search" placeholder="Rechercher une compétence" data-filtre-competences aria-label="Rechercher une compétence">
+        <input type="search" placeholder="Rechercher une compétence" data-t-placeholder="modifier.rechercher-competence" data-filtre-competences aria-label="Rechercher une compétence" data-t-aria-label="modifier.rechercher-competence">
         <ul class="choix-competences" data-liste-competences></ul>
         <p class="erreur-champ" data-erreur="competences"></p>
       </section>
 
       <div class="barre-enregistrer">
         <p class="message" role="status" data-message></p>
-        <button class="bouton bouton-principal bouton-plein" type="submit">Enregistrer</button>
+        <button data-t="commun.enregistrer" class="bouton bouton-principal bouton-plein" type="submit">Enregistrer</button>
       </div>
     </form>
 
     <!-- Confidentialité, notifications, email, mot de passe : tout est dans /parametres. -->
     <section class="bloc-formulaire reglages-push">
-      <h2>Paramètres et confidentialité</h2>
-      <p class="aide">Qui voit tes publications et ton numéro, les notifications, le son des messages, ton email et ton mot de passe se règlent dans les paramètres.</p>
-      <a class="bouton bouton-contour" href="/parametres">Ouvrir les paramètres</a>
+      <h2 data-t="nav.parametres-confidentialite">Paramètres et confidentialité</h2>
+      <p data-t="modifier.parametres-aide" class="aide">Qui voit tes publications et ton numéro, les notifications, le son des messages, ton email et ton mot de passe se règlent dans les paramètres.</p>
+      <a data-t="modifier.ouvrir-parametres" class="bouton bouton-contour" href="/parametres">Ouvrir les paramètres</a>
     </section>
 
     <div class="zone-deconnexion">
-      <button class="bouton bouton-lien" type="button" data-deconnexion>Se déconnecter</button>
+      <button data-t="nav.se-deconnecter" class="bouton bouton-lien" type="button" data-deconnexion>Se déconnecter</button>
     </div>
   </main>
 </body>

@@ -1,5 +1,65 @@
 // Outils communs à toutes les pages : appels à l'API, session, navigation, installation PWA.
 (function () {
+  // ---------- Langue : français ou anglais ----------
+  // Les textes sont dans public/langues/fr.js et en.js (chargés avant ce fichier). Tout texte de l'interface passe
+  // par t('cle') dans un script, ou par un attribut data-t="cle" dans une page HTML.
+  // Le choix est gardé dans un cookie « langue » (le serveur le lit pour ses messages, ses emails, ses notifications)
+  // et, pour un membre, dans son compte. Première visite : anglais si le navigateur est en anglais, sinon français.
+  const LANGUES = window.PalabreLangues || {};
+  function langueDuCookie() {
+    const trouve = /(?:^|; )langue=(fr|en)(?:;|$)/.exec(document.cookie);
+    return trouve ? trouve[1] : null;
+  }
+  function garderLangue(valeur) {
+    document.cookie = `langue=${valeur}; path=/; max-age=${365 * 24 * 60 * 60}; samesite=lax`;
+  }
+  const langue = langueDuCookie() || (/^en/i.test(navigator.language || '') ? 'en' : 'fr');
+  if (!langueDuCookie()) garderLangue(langue);
+  // Dates et nombres : « 3 oct. 2026 » et « 250 000 » en français, « 3 Oct 2026 » et « 250,000 » en anglais.
+  const REGION = langue === 'en' ? 'en-GB' : 'fr-FR';
+  const pluriel = new Intl.PluralRules(langue);
+
+  // t('fil.reponses', { n: 3 }) → « 3 réponses ». Un texte peut être un pluriel { un, autres }, choisi d'après {n}
+  // (en français 0 et 1 sont au singulier ; en anglais, 1 seulement). Une clé inconnue s'affiche telle quelle :
+  // on la repère tout de suite à l'écran, et un test vérifie qu'aucune ne manque.
+  function t(cle, variables = {}) {
+    let texte = (LANGUES[langue] || {})[cle];
+    if (texte === undefined) texte = (LANGUES.fr || {})[cle];
+    if (texte === undefined) return cle;
+    if (typeof texte === 'object') texte = pluriel.select(Number(variables.n)) === 'one' ? texte.un : texte.autres;
+    return texte.replace(/\{(\w+)\}/g, (tout, nom) => (variables[nom] === undefined ? tout : String(variables[nom])));
+  }
+  const nombre = (valeur) => new Intl.NumberFormat(REGION).format(valeur);
+
+  // Remplit les textes d'une page HTML : data-t (texte), data-t-placeholder, data-t-aria-label, data-t-title,
+  // data-t-alt, data-t-content. En français il n'y a rien à faire : la page est déjà écrite en français.
+  const ATTRIBUTS_TRADUITS = ['placeholder', 'aria-label', 'title', 'alt', 'content'];
+  function traduirePage(racine = document) {
+    document.documentElement.lang = langue;
+    if (langue === 'fr') return;
+    // Le titre de l'onglet : la clé « titre.<nom de la page> » (titre.connexion pour /connexion, titre.accueil pour /).
+    // Les pages dont le titre dépend du contenu (profil, projet, publication) l'écrivent elles-mêmes.
+    if (racine === document) {
+      const cleTitre = `titre.${window.location.pathname.split('/')[1] || 'accueil'}`;
+      if ((LANGUES.fr || {})[cleTitre]) document.title = t(cleTitre);
+    }
+    racine.querySelectorAll('[data-t]').forEach((element) => { element.textContent = t(element.dataset.t); });
+    ATTRIBUTS_TRADUITS.forEach((attribut) => {
+      racine.querySelectorAll(`[data-t-${attribut}]`).forEach((element) => element.setAttribute(attribut, t(element.getAttribute(`data-t-${attribut}`))));
+    });
+  }
+  // Ce fichier est chargé avec « defer » : la page est déjà lue en entier, on peut la traduire avant qu'elle s'affiche.
+  traduirePage();
+
+  // Changer de langue : le cookie, le compte du membre (s'il est connecté), puis la page est relue dans la nouvelle
+  // langue. On reste sur la même page (même adresse, même rubrique).
+  async function changerLangue(nouvelle, { connecte = false } = {}) {
+    if (nouvelle !== 'fr' && nouvelle !== 'en') return;
+    garderLangue(nouvelle);
+    if (connecte) await api('/parametres/langue', { methode: 'PUT', donnees: { langue: nouvelle } }).catch(() => {});
+    window.location.reload();
+  }
+
   async function api(chemin, { methode = 'GET', donnees } = {}) {
     const options = { method: methode, headers: {}, credentials: 'same-origin' };
     if (donnees !== undefined) {
@@ -10,13 +70,13 @@
     try {
       reponse = await fetch(`/api${chemin}`, options);
     } catch {
-      const erreur = new Error('Pas de connexion internet. Vérifie ton réseau et réessaie.');
+      const erreur = new Error(t('commun.pas-de-connexion'));
       erreur.statut = 0;
       throw erreur;
     }
     const corps = await reponse.json().catch(() => ({}));
     if (!reponse.ok) {
-      const erreur = new Error(corps.erreur || 'Une erreur est survenue. Réessaie.');
+      const erreur = new Error(corps.erreur || t('commun.erreur'));
       erreur.statut = reponse.status;
       erreur.champ = corps.champ;
       erreur.suite = corps.suite; // page où régler le problème (/bienvenue, /confirmer-email)
@@ -97,7 +157,7 @@
 
   // ---------- Défilement infini ----------
   // Charge la page suivante d'une liste TOUTE SEULE quand on approche de la fin, sans bouton « Voir plus ».
-  //   const infini = chargementInfini(liste, chargerSuite, { fin: 'Tu as tout vu.', bouton });
+  //   const infini = chargementInfini(liste, chargerSuite, { fin: t('commun.tout-vu'), bouton });
   //   infini.reprendre(resteIlDesPages);   // après le premier chargement, ou après un changement de filtre
   // chargerSuite() ajoute la page suivante à la liste et répond true s'il en reste encore ; en cas de panne, elle
   // lève une erreur. La page garde donc sa requête ; tout le reste (guetter, squelettes, fin, erreur) est ici.
@@ -105,7 +165,7 @@
   // Comment : un repère invisible est posé sous la liste. Un IntersectionObserver prévient quand ce repère arrive à
   // moins de 800 px du bas de l'écran. C'est le navigateur qui surveille : rien ne tourne pendant le défilement.
   // « bouton » : le « Voir plus » de la page, montré seulement si le navigateur ne connaît pas IntersectionObserver.
-  function chargementInfini(liste, chargerSuite, { fin = 'Tu as tout vu.', bouton = null } = {}) {
+  function chargementInfini(liste, chargerSuite, { fin = t('commun.tout-vu'), bouton = null } = {}) {
     const pied = el('div', { classe: 'pied-infini' });               // squelettes, phrase de fin ou « Réessayer »
     const repere = el('div', { classe: 'repere-infini', 'aria-hidden': 'true' });
     liste.after(pied, repere);
@@ -158,7 +218,7 @@
         enCours = false;
         // Panne : on arrête de guetter (sinon le défilement relancerait l'appel en boucle) et on laisse la main.
         if (guetteur) guetteur.unobserve(repere);
-        const reessayer = el('button', { classe: 'bouton bouton-contour', type: 'button' }, [icone('recharger'), 'Réessayer']);
+        const reessayer = el('button', { classe: 'bouton bouton-contour', type: 'button' }, [icone('recharger'), t('commun.reessayer')]);
         reessayer.addEventListener('click', suite);
         pied.replaceChildren(el('div', { classe: 'erreur-infini', role: 'alert' }, [el('p', { classe: 'texte-discret', texte: erreur.message }), reessayer]));
       }
@@ -195,13 +255,13 @@
   // Pose une question et renvoie une promesse : true si la personne confirme, false sinon (Annuler ou Échap).
   //   if (await confirmer('Supprimer cette publication ?', { bouton: 'Supprimer', danger: true })) { … }
   // La première phrase (jusqu'au « ? ») devient le titre, la suite l'explication.
-  function confirmer(question, { bouton = 'Confirmer', danger = false } = {}) {
+  function confirmer(question, { bouton = t('commun.confirmer'), danger = false } = {}) {
     const coupe = question.indexOf('?') + 1;
     // espace insécable avant « ? » : le point d'interrogation ne se retrouve jamais seul à la ligne
     const titre = (coupe > 0 ? question.slice(0, coupe) : question).replace(/ \?/g, ' ?');
     const suite = coupe > 0 ? question.slice(coupe).trim() : '';
     return new Promise((resolve) => {
-      const annuler = el('button', { classe: 'bouton bouton-lien', type: 'button', texte: 'Annuler' });
+      const annuler = el('button', { classe: 'bouton bouton-lien', type: 'button', texte: t('commun.annuler') });
       const valider = el('button', { classe: `bouton ${danger ? 'bouton-danger' : 'bouton-principal'}`, type: 'button', 'data-confirmer': true, texte: bouton });
       const dialogue = el('dialog', {
         classe: 'dialogue dialogue-confirmation', role: 'alertdialog',
@@ -281,15 +341,18 @@
 
   // Badge feuille : à côté du nom de tout dev qui a au moins un projet vérifié.
   function badgeFeuille() {
-    return el('span', { classe: 'badge-feuille', role: 'img', 'aria-label': 'Profil prouvé', title: 'Profil prouvé' }, [icone('feuille')]);
+    return el('span', { classe: 'badge-feuille', role: 'img', 'aria-label': t('commun.profil-prouve'), title: t('commun.profil-prouve') }, [icone('feuille')]);
   }
 
   // Le nom d'un membre, avec son badge feuille s'il est prouvé. À utiliser partout où un nom s'affiche.
   // « lien: false » quand le nom est déjà dans un lien (un lien ne peut pas en contenir un autre).
   function nomMembre(membre, { lien = true } = {}) {
-    const nom = lien
-      ? el('a', { classe: 'nom-auteur', href: `/${membre.identifiant}`, texte: membre.nom })
-      : el('span', { classe: 'nom-auteur', texte: membre.nom });
+    // Un compte supprimé : son nom, « Membre parti », est écrit dans la langue de celui qui lit, et ne mène nulle part.
+    const parti = /^membre-parti-/.test(membre.identifiant || '');
+    const texte = parti ? t('commun.membre-parti') : membre.nom;
+    const nom = lien && !parti
+      ? el('a', { classe: 'nom-auteur', href: `/${membre.identifiant}`, texte })
+      : el('span', { classe: 'nom-auteur', texte });
     return el('span', { classe: 'nom-membre' }, [nom, membre.nbProjetsVerifies > 0 ? badgeFeuille() : null]);
   }
 
@@ -301,11 +364,13 @@
   function dateRelative(iso) {
     const date = new Date(iso);
     const secondes = Math.round((Date.now() - date.getTime()) / 1000);
-    if (secondes < 60) return 'à l\'instant';
-    if (secondes < 3600) return `il y a ${Math.floor(secondes / 60)} min`;
-    if (secondes < 86400) return `il y a ${Math.floor(secondes / 3600)} h`;
-    if (secondes < 7 * 86400) return `il y a ${Math.floor(secondes / 86400)} j`;
-    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (secondes < 60) return t('temps.instant');
+    // Intl.RelativeTimeFormat écrit la phrase dans la langue : « il y a 5 min », « 5 min. ago ».
+    const relatif = new Intl.RelativeTimeFormat(langue, { style: 'short' });
+    if (secondes < 3600) return relatif.format(-Math.floor(secondes / 60), 'minute');
+    if (secondes < 86400) return relatif.format(-Math.floor(secondes / 3600), 'hour');
+    if (secondes < 7 * 86400) return relatif.format(-Math.floor(secondes / 86400), 'day');
+    return date.toLocaleDateString(REGION, { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
   // « de Bintou » mais « d'Awa » : l'élision devant une voyelle.
@@ -316,14 +381,14 @@
 
   // Montant en francs CFA : 250000 → « 250 000 FCFA ». Sans montant : « À discuter ».
   function fcfa(montant) {
-    if (montant === null || montant === undefined) return 'À discuter';
-    return `${montant.toLocaleString('fr-FR')} FCFA`;
+    if (montant === null || montant === undefined) return t('commun.a-discuter');
+    return `${nombre(montant)} FCFA`;
   }
 
   // Note sur 5 en étoiles, lisible aussi par un lecteur d'écran.
   function etoiles(note) {
     const pleines = Math.round(note);
-    return el('span', { classe: 'etoiles', role: 'img', 'aria-label': `${String(note).replace('.', ',')} sur 5`, texte: '★'.repeat(pleines) + '☆'.repeat(5 - pleines) });
+    return el('span', { classe: 'etoiles', role: 'img', 'aria-label': t('commun.note-sur-5', { note: nombre(note) }), texte: '★'.repeat(pleines) + '☆'.repeat(5 - pleines) });
   }
 
   // Carte d'un projet réalisé : utilisée par la vitrine, les profils et « Mes projets ».
@@ -336,10 +401,10 @@
       el('div', { classe: 'projet-corps' }, [
         el('p', { classe: 'projet-meta' }, [
           el('span', { classe: 'texte-discret', texte: projet.nomSecteur }),
-          projet.lienVerifie ? el('span', { classe: 'badge-verifie' }, [icone('verifie'), 'Lien vérifié']) : null,
+          projet.lienVerifie ? el('span', { classe: 'badge-verifie' }, [icone('verifie'), t('commun.lien-verifie')]) : null,
         ]),
         el('h3', {}, [el('a', { href: adresse, texte: projet.titre })]),
-        avecDev ? el('p', { classe: 'texte-discret projet-auteur' }, ['Par ', nomMembre(projet.dev)]) : null,
+        avecDev ? el('p', { classe: 'texte-discret projet-auteur' }, [t('commun.par'), nomMembre(projet.dev)]) : null,
       ]),
     ]);
   }
@@ -348,12 +413,12 @@
   async function copierLien(url) {
     try {
       await navigator.clipboard.writeText(url);
-      toast('Lien copié. Colle-le où tu veux.');
+      toast(t('commun.lien-copie'));
     } catch {
-      const champ = el('input', { type: 'text', readonly: true, value: url, 'aria-label': 'Lien à copier' });
-      const fermer = el('button', { classe: 'bouton bouton-principal', type: 'button', texte: 'Fermer' });
+      const champ = el('input', { type: 'text', readonly: true, value: url, 'aria-label': t('commun.lien-a-copier') });
+      const fermer = el('button', { classe: 'bouton bouton-principal', type: 'button', texte: t('commun.fermer') });
       const dialogue = el('dialog', { classe: 'dialogue', 'aria-labelledby': 'lien-titre' }, [
-        el('h2', { id: 'lien-titre', texte: 'Copie ce lien' }), champ, el('div', { classe: 'dialogue-actions' }, [fermer]),
+        el('h2', { id: 'lien-titre', texte: t('commun.copie-ce-lien') }), champ, el('div', { classe: 'dialogue-actions' }, [fermer]),
       ]);
       fermer.addEventListener('click', () => dialogue.close());
       dialogue.addEventListener('close', () => dialogue.remove());
@@ -372,6 +437,18 @@
   // change pas (formulaire.elements.pays.value), et si ce script ne se chargeait pas, la liste d'origine marcherait.
   // Une icône devant un choix : <option data-icone="code">.
   const sansAccent = (texte) => texte.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+  // Le nom d'un pays dans la langue du site. La base garde toujours le nom français (« Côte d'Ivoire », « Tchad ») :
+  // c'est la valeur envoyée au serveur. Seul l'affichage change : clé « pays.cote-d-ivoire », « pays.tchad ».
+  const cleDe = (texte) => sansAccent(String(texte)).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  function nomPays(nom) {
+    if (!nom) return nom;
+    const cle = `pays.${cleDe(nom)}`;
+    const traduit = t(cle);
+    return traduit === cle ? nom : traduit; // un pays sans traduction s'affiche tel qu'il est en base
+  }
+  // « Koudougou, Burkina Faso » : la ville telle qu'elle est écrite, le pays dans la langue du site.
+  const lieuDe = (membre) => [membre.ville, nomPays(membre.pays)].filter(Boolean).join(', ');
   const valeurNative = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
   let numeroListe = 0;
   const HAUTEUR_MAX_MENU = 420; // au-delà, la liste défile à l'intérieur du menu
@@ -382,7 +459,7 @@
     numeroListe += 1;
     const base = `${select.id || 'liste'}-${numeroListe}`;
     const etiquette = select.labels && select.labels[0];
-    const titre = () => (etiquette ? etiquette.textContent.trim() : select.getAttribute('aria-label') || select.title || 'Choisir');
+    const titre = () => (etiquette ? etiquette.textContent.trim() : select.getAttribute('aria-label') || select.title || t('commun.choisir'));
 
     const valeur = el('span', { classe: 'liste-choix-valeur', id: `${base}-valeur` });
     const bouton = el('button', { classe: 'liste-choix', type: 'button', id: `${base}-bouton`, 'aria-haspopup': 'listbox', 'aria-expanded': 'false' }, [valeur, icone('chevron-bas')]);
@@ -438,10 +515,10 @@
         ligne.addEventListener('pointermove', () => activer(rang, { defiler: false }));
         return ligne;
       });
-      const rien = el('li', { classe: 'choix-rien texte-discret', texte: 'Aucun résultat', hidden: true });
+      const rien = el('li', { classe: 'choix-rien texte-discret', texte: t('commun.aucun-resultat'), hidden: true });
       const liste = el('ul', { classe: 'choix-liste', role: 'listbox', id: idListe, tabindex: '-1', 'aria-label': titre() }, [...lignes, rien]);
       const recherche = avecRecherche
-        ? el('input', { classe: 'choix-recherche', type: 'search', placeholder: 'Chercher…', 'aria-label': `Chercher dans la liste ${titre()}`, autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false', role: 'combobox', 'aria-expanded': 'true', 'aria-controls': idListe, 'aria-autocomplete': 'list' })
+        ? el('input', { classe: 'choix-recherche', type: 'search', placeholder: t('commun.chercher'), 'aria-label': t('commun.chercher-dans-liste', { titre: titre() }), autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false', role: 'combobox', 'aria-expanded': 'true', 'aria-controls': idListe, 'aria-autocomplete': 'list' })
         : null;
       const entete = el('div', { classe: 'choix-entete' }, [el('span', { classe: 'choix-poignee', 'aria-hidden': 'true' }), el('p', { classe: 'choix-titre', texte: titre() })]);
       // Le clavier reste sur la liste ou sur le champ de recherche ; le choix « actif » est annoncé par aria-activedescendant.
@@ -628,10 +705,10 @@
       ['facebook', 'Facebook', `https://www.facebook.com/sharer/sharer.php?u=${u}`],
       ['x-reseau', 'X', `https://twitter.com/intent/tweet?url=${u}&text=${encodeURIComponent(phrase)}`],
     ];
-    const copier = el('button', { classe: 'choix-partage', type: 'button' }, [el('span', { classe: 'choix-partage-rond' }, [icone('lien')]), 'Copier le lien']);
-    const fermer = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': 'Fermer', title: 'Fermer' }, [icone('fermer')]);
+    const copier = el('button', { classe: 'choix-partage', type: 'button' }, [el('span', { classe: 'choix-partage-rond' }, [icone('lien')]), t('commun.copier-le-lien')]);
+    const fermer = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': t('commun.fermer'), title: t('commun.fermer') }, [icone('fermer')]);
     const dialogue = el('dialog', { classe: 'dialogue dialogue-partage', 'aria-labelledby': 'partage-titre' }, [
-      el('div', { classe: 'partage-entete' }, [el('h2', { id: 'partage-titre', texte: 'Partager' }), fermer]),
+      el('div', { classe: 'partage-entete' }, [el('h2', { id: 'partage-titre', texte: t('commun.partager') }), fermer]),
       el('div', { classe: 'liste-partage' }, [
         // noopener : le site ouvert n'a aucun accès à la page Palabre ; l'adresse est construite ici, jamais par un membre.
         ...choix.map(([nom, libelle, lien]) => el('a', { classe: 'choix-partage', href: lien, target: '_blank', rel: 'noopener' }, [el('span', { classe: 'choix-partage-rond' }, [icone(nom)]), libelle])),
@@ -657,7 +734,7 @@
   let fermerMenuOuvert = null;
   function menuOptions(lister, { cote = 'droite', bouton: boutonChoisi = null } = {}) {
     const bouton = boutonChoisi || el('button', {
-      classe: 'bouton-icone', type: 'button', 'aria-label': 'Plus d\'options', title: 'Plus d\'options',
+      classe: 'bouton-icone', type: 'button', 'aria-label': t('commun.plus-d-options'), title: t('commun.plus-d-options'),
       'aria-haspopup': 'menu', 'aria-expanded': 'false',
     }, [icone('options')]);
     const liste = el('div', { classe: `menu-liste menu-${cote}`, role: 'menu', hidden: true });
@@ -721,7 +798,7 @@
     try {
       bitmap = await createImageBitmap(fichier);
     } catch {
-      throw new Error('Impossible de lire cette image. Choisis une photo JPEG ou PNG.');
+      throw new Error(t('commun.image-illisible'));
     }
     const echelle = Math.min(1, coteMax / Math.max(bitmap.width, bitmap.height));
     const canvas = document.createElement('canvas');
@@ -737,29 +814,30 @@
       const dataUrl = canvas.toDataURL('image/jpeg', qualite);
       if (dataUrl.length < 600000) return dataUrl;
     }
-    throw new Error('Image trop lourde. Choisis-en une autre.');
+    throw new Error(t('commun.image-trop-lourde'));
   }
 
   // Fenêtre « Signaler » : la même pour une publication, un commentaire ou un profil.
+  // La valeur envoyée au serveur (lue par l'équipe dans /admin) reste en français ; seul le libellé est traduit.
   const MOTIFS_SIGNALEMENT = [
-    'Spam ou arnaque',
-    'Insultes ou harcèlement',
-    'Contenu choquant ou illégal',
-    'Faux profil ou usurpation',
-    'Autre raison',
+    ['Spam ou arnaque', 'signalement.motif.spam'],
+    ['Insultes ou harcèlement', 'signalement.motif.insultes'],
+    ['Contenu choquant ou illégal', 'signalement.motif.choquant'],
+    ['Faux profil ou usurpation', 'signalement.motif.faux-profil'],
+    ['Autre raison', 'signalement.motif.autre'],
   ];
 
   function signaler(cibleType, cible) {
-    const motif = el('select', { id: 'signalement-motif' }, MOTIFS_SIGNALEMENT.map((m) => el('option', { value: m, texte: m })));
-    const precision = el('textarea', { id: 'signalement-precision', rows: '3', maxlength: '400', placeholder: 'Explique en quelques mots (facultatif)' });
+    const motif = el('select', { id: 'signalement-motif' }, MOTIFS_SIGNALEMENT.map(([valeur, cle]) => el('option', { value: valeur, texte: t(cle) })));
+    const precision = el('textarea', { id: 'signalement-precision', rows: '3', maxlength: '400', placeholder: t('signalement.precision-aide') });
     const zoneMessage = el('p', { classe: 'message', role: 'status' });
-    const annuler = el('button', { classe: 'bouton bouton-lien', type: 'button', texte: 'Annuler' });
-    const envoyer = el('button', { classe: 'bouton bouton-principal', type: 'submit', texte: 'Envoyer' });
+    const annuler = el('button', { classe: 'bouton bouton-lien', type: 'button', texte: t('commun.annuler') });
+    const envoyer = el('button', { classe: 'bouton bouton-principal', type: 'submit', texte: t('commun.envoyer') });
     const formulaire = el('form', {}, [
-      el('h2', { id: 'signalement-titre', texte: 'Signaler' }),
-      el('p', { classe: 'texte-discret', texte: 'L\'équipe Palabre vérifiera. La personne signalée ne saura pas que cela vient de toi.' }),
-      el('div', { classe: 'champ' }, [el('label', { for: 'signalement-motif', texte: 'Quel est le problème ?' }), motif]),
-      el('div', { classe: 'champ' }, [el('label', { for: 'signalement-precision', texte: 'Précision' }), precision]),
+      el('h2', { id: 'signalement-titre', texte: t('signalement.titre') }),
+      el('p', { classe: 'texte-discret', texte: t('signalement.explication') }),
+      el('div', { classe: 'champ' }, [el('label', { for: 'signalement-motif', texte: t('signalement.question') }), motif]),
+      el('div', { classe: 'champ' }, [el('label', { for: 'signalement-precision', texte: t('signalement.precision') }), precision]),
       zoneMessage,
       el('div', { classe: 'dialogue-actions' }, [annuler, envoyer]),
     ]);
@@ -777,12 +855,12 @@
           methode: 'POST',
           donnees: { cibleType, cible, motif: detail ? `${motif.value} : ${detail}` : motif.value },
         });
-        zoneMessage.textContent = reponse.dejaSignale ? 'Tu avais déjà signalé ce contenu. Merci.' : 'Merci, ton signalement est envoyé.';
+        zoneMessage.textContent = reponse.dejaSignale ? t('signalement.deja') : t('signalement.merci');
         zoneMessage.className = 'message succes';
         motif.disabled = true;
         precision.disabled = true;
         envoyer.hidden = true;
-        annuler.textContent = 'Fermer';
+        annuler.textContent = t('commun.fermer');
       } catch (erreur) {
         zoneMessage.textContent = erreur.message;
         zoneMessage.className = 'message erreur';
@@ -799,9 +877,9 @@
   // le serveur : une seule requête par mot, pas une par lettre. Sert au panneau plein écran du téléphone (loupe)
   // et à la barre de recherche de l'en-tête sur ordinateur.
   function brancherRecherche(champ, resultats) {
-    const avancee = () => el('a', { classe: 'bouton bouton-contour', href: '/chercher' }, [icone('devs'), 'Chercher par compétence ou par ville']);
+    const avancee = () => el('a', { classe: 'bouton bouton-contour', href: '/chercher' }, [icone('devs'), t('recherche.par-competence')]);
     const conseil = (texte) => resultats.replaceChildren(el('p', { classe: 'texte-discret recherche-conseil', texte }), avancee());
-    conseil('Écris au moins 2 lettres du nom.');
+    conseil(t('recherche.deux-lettres'));
 
     let minuterie = null;
     let numero = 0; // numéro de la dernière recherche : la réponse d'une ancienne frappe est ignorée
@@ -811,7 +889,7 @@
       const demande = numero;
       const q = champ.value.trim();
       if (q.length < 2) {
-        conseil('Écris au moins 2 lettres du nom.');
+        conseil(t('recherche.deux-lettres'));
         return;
       }
       minuterie = setTimeout(async () => {
@@ -819,7 +897,7 @@
           const { devs } = await api(`/devs?q=${encodeURIComponent(q)}`);
           if (demande !== numero) return;
           if (devs.length === 0) {
-            resultats.replaceChildren(etatVide('recherche', 'Personne à ce nom', 'Vérifie l\'orthographe, ou cherche plutôt par compétence.', avancee()));
+            resultats.replaceChildren(etatVide('recherche', t('recherche.personne'), t('recherche.personne-aide'), avancee()));
             return;
           }
           resultats.replaceChildren(el('ul', { classe: 'liste-recherche' }, devs.map((membre) => el('li', {}, [
@@ -827,7 +905,7 @@
               avatar(membre, 'moyen'),
               el('span', { classe: 'resultat-texte' }, [
                 nomMembre(membre, { lien: false }),
-                el('span', { classe: 'texte-discret', texte: [membre.type === 'client' ? 'Client' : null, membre.ville, membre.pays].filter(Boolean).join(', ') }),
+                el('span', { classe: 'texte-discret', texte: [membre.type === 'client' ? t('commun.client') : null, lieuDe(membre)].filter(Boolean).join(', ') }),
               ]),
             ]),
           ]))));
@@ -842,12 +920,12 @@
   // Téléphone : la loupe ouvre un panneau plein écran.
   function ouvrirRecherche() {
     const champ = el('input', {
-      type: 'search', placeholder: 'Chercher un membre par son nom', 'aria-label': 'Chercher un membre par son nom',
+      type: 'search', placeholder: t('recherche.par-nom'), 'aria-label': t('recherche.par-nom'),
       autocomplete: 'off', enterkeyhint: 'search', maxlength: '60',
     });
-    const fermer = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': 'Fermer la recherche' }, [icone('fleche-gauche')]);
+    const fermer = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': t('recherche.fermer') }, [icone('fleche-gauche')]);
     const resultats = el('div', { classe: 'recherche-resultats', 'aria-live': 'polite' });
-    const panneau = el('dialog', { classe: 'panneau-recherche', 'aria-label': 'Recherche de membres' }, [
+    const panneau = el('dialog', { classe: 'panneau-recherche', 'aria-label': t('recherche.titre') }, [
       el('div', { classe: 'recherche-barre' }, [fermer, champ]),
       resultats,
     ]);
@@ -866,7 +944,7 @@
   // La liste s'ouvre quand on entre dans le champ et se ferme avec Échap ou quand on en sort.
   function barreRecherche() {
     const champ = el('input', {
-      type: 'search', placeholder: 'Chercher un membre', 'aria-label': 'Chercher un membre par son nom',
+      type: 'search', placeholder: t('recherche.membre'), 'aria-label': t('recherche.par-nom'),
       autocomplete: 'off', maxlength: '60', 'data-recherche-entete': true,
     });
     const resultats = el('div', { classe: 'recherche-deroulant', 'aria-live': 'polite', hidden: true });
@@ -910,30 +988,30 @@
       el('a', { classe: 'lien-menu', href, 'aria-current': ici(href) }, [icone(nomIcone), el('span', { texte }), pastille]),
     ]);
     const estDev = moi.type === 'dev';
-    return el('aside', { classe: 'colonne-gauche', 'aria-label': 'Menu principal' }, [
+    return el('aside', { classe: 'colonne-gauche', 'aria-label': t('nav.menu-principal') }, [
       el('div', { classe: 'carte-moi' }, [
-        el('a', { classe: 'lien-avatar', href: `/${moi.identifiant}`, 'aria-label': 'Mon profil' }, [avatar(moi, 'moyen')]),
-        el('div', {}, [nomMembre(moi), el('a', { classe: 'voir-profil', href: `/${moi.identifiant}`, texte: 'Voir mon profil' })]),
+        el('a', { classe: 'lien-avatar', href: `/${moi.identifiant}`, 'aria-label': t('nav.mon-profil') }, [avatar(moi, 'moyen')]),
+        el('div', {}, [nomMembre(moi), el('a', { classe: 'voir-profil', href: `/${moi.identifiant}`, texte: t('nav.voir-mon-profil') })]),
       ]),
-      el('nav', { 'aria-label': 'Pages' }, [el('ul', { classe: 'menu-gauche-liens' }, [
-        lien('/fil', 'fil', 'Fil'),
-        lien('/demandes', 'demandes', 'Demandes'),
-        lien('/chercher', 'devs', 'Devs'),
-        lien('/amis', 'amis', 'Amis', compteur(demandes, 'compteur-amis')),
-        lien('/messages', 'commentaire', 'Messages', el('span', { classe: 'compteur compteur-messages', hidden: true })),
-        lien('/notifications', 'cloche', 'Notifications', compteur(nonLues, 'compteur-notifications')),
-        estDev ? lien('/projets', 'projet', 'Mes projets') : null,
-        lien('/defis', 'trophee', 'Défi de la semaine'),
-        lien('/calculateur', 'calculatrice', 'Calculateur'),
-        lien('/parametres', 'parametres', 'Paramètres'),
-        moi.estAdmin ? lien('/admin', 'admin', 'Administration') : null,
+      el('nav', { 'aria-label': t('nav.pages') }, [el('ul', { classe: 'menu-gauche-liens' }, [
+        lien('/fil', 'fil', t('nav.fil')),
+        lien('/demandes', 'demandes', t('nav.demandes')),
+        lien('/chercher', 'devs', t('nav.devs')),
+        lien('/amis', 'amis', t('nav.amis'), compteur(demandes, 'compteur-amis')),
+        lien('/messages', 'commentaire', t('nav.messages'), el('span', { classe: 'compteur compteur-messages', hidden: true })),
+        lien('/notifications', 'cloche', t('nav.notifications'), compteur(nonLues, 'compteur-notifications')),
+        estDev ? lien('/projets', 'projet', t('nav.mes-projets')) : null,
+        lien('/defis', 'trophee', t('nav.defi')),
+        lien('/calculateur', 'calculatrice', t('nav.calculateur')),
+        lien('/parametres', 'parametres', t('nav.parametres')),
+        moi.estAdmin ? lien('/admin', 'admin', t('nav.administration')) : null,
       ])]),
       estDev
-        ? el('a', { classe: 'bouton bouton-principal bouton-plein', href: '/projets' }, [icone('plus'), 'Ajouter un projet'])
-        : el('a', { classe: 'bouton bouton-principal bouton-plein', href: '/demandes?publier=1' }, [icone('plus'), 'Publier une demande']),
+        ? el('a', { classe: 'bouton bouton-principal bouton-plein', href: '/projets' }, [icone('plus'), t('nav.ajouter-projet')])
+        : el('a', { classe: 'bouton bouton-principal bouton-plein', href: '/demandes?publier=1' }, [icone('plus'), t('nav.publier-demande')]),
       el('p', { classe: 'pied-menu' }, [
-        el('a', { href: '/a-propos', texte: 'À propos' }), el('a', { href: '/conditions', texte: 'Conditions' }),
-        el('span', { texte: 'Palabre, fait au Burkina Faso, 2026' }),
+        el('a', { href: '/a-propos', texte: t('nav.a-propos') }), el('a', { href: '/conditions', texte: t('nav.conditions') }),
+        el('span', { texte: t('nav.fait-au-burkina') }),
       ]),
     ]);
   }
@@ -943,33 +1021,33 @@
     const zoneDemandes = el('div', { classe: 'liste-cote' });
     const zoneDevs = el('ul', { classe: 'liste-cote' });
     const blocDemandes = el('section', { classe: 'bloc-cote', 'aria-labelledby': 'titre-demandes-recentes' }, [
-      el('h2', { id: 'titre-demandes-recentes', texte: moi.type === 'client' ? 'Mes demandes' : 'Demandes récentes' }),
+      el('h2', { id: 'titre-demandes-recentes', texte: moi.type === 'client' ? t('cote.mes-demandes') : t('cote.demandes-recentes') }),
       zoneDemandes,
-      el('a', { classe: 'lien-cote', href: '/demandes', texte: 'Voir toutes les demandes' }),
+      el('a', { classe: 'lien-cote', href: '/demandes', texte: t('cote.voir-demandes') }),
     ]);
     const blocDevs = el('section', { classe: 'bloc-cote', 'aria-labelledby': 'titre-devs-decouvrir', hidden: true }, [
-      el('h2', { id: 'titre-devs-decouvrir', texte: 'Devs à découvrir' }),
+      el('h2', { id: 'titre-devs-decouvrir', texte: t('cote.devs-a-decouvrir') }),
       zoneDevs,
-      el('a', { classe: 'lien-cote', href: '/chercher', texte: 'Chercher un développeur' }),
+      el('a', { classe: 'lien-cote', href: '/chercher', texte: t('cote.chercher-dev') }),
     ]);
     // Encadré « Défi de la semaine » : caché tant qu'on ne sait pas s'il y a un défi.
     const zoneDefi = el('div', { classe: 'liste-cote' });
     const blocDefi = el('section', { classe: 'bloc-cote bloc-defi', 'aria-labelledby': 'titre-defi-cote', hidden: true }, [
-      el('h2', { id: 'titre-defi-cote' }, [icone('trophee'), 'Défi de la semaine']),
+      el('h2', { id: 'titre-defi-cote' }, [icone('trophee'), t('nav.defi')]),
       zoneDefi,
-      el('a', { classe: 'lien-cote', href: '/defis', texte: 'Voir le défi' }),
+      el('a', { classe: 'lien-cote', href: '/defis', texte: t('cote.voir-defi') }),
     ]);
-    const colonne = el('aside', { classe: 'colonne-droite', 'aria-label': 'À découvrir' }, [blocDefi, blocDemandes, blocDevs]);
+    const colonne = el('aside', { classe: 'colonne-droite', 'aria-label': t('cote.a-decouvrir') }, [blocDefi, blocDemandes, blocDevs]);
 
     function boutonAjouter(dev) {
-      const bouton = el('button', { classe: 'bouton bouton-contour bouton-compact', type: 'button', 'aria-label': `Ajouter ${dev.nom} en ami` }, [icone('ami-ajouter'), 'Ajouter']);
+      const bouton = el('button', { classe: 'bouton bouton-contour bouton-compact', type: 'button', 'aria-label': t('cote.ajouter-en-ami', { nom: dev.nom }) }, [icone('ami-ajouter'), t('commun.ajouter')]);
       bouton.addEventListener('click', async () => {
         bouton.disabled = true;
         try {
           await api('/amis/demandes', { methode: 'POST', donnees: { identifiant: dev.identifiant } });
-          bouton.replaceChildren(icone('horloge'), 'Demande envoyée');
+          bouton.replaceChildren(icone('horloge'), t('commun.demande-envoyee'));
           bouton.classList.add('envoyee');
-          bouton.setAttribute('aria-label', `Demande d'ami envoyée à ${dev.nom}`);
+          bouton.setAttribute('aria-label', t('cote.demande-ami-envoyee', { nom: dev.nom }));
         } catch (erreur) {
           bouton.disabled = false;
           toast(erreur.message, 'erreur');
@@ -994,11 +1072,11 @@
       api(`/demandes${moi.type === 'client' ? '?miennes=1' : ''}`).then(({ demandes }) => {
         finiDemandes();
         if (demandes.length === 0) {
-          zoneDemandes.replaceChildren(el('p', { classe: 'texte-discret', texte: moi.type === 'client' ? 'Tu n\'as pas encore publié de demande.' : 'Aucune demande ouverte pour l\'instant.' }));
+          zoneDemandes.replaceChildren(el('p', { classe: 'texte-discret', texte: moi.type === 'client' ? t('cote.pas-de-demande-publiee') : t('cote.aucune-demande') }));
           return;
         }
         zoneDemandes.replaceChildren(...demandes.slice(0, 3).map((demande) => {
-          const propositions = `${demande.nbPropositions} proposition${demande.nbPropositions > 1 ? 's' : ''}`;
+          const propositions = t('commun.propositions', { n: demande.nbPropositions });
           return el('a', { classe: 'demande-cote', href: `/demande?id=${demande.id}` }, [
             el('span', { classe: 'demande-cote-titre', texte: demande.titre }),
             el('span', { classe: 'texte-discret', texte: moi.type === 'client' ? `${demande.nomCategorie}, ${propositions}` : demande.nomCategorie }),
@@ -1010,7 +1088,7 @@
       api('/devs/suggestions').then(({ devs }) => {
         if (devs.length === 0) return;
         zoneDevs.replaceChildren(...devs.map((dev) => el('li', { classe: 'suggestion' }, [
-          el('a', { classe: 'lien-avatar', href: `/${dev.identifiant}`, 'aria-label': `Profil de ${dev.nom}` }, [avatar(dev, 'moyen')]),
+          el('a', { classe: 'lien-avatar', href: `/${dev.identifiant}`, 'aria-label': t('commun.profil-de', { nom: dev.nom, deNom: deNom(dev.nom) }) }, [avatar(dev, 'moyen')]),
           el('div', { classe: 'suggestion-texte' }, [
             nomMembre(dev),
             el('span', { classe: 'texte-discret', texte: dev.raison }),
@@ -1037,21 +1115,21 @@
   // « 2 jours et 5 heures », « 3 heures », « moins d'une heure » : le temps qui reste avant une date.
   function tempsRestant(iso) {
     const heures = Math.floor((new Date(iso).getTime() - Date.now()) / 3600000);
-    if (heures < 1) return 'moins d\'une heure';
+    if (heures < 1) return t('temps.moins-d-une-heure');
     const jours = Math.floor(heures / 24);
     const reste = heures % 24;
     const morceaux = [];
-    if (jours) morceaux.push(`${jours} jour${jours > 1 ? 's' : ''}`);
-    if (reste) morceaux.push(`${reste} heure${reste > 1 ? 's' : ''}`);
-    return morceaux.join(' et ');
+    if (jours) morceaux.push(t('temps.jours', { n: jours }));
+    if (reste) morceaux.push(t('temps.heures', { n: reste }));
+    return morceaux.join(t('temps.et'));
   }
 
   // Une ligne qui dit où en est le défi : « Réponses ouvertes, encore 2 jours et 5 heures ».
   function etatDefi(defi) {
-    const reponses = `${defi.nbReponses} réponse${defi.nbReponses > 1 ? 's' : ''}`;
-    if (defi.phase === 'reponses') return `${reponses}, encore ${tempsRestant(defi.finReponsesLe)} pour répondre`;
-    if (defi.phase === 'vote') return `${reponses}, encore ${tempsRestant(defi.finVoteLe)} pour voter`;
-    return `Terminé, ${reponses} : découvre le gagnant`;
+    const reponses = t('commun.reponses', { n: defi.nbReponses });
+    if (defi.phase === 'reponses') return t('defi.etat-reponses', { reponses, temps: tempsRestant(defi.finReponsesLe) });
+    if (defi.phase === 'vote') return t('defi.etat-vote', { reponses, temps: tempsRestant(defi.finVoteLe) });
+    return t('defi.etat-termine', { reponses });
   }
 
   // Bandeau « Termine ton profil de dev » : sous l'en-tête, tant qu'un dev n'a pas rempli la page /bienvenue.
@@ -1062,8 +1140,8 @@
     document.body.classList.add('avec-bandeau');
     entete.after(el('a', { classe: 'bandeau-profil', href: '/bienvenue' }, [
       icone('utilisateur'),
-      el('span', { texte: 'Termine ton profil de dev pour répondre aux demandes.' }),
-      el('strong', { texte: 'Terminer' }),
+      el('span', { texte: t('bandeau.termine-profil') }),
+      el('strong', { texte: t('bandeau.terminer') }),
     ]));
   }
 
@@ -1076,8 +1154,8 @@
       const sombre = theme.actuel() === 'sombre';
       // L'icône et le nom disent ce que fera le bouton : en mode sombre, il propose le clair.
       bouton.replaceChildren(icone(sombre ? 'soleil' : 'lune'));
-      bouton.setAttribute('aria-label', sombre ? 'Passer en mode clair' : 'Passer en mode sombre');
-      bouton.title = sombre ? 'Mode clair' : 'Mode sombre';
+      bouton.setAttribute('aria-label', sombre ? t('theme.passer-clair') : t('theme.passer-sombre'));
+      bouton.title = sombre ? t('theme.clair') : t('theme.sombre');
     }
     bouton.addEventListener('click', () => {
       theme.basculer();
@@ -1097,11 +1175,11 @@
 
   // Le petit menu de l'avatar, en haut à droite : mon profil, les paramètres, la déconnexion.
   function menuAvatar(moi) {
-    const bouton = el('button', { classe: 'nav-profil', type: 'button', 'aria-label': 'Mon compte', title: 'Mon compte', 'aria-haspopup': 'menu', 'aria-expanded': 'false' }, [avatar(moi, 'mini')]);
+    const bouton = el('button', { classe: 'nav-profil', type: 'button', 'aria-label': t('nav.mon-compte'), title: t('nav.mon-compte'), 'aria-haspopup': 'menu', 'aria-expanded': 'false' }, [avatar(moi, 'mini')]);
     const menu = menuOptions(() => [
-      { texte: 'Voir mon profil', icone: 'utilisateur', href: `/${moi.identifiant}` },
-      { texte: 'Paramètres et confidentialité', icone: 'parametres', href: '/parametres' },
-      { texte: 'Se déconnecter', icone: 'deconnexion', action: seDeconnecter },
+      { texte: t('nav.voir-mon-profil'), icone: 'utilisateur', href: `/${moi.identifiant}` },
+      { texte: t('nav.parametres-confidentialite'), icone: 'parametres', href: '/parametres' },
+      { texte: t('nav.se-deconnecter'), icone: 'deconnexion', action: seDeconnecter },
     ], { bouton });
     menu.classList.add('menu-avatar');
     return menu;
@@ -1109,7 +1187,7 @@
 
   // ---------- Messages : l'icône de l'en-tête et sa pastille de non lus ----------
   function lienMessages(nonLus) {
-    return el('a', { classe: 'nav-cloche nav-messages', href: '/messages', 'aria-label': 'Messages', title: 'Messages' }, [
+    return el('a', { classe: 'nav-cloche nav-messages', href: '/messages', 'aria-label': t('nav.messages'), title: t('nav.messages') }, [
       icone('commentaire'),
       el('span', { classe: 'compteur compteur-cloche compteur-messages', 'aria-hidden': 'true', hidden: nonLus === 0, texte: nonLus > 99 ? '99+' : String(nonLus) }),
     ]);
@@ -1121,7 +1199,7 @@
       pastille.hidden = nonLus === 0;
     });
     const lien = document.querySelector('.nav-messages');
-    if (lien) lien.setAttribute('aria-label', nonLus ? `Messages : ${nonLus} non lu${nonLus > 1 ? 's' : ''}` : 'Messages');
+    if (lien) lien.setAttribute('aria-label', nonLus ? t('nav.messages-non-lus', { n: nonLus }) : t('nav.messages'));
   }
   // Pas de WebSocket : la pastille est redemandée toutes les 60 secondes, seulement quand l'onglet est visible.
   // Onglet caché : plus aucune requête ; de retour au premier plan, on rattrape tout de suite.
@@ -1133,7 +1211,7 @@
     scriptAppels = scriptAppels || new Promise((pret, echec) => {
       const script = el('script', { src: '/js/appels.js' });
       script.addEventListener('load', () => pret(window.Palabre.appels));
-      script.addEventListener('error', () => { scriptAppels = null; echec(new Error('Les appels ne sont pas disponibles pour le moment.')); });
+      script.addEventListener('error', () => { scriptAppels = null; echec(new Error(t('appels.indisponibles'))); });
       document.head.append(script);
     });
     return scriptAppels;
@@ -1245,6 +1323,20 @@
     regler();
   }
 
+  // Le petit lien « English » / « Français » en bas des pages publiques (accueil, connexion, à propos…), pour les
+  // visiteurs seulement : un membre choisit sa langue dans ses paramètres. La page le demande avec un élément
+  // vide qui porte data-choix-langue.
+  const NOMS_LANGUES = { fr: 'Français', en: 'English' }; // jamais traduits : « English » se lit « English » partout
+  function poserChoixLangue(moi) {
+    const zone = document.querySelector('[data-choix-langue]');
+    if (!zone || moi) return;
+    const autre = langue === 'fr' ? 'en' : 'fr';
+    // Le nom de chaque langue s'écrit dans SA langue : on doit pouvoir le lire sans comprendre la page.
+    const lien = el('button', { classe: 'bouton bouton-lien lien-langue', type: 'button', lang: autre }, [icone('globe'), NOMS_LANGUES[autre]]);
+    lien.addEventListener('click', () => changerLangue(autre));
+    zone.replaceChildren(lien);
+  }
+
   // Remplit la navigation de l'en-tête selon que la personne est connectée ou non.
   // En-tête : recherche, cloche, avatar. Sur téléphone, les onglets (et l'avatar) forment la barre du bas ;
   // sur ordinateur, ils sont dans la colonne de gauche.
@@ -1254,8 +1346,13 @@
     const moi = await utilisateurConnecte();
     // Tant que l'email n'est pas confirmé, le membre ne voit que la page du code.
     if (moi && !moi.emailConfirme) return window.location.replace('/confirmer-email');
+    // La langue choisie dans le compte suit le membre sur tous ses appareils. Un compte qui n'a pas encore de
+    // langue reçoit celle de ce navigateur (le serveur écrit ainsi ses notifications et ses emails dans la bonne).
+    if (moi && moi.langue && moi.langue !== langue) return changerLangue(moi.langue);
+    if (moi && !moi.langue) api('/parametres/langue', { methode: 'PUT', donnees: { langue } }).catch(() => {});
+    poserChoixLangue(moi);
     nav.replaceChildren();
-    const loupe = el('button', { classe: 'nav-cloche nav-loupe', type: 'button', 'aria-label': 'Chercher un membre', title: 'Chercher un membre' }, [icone('recherche')]);
+    const loupe = el('button', { classe: 'nav-cloche nav-loupe', type: 'button', 'aria-label': t('recherche.membre'), title: t('recherche.membre') }, [icone('recherche')]);
     loupe.addEventListener('click', ouvrirRecherche);
     if (moi) {
       const demandes = moi.demandesAmis || 0;
@@ -1272,23 +1369,23 @@
       nav.append(...[
         barreRecherche(),
         el('div', { classe: 'nav-liens' }, [
-          lien('/fil', 'fil', 'Fil'),
-          lien('/demandes', 'demandes', 'Demandes'),
-          lien('/chercher', 'devs', 'Devs'),
-          lien('/amis', 'amis', 'Amis',
-            demandes ? el('span', { classe: 'compteur compteur-amis', texte: String(demandes), 'aria-label': `${demandes} demande${demandes > 1 ? 's' : ''} en attente` }) : null),
+          lien('/fil', 'fil', t('nav.fil')),
+          lien('/demandes', 'demandes', t('nav.demandes')),
+          lien('/chercher', 'devs', t('nav.devs')),
+          lien('/amis', 'amis', t('nav.amis'),
+            demandes ? el('span', { classe: 'compteur compteur-amis', texte: String(demandes), 'aria-label': t('nav.demandes-en-attente', { n: demandes }) }) : null),
           // Cinquième onglet, visible seulement sur téléphone : mon avatar, vers mon profil.
           el('a', { classe: 'onglet-nav onglet-moi', href: monProfil, 'aria-current': ici(monProfil) }, [
-            el('span', { classe: 'onglet-icone' }, [avatar(moi, 'nav')]), el('span', { classe: 'onglet-texte', texte: 'Profil' }),
+            el('span', { classe: 'onglet-icone' }, [avatar(moi, 'nav')]), el('span', { classe: 'onglet-texte', texte: t('nav.profil') }),
           ]),
         ]),
-        moi.estAdmin ? el('a', { classe: 'nav-cloche nav-admin', href: '/admin', 'aria-label': 'Administration', title: 'Administration' }, [icone('admin')]) : null,
+        moi.estAdmin ? el('a', { classe: 'nav-cloche nav-admin', href: '/admin', 'aria-label': t('nav.administration'), title: t('nav.administration') }, [icone('admin')]) : null,
         loupe,
         boutonTheme(),
         lienMessages(moi.messagesNonLus || 0),
         el('a', {
           classe: 'nav-cloche', href: '/notifications',
-          'aria-label': nonLues ? `Notifications : ${nonLues} non lue${nonLues > 1 ? 's' : ''}` : 'Notifications',
+          'aria-label': nonLues ? t('nav.notifications-non-lues', { n: nonLues }) : t('nav.notifications'),
         }, [
           icone('cloche'),
           nonLues ? el('span', { classe: 'compteur compteur-cloche', 'aria-hidden': 'true', texte: nonLues > 99 ? '99+' : String(nonLues) }) : null,
@@ -1301,7 +1398,7 @@
       surveillerMessages();
       veiller();
     } else {
-      nav.append(...[barreRecherche(), loupe, boutonTheme(), el('a', { classe: 'bouton bouton-principal bouton-compact', href: '/connexion', texte: 'Se connecter' })].filter(Boolean));
+      nav.append(...[barreRecherche(), loupe, boutonTheme(), el('a', { classe: 'bouton bouton-principal bouton-compact', href: '/connexion', texte: t('nav.se-connecter') })].filter(Boolean));
     }
   }
 
@@ -1313,5 +1410,5 @@
 
   document.addEventListener('DOMContentLoaded', remplirNavigation);
 
-  window.Palabre = { appeler, appelEntrant, listeChoix, chargementInfini, tempsRestant, etatDefi, api, utilisateurConnecte, el, avatar, nomMembre, badgeFeuille, prenom, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, copierLien, menuOptions, majPastilleMessages, seDeconnecter, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
+  window.Palabre = { nomPays, lieuDe, cleDe, t, langue, changerLangue, traduirePage, nombre, REGION, appeler, appelEntrant, listeChoix, chargementInfini, tempsRestant, etatDefi, api, utilisateurConnecte, el, avatar, nomMembre, badgeFeuille, prenom, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, copierLien, menuOptions, majPastilleMessages, seDeconnecter, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
 })();

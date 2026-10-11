@@ -2,7 +2,7 @@
 // Partagé par le fil (/fil), l'onglet « Publications » d'un profil et la page publique /publication/12 :
 // le même code, le même rendu. Un visiteur sans compte la voit en lecture seule (option « visiteur »).
 (function () {
-  const { chargementInfini, api, el, avatar, nomMembre, prenom, dateRelative, deNom, signaler, icone, chargement, toast, confirmer, menuOptions, copierLien, partager, utilisateurConnecte } = window.Palabre;
+  const { t, chargementInfini, api, el, avatar, nomMembre, prenom, dateRelative, deNom, signaler, icone, chargement, toast, confirmer, menuOptions, copierLien, partager, utilisateurConnecte } = window.Palabre;
 
   // Un administrateur peut supprimer le contenu des autres : le menu « … » le lui propose.
   // (Le serveur revérifie de toute façon : cacher un bouton n'est jamais une protection.)
@@ -11,42 +11,42 @@
 
   // Chaque type a son nom et son icône ; sa couleur est dans le CSS (.badge-idee, .badge-question, .badge-projet).
   const TYPES = {
-    idee: { nom: 'Idée', icone: 'idee' },
-    question: { nom: 'Question', icone: 'question' },
-    projet: { nom: 'Projet', icone: 'projet' },
+    idee: { nom: t('publication.idee'), icone: 'idee' },
+    question: { nom: t('publication.question'), icone: 'question' },
+    projet: { nom: t('publication.projet'), icone: 'projet' },
   };
 
   function lienAuteur(auteur, taille) {
-    return el('a', { classe: 'lien-avatar', href: `/${auteur.identifiant}`, 'aria-label': `Profil de ${auteur.nom}` }, [avatar(auteur, taille)]);
+    return el('a', { classe: 'lien-avatar', href: `/${auteur.identifiant}`, 'aria-label': t('commun.profil-de', { nom: auteur.nom, deNom: deNom(auteur.nom) }) }, [avatar(auteur, taille)]);
   }
 
   // « Aimé par Awa et 12 autres » : un prénom connu donne plus envie de lire qu'un simple chiffre.
   function texteAime(publication) {
     const { nbJaime, jaimeParMoi, aimePar } = publication;
     if (!nbJaime) return '';
-    const autres = nbJaime - 1 === 1 ? '1 autre' : `${nbJaime - 1} autres`;
-    if (jaimeParMoi) return nbJaime === 1 ? 'Aimé par toi' : `Aimé par toi et ${autres}`;
-    if (!aimePar) return `${nbJaime} j'aime`;
-    return nbJaime === 1 ? `Aimé par ${prenom(aimePar)}` : `Aimé par ${prenom(aimePar)} et ${autres}`;
+    const autres = t('publication.autres', { n: nbJaime - 1 });
+    if (jaimeParMoi) return nbJaime === 1 ? t('publication.aime-par-toi') : t('publication.aime-par-toi-et', { autres });
+    if (!aimePar) return t('publication.nb-jaime', { n: nbJaime });
+    return nbJaime === 1 ? t('publication.aime-par', { prenom: prenom(aimePar) }) : t('publication.aime-par-et', { prenom: prenom(aimePar), autres });
   }
 
   // ---------- Commentaires ----------
   function elementCommentaire(commentaire, publication, apresSuppression, visiteur) {
     async function supprimer() {
-      if (!(await confirmer('Supprimer ce commentaire ?', { bouton: 'Supprimer', danger: true }))) return;
+      if (!(await confirmer(t('publication.supprimer-commentaire'), { bouton: t('commun.supprimer'), danger: true }))) return;
       try {
         await api(`/publications/${publication.id}/commentaires/${commentaire.id}`, { methode: 'DELETE', donnees: {} });
         element.remove();
         apresSuppression();
-        toast('Commentaire supprimé.');
+        toast(t('publication.commentaire-supprime'));
       } catch (erreur) {
         toast(erreur.message, 'erreur');
       }
     }
     // Un visiteur ne peut ni signaler ni supprimer : pas de menu « … » pour lui.
     const menu = visiteur ? null : menuOptions(() => [
-      commentaire.estMoi ? null : { texte: 'Signaler', icone: 'signaler', action: () => signaler('commentaire', commentaire.id) },
-      commentaire.estMoi || estAdmin ? { texte: 'Supprimer', icone: 'supprimer', danger: true, action: supprimer } : null,
+      commentaire.estMoi ? null : { texte: t('signalement.titre'), icone: 'signaler', action: () => signaler('commentaire', commentaire.id) },
+      commentaire.estMoi || estAdmin ? { texte: t('commun.supprimer'), icone: 'supprimer', danger: true, action: supprimer } : null,
     ], { cote: 'gauche' });
     const element = el('li', { classe: 'commentaire' }, [
       lienAuteur(commentaire.auteur, 'mini'),
@@ -65,8 +65,8 @@
   function zoneCommentaires(publication, afficherCompteur, visiteur) {
     const liste = el('ul', { classe: 'liste-commentaires' });
     const voirTout = el('button', { classe: 'bouton-discret voir-commentaires', type: 'button' });
-    const champ = el('input', { type: 'text', maxlength: '1000', placeholder: 'Écrire un commentaire…', 'aria-label': 'Écrire un commentaire', required: true });
-    const envoyer = el('button', { classe: 'bouton bouton-principal', type: 'submit', 'aria-label': 'Envoyer le commentaire', title: 'Envoyer' }, [icone('envoyer')]);
+    const champ = el('input', { type: 'text', maxlength: '1000', placeholder: t('publication.ecrire-commentaire-aide'), 'aria-label': t('publication.ecrire-commentaire'), required: true });
+    const envoyer = el('button', { classe: 'bouton bouton-principal', type: 'submit', 'aria-label': t('publication.envoyer-commentaire'), title: t('commun.envoyer') }, [icone('envoyer')]);
     const zoneErreur = el('p', { classe: 'erreur-champ', role: 'alert' });
     const formulaire = el('form', { classe: 'form-commentaire', hidden: true }, [champ, envoyer]);
     const zone = el('div', { classe: 'commentaires' }, [voirTout, liste, formulaire, zoneErreur]);
@@ -76,7 +76,7 @@
       publication.nbCommentaires += variation;
       const caches = publication.nbCommentaires - liste.children.length;
       voirTout.hidden = visiteur || toutCharge || caches <= 0; // la liste complète demande un compte
-      voirTout.textContent = `Voir les ${publication.nbCommentaires} commentaires`;
+      voirTout.textContent = t('publication.voir-les-commentaires', { n: publication.nbCommentaires });
       zone.hidden = liste.children.length === 0 && formulaire.hidden && voirTout.hidden;
       afficherCompteur();
     }
@@ -135,7 +135,7 @@
   // Pour une image plus haute que 4:5, la classe .image-haute impose la forme 4:5 (aspect-ratio dans le CSS).
   function imagePublication(publication) {
     const { imageLargeur: largeur, imageHauteur: hauteur } = publication;
-    const attributs = { classe: 'publication-image', src: publication.image, alt: 'Image jointe à la publication', loading: 'lazy', decoding: 'async' };
+    const attributs = { classe: 'publication-image', src: publication.image, alt: t('publication.image-jointe'), loading: 'lazy', decoding: 'async' };
     if (largeur && hauteur) {
       const tropHaute = hauteur > largeur * 1.25;
       attributs.width = largeur;
@@ -168,7 +168,7 @@
       cadre.classList.add('en-lecture');
       cadre.replaceChildren(el('iframe', {
         src: plateforme.lecteur(video.id),
-        title: `Vidéo ${plateforme.nom}`,
+        title: t('publication.video', { plateforme: plateforme.nom }),
         allow: 'autoplay; encrypted-media; picture-in-picture; fullscreen',
         allowfullscreen: true,
         // Le site n'envoie d'habitude aucune « adresse d'origine » (réglage de Helmet), mais YouTube refuse de lire sans elle :
@@ -177,7 +177,7 @@
       }));
     }
     if (video.plateforme === 'youtube') {
-      const vignette = el('button', { classe: 'video-vignette', type: 'button', 'aria-label': 'Lire la vidéo YouTube' }, [
+      const vignette = el('button', { classe: 'video-vignette', type: 'button', 'aria-label': t('publication.lire-youtube') }, [
         // Sur téléphone, la petite miniature (320 px, environ 10 Ko) suffit ; la grande (480 px) pèse trois fois plus.
         el('img', { src: `https://i.ytimg.com/vi/${video.id}/${window.matchMedia('(max-width: 767px)').matches ? 'mqdefault' : 'hqdefault'}.jpg`, alt: '', width: 480, height: 360, loading: 'lazy', decoding: 'async', referrerpolicy: 'no-referrer' }),
         el('span', { classe: 'video-bouton-lecture' }, [icone('lecture')]),
@@ -185,17 +185,17 @@
       vignette.addEventListener('click', lire);
       cadre.append(vignette);
     } else {
-      const bouton = el('button', { classe: 'bouton bouton-principal', type: 'button' }, [icone('lecture'), 'Lire la vidéo']);
+      const bouton = el('button', { classe: 'bouton bouton-principal', type: 'button' }, [icone('lecture'), t('publication.lire-video')]);
       bouton.addEventListener('click', lire);
       cadre.append(el('div', { classe: 'video-carte' }, [
         el('span', { classe: 'video-logo' }, [icone(video.plateforme)]),
-        el('strong', { texte: `Vidéo ${plateforme.nom}` }),
+        el('strong', { texte: t('publication.video', { plateforme: plateforme.nom }) }),
         bouton,
       ]));
     }
     return el('div', { classe: 'publication-video' }, [
       cadre,
-      el('p', { classe: 'video-mention texte-discret', texte: 'La vidéo utilise tes données mobiles.' }),
+      el('p', { classe: 'video-mention texte-discret', texte: t('publication.video-donnees') }),
     ]);
   }
 
@@ -205,14 +205,14 @@
   //   un bouton « Rejoindre Palabre pour réagir ». « entiere » : le texte n'est pas coupé après 5 lignes.
   function cartePublication(publication, { nouvelle = false, visiteur = false, entiere = false } = {}) {
     const type = TYPES[publication.type];
-    const boutonJaime = el('button', { classe: 'bouton-action bouton-jaime', type: 'button' }, [icone('coeur'), 'J\'aime']);
-    const boutonCommenter = el('button', { classe: 'bouton-action', type: 'button' }, [icone('commentaire'), 'Commenter']);
+    const boutonJaime = el('button', { classe: 'bouton-action bouton-jaime', type: 'button' }, [icone('coeur'), t('publication.jaime')]);
+    const boutonCommenter = el('button', { classe: 'bouton-action', type: 'button' }, [icone('commentaire'), t('publication.commenter')]);
     async function supprimer() {
-      if (!(await confirmer('Supprimer cette publication ? Ses commentaires et ses j\'aime partiront avec.', { bouton: 'Supprimer', danger: true }))) return;
+      if (!(await confirmer(t('publication.supprimer'), { bouton: t('commun.supprimer'), danger: true }))) return;
       try {
         await api(`/publications/${publication.id}`, { methode: 'DELETE', donnees: {} });
         carte.remove();
-        toast('Publication supprimée.');
+        toast(t('publication.supprimee'));
       } catch (erreur) {
         toast(erreur.message, 'erreur');
       }
@@ -221,10 +221,10 @@
     const lien = publication.lien || `${window.location.origin}/publication/${publication.id}`;
     const apercu = publication.texte.replace(/\s+/g, ' ').trim();
     const menu = menuOptions(() => [
-      { texte: 'Partager', icone: 'partager', action: () => partager({ titre: `${publication.auteur.nom} sur Palabre`, texte: apercu.length > 120 ? `${apercu.slice(0, 119)}…` : apercu, url: lien }) },
-      { texte: 'Copier le lien', icone: 'lien', action: () => copierLien(lien) },
-      publication.estMoi || visiteur ? null : { texte: 'Signaler', icone: 'signaler', action: () => signaler('publication', publication.id) },
-      publication.estMoi || estAdmin ? { texte: 'Supprimer', icone: 'supprimer', danger: true, action: supprimer } : null,
+      { texte: t('commun.partager'), icone: 'partager', action: () => partager({ titre: t('publication.sur-palabre', { nom: publication.auteur.nom }), texte: apercu.length > 120 ? `${apercu.slice(0, 119)}…` : apercu, url: lien }) },
+      { texte: t('commun.copier-le-lien'), icone: 'lien', action: () => copierLien(lien) },
+      publication.estMoi || visiteur ? null : { texte: t('signalement.titre'), icone: 'signaler', action: () => signaler('publication', publication.id) },
+      publication.estMoi || estAdmin ? { texte: t('commun.supprimer'), icone: 'supprimer', danger: true, action: supprimer } : null,
     ]);
     menu.classList.add('publication-menu');
 
@@ -238,7 +238,7 @@
       const texte = texteAime(publication);
       aime.replaceChildren(...(texte ? [icone('coeur'), texte] : []));
       const n = publication.nbCommentaires;
-      nbCommentaires.textContent = n ? `${n} commentaire${n > 1 ? 's' : ''}` : '';
+      nbCommentaires.textContent = n ? t('commun.commentaires', { n }) : '';
       nbCommentaires.hidden = !n;
       preuve.hidden = !texte && !n;
       boutonJaime.setAttribute('aria-pressed', String(publication.jaimeParMoi));
@@ -248,7 +248,7 @@
 
     // Texte coupé après 5 lignes (CSS) ; « Voir plus » n'apparaît que si le texte dépasse vraiment.
     const texte = el('p', { classe: `publication-texte${entiere ? '' : ' coupe'}`, texte: publication.texte });
-    const voirPlus = el('button', { classe: 'bouton-discret voir-plus', type: 'button', texte: 'Voir plus', hidden: true });
+    const voirPlus = el('button', { classe: 'bouton-discret voir-plus', type: 'button', texte: t('commun.voir-plus'), hidden: true });
     voirPlus.addEventListener('click', () => {
       texte.classList.remove('coupe');
       voirPlus.remove();
@@ -277,9 +277,9 @@
       visiteur
         // Les trois sorties d'un visiteur, dans la carte, l'une sous l'autre et sur toute la largeur.
         ? el('div', { classe: 'publication-rejoindre' }, [
-          el('a', { classe: 'bouton bouton-principal bouton-plein', href: `/inscription?suite=${encodeURIComponent(`/publication/${publication.id}`)}`, texte: 'Rejoindre Palabre pour réagir' }),
-          el('a', { classe: 'bouton bouton-contour bouton-plein', href: `/${publication.auteur.identifiant}`, texte: `Voir le profil ${deNom(prenom(publication.auteur))}` }),
-          el('a', { classe: 'bouton bouton-lien bouton-plein', href: `/connexion?suite=${encodeURIComponent(`/publication/${publication.id}`)}`, texte: 'J\'ai déjà un compte' }),
+          el('a', { classe: 'bouton bouton-principal bouton-plein', href: `/inscription?suite=${encodeURIComponent(`/publication/${publication.id}`)}`, texte: t('publication.rejoindre') }),
+          el('a', { classe: 'bouton bouton-contour bouton-plein', href: `/${publication.auteur.identifiant}`, texte: t('publication.voir-profil', { prenom: prenom(publication.auteur), dePrenom: deNom(prenom(publication.auteur)) }) }),
+          el('a', { classe: 'bouton bouton-lien bouton-plein', href: `/connexion?suite=${encodeURIComponent(`/publication/${publication.id}`)}`, texte: t('acces.deja-un-compte') }),
         ])
         : el('div', { classe: 'publication-actions' }, [boutonJaime, boutonCommenter]),
       commentaires.zone,
@@ -319,7 +319,7 @@
   // boutonPlus : « Voir plus », gardé pour les rares navigateurs sans IntersectionObserver ;
   // parametres() : les filtres de la requête (amis=1, auteur=…) ; vide() : ce qu'on montre quand il n'y a rien ;
   // fin : la phrase affichée au bout du fil.
-  function filPublications({ zone, etat, boutonPlus = null, parametres, vide, fin = 'Tu as tout vu. Reviens plus tard pour la suite.' }) {
+  function filPublications({ zone, etat, boutonPlus = null, parametres, vide, fin = t('publication.tout-vu') }) {
     let suivant = null; // numéro à partir duquel charger la page suivante
     let numero = 0;     // si un filtre change pendant un chargement, l'ancienne réponse est ignorée
 
@@ -358,7 +358,7 @@
       } catch (erreur) {
         if (demande !== numero) return;
         fini();
-        etat.replaceChildren(window.Palabre.etatVide('calme', 'Les publications ne chargent pas', erreur.message));
+        etat.replaceChildren(window.Palabre.etatVide('calme', t('publication.ne-chargent-pas'), erreur.message));
         etat.hidden = false;
       }
     }

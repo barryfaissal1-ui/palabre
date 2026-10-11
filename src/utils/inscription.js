@@ -65,7 +65,7 @@ async function envoyerCode(utilisateur, { renvoi = false } = {}) {
     [utilisateur.id, empreinteCode(utilisateur.id, code), DUREE_CODE_MIN],
   );
   // L'email part en deux versions : texte, et HTML aux couleurs de Palabre (src/utils/gabarit-email.js).
-  await mailer.envoyerEmail({ a: utilisateur.email, ...emailCode({ prenom: utilisateur.prenom || utilisateur.nom, code, dureeMin: DUREE_CODE_MIN }) });
+  await mailer.envoyerEmail({ a: utilisateur.email, ...emailCode({ prenom: utilisateur.prenom || utilisateur.nom, code, dureeMin: DUREE_CODE_MIN, langue: utilisateur.langue || 'fr' }) });
 }
 
 // Vérifie le code saisi. Seul le dernier code envoyé compte ; chaque erreur consomme un des 5 essais.

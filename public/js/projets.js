@@ -1,6 +1,6 @@
 // Page « Mes projets » : ajouter un projet réalisé, revérifier son lien, le supprimer.
 (function () {
-  const { api, el, utilisateurConnecte, carteProjet, reduireImage, etatVide, confirmer } = window.Palabre;
+  const { t, api, el, utilisateurConnecte, carteProjet, reduireImage, etatVide, confirmer } = window.Palabre;
 
   let moi = null;
   let imageChoisie = null; // capture d'écran réduite, prête à être envoyée (data URL)
@@ -16,16 +16,16 @@
     const actions = el('div', { classe: 'profil-actions' });
 
     if (projet.lien) {
-      const reverifier = el('button', { classe: 'bouton bouton-contour', type: 'button', texte: 'Revérifier le lien' });
+      const reverifier = el('button', { classe: 'bouton bouton-contour', type: 'button', texte: t('projets.reverifier') });
       reverifier.addEventListener('click', async () => {
         reverifier.disabled = true;
-        message(zoneMessage, 'Visite du lien en cours…', '');
+        message(zoneMessage, t('projets.visite'), '');
         try {
           const reponse = await api(`/projets/${projet.id}/verifier`, { methode: 'POST', donnees: {} });
           await chargerListe();
           message(zoneMessage, reponse.projet.lienVerifie
-            ? 'Le lien répond : badge « Lien vérifié » accordé.'
-            : 'Le lien ne répond pas pour l\'instant. Vérifie l\'adresse et que le site est bien en ligne.', reponse.projet.lienVerifie ? 'succes' : 'erreur');
+            ? t('projets.lien-repond')
+            : t('projets.lien-muet'), reponse.projet.lienVerifie ? 'succes' : 'erreur');
         } catch (erreur) {
           message(zoneMessage, erreur.message, 'erreur');
           reverifier.disabled = false;
@@ -33,13 +33,13 @@
       });
       actions.append(reverifier);
     }
-    const supprimer = el('button', { classe: 'bouton bouton-lien', type: 'button', texte: 'Supprimer' });
+    const supprimer = el('button', { classe: 'bouton bouton-lien', type: 'button', texte: t('commun.supprimer') });
     supprimer.addEventListener('click', async () => {
-      if (!(await confirmer(`Supprimer le projet « ${projet.titre} » ?`, { bouton: 'Supprimer', danger: true }))) return;
+      if (!(await confirmer(t('projets.supprimer-question', { titre: projet.titre }), { bouton: t('commun.supprimer'), danger: true }))) return;
       try {
         await api(`/projets/${projet.id}`, { methode: 'DELETE', donnees: {} });
         await chargerListe();
-        message(zoneMessage, 'Projet supprimé.', 'succes');
+        message(zoneMessage, t('projets.supprime'), 'succes');
       } catch (erreur) {
         message(zoneMessage, erreur.message, 'erreur');
       }
@@ -53,9 +53,9 @@
     const etat = document.querySelector('[data-etat]');
     const { profil } = await api(`/profils/${encodeURIComponent(moi.identifiant)}`);
     document.querySelector('[data-liste]').replaceChildren(...profil.projets.map(carteGestion));
-    document.querySelector('[data-titre-liste]').textContent = profil.projets.length ? `Mes projets (${profil.projets.length})` : 'Mes projets';
+    document.querySelector('[data-titre-liste]').textContent = profil.projets.length ? t('projets.mes-projets-n', { n: profil.projets.length }) : t('nav.mes-projets');
     etat.hidden = profil.projets.length > 0;
-    etat.replaceChildren(etatVide('projets', 'Ton premier projet t\'attend', 'Ajoute un projet avec le formulaire ci-dessus. Il apparaîtra sur ton profil et dans la vitrine.'));
+    etat.replaceChildren(etatVide('projets', t('projets.premier'), t('projets.premier-aide')));
   }
 
   function brancherFormulaire() {
@@ -75,7 +75,7 @@
       const fichier = choisir.files[0];
       choisir.value = '';
       if (!fichier) return;
-      message(zoneMessage, 'Préparation de l\'image…', '');
+      message(zoneMessage, t('fil.preparation-image'), '');
       try {
         imageChoisie = await reduireImage(fichier);
         formulaire.querySelector('[data-apercu-image]').src = imageChoisie;
@@ -100,15 +100,15 @@
       };
       if (imageChoisie) donnees.image = imageChoisie;
       envoyer.disabled = true;
-      message(zoneMessage, donnees.lien.trim() ? 'Enregistrement et visite du lien… (quelques secondes)' : 'Enregistrement…', '');
+      message(zoneMessage, donnees.lien.trim() ? t('projets.enregistrement-visite') : t('projets.enregistrement'), '');
       try {
         const { projet } = await api('/projets', { methode: 'POST', donnees });
         formulaire.reset();
         retirerImage();
         await chargerListe();
-        if (!projet.lien) message(zoneMessage, 'Projet ajouté.', 'succes');
-        else if (projet.lienVerifie) message(zoneMessage, 'Projet ajouté. Le lien répond : badge « Lien vérifié » accordé.', 'succes');
-        else message(zoneMessage, 'Projet ajouté, mais le lien ne répond pas : pas de badge pour l\'instant. Tu pourras le revérifier plus bas.', 'erreur');
+        if (!projet.lien) message(zoneMessage, t('projets.ajoute'), 'succes');
+        else if (projet.lienVerifie) message(zoneMessage, t('projets.ajoute-verifie'), 'succes');
+        else message(zoneMessage, t('projets.ajoute-muet'), 'erreur');
       } catch (erreur) {
         const zone = erreur.champ && formulaire.querySelector(`[data-erreur="${erreur.champ}"]`);
         if (zone) {
@@ -140,7 +140,7 @@
     chargerListe().catch((erreur) => {
       const etat = document.querySelector('[data-etat]');
       etat.hidden = false;
-      etat.replaceChildren(etatVide('calme', 'Tes projets ne chargent pas', erreur.message));
+      etat.replaceChildren(etatVide('calme', t('projets.ne-chargent-pas'), erreur.message));
     });
   });
 })();

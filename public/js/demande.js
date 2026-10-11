@@ -1,16 +1,16 @@
 // Page d'une demande : le client compare et choisit ; le dev propose seul ou forme une équipe éclair.
 (function () {
-  const { api, el, avatar, utilisateurConnecte, dateRelative, deNom, fcfa, signaler, etatVide, confirmer, icone, nomMembre } = window.Palabre;
+  const { t, api, el, avatar, utilisateurConnecte, dateRelative, deNom, fcfa, signaler, etatVide, confirmer, icone, nomMembre } = window.Palabre;
 
   const id = new URLSearchParams(window.location.search).get('id');
-  const NOMS_STATUTS = { ouverte: 'Ouverte', attribuee: 'Attribuée', terminee: 'Terminée', annulee: 'Annulée' };
+  const NOMS_STATUTS = { ouverte: t('demande.statut.ouverte'), attribuee: t('demande.statut.attribuee'), terminee: t('demande.statut.terminee'), annulee: t('demande.statut.annulee') };
   const NOMS_PROPOSITIONS = {
-    brouillon: 'En attente des réponses de l\'équipe',
-    envoyee: 'Envoyée au client',
-    acceptee: 'Choisie par le client',
-    refusee: 'Non retenue',
+    brouillon: t('proposition.statut.brouillon'),
+    envoyee: t('proposition.statut.envoyee'),
+    acceptee: t('proposition.statut.acceptee'),
+    refusee: t('proposition.statut.refusee'),
   };
-  const NOMS_REPONSES = { invite: 'n\'a pas encore répondu', accepte: 'a accepté', refuse: 'a refusé' };
+  const NOMS_REPONSES = { invite: t('equipe.reponse.invite'), accepte: t('equipe.reponse.accepte'), refuse: t('equipe.reponse.refuse') };
   let moi = null;
 
   function message(texte, type) {
@@ -39,9 +39,9 @@
   }
 
   function ligneMembre(membre, { avecReponse }) {
-    const precision = membre.estChef ? 'chef d\'équipe' : (avecReponse ? NOMS_REPONSES[membre.statut] : '');
+    const precision = membre.estChef ? t('equipe.chef') : (avecReponse ? NOMS_REPONSES[membre.statut] : '');
     return el('li', { classe: 'membre-equipe' }, [
-      el('a', { classe: 'lien-avatar', href: `/${membre.identifiant}`, 'aria-label': `Profil de ${membre.nom}` }, [avatar(membre, 'mini')]),
+      el('a', { classe: 'lien-avatar', href: `/${membre.identifiant}`, 'aria-label': t('commun.profil-de', { nom: membre.nom, deNom: deNom(membre.nom) }) }, [avatar(membre, 'mini')]),
       el('div', {}, [
         nomMembre(membre),
         el('p', { classe: 'texte-discret', texte: precision ? `${membre.role}, ${precision}` : membre.role }),
@@ -53,16 +53,16 @@
   function carteProposition(proposition, boutons, { avecReponses = false } = {}) {
     const qui = proposition.equipe
       ? [
-        el('h3', { texte: `Équipe éclair ${deNom(proposition.auteur.nom)}` }),
+        el('h3', { texte: t('equipe.eclair-de', { nom: proposition.auteur.nom, deNom: deNom(proposition.auteur.nom) }) }),
         el('ul', { classe: 'liste-equipe' }, proposition.equipe.membres.map((m) => ligneMembre(m, { avecReponse: avecReponses }))),
         // Le groupe de discussion de l'équipe : montré seulement à ses membres (le serveur n'envoie le numéro qu'à eux).
         proposition.equipe.groupeId
-          ? el('a', { classe: 'bouton bouton-contour', href: `/messages/groupe/${proposition.equipe.groupeId}` }, [icone('commentaire'), 'Discussion de l\'équipe'])
+          ? el('a', { classe: 'bouton bouton-contour', href: `/messages/groupe/${proposition.equipe.groupeId}` }, [icone('commentaire'), t('equipe.discussion')])
           : null,
       ]
       : [
         el('div', { classe: 'publication-entete' }, [
-          el('a', { classe: 'lien-avatar', href: `/${proposition.auteur.identifiant}`, 'aria-label': `Profil de ${proposition.auteur.nom}` }, [avatar(proposition.auteur, 'moyen')]),
+          el('a', { classe: 'lien-avatar', href: `/${proposition.auteur.identifiant}`, 'aria-label': t('commun.profil-de', { nom: proposition.auteur.nom, deNom: deNom(proposition.auteur.nom) }) }, [avatar(proposition.auteur, 'moyen')]),
           el('div', {}, [
             nomMembre(proposition.auteur),
             el('p', { classe: 'texte-discret publication-meta', texte: [proposition.auteur.ville, proposition.auteur.pays].filter(Boolean).join(', ') }),
@@ -75,7 +75,7 @@
       ]),
       ...qui,
       el('p', { classe: 'publication-texte', texte: proposition.message }),
-      el('p', { classe: 'montant' }, [el('span', { classe: 'texte-discret', texte: 'Montant proposé : ' }), fcfa(proposition.montantFcfa)]),
+      el('p', { classe: 'montant' }, [el('span', { classe: 'texte-discret', texte: t('demande.montant-propose') }), fcfa(proposition.montantFcfa)]),
       boutons.length ? el('div', { classe: 'profil-actions' }, boutons) : null,
     ]);
   }
@@ -88,12 +88,12 @@
       ]),
       el('h1', { classe: 'titre-demande', texte: demande.titre }),
       el('p', { classe: 'texte-discret' }, [
-        demande.estMoi ? 'Ta demande' : 'Publiée par ',
+        demande.estMoi ? t('demande.ta-demande') : t('demande.publiee-par'),
         demande.estMoi ? null : el('a', { href: `/${demande.client.identifiant}`, texte: demande.client.nom }),
       ]),
       el('dl', { classe: 'faits' }, [
-        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('argent'), 'Budget']), el('dd', { texte: fcfa(demande.budgetFcfa) })]),
-        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('horloge'), 'Délai']), el('dd', { texte: demande.delai || 'À discuter' })]),
+        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('argent'), t('demande.budget')]), el('dd', { texte: fcfa(demande.budgetFcfa) })]),
+        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('horloge'), t('demande.delai')]), el('dd', { texte: demande.delai || t('commun.a-discuter') })]),
       ]),
       el('p', { classe: 'profil-bio', texte: demande.description }),
       demande.estMoi ? null : boutonSignaler(demande),
@@ -102,7 +102,7 @@
 
   // Encadré « En bref », collé à droite sur ordinateur (caché sur téléphone, où ces informations sont dans l'en-tête).
   function encadreDemande(demande, peutRepondre) {
-    const repondre = el('button', { classe: 'bouton bouton-principal bouton-plein', type: 'button' }, [icone('envoyer'), 'Répondre à cette demande']);
+    const repondre = el('button', { classe: 'bouton bouton-principal bouton-plein', type: 'button' }, [icone('envoyer'), t('demande.repondre')]);
     repondre.addEventListener('click', () => {
       const champ = document.getElementById('proposition-message');
       if (!champ) return;
@@ -110,23 +110,23 @@
       champ.focus();
     });
     const n = demande.nbPropositions;
-    return el('aside', { classe: 'encadre-demande', 'aria-label': 'La demande en bref' }, [
+    return el('aside', { classe: 'encadre-demande', 'aria-label': t('demande.en-bref') }, [
       el('p', { classe: `statut-demande statut-${demande.statut}`, texte: NOMS_STATUTS[demande.statut] }),
       el('dl', { classe: 'faits-encadre' }, [
-        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('argent'), 'Budget']), el('dd', { texte: fcfa(demande.budgetFcfa) })]),
-        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('horloge'), 'Délai']), el('dd', { texte: demande.delai || 'À discuter' })]),
-        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('commentaire'), 'Propositions']), el('dd', { texte: n ? String(n) : 'Aucune pour l\'instant' })]),
+        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('argent'), t('demande.budget')]), el('dd', { texte: fcfa(demande.budgetFcfa) })]),
+        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('horloge'), t('demande.delai')]), el('dd', { texte: demande.delai || t('commun.a-discuter') })]),
+        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('commentaire'), t('demande.propositions')]), el('dd', { texte: n ? String(n) : t('demande.aucune-pour-l-instant') })]),
       ]),
       el('div', { classe: 'encadre-client' }, [
-        el('a', { classe: 'lien-avatar', href: `/${demande.client.identifiant}`, 'aria-label': `Profil de ${demande.client.nom}` }, [avatar(demande.client, 'moyen')]),
-        el('div', {}, [nomMembre(demande.client), el('p', { classe: 'texte-discret', texte: demande.estMoi ? 'C\'est ta demande' : 'Client' })]),
+        el('a', { classe: 'lien-avatar', href: `/${demande.client.identifiant}`, 'aria-label': t('commun.profil-de', { nom: demande.client.nom, deNom: deNom(demande.client.nom) }) }, [avatar(demande.client, 'moyen')]),
+        el('div', {}, [nomMembre(demande.client), el('p', { classe: 'texte-discret', texte: demande.estMoi ? t('demande.c-est-la-tienne') : t('commun.client') })]),
       ]),
       peutRepondre ? repondre : null,
     ]);
   }
 
   function boutonSignaler(demande) {
-    const bouton = el('button', { classe: 'bouton-discret', type: 'button', texte: 'Signaler cette demande' });
+    const bouton = el('button', { classe: 'bouton-discret', type: 'button', texte: t('demande.signaler') });
     bouton.addEventListener('click', () => signaler('demande', demande.id));
     return bouton;
   }
@@ -135,14 +135,14 @@
   function formulaireAvis(demande, dev) {
     const radios = [1, 2, 3, 4, 5].flatMap((n) => [
       el('input', { type: 'radio', name: `note-${dev.identifiant}`, id: `note-${dev.identifiant}-${n}`, value: String(n), checked: n === 5 }),
-      el('label', { for: `note-${dev.identifiant}-${n}`, 'aria-label': `${n} sur 5`, texte: `${n} ★` }),
+      el('label', { for: `note-${dev.identifiant}-${n}`, 'aria-label': t('commun.note-sur-5', { note: n }), texte: `${n} ★` }),
     ]);
-    const commentaire = el('textarea', { rows: '3', maxlength: '1000', placeholder: 'Qualité du travail, respect des délais, communication… (facultatif)', 'aria-label': `Ton avis sur ${dev.nom}` });
+    const commentaire = el('textarea', { rows: '3', maxlength: '1000', placeholder: t('avis.aide'), 'aria-label': t('avis.ton-avis-sur-nom', { nom: dev.nom }) });
     const zoneErreur = el('p', { classe: 'erreur-champ', role: 'alert' });
-    const envoyer = el('button', { classe: 'bouton bouton-principal', type: 'submit', texte: 'Envoyer mon avis' });
+    const envoyer = el('button', { classe: 'bouton bouton-principal', type: 'submit', texte: t('avis.envoyer') });
     const formulaire = el('form', { classe: 'bloc-formulaire' }, [
-      el('h3', {}, ['Ton avis sur ', el('a', { href: `/${dev.identifiant}`, texte: dev.nom })]),
-      el('fieldset', { classe: 'choix-puces' }, [el('legend', { classe: 'visuellement-cache', texte: `Note pour ${dev.nom}` }), ...radios]),
+      el('h3', {}, [t('avis.ton-avis-sur'), el('a', { href: `/${dev.identifiant}`, texte: dev.nom })]),
+      el('fieldset', { classe: 'choix-puces' }, [el('legend', { classe: 'visuellement-cache', texte: t('avis.note-pour', { nom: dev.nom }) }), ...radios]),
       commentaire,
       zoneErreur,
       envoyer,
@@ -157,7 +157,7 @@
           donnees: { demandeId: demande.id, identifiant: dev.identifiant, note: Number(formulaire.elements[`note-${dev.identifiant}`].value), commentaire: commentaire.value },
         });
         await afficher();
-        message(`Merci, ton avis est publié sur le profil ${deNom(dev.nom)}.`, 'succes');
+        message(t('avis.merci-publie', { nom: dev.nom, deNom: deNom(dev.nom) }), 'succes');
       } catch (erreur) {
         zoneErreur.textContent = erreur.message;
         envoyer.disabled = false;
@@ -172,10 +172,10 @@
     const devs = choisie.equipe ? choisie.equipe.membres : [choisie.auteur];
     const aNoter = devs.filter((d) => !avisDonnes.includes(d.identifiant));
     return el('section', { classe: 'section-profil' }, [
-      el('h2', { texte: 'Ton avis' }),
+      el('h2', { texte: t('avis.ton-avis') }),
       aNoter.length
-        ? el('p', { classe: 'texte-discret', texte: 'Ton avis apparaîtra sur le profil du développeur. Tu ne peux le donner qu\'une fois.' })
-        : el('p', { classe: 'message succes', texte: 'Merci, tu as donné ton avis.' }),
+        ? el('p', { classe: 'texte-discret', texte: t('avis.apparaitra') })
+        : el('p', { classe: 'message succes', texte: t('avis.merci') }),
       ...aNoter.map((dev) => formulaireAvis(demande, dev)),
     ]);
   }
@@ -183,33 +183,33 @@
   // ---------- Vue du client propriétaire ----------
   function sectionClient(demande, propositions) {
     const section = el('section', { classe: 'section-profil' }, [
-      el('h2', { texte: propositions.length ? `Propositions reçues (${propositions.length})` : 'Propositions reçues' }),
+      el('h2', { texte: propositions.length ? t('demande.propositions-recues-n', { n: propositions.length }) : t('demande.propositions-recues') }),
     ]);
     if (propositions.length === 0) {
-      section.append(etatVide('demandes', 'Ta demande est en ligne', 'Aucune proposition pour l\'instant. Tu recevras une notification dès qu\'un développeur ou une équipe répondra.'));
+      section.append(etatVide('demandes', t('demande.en-ligne'), t('demande.en-ligne-aide')));
     }
     // La proposition choisie en premier.
     const triees = [...propositions].sort((a, b) => Number(b.statut === 'acceptee') - Number(a.statut === 'acceptee'));
     // « Écrire » : le client parle directement au dev (ou au chef de l'équipe), sans demande de message.
-    const ecrire = (p) => el('a', { classe: 'bouton bouton-contour', href: `/messages?avec=${encodeURIComponent(p.auteur.identifiant)}&demande=${demande.id}` }, [icone('commentaire'), 'Écrire']);
+    const ecrire = (p) => el('a', { classe: 'bouton bouton-contour', href: `/messages?avec=${encodeURIComponent(p.auteur.identifiant)}&demande=${demande.id}` }, [icone('commentaire'), t('demande.ecrire')]);
     section.append(el('div', { classe: 'liste-publications' }, triees.map((p) => carteProposition(p, demande.statut !== 'ouverte' ? [ecrire(p)] : [ecrire(p),
-      boutonAction('Choisir cette proposition', 'bouton-principal',
+      boutonAction(t('demande.choisir'), 'bouton-principal',
         () => api(`/demandes/${demande.id}/choisir`, { methode: 'POST', donnees: { propositionId: p.id } }),
         {
-          confirmation: `Choisir la proposition ${p.equipe ? `de l'équipe ${deNom(p.auteur.nom)}` : deNom(p.auteur.nom)} ? Les autres propositions seront refusées.`,
-          succes: 'Proposition choisie. Écris maintenant au développeur avec le bouton « Écrire ».',
+          confirmation: t(p.equipe ? 'demande.choisir-question-equipe' : 'demande.choisir-question', { nom: p.auteur.nom, deNom: deNom(p.auteur.nom) }),
+          succes: t('demande.choisie'),
         }),
     ]))));
 
     const gestion = el('div', { classe: 'profil-actions gestion-demande' });
     if (demande.statut === 'ouverte') {
-      gestion.append(boutonAction('Annuler la demande', 'bouton-lien',
+      gestion.append(boutonAction(t('demande.annuler'), 'bouton-lien',
         () => api(`/demandes/${demande.id}/annuler`, { methode: 'POST', donnees: {} }),
-        { confirmation: 'Annuler cette demande ? Les développeurs ne pourront plus y répondre.', succes: 'Demande annulée.' }));
+        { confirmation: t('demande.annuler-question'), succes: t('demande.annulee') }));
     } else if (demande.statut === 'attribuee') {
-      gestion.append(boutonAction('Marquer comme terminée', 'bouton-contour',
+      gestion.append(boutonAction(t('demande.marquer-terminee'), 'bouton-contour',
         () => api(`/demandes/${demande.id}/terminer`, { methode: 'POST', donnees: {} }),
-        { confirmation: 'Le travail est terminé ?', succes: 'Demande terminée.' }));
+        { confirmation: t('demande.termine-question'), succes: t('demande.terminee') }));
     }
     section.append(gestion);
     return section;
@@ -222,28 +222,28 @@
     let boutons = [];
     if (proposition.maPlace === 'invite' && ouverte) {
       boutons = [
-        boutonAction('Rejoindre l\'équipe', 'bouton-principal',
-          () => api(`/equipes/${equipe.id}/accepter`, { methode: 'POST', donnees: {} }), { succes: 'Tu fais partie de l\'équipe.' }),
-        boutonAction('Refuser', 'bouton-contour',
-          () => api(`/equipes/${equipe.id}/refuser`, { methode: 'POST', donnees: {} }), { succes: 'Invitation refusée.' }),
+        boutonAction(t('equipe.rejoindre'), 'bouton-principal',
+          () => api(`/equipes/${equipe.id}/accepter`, { methode: 'POST', donnees: {} }), { succes: t('equipe.tu-fais-partie') }),
+        boutonAction(t('commun.refuser'), 'bouton-contour',
+          () => api(`/equipes/${equipe.id}/refuser`, { methode: 'POST', donnees: {} }), { succes: t('equipe.invitation-refusee') }),
       ];
     } else if (proposition.maPlace === 'chef' && proposition.statut !== 'acceptee') {
-      boutons = [boutonAction('Dissoudre l\'équipe', 'bouton-lien',
+      boutons = [boutonAction(t('equipe.dissoudre'), 'bouton-lien',
         () => api(`/equipes/${equipe.id}`, { methode: 'DELETE', donnees: {} }),
-        { confirmation: 'Dissoudre cette équipe ? Sa proposition sera retirée.', succes: 'Équipe dissoute.' })];
+        { confirmation: t('equipe.dissoudre-question'), succes: t('equipe.dissoute') })];
     } else if (proposition.maPlace === 'solo' && proposition.statut === 'envoyee') {
-      boutons = [boutonAction('Retirer ma proposition', 'bouton-lien',
+      boutons = [boutonAction(t('demande.retirer-proposition'), 'bouton-lien',
         () => api(`/demandes/${demande.id}/propositions/mienne`, { methode: 'DELETE', donnees: {} }),
-        { confirmation: 'Retirer ta proposition ?', succes: 'Proposition retirée.' })];
+        { confirmation: t('demande.retirer-question'), succes: t('demande.proposition-retiree') })];
     }
     // Le dev qui a proposé seul, ou le chef de l'équipe (une fois la proposition envoyée), peut écrire au client.
     if (proposition.maPlace === 'solo' || (proposition.maPlace === 'chef' && proposition.statut !== 'brouillon')) {
-      boutons = [el('a', { classe: 'bouton bouton-contour', href: `/messages?avec=${encodeURIComponent(demande.client.identifiant)}&demande=${demande.id}` }, [icone('commentaire'), 'Écrire au client']), ...boutons];
+      boutons = [el('a', { classe: 'bouton bouton-contour', href: `/messages?avec=${encodeURIComponent(demande.client.identifiant)}&demande=${demande.id}` }, [icone('commentaire'), t('demande.ecrire-client')]), ...boutons];
     }
     const carte = carteProposition(proposition, boutons, { avecReponses: true });
     if (proposition.maPlace === 'invite') {
       const monRole = equipe.membres.find((m) => m.identifiant === moi.identifiant)?.role;
-      carte.prepend(el('p', { classe: 'message succes', texte: `${proposition.auteur.nom} t'invite dans son équipe éclair. Ton rôle : ${monRole}.` }));
+      carte.prepend(el('p', { classe: 'message succes', texte: t('equipe.t-invite', { nom: proposition.auteur.nom, role: monRole }) }));
     }
     return carte;
   }
@@ -255,13 +255,13 @@
       el('label', { for: `mode-${valeur}`, texte }),
     ];
     const modes = el('fieldset', { classe: 'choix-puces' }, [
-      el('legend', { classe: 'visuellement-cache', texte: 'Comment veux-tu répondre ?' }),
-      ...(soloPossible ? radio('solo', 'Seul', true) : []),
-      ...(equipePossible ? radio('equipe', 'En équipe éclair', !soloPossible) : []),
+      el('legend', { classe: 'visuellement-cache', texte: t('demande.comment-repondre') }),
+      ...(soloPossible ? radio('solo', t('demande.seul'), true) : []),
+      ...(equipePossible ? radio('equipe', t('demande.en-equipe'), !soloPossible) : []),
     ]);
-    const texte = el('textarea', { id: 'proposition-message', rows: '4', maxlength: '2000', placeholder: 'Présente ta solution : ce que tu vas faire, en combien de temps, ton expérience…' });
-    const montant = el('input', { id: 'proposition-montant', inputmode: 'numeric', autocomplete: 'off', placeholder: 'Ex. 200 000' });
-    const roleChef = el('input', { id: 'proposition-role', maxlength: '40', placeholder: 'Ex. Chef de projet, back-end' });
+    const texte = el('textarea', { id: 'proposition-message', rows: '4', maxlength: '2000', placeholder: t('demande.proposition-aide') });
+    const montant = el('input', { id: 'proposition-montant', inputmode: 'numeric', autocomplete: 'off', placeholder: t('demande.montant-exemple') });
+    const roleChef = el('input', { id: 'proposition-role', maxlength: '40', placeholder: t('equipe.role-chef-exemple') });
     const erreurs = {
       message: el('p', { classe: 'erreur-champ' }),
       montantFcfa: el('p', { classe: 'erreur-champ' }),
@@ -272,7 +272,7 @@
     // Un ami par ligne : une case à cocher, et son rôle à remplir une fois coché.
     const lignesAmis = amisDevs.map((ami, index) => {
       const coche = el('input', { type: 'checkbox', id: `ami-${index}` });
-      const role = el('input', { maxlength: '40', placeholder: 'Son rôle (ex. Design)', 'aria-label': `Rôle de ${ami.nom}`, disabled: true });
+      const role = el('input', { maxlength: '40', placeholder: t('equipe.role-exemple'), 'aria-label': t('equipe.role-de', { nom: ami.nom, deNom: deNom(ami.nom) }), disabled: true });
       coche.addEventListener('change', () => {
         role.disabled = !coche.checked;
         if (coche.checked) role.focus();
@@ -280,24 +280,24 @@
       return { ami, coche, role, element: el('li', { classe: 'choix-ami' }, [coche, el('label', { for: `ami-${index}`, texte: ami.nom }), role]) };
     });
     const zoneEquipe = el('div', { classe: 'zone-equipe', hidden: soloPossible }, [
-      el('div', { classe: 'champ' }, [el('label', { for: 'proposition-role', texte: 'Ton rôle dans l\'équipe' }), roleChef, erreurs.roleChef]),
+      el('div', { classe: 'champ' }, [el('label', { for: 'proposition-role', texte: t('equipe.ton-role') }), roleChef, erreurs.roleChef]),
       el('div', { classe: 'champ' }, [
-        el('p', { classe: 'etiquette', texte: 'Amis à inviter (5 au maximum)' }),
+        el('p', { classe: 'etiquette', texte: t('equipe.amis-a-inviter') }),
         amisDevs.length
           ? el('ul', { classe: 'liste-amis-equipe' }, lignesAmis.map((l) => l.element))
-          : el('p', { classe: 'texte-discret' }, ['Tu n\'as pas encore d\'amis développeurs. ', el('a', { href: '/amis', texte: 'Voir mes amis' })]),
-        el('span', { classe: 'aide', texte: 'La proposition partira chez le client quand tous tes invités auront répondu.' }),
+          : el('p', { classe: 'texte-discret' }, [t('equipe.pas-d-amis-devs'), el('a', { href: '/amis', texte: t('equipe.voir-mes-amis') })]),
+        el('span', { classe: 'aide', texte: t('equipe.partira') }),
         erreurs.membres,
       ]),
     ]);
-    const envoyer = el('button', { classe: 'bouton bouton-principal bouton-plein', type: 'submit', texte: soloPossible ? 'Envoyer ma proposition' : 'Inviter mon équipe' });
+    const envoyer = el('button', { classe: 'bouton bouton-principal bouton-plein', type: 'submit', texte: soloPossible ? t('demande.envoyer-proposition') : t('equipe.inviter') });
     const formulaire = el('form', { classe: 'bloc-formulaire', novalidate: true }, [
-      el('h2', { texte: 'Répondre à cette demande' }),
+      el('h2', { texte: t('demande.repondre') }),
       modes,
-      el('div', { classe: 'champ' }, [el('label', { for: 'proposition-message', texte: 'Ta proposition' }), texte, erreurs.message]),
+      el('div', { classe: 'champ' }, [el('label', { for: 'proposition-message', texte: t('demande.ta-proposition') }), texte, erreurs.message]),
       el('div', { classe: 'champ' }, [
-        el('label', { for: 'proposition-montant', texte: 'Montant en FCFA' }), montant,
-        el('span', { classe: 'aide', texte: 'Laisse vide si tu préfères en discuter.' }), erreurs.montantFcfa,
+        el('label', { for: 'proposition-montant', texte: t('demande.montant-fcfa') }), montant,
+        el('span', { classe: 'aide', texte: t('demandes.laisse-vide') }), erreurs.montantFcfa,
       ]),
       zoneEquipe,
       envoyer,
@@ -306,7 +306,7 @@
     const mode = () => formulaire.elements.mode.value;
     modes.addEventListener('change', () => {
       zoneEquipe.hidden = mode() !== 'equipe';
-      envoyer.textContent = mode() === 'equipe' ? 'Inviter mon équipe' : 'Envoyer ma proposition';
+      envoyer.textContent = mode() === 'equipe' ? t('equipe.inviter') : t('demande.envoyer-proposition');
     });
 
     formulaire.addEventListener('submit', async (evenement) => {
@@ -324,7 +324,7 @@
           await api(`/demandes/${demande.id}/propositions`, { methode: 'POST', donnees });
         }
         await afficher();
-        message(mode() === 'equipe' ? 'Invitations envoyées. La proposition partira quand tous auront répondu.' : 'Proposition envoyée au client.', 'succes');
+        message(mode() === 'equipe' ? t('equipe.invitations-envoyees') : t('demande.proposition-envoyee'), 'succes');
       } catch (erreur) {
         if (erreurs[erreur.champ]) erreurs[erreur.champ].textContent = erreur.message;
         else message(erreur.message, 'erreur');
@@ -338,7 +338,7 @@
     const section = el('section', { classe: 'section-profil' });
     if (propositions.length) {
       section.append(
-        el('h2', { texte: 'Ta participation' }),
+        el('h2', { texte: t('demande.ta-participation') }),
         el('div', { classe: 'liste-publications' }, propositions.map((p) => cartePourDev(demande, p))),
       );
     }
@@ -348,7 +348,7 @@
       const { amis } = await api('/amis');
       section.append(formulaireProposition(demande, { soloPossible, equipePossible }, amis.filter((a) => a.type === 'dev')));
     } else if (demande.statut !== 'ouverte' && propositions.length === 0) {
-      section.append(el('p', { classe: 'texte-discret', texte: 'Cette demande n\'accepte plus de propositions.' }));
+      section.append(el('p', { classe: 'texte-discret', texte: t('demande.plus-de-propositions') }));
     }
     return section;
   }
@@ -366,8 +366,8 @@
       else if (moi.type === 'dev') blocs.push(await sectionDev(demande, propositions));
       zone.replaceChildren(...blocs.filter(Boolean));
     } catch (erreur) {
-      zone.replaceChildren(etatVide('demandes', 'Demande introuvable', erreur.message,
-        el('a', { classe: 'bouton bouton-principal', href: '/demandes', texte: 'Voir les demandes' })));
+      zone.replaceChildren(etatVide('demandes', t('demande.introuvable'), erreur.message,
+        el('a', { classe: 'bouton bouton-principal', href: '/demandes', texte: t('demande.voir-les-demandes') })));
     }
   }
 

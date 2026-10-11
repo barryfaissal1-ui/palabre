@@ -7,7 +7,7 @@
 // qu'une façon plus agréable de saisir le code. Le mouvement n'utilise que transform et opacity (element.animate,
 // l'API d'animation du navigateur, sans bibliothèque).
 (function () {
-  const { api, utilisateurConnecte, toast } = window.Palabre;
+  const { api, utilisateurConnecte, toast, t } = window.Palabre;
   const ATTENTE_RENVOI_S = 60;   // le serveur refuse plus d'un code par minute
   const VERIFICATION_MIN_MS = 800; // le tourbillon dure au moins cela, même si le serveur répond tout de suite
   const AVANT_DE_PARTIR_MS = 1500; // temps laissé pour voir l'arbre avant de changer de page
@@ -172,7 +172,7 @@
     // Code bon : les feuilles se posent en couronne, le tronc pousse, le badge « vérifié » apparaît.
     async function reussir(profilComplet) {
       enVol = false;
-      annonce.textContent = 'Email confirmé.';
+      annonce.textContent = t('code.confirme-annonce');
       const tronc = branche.querySelector('[data-tronc]');
       const coche = branche.querySelector('[data-coche]');
       const onde = branche.querySelector('[data-onde]');
@@ -206,10 +206,10 @@
           { duration: 420, delay: 900, easing: 'ease-out', fill: 'both' },
         ));
       }
-      document.querySelector('[data-titre]').textContent = 'Email confirmé';
-      document.querySelector('[data-texte]').textContent = profilComplet ? 'Bienvenue sur Palabre.' : 'Encore une étape : ton profil de dev.';
+      document.querySelector('[data-titre]').textContent = t('code.confirme');
+      document.querySelector('[data-texte]').textContent = profilComplet ? t('code.bienvenue') : t('code.encore-une-etape');
       rond.hidden = true;
-      libelle.textContent = 'C\'est parti';
+      libelle.textContent = t('code.c-est-parti');
       bouton.disabled = false;
       bouton.type = 'button';
       bouton.addEventListener('click', () => continuer(profilComplet));
@@ -257,7 +257,7 @@
       champs.forEach((c) => { c.disabled = false; c.value = ''; c.setAttribute('aria-invalid', 'true'); });
       zoneErreur.textContent = erreur.message;
       rond.hidden = true;
-      libelle.textContent = 'Confirmer';
+      libelle.textContent = t('commun.confirmer');
       bouton.disabled = false;
       aller(0);
     }
@@ -266,7 +266,7 @@
     async function envoyer() {
       if (envoiEnCours) return;
       if (code().length < champs.length) {
-        zoneErreur.textContent = 'Entre les 6 chiffres du code.';
+        zoneErreur.textContent = t('code.entre-six');
         aller(champs.findIndex((c) => !c.value));
         return;
       }
@@ -277,8 +277,8 @@
       champs.forEach((c) => { c.blur(); c.disabled = true; });
       bouton.disabled = true;
       rond.hidden = false;
-      libelle.textContent = 'Vérification…';
-      annonce.textContent = 'Vérification du code…';
+      libelle.textContent = t('code.verification');
+      annonce.textContent = t('code.verification-du-code');
       decoller();
       const debut = performance.now();
       // Le tourbillon continue tant que le serveur n'a pas répondu, et dure au moins 800 ms.
@@ -314,11 +314,11 @@
         if (reste <= 0) {
           clearInterval(minuteur);
           boutonRenvoyer.disabled = false;
-          boutonRenvoyer.textContent = 'Renvoyer le code';
+          boutonRenvoyer.textContent = t('code.renvoyer');
           return;
         }
         boutonRenvoyer.disabled = true;
-        boutonRenvoyer.textContent = `Renvoyer dans ${Math.floor(reste / 60)}:${String(reste % 60).padStart(2, '0')}`;
+        boutonRenvoyer.textContent = t('code.renvoyer-dans', { temps: `${Math.floor(reste / 60)}:${String(reste % 60).padStart(2, '0')}` });
       };
       afficher();
       minuteur = setInterval(afficher, 1000);

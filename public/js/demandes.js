@@ -1,8 +1,8 @@
 // Page « Demandes » : liste par 10, filtres, et formulaire de publication pour les clients.
 (function () {
-  const { api, el, utilisateurConnecte, dateRelative, fcfa, icone, etatVide, chargement, chargementInfini } = window.Palabre;
+  const { t, api, el, utilisateurConnecte, dateRelative, fcfa, icone, etatVide, chargement, chargementInfini } = window.Palabre;
 
-  const NOMS_STATUTS = { ouverte: 'Ouverte', attribuee: 'Attribuée', terminee: 'Terminée', annulee: 'Annulée' };
+  const NOMS_STATUTS = { ouverte: t('demande.statut.ouverte'), attribuee: t('demande.statut.attribuee'), terminee: t('demande.statut.terminee'), annulee: t('demande.statut.annulee') };
 
   let filtre = 'ouvertes'; // 'ouvertes' ou 'miennes'
   let categorie = '';
@@ -10,8 +10,8 @@
 
   function carteDemande(demande) {
     const propositions = demande.nbPropositions
-      ? `${demande.nbPropositions} proposition${demande.nbPropositions > 1 ? 's' : ''}`
-      : 'Aucune proposition';
+      ? t('commun.propositions', { n: demande.nbPropositions })
+      : t('demandes.aucune-proposition');
     return el('article', { classe: 'carte-publication carte-demande' }, [
       el('p', { classe: 'publication-meta' }, [
         el('span', { classe: `statut-demande statut-${demande.statut}`, texte: NOMS_STATUTS[demande.statut] }),
@@ -20,11 +20,11 @@
       el('h2', {}, [el('a', { href: `/demande?id=${demande.id}`, texte: demande.titre })]),
       el('p', { classe: 'publication-texte', texte: demande.description }),
       el('dl', { classe: 'faits' }, [
-        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('argent'), 'Budget']), el('dd', { texte: fcfa(demande.budgetFcfa) })]),
-        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('horloge'), 'Délai']), el('dd', { texte: demande.delai || 'À discuter' })]),
+        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('argent'), t('demande.budget')]), el('dd', { texte: fcfa(demande.budgetFcfa) })]),
+        el('div', {}, [el('dt', { classe: 'avec-icone' }, [icone('horloge'), t('demande.delai')]), el('dd', { texte: demande.delai || t('commun.a-discuter') })]),
       ]),
-      el('p', { classe: 'texte-discret pied-demande', texte: `${demande.estMoi ? 'Ta demande' : `Par ${demande.client.nom}`}, ${propositions.toLowerCase()}` }),
-      el('a', { classe: 'bouton bouton-contour', href: `/demande?id=${demande.id}`, texte: 'Voir la demande' }),
+      el('p', { classe: 'texte-discret pied-demande', texte: t(demande.estMoi ? 'demandes.pied-moi' : 'demandes.pied-autre', { nom: demande.client.nom, propositions: propositions.toLowerCase() }) }),
+      el('a', { classe: 'bouton bouton-contour', href: `/demande?id=${demande.id}`, texte: t('demandes.voir') }),
     ]);
   }
 
@@ -49,7 +49,7 @@
   async function chargerPage() {
     const liste = document.querySelector('[data-liste]');
     const etat = document.querySelector('[data-etat]');
-    if (!infini) infini = chargementInfini(liste, () => pageSuivante(), { fin: 'Tu as vu toutes les demandes.', bouton: document.querySelector('[data-charger-plus]') });
+    if (!infini) infini = chargementInfini(liste, () => pageSuivante(), { fin: t('demandes.toutes-vues'), bouton: document.querySelector('[data-charger-plus]') });
     suivant = null;
     liste.replaceChildren();
     etat.hidden = true;
@@ -62,13 +62,13 @@
       infini.reprendre(encore);
       if (liste.children.length === 0) {
         etat.replaceChildren(filtre === 'miennes'
-          ? etatVide('demandes', 'Rien ici pour l\'instant', 'Les demandes où tu es concerné apparaîtront dans cet onglet.')
-          : etatVide('demandes', 'Aucune demande ouverte', 'Les demandes des clients arriveront ici. Reviens bientôt, ou change de catégorie.'));
+          ? etatVide('demandes', t('demandes.rien-ici'), t('demandes.rien-ici-aide'))
+          : etatVide('demandes', t('demandes.aucune-ouverte'), t('demandes.aucune-ouverte-aide')));
         etat.hidden = false;
       }
     } catch (erreur) {
       fini();
-      etat.replaceChildren(etatVide('calme', 'Les demandes ne chargent pas', erreur.message));
+      etat.replaceChildren(etatVide('calme', t('demandes.ne-chargent-pas'), erreur.message));
       etat.hidden = false;
     }
   }
@@ -126,7 +126,7 @@
     if (parametres.get('publier') !== '1') return;
     const zoneMessage = document.querySelector('[data-message-page]');
     if (moi.type !== 'client') {
-      zoneMessage.textContent = 'Les demandes se publient avec un compte client. Ton compte est un compte développeur : tu peux répondre aux demandes ci-dessous.';
+      zoneMessage.textContent = t('demandes.compte-client');
       zoneMessage.className = 'message';
       return;
     }
@@ -142,7 +142,7 @@
     if (/^\d{1,10}$/.test(budget)) {
       formulaire.elements.budgetFcfa.value = budget.replace(/\B(?=(\d{3})+(?!\d))/g, ' '); // 150000 → 150 000
     }
-    zoneMessage.textContent = 'Catégorie et budget repris du calculateur. Il te reste à donner un titre et à décrire ton projet.';
+    zoneMessage.textContent = t('demandes.repris-calculateur');
     zoneMessage.className = 'message succes';
     formulaire.elements.titre.focus();
   }
@@ -176,7 +176,7 @@
     document.querySelector('#categorie').append(...options());
 
     if (moi.type === 'client') brancherFormulaire();
-    else document.querySelector('[data-onglet-miennes]').textContent = 'Mes propositions';
+    else document.querySelector('[data-onglet-miennes]').textContent = t('demandes.mes-propositions');
     reprendreCalculateur(moi, categories);
     brancherFiltres();
     chargerPage();

@@ -9,6 +9,8 @@
   <script src="/js/theme.js"></script>
   <link rel="stylesheet" href="/css/style.css">
   <title>Page introuvable – Palabre</title>
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
   <script src="/js/app.js" defer></script>
 </head>
 <!-- Page 404 : envoyée par le serveur (src/utils/statique.js, pageErreur) quand aucune page ne correspond à l'adresse. -->
@@ -21,11 +23,11 @@
   <main class="conteneur page-fil">
     <div class="vide page-erreur">
       <svg class="illustration" aria-hidden="true"><use href="/icons/illustrations.svg#recherche"></use></svg>
-      <h1 class="vide-titre">Cette page n'existe pas</h1>
-      <p>L'adresse est peut-être mal écrite, ou la page a été retirée.</p>
+      <h1 data-t="erreur404.titre" class="vide-titre">Cette page n'existe pas</h1>
+      <p data-t="erreur404.texte">L'adresse est peut-être mal écrite, ou la page a été retirée.</p>
       <div class="erreur-actions">
-        <a class="bouton bouton-principal" href="/">Retour à l'accueil</a>
-        <a class="bouton bouton-contour" href="/chercher">Chercher un développeur</a>
+        <a data-t="erreur.retour-accueil" class="bouton bouton-principal" href="/">Retour à l'accueil</a>
+        <a data-t="cote.chercher-dev" class="bouton bouton-contour" href="/chercher">Chercher un développeur</a>
       </div>
     </div>
   </main>

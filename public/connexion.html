@@ -15,6 +15,8 @@
   <script src="/js/theme.js"></script>
   <link rel="stylesheet" href="/css/style.css">
   <title>Se connecter – Palabre</title>
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
   <script src="/js/app.js" defer></script>
   <script src="/js/formulaires.js" defer></script>
   <script src="/js/acces.js" defer></script>
@@ -30,10 +32,10 @@
       <!-- Côté formulaire -->
       <div class="acces-volet">
         <section class="acces-formulaire" data-pour="connexion" aria-labelledby="titre-connexion">
-          <h1 class="acces-titre" id="titre-connexion">Connexion</h1>
+          <h1 data-t="acces.connexion" class="acces-titre" id="titre-connexion">Connexion</h1>
           <form data-formulaire="connexion" novalidate>
             <div class="champ">
-              <label for="connexion-email">Email</label>
+              <label data-t="champ.email" for="connexion-email">Email</label>
               <div class="ligne-saisie">
                 <input id="connexion-email" name="email" type="email" autocomplete="email" inputmode="email" required>
                 <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#enveloppe"></use></svg>
@@ -42,38 +44,38 @@
               <p class="erreur-champ" data-erreur="email"></p>
             </div>
             <div class="champ">
-              <label for="connexion-mot-de-passe">Mot de passe</label>
+              <label data-t="champ.mot-de-passe" for="connexion-mot-de-passe">Mot de passe</label>
               <div class="ligne-saisie">
                 <input id="connexion-mot-de-passe" name="motDePasse" type="password" autocomplete="current-password" required>
-                <button class="bouton-icone" type="button" data-oeil aria-label="Afficher le mot de passe" aria-pressed="false"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#oeil"></use></svg></button>
+                <button class="bouton-icone" type="button" data-oeil aria-label="Afficher le mot de passe" data-t-aria-label="acces.afficher-mot-de-passe" aria-pressed="false"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#oeil"></use></svg></button>
                 <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#cadenas"></use></svg>
                 <span class="trait"></span>
               </div>
               <p class="erreur-champ" data-erreur="motDePasse"></p>
             </div>
             <p class="message" role="alert" data-message></p>
-            <button class="bouton bouton-principal bouton-plein" type="submit">Se connecter</button>
+            <button data-t="nav.se-connecter" class="bouton bouton-principal bouton-plein" type="submit">Se connecter</button>
           </form>
           <div class="liens-formulaire">
-            <p><a href="/mot-de-passe-oublie">Mot de passe oublié ?</a></p>
-            <p>Pas encore de compte ? <a href="/inscription" data-aller="inscription">Créer un compte</a></p>
+            <p><a data-t="acces.mot-de-passe-oublie" href="/mot-de-passe-oublie">Mot de passe oublié ?</a></p>
+            <p><span data-t="acces.pas-de-compte">Pas encore de compte ?</span> <a data-t="acces.creer-un-compte" href="/inscription" data-aller="inscription">Créer un compte</a></p>
           </div>
         </section>
 
         <section class="acces-formulaire" data-pour="inscription" aria-labelledby="titre-inscription">
-          <h1 class="acces-titre" id="titre-inscription">Créer un compte</h1>
+          <h1 data-t="acces.creer-un-compte" class="acces-titre" id="titre-inscription">Créer un compte</h1>
           <form data-formulaire="inscription" novalidate>
             <fieldset class="choix-type tuiles-type champ">
-              <legend>Tu es</legend>
+              <legend data-t="acces.tu-es">Tu es</legend>
               <input type="radio" name="type" id="type-dev" value="dev" checked>
-              <label for="type-dev"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#devs"></use></svg><strong>Développeur</strong><span>Je montre mon travail</span></label>
+              <label for="type-dev"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#devs"></use></svg><strong data-t="acces.developpeur">Développeur</strong><span data-t="acces.je-montre">Je montre mon travail</span></label>
               <input type="radio" name="type" id="type-client" value="client">
-              <label for="type-client"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#demandes"></use></svg><strong>Client</strong><span>J'ai un projet</span></label>
+              <label for="type-client"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#demandes"></use></svg><strong data-t="commun.client">Client</strong><span data-t="accueil.j-ai-un-projet">J'ai un projet</span></label>
             </fieldset>
 
             <div class="champs-cote-a-cote">
               <div class="champ">
-                <label for="prenom">Prénom</label>
+                <label data-t="champ.prenom" for="prenom">Prénom</label>
                 <div class="ligne-saisie">
                   <input id="prenom" name="prenom" autocomplete="given-name" required maxlength="50">
                   <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#utilisateur"></use></svg>
@@ -82,7 +84,7 @@
                 <p class="erreur-champ" data-erreur="prenom"></p>
               </div>
               <div class="champ">
-                <label for="nom-famille">Nom</label>
+                <label data-t="champ.nom" for="nom-famille">Nom</label>
                 <div class="ligne-saisie">
                   <input id="nom-famille" name="nomFamille" autocomplete="family-name" required maxlength="50">
                   <span class="trait"></span>
@@ -92,7 +94,7 @@
             </div>
 
             <div class="champ">
-              <label for="email">Email</label>
+              <label data-t="champ.email" for="email">Email</label>
               <div class="ligne-saisie">
                 <input id="email" name="email" type="email" autocomplete="email" inputmode="email" required>
                 <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#enveloppe"></use></svg>
@@ -102,24 +104,24 @@
             </div>
 
             <div class="champ">
-              <label for="motDePasse">Mot de passe</label>
+              <label data-t="champ.mot-de-passe" for="motDePasse">Mot de passe</label>
               <div class="ligne-saisie">
                 <input id="motDePasse" name="motDePasse" type="password" autocomplete="new-password" required minlength="8" aria-describedby="aide-mot-de-passe" data-mesurer-force>
-                <button class="bouton-icone" type="button" data-oeil aria-label="Afficher le mot de passe" aria-pressed="false"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#oeil"></use></svg></button>
+                <button class="bouton-icone" type="button" data-oeil aria-label="Afficher le mot de passe" data-t-aria-label="acces.afficher-mot-de-passe" aria-pressed="false"><svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#oeil"></use></svg></button>
                 <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#cadenas"></use></svg>
                 <span class="trait"></span>
               </div>
               <!-- Indicateur de force : rempli par acces.js pendant la saisie -->
               <p class="force" id="aide-mot-de-passe" data-force>
                 <span class="force-barre" aria-hidden="true"><span></span><span></span><span></span></span>
-                <span class="aide" data-force-texte aria-live="polite">8 caractères minimum.</span>
+                <span data-t="acces.huit-caracteres" class="aide" data-force-texte aria-live="polite">8 caractères minimum.</span>
               </p>
               <p class="erreur-champ" data-erreur="motDePasse"></p>
             </div>
 
             <div class="champs-cote-a-cote">
               <div class="champ">
-                <label for="pays">Pays</label>
+                <label data-t="champ.pays" for="pays">Pays</label>
                 <div class="ligne-saisie">
                   <select id="pays" name="pays" required data-liste-pays>
                     <option value="Burkina Faso">Burkina Faso</option>
@@ -129,7 +131,7 @@
                 <p class="erreur-champ" data-erreur="pays"></p>
               </div>
               <div class="champ">
-                <label for="ville">Ville</label>
+                <label data-t="champ.ville" for="ville">Ville</label>
                 <div class="ligne-saisie">
                   <input id="ville" name="ville" autocomplete="address-level2" required>
                   <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#lieu"></use></svg>
@@ -141,7 +143,7 @@
 
             <!-- Seulement pour un client : un dev donne son numéro à l'étape 2 (/bienvenue). acces.js montre ou cache ce champ. -->
             <div class="champ" data-seulement-client hidden>
-              <label for="whatsapp">Numéro WhatsApp <span class="aide">(facultatif)</span></label>
+              <label for="whatsapp"><span data-t="champ.whatsapp">Numéro WhatsApp</span> <span data-t="champ.facultatif" class="aide">(facultatif)</span></label>
               <div class="ligne-saisie">
                 <input id="whatsapp" name="whatsapp" type="tel" autocomplete="tel" inputmode="tel" placeholder="+226 70 00 00 00">
                 <svg class="icone" aria-hidden="true"><use href="/icons/icones.svg#commentaire"></use></svg>
@@ -153,15 +155,15 @@
             <!-- Champ piège contre les robots : invisible (CSS), hors du parcours au clavier et ignoré des lecteurs d'écran.
                  Une personne ne le remplit jamais ; un robot qui remplit tout, si. Le serveur refuse alors l'inscription. -->
             <div class="champ-piege" aria-hidden="true">
-              <label for="site-web">Site web (laisse ce champ vide)</label>
+              <label data-t="acces.piege" for="site-web">Site web (laisse ce champ vide)</label>
               <input id="site-web" name="siteWeb" type="text" tabindex="-1" autocomplete="off">
             </div>
 
             <p class="message" role="alert" data-message></p>
-            <button class="bouton bouton-principal bouton-plein" type="submit">Créer mon compte</button>
+            <button data-t="acces.creer-mon-compte" class="bouton bouton-principal bouton-plein" type="submit">Créer mon compte</button>
           </form>
           <div class="liens-formulaire">
-            <p>Déjà inscrit ? <a href="/connexion" data-aller="connexion">J'ai déjà un compte</a></p>
+            <p><span data-t="acces.deja-inscrit">Déjà inscrit ?</span> <a data-t="acces.deja-un-compte" href="/connexion" data-aller="connexion">J'ai déjà un compte</a></p>
           </div>
         </section>
       </div>
@@ -176,19 +178,20 @@
           <!-- photo-panneau -->
           <div class="lame-message" data-pour="connexion">
             <a class="lame-marque" href="/"><img src="/icons/logo-96.webp" alt="" width="44" height="44">Palabre</a>
-            <p class="lame-accroche">Bon retour sous l'arbre.</p>
-            <p class="lame-texte">Ton fil, tes amis et tes demandes t'attendent.</p>
+            <p data-t="acces.connexion.accroche" class="lame-accroche">Bon retour sous l'arbre.</p>
+            <p data-t="acces.connexion.texte" class="lame-texte">Ton fil, tes amis et tes demandes t'attendent.</p>
           </div>
           <div class="lame-message" data-pour="inscription">
             <a class="lame-marque" href="/"><img src="/icons/logo-96.webp" alt="" width="44" height="44">Palabre</a>
             <!-- Le texte dépend du choix « Tu es : Développeur / Client ». Les deux versions sont ici, dans data-dev et
                  data-client : acces.js affiche la bonne au clic, et le serveur l'écrit dès le départ avec ?type=client. -->
-            <p class="lame-accroche" data-selon-type data-dev="Rejoins le cercle." data-client="Ton projet mérite les bons devs.">Rejoins le cercle.</p>
-            <p class="lame-texte" data-selon-type data-dev="Montre ton travail, forme ton équipe, trouve tes clients." data-client="Publie ta demande en FCFA, reçois des propositions de devs prouvés et choisis en confiance.">Montre ton travail, forme ton équipe, trouve tes clients.</p>
+            <p data-t="acces.inscription.accroche-dev" class="lame-accroche" data-t-dev="acces.inscription.accroche-dev" data-t-client="acces.inscription.accroche-client" data-selon-type data-dev="Rejoins le cercle." data-client="Ton projet mérite les bons devs.">Rejoins le cercle.</p>
+            <p data-t="acces.inscription.texte-dev" class="lame-texte" data-t-dev="acces.inscription.texte-dev" data-t-client="acces.inscription.texte-client" data-selon-type data-dev="Montre ton travail, forme ton équipe, trouve tes clients." data-client="Publie ta demande en FCFA, reçois des propositions de devs prouvés et choisis en confiance.">Montre ton travail, forme ton équipe, trouve tes clients.</p>
           </div>
         </div>
       </div>
     </div>
+    <p class="choix-langue" data-choix-langue></p>
   </main>
 </body>
 </html>

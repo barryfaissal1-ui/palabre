@@ -114,10 +114,13 @@ function enteteVapid(endpoint) {
 async function envoyerPush(utilisateurId, type, message) {
   if (!vapid) return 0;
   try {
-    const { rows: [membre] } = await db.query('SELECT preferences_notifications AS preferences FROM utilisateurs WHERE id = $1 AND bloque = FALSE', [utilisateurId]);
+    const { rows: [membre] } = await db.query('SELECT preferences_notifications AS preferences, langue FROM utilisateurs WHERE id = $1 AND bloque = FALSE', [utilisateurId]);
     if (!membre || ((membre.preferences || {}).push || {})[familleDe(type)] === false) return 0;
     const { rows: abonnements } = await db.query('SELECT id, endpoint, p256dh, auth FROM abonnements_push WHERE utilisateur_id = $1', [utilisateurId]);
-    const charge = JSON.stringify({ titre: message.titre || 'Palabre', texte: message.texte, lien: message.lien || '/notifications', tag: message.tag || type, ...(message.appel ? { appel: message.appel } : {}) });
+    // Le titre et le texte sont écrits en français par le code ; ils partent dans la langue du destinataire.
+    const { traduire } = require('./textes');
+    const langue = membre.langue || 'fr';
+    const charge = JSON.stringify({ titre: traduire(langue, message.titre || 'Palabre'), texte: traduire(langue, message.texte), lien: message.lien || '/notifications', tag: message.tag || type, ...(message.appel ? { appel: message.appel } : {}) });
     // « Topic » : le service de push remplace un message pas encore remis par le suivant du même sujet.
     const sujet = crypto.createHash('sha256').update(message.tag || type).digest('base64url').slice(0, 32);
     const resultats = await Promise.all(abonnements.map(async (abonnement) => {

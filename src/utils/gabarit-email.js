@@ -6,6 +6,7 @@
 // style en ligne » protège les pages du site, pas les emails).
 // Chaque email part aussi en version texte (pour les lecteurs d'écran et les messageries qui refusent le HTML).
 const config = require('../config');
+const textes = require('./textes');
 
 const VERT = '#187A3B';
 const VERT_CLAIR = '#E6F2E9';
@@ -23,12 +24,14 @@ const paragraphe = (texte) => `<p style="margin:0 0 16px;${POLICE}font-size:16px
 
 // prenom : pour « Bonjour … » ; avant / apres : paragraphes (texte simple, échappé ici) ;
 // code : affiché en très gros dans un encadré vert clair ; bouton : { texte, lien } (mot de passe oublié seulement).
-function gabaritEmail({ titre, prenom, avant = [], code = null, bouton = null, apres = [] }) {
+// langue : 'fr' (par défaut) ou 'en', celle du destinataire.
+function gabaritEmail({ titre, prenom, avant = [], code = null, bouton = null, apres = [], langue = 'fr' }) {
+  const T = (cle, variables) => textes.t(langue, cle, variables);
   const logo = `${config.urlPublique}/icons/icon-192.png`;
   const blocCode = code ? `
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px;">
             <tr><td align="center" bgcolor="${VERT_CLAIR}" style="background-color:${VERT_CLAIR};border:1px solid #BFDFC8;border-radius:28px 6px 28px 6px;padding:22px 12px 20px;">
-              <div style="${POLICE}font-size:13px;line-height:18px;color:${VERT};font-weight:bold;">&#127807; Ton code</div>
+              <div style="${POLICE}font-size:13px;line-height:18px;color:${VERT};font-weight:bold;">&#127807; ${T('email.ton-code')}</div>
               <div style="font-family:Consolas,Menlo,'Courier New',monospace;font-size:40px;line-height:52px;font-weight:bold;letter-spacing:10px;color:#0F3D22;padding-left:10px;">${echapperHtml(code)}</div>
             </td></tr>
           </table>` : '';
@@ -38,9 +41,9 @@ function gabaritEmail({ titre, prenom, avant = [], code = null, bouton = null, a
               <a href="${echapperHtml(bouton.lien)}" style="display:inline-block;padding:14px 28px;${POLICE}font-size:16px;font-weight:bold;color:#FFFFFF;text-decoration:none;">${echapperHtml(bouton.texte)}</a>
             </td></tr>
           </table>
-          <p style="margin:0 0 16px;${POLICE}font-size:13px;line-height:20px;color:${GRIS};word-break:break-all;">Si le bouton ne marche pas, copie cette adresse dans ton navigateur :<br>${echapperHtml(bouton.lien)}</p>` : '';
+          <p style="margin:0 0 16px;${POLICE}font-size:13px;line-height:20px;color:${GRIS};word-break:break-all;">${T('email.bouton-secours')}<br>${echapperHtml(bouton.lien)}</p>` : '';
   return `<!doctype html>
-<html lang="fr">
+<html lang="${langue}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -58,12 +61,12 @@ function gabaritEmail({ titre, prenom, avant = [], code = null, bouton = null, a
       </td></tr>
       <tr><td bgcolor="#FFFFFF" style="background-color:#FFFFFF;border-radius:16px;padding:28px 24px 12px;">
           <h1 style="margin:0 0 16px;${POLICE}font-size:22px;line-height:28px;color:${ENCRE};">${echapperHtml(titre)}</h1>
-          ${paragraphe(`Bonjour ${echapperHtml(prenom)},`)}
-          ${avant.map((t) => paragraphe(echapperHtml(t))).join('\n          ')}${blocCode}${blocBouton}
-          ${apres.map((t) => paragraphe(echapperHtml(t))).join('\n          ')}
+          ${paragraphe(T('email.bonjour', { prenom: echapperHtml(prenom) }))}
+          ${avant.map((phrase) => paragraphe(echapperHtml(phrase))).join('\n          ')}${blocCode}${blocBouton}
+          ${apres.map((phrase) => paragraphe(echapperHtml(phrase))).join('\n          ')}
       </td></tr>
       <tr><td align="center" style="padding:20px 12px 0;${POLICE}font-size:13px;line-height:20px;color:${GRIS};">
-        L'équipe Palabre, fait au Burkina Faso.<br>Le réseau des développeurs africains.
+        ${T('email.pied')}<br>${T('email.pied-suite')}
       </td></tr>
     </table>
   </td></tr>
@@ -73,31 +76,35 @@ function gabaritEmail({ titre, prenom, avant = [], code = null, bouton = null, a
 }
 
 // Email du code de confirmation : { sujet, texte, html }. Aucun lien de connexion : seulement le code à recopier.
-function emailCode({ prenom, code, dureeMin }) {
+function emailCode({ prenom, code, dureeMin, langue = 'fr' }) {
+  const T = (cle, variables) => textes.t(langue, cle, variables);
   return {
-    sujet: `Palabre – Ton code de confirmation : ${code}`,
-    texte: `Bonjour ${prenom},\n\nTon code de confirmation Palabre : ${code}\n\nIl est valable ${dureeMin} minutes. Si tu n'as pas créé de compte, ignore simplement cet email.\n\nL'équipe Palabre, fait au Burkina Faso`,
+    sujet: T('email.code.sujet', { code }),
+    texte: `${T('email.bonjour', { prenom })}\n\n${T('email.code.texte-code', { code })}\n\n${T('email.code.texte-suite', { n: dureeMin })}\n\n${T('email.signature')}`,
     html: gabaritEmail({
-      titre: 'Confirme ton email',
+      langue,
+      titre: T('email.code.titre'),
       prenom,
-      avant: ['Voici le code à saisir sur Palabre pour confirmer ton adresse :'],
+      avant: [T('email.code.avant')],
       code,
-      apres: [`Il est valable ${dureeMin} minutes.`, 'Si tu n\'as pas créé de compte sur Palabre, ignore simplement cet email.'],
+      apres: [T('email.code.valable', { n: dureeMin }), T('email.code.ignore')],
     }),
   };
 }
 
 // Email « mot de passe oublié » : le même gabarit, avec un bouton vers la page de réinitialisation.
-function emailMotDePasse({ prenom, lien, dureeMin }) {
+function emailMotDePasse({ prenom, lien, dureeMin, langue = 'fr' }) {
+  const T = (cle, variables) => textes.t(langue, cle, variables);
   return {
-    sujet: 'Palabre – Réinitialise ton mot de passe',
-    texte: `Bonjour ${prenom},\n\nPour choisir un nouveau mot de passe, ouvre ce lien (valable ${dureeMin} minutes) :\n${lien}\n\nSi tu n'as rien demandé, ignore simplement cet email.\n\nL'équipe Palabre, fait au Burkina Faso`,
+    sujet: T('email.mdp.sujet'),
+    texte: `${T('email.bonjour', { prenom })}\n\n${T('email.mdp.texte', { n: dureeMin })}\n${lien}\n\n${T('email.mdp.texte-ignore')}\n\n${T('email.signature')}`,
     html: gabaritEmail({
-      titre: 'Choisis un nouveau mot de passe',
+      langue,
+      titre: T('email.mdp.titre'),
       prenom,
-      avant: [`Tu as demandé à changer ton mot de passe. Ce bouton est valable ${dureeMin} minutes.`],
-      bouton: { texte: 'Choisir un nouveau mot de passe', lien },
-      apres: ['Si tu n\'as rien demandé, ignore simplement cet email : ton mot de passe ne change pas.'],
+      avant: [T('email.mdp.avant', { n: dureeMin })],
+      bouton: { texte: T('email.mdp.bouton'), lien },
+      apres: [T('email.mdp.ignore')],
     }),
   };
 }

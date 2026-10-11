@@ -15,6 +15,8 @@
   <script src="/js/theme.js"></script>
   <link rel="stylesheet" href="/css/style.css">
   <title>À propos de Palabre – Palabre</title>
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
   <script src="/js/app.js" defer></script>
 </head>
 <body>
@@ -24,15 +26,16 @@
     <nav data-nav></nav>
   </div></header>
   <main class="conteneur page-fil page-texte">
-    <h1 class="titre-page">À propos de Palabre</h1>
-    <p>Palabre est le réseau social des développeurs africains. Sous l'arbre à palabres, on se retrouve pour échanger, s'entraider et décider ensemble : c'est l'idée du site.</p>
-    <h2>Pour les développeurs</h2>
-    <p>Un profil qui prouve ton travail : chaque projet dont le lien est en ligne ajoute un segment vert à ton anneau de preuve. Un fil pour partager idées, questions et réalisations. Et des équipes éclair pour répondre à plusieurs aux grosses demandes.</p>
-    <h2>Pour les clients</h2>
-    <p>Tu décris ton besoin et ton budget en FCFA, tu reçois des propositions de développeurs ou d'équipes, tu choisis. Les avis ne peuvent être laissés que par un client dont la demande a été réalisée sur Palabre.</p>
-    <h2>L'équipe</h2>
-    <p>Palabre est construit au Burkina Faso par une équipe de trois personnes, pour la Coupe d'Afrique des Développeurs (CADEV) 2026.</p>
-    <p><a class="bouton bouton-contour" href="/calculateur">Combien coûte mon projet ?</a></p>
+    <h1 data-t="apropos.titre" class="titre-page">À propos de Palabre</h1>
+    <p data-t="apropos.intro">Palabre est le réseau social des développeurs africains. Sous l'arbre à palabres, on se retrouve pour échanger, s'entraider et décider ensemble : c'est l'idée du site.</p>
+    <h2 data-t="apropos.devs.titre">Pour les développeurs</h2>
+    <p data-t="apropos.devs.texte">Un profil qui prouve ton travail : chaque projet dont le lien est en ligne ajoute un segment vert à ton anneau de preuve. Un fil pour partager idées, questions et réalisations. Et des équipes éclair pour répondre à plusieurs aux grosses demandes.</p>
+    <h2 data-t="apropos.clients.titre">Pour les clients</h2>
+    <p data-t="apropos.clients.texte">Tu décris ton besoin et ton budget en FCFA, tu reçois des propositions de développeurs ou d'équipes, tu choisis. Les avis ne peuvent être laissés que par un client dont la demande a été réalisée sur Palabre.</p>
+    <h2 data-t="apropos.equipe.titre">L'équipe</h2>
+    <p data-t="apropos.equipe.texte">Palabre est construit au Burkina Faso par une équipe de trois personnes, pour la Coupe d'Afrique des Développeurs (CADEV) 2026.</p>
+    <p><a data-t="apropos.calculateur" class="bouton bouton-contour" href="/calculateur">Combien coûte mon projet ?</a></p>
+    <p class="choix-langue" data-choix-langue></p>
   </main>
 </body>
 </html>

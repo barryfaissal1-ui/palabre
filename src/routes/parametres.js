@@ -12,6 +12,7 @@ const { emailCode } = require('../utils/gabarit-email');
 const { exigerConnexion, ouvrirSession, fermerSession } = require('../middleware/auth');
 const { apercuMembre, COLONNES_MEMBRE } = require('../utils/membres');
 const { lireConfidentialite, reglageValide } = require('../utils/confidentialite');
+const { langueValide, langueDe, poserCookieLangue } = require('../utils/langue');
 
 const router = express.Router();
 const COUT_BCRYPT = 12;
@@ -52,6 +53,7 @@ router.get('/', async (req, res) => {
   res.set('Cache-Control', 'no-store').json({
     compte: { prenom: moi.prenom, nomFamille: moi.nom_famille, identifiant: moi.identifiant, email: moi.email, emailEnAttente: enCours ? enCours.email : null, type: moi.type },
     confidentialite: { ...lireConfidentialite(moi), presence: !moi.masquer_presence },
+    langue: langueDe(req),
     // Jamais d'adresse IP : seulement la date et le type d'appareil (« Chrome sur Android »).
     securite: { derniereConnexion: moi.derniere_connexion_le ? { le: moi.derniere_connexion_le, appareil: moi.derniere_connexion_appareil } : null },
   });
@@ -72,6 +74,16 @@ router.put('/compte', async (req, res) => {
     throw err;
   }
   res.json({ compte: { prenom, nomFamille, identifiant, nom: `${prenom} ${nomFamille}` } });
+});
+
+// La langue du site : PUT /api/parametres/langue  { langue }  ('fr' ou 'en')
+// Gardée dans le compte (pour les notifications, les push et les emails) et dans le cookie « langue ».
+router.put('/langue', async (req, res) => {
+  const langue = langueValide(req.body?.langue);
+  if (!langue) throw new v.ErreurValidation('Langue non reconnue.', 'langue');
+  await db.query('UPDATE utilisateurs SET langue = $2 WHERE id = $1', [req.utilisateur.id, langue]);
+  poserCookieLangue(res, langue);
+  res.json({ langue });
 });
 
 // Un réglage de confidentialité : PUT /api/parametres/confidentialite  { cle, valeur }
@@ -110,7 +122,7 @@ router.post('/email', limiteMotDePasse, async (req, res) => {
      ON CONFLICT (utilisateur_id) DO UPDATE SET email = EXCLUDED.email, code_hash = EXCLUDED.code_hash, expire_le = EXCLUDED.expire_le, essais = 0, cree_le = now()`,
     [moi.id, email, empreinteCode(moi.id, email, code), DUREE_CODE_MIN],
   );
-  await mailer.envoyerEmail({ a: email, ...emailCode({ prenom: moi.prenom || moi.nom, code, dureeMin: DUREE_CODE_MIN }) });
+  await mailer.envoyerEmail({ a: email, ...emailCode({ prenom: moi.prenom || moi.nom, code, dureeMin: DUREE_CODE_MIN, langue: langueDe(req) }) });
   res.json({ emailEnAttente: email, message: 'Un code vient de partir à ta nouvelle adresse.' });
 });
 

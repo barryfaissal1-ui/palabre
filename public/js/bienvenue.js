@@ -1,6 +1,6 @@
 // Page /bienvenue : « Ton profil de dev », l'étape 2 de l'inscription d'un développeur.
 (function () {
-  const { api, utilisateurConnecte } = window.Palabre;
+  const { api, utilisateurConnecte, t } = window.Palabre;
   const LIENS = ['github', 'gitlab', 'portfolio', 'linkedin'];
 
   function suiteDemandee() {
@@ -32,7 +32,7 @@
 
     const compteur = formulaire.querySelector('[data-compteur-bio]');
     function compter() {
-      compteur.textContent = `${champs.bio.value.trim().length} / 300 (20 au moins)`;
+      compteur.textContent = t('bienvenue.compteur', { n: champs.bio.value.trim().length });
     }
     champs.bio.addEventListener('input', compter);
     compter();
@@ -90,7 +90,7 @@
       bouton.disabled = true;
       // Le serveur visite les liens : cela peut prendre quelques secondes, on le dit.
       const texteBouton = bouton.textContent;
-      if (!sansLien) bouton.textContent = 'Vérification des liens…';
+      if (!sansLien) bouton.textContent = t('bienvenue.verification-liens');
       try {
         const { profil } = await api('/profils/moi/profil-dev', { methode: 'PUT', donnees });
         window.location.href = suite || `/${profil.identifiant}`;

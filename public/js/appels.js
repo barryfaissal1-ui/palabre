@@ -7,7 +7,7 @@
 // Pendant un appel, et seulement pendant un appel, la page interroge le serveur chaque seconde pour savoir qui est
 // là et recevoir les petits messages techniques (offre, réponse, candidats).
 (function () {
-  const { api, el, avatar, icone, toast, utilisateurConnecte } = window.Palabre;
+  const { t, api, el, avatar, icone, toast, utilisateurConnecte } = window.Palabre;
   const RECONNEXION_MS = 15000; // réseau perdu : on essaie 15 secondes de rétablir la liaison avant de raccrocher
   const SON = { audio: 24000, video: 350000 }; // débits maximum (bits par seconde) : la voix passe en 3G
 
@@ -76,7 +76,7 @@
     return b;
   }
   function creerEcran(classe) {
-    const ecran = el('dialog', { classe: `ecran-appel ${classe}`, 'aria-label': 'Appel Palabre' });
+    const ecran = el('dialog', { classe: `ecran-appel ${classe}`, 'aria-label': t('appels.appel-palabre') });
     // Échap ne ferme pas un appel par accident : on raccroche avec le bouton.
     ecran.addEventListener('cancel', (evenement) => evenement.preventDefault());
     document.body.append(ecran);
@@ -98,8 +98,8 @@
     } catch (refus) {
       const bloque = refus.name === 'NotAllowedError' || refus.name === 'SecurityError';
       throw new Error(bloque
-        ? `Le micro${type === 'video' ? ' ou la caméra est bloqué' : ' est bloqué'} pour Palabre. Autorise-${type === 'video' ? 'les' : 'le'} dans les réglages de ton navigateur (le cadenas à côté de l'adresse), puis réessaie.`
-        : `Aucun micro${type === 'video' ? ' ou aucune caméra' : ''} n'a été trouvé sur cet appareil.`);
+        ? t(type === 'video' ? 'appels.bloque-video' : 'vocal.micro-bloque')
+        : t(type === 'video' ? 'appels.pas-de-camera' : 'vocal.pas-de-micro'));
     }
   }
   async function configuration() {
@@ -140,7 +140,7 @@
         relancer(pair);
         pair.minuteur = setTimeout(() => {
           if (appel && appel.groupe) quitterPair(participant.identifiant);
-          else raccrocher('La liaison a été perdue.');
+          else raccrocher(t('appels.liaison-perdue'));
         }, RECONNEXION_MS);
       }
     });
@@ -225,11 +225,11 @@
   // ---------- Pendant l'appel ----------
   function dessinerAppel(etatAppel, autres) {
     const principal = autres[0] || etatAppel.participants.find((p) => !p.estMoi);
-    const titre = etatAppel.groupe ? (appel.titre || 'Équipe éclair') : principal.nom;
-    appel.etatTexte = el('p', { classe: 'appel-etat', role: 'status', texte: 'Appel en cours…' });
+    const titre = etatAppel.groupe ? (appel.titre || t('appels.equipe-eclair')) : principal.nom;
+    appel.etatTexte = el('p', { classe: 'appel-etat', role: 'status', texte: t('appels.en-cours') });
     appel.duree = el('span', { classe: 'appel-duree', texte: '0:00' });
-    appel.qualite = el('span', { classe: 'appel-qualite', texte: 'Réseau : bon' });
-    appel.reconnexion = el('p', { classe: 'appel-reconnexion', hidden: true, role: 'status' }, [el('span', { classe: 'feuille-tourne', 'aria-hidden': 'true' }), 'Reconnexion…']);
+    appel.qualite = el('span', { classe: 'appel-qualite', texte: t('appels.reseau-bon') });
+    appel.reconnexion = el('p', { classe: 'appel-reconnexion', hidden: true, role: 'status' }, [el('span', { classe: 'feuille-tourne', 'aria-hidden': 'true' }), t('appels.reconnexion')]);
     appel.onde = anneaux(3);
     appel.liste = el('ul', { classe: 'appel-participants' });
     const centre = el('div', { classe: 'appel-centre' }, [
@@ -246,10 +246,10 @@
       b.setAttribute('aria-pressed', String(coupe));
       b.setAttribute('aria-label', etiquettes[coupe ? 1 : 0]);
     };
-    const micro = bouton('micro', 'Couper le micro', '', () => {
+    const micro = bouton('micro', t('appels.couper-micro'), '', () => {
       const piste = appel.flux.getAudioTracks()[0];
       piste.enabled = !piste.enabled;
-      basculer(micro, !piste.enabled, ['Couper le micro', 'Rallumer le micro']);
+      basculer(micro, !piste.enabled, [t('appels.couper-micro'), t('appels.rallumer-micro')]);
     });
     commandes.push(micro);
     if (appel.type === 'video') {
@@ -257,10 +257,10 @@
       appel.videoMoi = el('video', { classe: 'appel-video-moi', autoplay: true, playsinline: true });
       appel.videoMoi.muted = true;
       appel.videoMoi.srcObject = appel.flux;
-      const camera = bouton('video', 'Couper la caméra', '', () => {
+      const camera = bouton('video', t('appels.couper-camera'), '', () => {
         const piste = appel.flux.getVideoTracks()[0];
         piste.enabled = !piste.enabled;
-        basculer(camera, !piste.enabled, ['Couper la caméra', 'Rallumer la caméra']);
+        basculer(camera, !piste.enabled, [t('appels.couper-camera'), t('appels.rallumer-camera')]);
         appel.videoMoi.hidden = !piste.enabled;
       });
       // En 3G ou en économie de données : la caméra démarre éteinte, on l'allume si on veut.
@@ -269,7 +269,7 @@
       // Retourner la caméra (avant / arrière), sur téléphone : la nouvelle piste remplace l'ancienne dans la liaison.
       if (window.matchMedia('(pointer: coarse)').matches) {
         let face = 'user';
-        commandes.push(bouton('recharger', 'Retourner la caméra', '', async () => {
+        commandes.push(bouton('recharger', t('appels.retourner-camera'), '', async () => {
           face = face === 'user' ? 'environment' : 'user';
           try {
             const nouveau = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 360 }, facingMode: face } });
@@ -279,13 +279,13 @@
             appel.flux.removeTrack(ancienne);
             ancienne.stop();
             appel.flux.addTrack(piste);
-          } catch { toast('Cette caméra n\'est pas disponible.', 'erreur'); }
+          } catch { toast(t('appels.camera-indisponible'), 'erreur'); }
         }));
       }
       appel.ecran.append(appel.videoAutre, appel.videoMoi);
     }
-    commandes.push(bouton('telephone', 'Raccrocher', 'appel-raccrocher', () => raccrocher()));
-    appel.ecran.append(centre, el('div', { classe: 'appel-commandes', role: 'group', 'aria-label': 'Commandes de l\'appel' }, commandes));
+    commandes.push(bouton('telephone', t('appels.raccrocher'), 'appel-raccrocher', () => raccrocher()));
+    appel.ecran.append(centre, el('div', { classe: 'appel-commandes', role: 'group', 'aria-label': t('appels.commandes') }, commandes));
     commandes[commandes.length - 1].focus();
   }
 
@@ -297,13 +297,13 @@
     try {
       reponse = await api(`/messages/appels/${id}?apres=${appel.dernierSignal}`);
     } catch (erreur) {
-      if (erreur.statut === 404) fin('Appel terminé');
+      if (erreur.statut === 404) fin(t('appels.termine'));
       return; // réseau coupé un instant : on réessaie au tour suivant
     }
     if (!appel || appel.id !== id) return;
     const { appel: etatAppel, signaux } = reponse;
     if (etatAppel.statut === 'termine' || etatAppel.statut === 'manque') {
-      fin(etatAppel.statut === 'manque' ? 'Pas de réponse' : null);
+      fin(etatAppel.statut === 'manque' ? t('appels.pas-de-reponse') : null);
       return;
     }
     const presents = etatAppel.participants.filter((p) => !p.estMoi && p.etat === 'present');
@@ -311,7 +311,7 @@
     if (etatAppel.statut === 'en_cours' && !appel.debut) {
       appel.debut = Date.now();
       appel.arreterSon();
-      appel.etatTexte.textContent = appel.type === 'video' ? 'Appel vidéo Palabre' : 'Appel audio Palabre';
+      appel.etatTexte.textContent = appel.type === 'video' ? t('appels.video-palabre') : t('appels.audio-palabre');
       appel.ecran.classList.add('en-cours');
     }
     for (const participant of presents) await relier(participant);
@@ -321,7 +321,7 @@
       await recevoir(signal);
     }
     if (appel.debut) appel.duree.textContent = minutes((Date.now() - appel.debut) / 1000);
-    if (etatAppel.groupe) appel.liste.replaceChildren(...etatAppel.participants.filter((p) => !p.estMoi).map((p) => el('li', { classe: p.etat === 'present' ? 'present' : '' }, [avatar(p, 'mini'), el('span', { texte: `${p.prenom}${p.etat === 'present' ? '' : p.etat === 'invite' ? ' (ça sonne)' : ' (absent)'}` })])));
+    if (etatAppel.groupe) appel.liste.replaceChildren(...etatAppel.participants.filter((p) => !p.estMoi).map((p) => el('li', { classe: p.etat === 'present' ? 'present' : '' }, [avatar(p, 'mini'), el('span', { texte: `${p.prenom}${p.etat === 'present' ? '' : p.etat === 'invite' ? t('appels.ca-sonne-parenthese') : t('appels.absent')}` })])));
     appel.tours += 1;
     if (appel.tours % 4 === 0) mesurerReseau();
   }
@@ -336,7 +336,7 @@
         if (rapport.type === 'inbound-rtp' && rapport.packetsReceived > 50 && rapport.packetsLost / (rapport.packetsLost + rapport.packetsReceived) > 0.08) faible = true;
       });
       if (!appel) return;
-      appel.qualite.textContent = faible ? 'Réseau : faible' : 'Réseau : bon';
+      appel.qualite.textContent = faible ? t('appels.reseau-faible') : t('appels.reseau-bon');
       appel.qualite.classList.toggle('faible', faible);
     } catch { /* statistiques indisponibles */ }
   }
@@ -346,7 +346,7 @@
     appel.ecran = creerEcran(`appel-${etatAppel.type}`);
     appel.arreterSon = sortant ? sonSortant() : () => {};
     dessinerAppel(etatAppel, etatAppel.participants.filter((p) => !p.estMoi && p.etat === 'present'));
-    if (sortant) appel.etatTexte.textContent = 'Ça sonne…';
+    if (sortant) appel.etatTexte.textContent = t('appels.ca-sonne');
     appel.minuteur = setInterval(tour, 1000);
     tour();
   }
@@ -360,7 +360,7 @@
     termine.flux.getTracks().forEach((piste) => piste.stop()); // le voyant du micro et de la caméra s'éteint
     termine.ecran.close();
     termine.ecran.remove();
-    carteFin(texte || (termine.debut ? `Appel terminé, ${minutes((Date.now() - termine.debut) / 1000)}` : 'Appel terminé'));
+    carteFin(texte || (termine.debut ? t('appels.termine-duree', { duree: minutes((Date.now() - termine.debut) / 1000) }) : t('appels.termine')));
     document.dispatchEvent(new CustomEvent('palabre:appel-termine', { detail: { conversationId: termine.conversationId } }));
   }
   async function raccrocher(texte) {
@@ -379,8 +379,8 @@
   // ---------- Appeler ----------
   // conversation : { id, groupe, titre? } ; type : 'audio' ou 'video'.
   async function lancer(conversation, type) {
-    if (appel) return toast('Tu es déjà en appel.', 'erreur');
-    if (!window.RTCPeerConnection || !navigator.mediaDevices) return toast('Ce navigateur ne sait pas passer d\'appel.', 'erreur');
+    if (appel) return toast(t('appels.deja-en-appel'), 'erreur');
+    if (!window.RTCPeerConnection || !navigator.mediaDevices) return toast(t('appels.navigateur-incapable'), 'erreur');
     moi = moi || await utilisateurConnecte();
     let flux;
     try {
@@ -392,7 +392,7 @@
       const reponse = await api('/messages/appels', { methode: 'POST', donnees: { conversationId: conversation.id, type } });
       if (reponse.occupe) {
         flux.getTracks().forEach((piste) => piste.stop());
-        return toast('Cette personne est déjà en appel. Elle verra ton appel manqué.');
+        return toast(t('appels.occupe'));
       }
       // Un appel existe déjà dans cette conversation (l'autre m'appelait au même instant, ou le groupe est en appel) : on le rejoint.
       if (reponse.existant) {
@@ -421,13 +421,13 @@
     if (appel || (sonnerie && sonnerie.id === entrant.id)) return;
     if (sonnerie) arreterSonnerie();
     const ecran = creerEcran('appel-entrant');
-    const decrocher = el('button', { classe: 'appel-decrocher', type: 'button' }, [el('span', { classe: 'appel-balance' }, [icone('telephone')]), 'Décrocher']);
-    const refuser = el('button', { classe: 'appel-refuser', type: 'button' }, [icone('telephone'), 'Refuser']);
+    const decrocher = el('button', { classe: 'appel-decrocher', type: 'button' }, [el('span', { classe: 'appel-balance' }, [icone('telephone')]), t('appels.decrocher')]);
+    const refuser = el('button', { classe: 'appel-refuser', type: 'button' }, [icone('telephone'), t('commun.refuser')]);
     ecran.append(
       el('div', { classe: 'appel-centre' }, [
         el('div', { classe: 'appel-avatar' }, [anneaux(3), avatar(entrant.appelant, 'profil')]),
         el('h2', { classe: 'appel-nom', texte: entrant.appelant.nom }),
-        el('p', { classe: 'appel-etat', texte: `${entrant.type === 'video' ? 'Appel vidéo Palabre' : 'Appel audio Palabre'}${entrant.groupe && entrant.titre ? `, ${entrant.titre}` : ''}` }),
+        el('p', { classe: 'appel-etat', texte: `${entrant.type === 'video' ? t('appels.video-palabre') : t('appels.audio-palabre')}${entrant.groupe && entrant.titre ? `, ${entrant.titre}` : ''}` }),
       ]),
       el('div', { classe: 'appel-reponses' }, [refuser, decrocher]),
     );

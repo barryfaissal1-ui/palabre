@@ -1,12 +1,13 @@
 // Page d'accès (/connexion et /inscription) : passage d'un formulaire à l'autre avec la « lame » verte,
 // bouton œil des mots de passe, indicateur de force. L'envoi des formulaires reste dans formulaires.js.
 (function () {
+  const { t } = window.Palabre;
   const carte = document.querySelector('[data-carte]');
   if (!carte) return;
 
   // Durée d'une moitié de l'animation (la lame couvre, puis se retire) : la même valeur que --duree-lame dans le CSS.
   const DEMI_DUREE = 450;
-  const TITRES = { connexion: 'Se connecter – Palabre', inscription: 'Créer un compte – Palabre' };
+  const TITRES = { connexion: t('titre.connexion'), inscription: t('titre.inscription') };
   const telephone = window.matchMedia('(max-width: 767px)');
   const moinsDeMouvement = window.matchMedia('(prefers-reduced-motion: reduce)');
   const attendre = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
@@ -277,7 +278,8 @@
     // Le numéro WhatsApp n'est demandé ici qu'au client ; le dev le donnera à l'étape 2.
     carte.querySelectorAll('[data-seulement-client]').forEach((champ) => { champ.hidden = type !== 'client'; });
     textesSelonType.forEach((element) => {
-      const texte = element.dataset[type];
+      // En français, le texte est dans la page (data-dev, data-client) ; dans une autre langue, il vient de sa clé.
+      const texte = t(element.getAttribute(`data-t-${type}`));
       if (element.textContent === texte) return;
       element.textContent = texte;
       if (!fondu) return;
@@ -300,7 +302,7 @@
       const visible = champ.type === 'password';
       champ.type = visible ? 'text' : 'password';
       bouton.setAttribute('aria-pressed', String(visible));
-      bouton.setAttribute('aria-label', visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+      bouton.setAttribute('aria-label', visible ? t('acces.masquer-mot-de-passe') : t('acces.afficher-mot-de-passe'));
       bouton.querySelector('use').setAttribute('href', `/icons/icones.svg#${visible ? 'oeil-barre' : 'oeil'}`);
     });
   });
@@ -315,13 +317,13 @@
     if (motDePasse.length >= 10 || sortes >= 3) return 2;
     return 1;
   }
-  const NOMS_FORCE = ['Trop court : 8 caractères minimum.', 'Faible : ajoute des chiffres ou allonge-le.', 'Correct.', 'Solide.'];
+  const NOMS_FORCE = [t('acces.force.court'), t('acces.force.faible'), t('acces.force.correct'), t('acces.force.solide')];
   carte.querySelectorAll('[data-mesurer-force]').forEach((champ) => {
     const zone = champ.closest('.champ').querySelector('[data-force]');
     champ.addEventListener('input', () => {
       const niveau = force(champ.value);
       zone.dataset.niveau = champ.value ? String(niveau) : '';
-      zone.querySelector('[data-force-texte]').textContent = champ.value ? NOMS_FORCE[niveau] : '8 caractères minimum.';
+      zone.querySelector('[data-force-texte]').textContent = champ.value ? NOMS_FORCE[niveau] : t('acces.huit-caracteres');
     });
   });
 

@@ -1,6 +1,7 @@
 // Notifications dans l'appli (la cloche du menu), doublées d'un push sur les appareils du membre.
 const db = require('../db/pool');
 const push = require('./push');
+const { traduire } = require('./textes');
 
 // Ajoute une notification pour un membre.
 //   notifier(executeur, utilisateurId, type, texte, lien, options)
@@ -27,10 +28,12 @@ async function notifier(executeur, utilisateurId, type, texte, lien, { acteur = 
     const message = { titre: titrePush(type, acteur, nombre), texte: CORPS_PUSH[type] || phrase, ...(surPush || {}), lien, tag: cible ? `${type}-${cible.type}-${cible.id}` : `${type}-${utilisateurId}` };
     setImmediate(() => { push.envoyerPush(utilisateurId, type, message); });
   };
-  const inserer = (client, phrase, acteurs, nombre) => client.query(
+  // La notification est écrite dans la langue du DESTINATAIRE (celle de son compte) : les phrases du code sont en
+  // français, traduire() retrouve leur version anglaise dans le dictionnaire (src/utils/textes.js).
+  const inserer = async (client, phrase, acteurs, nombre) => client.query(
     `INSERT INTO notifications (utilisateur_id, type, texte, lien, acteur_id, cible_type, cible_id, acteurs, nombre)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-    [utilisateurId, type, phrase, lien, acteur ? acteur.id : null, cible ? cible.type : null, cible ? cible.id : null, acteurs, nombre],
+    [utilisateurId, type, traduire(await langueDuMembre(client, utilisateurId), phrase), lien, acteur ? acteur.id : null, cible ? cible.type : null, cible ? cible.id : null, acteurs, nombre],
   );
   if (!groupe || !cible || !acteur) {
     const phrase = typeof texte === 'function' ? texte(1) : texte;
@@ -95,6 +98,12 @@ function titrePush(type, acteur = null, nombre = 1) {
   return titre.charAt(0).toUpperCase() + titre.slice(1);
 }
 
+// La langue choisie par un membre ('fr' par défaut).
+async function langueDuMembre(executeur, utilisateurId) {
+  const { rows: [membre] } = await executeur.query('SELECT langue FROM utilisateurs WHERE id = $1', [utilisateurId]);
+  return (membre && membre.langue) || 'fr';
+}
+
 // Quelqu'un revient sur son action (il n'aime plus) : il sort de la notification regroupée, tant qu'elle n'est pas lue.
 // S'il était seul, la notification disparaît. « texte » : (nomDuPremier, nombre) => phrase.
 async function retirerActeur(utilisateurId, type, cible, acteurId, texte) {
@@ -115,7 +124,7 @@ async function retirerActeur(utilisateurId, type, cible, acteurId, texte) {
     const { rows: [premier] } = await client.query('SELECT nom FROM utilisateurs WHERE id = $1', [acteurs[0]]);
     await client.query(
       'UPDATE notifications SET acteurs = $2, nombre = $3, acteur_id = $4, texte = $5 WHERE id = $1',
-      [ligne.id, acteurs, acteurs.length, acteurs[0], texte(premier ? premier.nom : 'Un membre', acteurs.length)],
+      [ligne.id, acteurs, acteurs.length, acteurs[0], traduire(await langueDuMembre(client, utilisateurId), texte(premier ? premier.nom : 'Un membre', acteurs.length))],
     );
   });
 }

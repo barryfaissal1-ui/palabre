@@ -12,6 +12,7 @@ const { ouvrirSession, fermerSession, exigerConnexion, profilDevIncomplet } = re
 const { jetonOuverture, verifierOuverture, envoyerCode, confirmerCode } = require('../utils/inscription');
 const { liensPublics } = require('../utils/profil-dev');
 const { compterNonLus } = require('./messages');
+const { langueDe } = require('../utils/langue');
 
 const router = express.Router();
 const COUT_BCRYPT = 12;
@@ -43,6 +44,8 @@ function profilPrive(u) {
     presenceMasquee: Boolean(u.masquer_presence),
     // Le petit son à l'arrivée d'un message : activé tant que le membre ne l'a pas coupé dans son profil.
     sonMessages: (u.preferences_notifications || {}).sonMessages !== false,
+    langue: u.langue || null, // 'fr', 'en', ou rien tant que le membre n'a pas choisi
+
     id: u.id,
     type: u.type,
     estAdmin: u.est_admin,
@@ -123,10 +126,11 @@ router.post('/inscription', limiteSensible, async (req, res) => {
   const nom = `${donnees.prenom} ${donnees.nomFamille}`;
   const identifiant = await identifiantLibre(nom);
   const { rows } = await db.query(
-    `INSERT INTO utilisateurs (type, nom, prenom, nom_famille, identifiant, email, mot_de_passe_hash, pays, ville, whatsapp)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    // La langue du site au moment de l'inscription est gardée : le code de confirmation part dans cette langue.
+    `INSERT INTO utilisateurs (type, nom, prenom, nom_famille, identifiant, email, mot_de_passe_hash, pays, ville, whatsapp, langue)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      RETURNING *`,
-    [donnees.type, nom, donnees.prenom, donnees.nomFamille, identifiant, donnees.email, hash, donnees.pays, donnees.ville, donnees.whatsapp],
+    [donnees.type, nom, donnees.prenom, donnees.nomFamille, identifiant, donnees.email, hash, donnees.pays, donnees.ville, donnees.whatsapp, langueDe(req)],
   );
 
   // Le compte existe, mais il ne sert à rien tant que le code envoyé par email n'a pas été saisi.
@@ -205,7 +209,7 @@ router.get('/moi', async (req, res) => {
 // Toujours la même réponse, que l'email existe ou non (on ne révèle pas qui est inscrit).
 router.post('/mot-de-passe-oublie', limiteSensible, async (req, res) => {
   const email = v.email(req.body?.email);
-  const { rows } = await db.query('SELECT id, nom, prenom FROM utilisateurs WHERE email = $1 AND bloque = FALSE', [email]);
+  const { rows } = await db.query('SELECT id, nom, prenom, langue FROM utilisateurs WHERE email = $1 AND bloque = FALSE AND supprime_le IS NULL', [email]);
 
   if (rows[0]) {
     const jeton = crypto.randomBytes(32).toString('hex');
@@ -216,7 +220,7 @@ router.post('/mot-de-passe-oublie', limiteSensible, async (req, res) => {
       [rows[0].id, jetonHash, DUREE_JETON_MIN],
     );
     const lien = `${config.urlPublique}/reinitialiser?jeton=${jeton}`;
-    await mailer.envoyerEmail({ a: email, ...emailMotDePasse({ prenom: rows[0].prenom || rows[0].nom, lien, dureeMin: DUREE_JETON_MIN }) });
+    await mailer.envoyerEmail({ a: email, ...emailMotDePasse({ prenom: rows[0].prenom || rows[0].nom, lien, dureeMin: DUREE_JETON_MIN, langue: rows[0].langue || langueDe(req) }) });
   }
 
   res.json({ message: 'Si un compte existe avec cet email, un lien de réinitialisation vient d\'être envoyé.' });

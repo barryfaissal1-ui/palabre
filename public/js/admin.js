@@ -1,9 +1,9 @@
 // Tableau de bord administrateur : statistiques, signalements, projets pour Facebook, membres bloqués.
 // La page n'est qu'un affichage : c'est le serveur qui refuse tout à un membre qui n'est pas administrateur.
 (function () {
-  const { api, el, avatar, utilisateurConnecte, dateRelative, carteProjet, etatVide, confirmer, icone, toast } = window.Palabre;
+  const { t, nombre, REGION, lieuDe, api, el, avatar, utilisateurConnecte, dateRelative, carteProjet, etatVide, confirmer, icone, toast } = window.Palabre;
 
-  const NOMS_CIBLES = { publication: 'Publication', commentaire: 'Commentaire', profil: 'Profil', projet: 'Projet', demande: 'Demande', message: 'Message privé' };
+  const NOMS_CIBLES = { publication: t('publication.titre'), commentaire: t('admin.cible.commentaire'), profil: t('nav.profil'), projet: t('publication.projet'), demande: t('admin.cible.demande'), message: t('admin.cible.message') };
 
   function message(texte, type) {
     const zone = document.querySelector('[data-message]');
@@ -36,16 +36,16 @@
 
   // ---------- Statistiques ----------
   function sectionStatistiques(s) {
-    const tuile = (nombre, libelle) => el('div', { classe: 'tuile' }, [el('dd', { texte: nombre.toLocaleString('fr-FR') }), el('dt', { texte: libelle })]);
+    const tuile = (nombre, libelle) => el('div', { classe: 'tuile' }, [el('dd', { texte: window.Palabre.nombre(nombre) }), el('dt', { texte: libelle })]);
     return el('section', { classe: 'section-profil' }, [
-      el('h2', { texte: 'Statistiques' }),
+      el('h2', { texte: t('admin.statistiques') }),
       el('dl', { classe: 'tuiles' }, [
-        tuile(s.devs, 'Développeurs'),
-        tuile(s.clients, 'Clients'),
-        tuile(s.publications, 'Publications'),
-        tuile(s.demandes, 'Demandes'),
-        tuile(s.projets, 'Projets'),
-        tuile(s.propositionsAcceptees, 'Propositions acceptées'),
+        tuile(s.devs, t('admin.developpeurs')),
+        tuile(s.clients, t('admin.clients')),
+        tuile(s.publications, t('profil.onglet.publications')),
+        tuile(s.demandes, t('nav.demandes')),
+        tuile(s.projets, t('profil.onglet.projets')),
+        tuile(s.propositionsAcceptees, t('admin.propositions-acceptees')),
       ]),
     ]);
   }
@@ -58,31 +58,31 @@
 
     const boutons = [];
     if (cible && cible.masquable && !cible.dejaMasque) {
-      boutons.push(boutonAction('Masquer le contenu', 'bouton-principal', traiter('masquer'), {
-        confirmation: 'Masquer ce contenu ? Plus personne ne le verra sur Palabre.', succes: 'Contenu masqué.',
+      boutons.push(boutonAction(t('admin.masquer'), 'bouton-principal', traiter('masquer'), {
+        confirmation: t('admin.masquer-question'), succes: t('admin.masque'),
       }));
     }
     if (cible && !cible.membreEstAdmin && !cible.membreBloque) {
-      boutons.push(boutonAction('Bloquer le membre', 'bouton-or', traiter('bloquer'), {
-        confirmation: `Bloquer ${cible.membre.nom} ? Ce membre ne pourra plus se connecter et tout ce qu'il a publié disparaîtra.`,
-        succes: `${cible.membre.nom} est bloqué.`, danger: true,
+      boutons.push(boutonAction(t('admin.bloquer'), 'bouton-or', traiter('bloquer'), {
+        confirmation: t('admin.bloquer-question', { nom: cible.membre.nom }),
+        succes: t('admin.est-bloque', { nom: cible.membre.nom }), danger: true,
       }));
     }
-    boutons.push(boutonAction('Classer sans suite', 'bouton-contour', traiter('classer'), { succes: 'Signalement classé sans suite.' }));
+    boutons.push(boutonAction(t('admin.classer'), 'bouton-contour', traiter('classer'), { succes: t('admin.classe') }));
 
     let contenu;
     if (!cible) {
-      contenu = [el('p', { classe: 'texte-discret', texte: 'Ce contenu a été supprimé par son auteur. Il ne reste qu\'à classer le signalement.' })];
+      contenu = [el('p', { classe: 'texte-discret', texte: t('admin.supprime-par-auteur') })];
     } else {
-      const etat = [cible.membreEstAdmin ? 'administrateur' : null, cible.membreBloque ? 'déjà bloqué' : null, cible.dejaMasque ? 'contenu déjà masqué' : null].filter(Boolean).join(', ');
+      const etat = [cible.membreEstAdmin ? t('admin.etat.administrateur') : null, cible.membreBloque ? t('admin.etat.deja-bloque') : null, cible.dejaMasque ? t('admin.etat.deja-masque') : null].filter(Boolean).join(', ');
       contenu = [
         cible.texte ? el('blockquote', { classe: 'contenu-signale', texte: cible.texte }) : null,
         el('p', { classe: 'texte-discret' }, [
-          carte.cibleType === 'profil' ? 'Profil de ' : 'Par ',
+          carte.cibleType === 'profil' ? t('admin.profil-de') : t('commun.par'),
           lienMembre(cible.membre),
           etat ? ` (${etat})` : null,
           cible.lien ? ', ' : null,
-          cible.lien ? el('a', { href: cible.lien, texte: 'Voir sur le site' }) : null,
+          cible.lien ? el('a', { href: cible.lien, texte: t('admin.voir-sur-site') }) : null,
         ]),
       ];
     }
@@ -90,7 +90,7 @@
     return el('article', { classe: 'carte-publication carte-signalement' }, [
       el('p', { classe: 'publication-meta' }, [
         el('span', { classe: 'type-signalement', texte: NOMS_CIBLES[carte.cibleType] }),
-        el('span', { classe: 'texte-discret', texte: nombre > 1 ? `, signalé ${nombre} fois` : ', signalé 1 fois' }),
+        el('span', { classe: 'texte-discret', texte: t('admin.signale', { n: nombre }) }),
       ]),
       ...contenu,
       el('ul', { classe: 'motifs' }, carte.signalements.map((s) => el('li', {}, [
@@ -103,10 +103,10 @@
 
   function sectionSignalements(signalements) {
     return el('section', { classe: 'section-profil', id: 'signalements' }, [
-      el('h2', { texte: signalements.length ? `Signalements à traiter (${signalements.length})` : 'Signalements à traiter' }),
+      el('h2', { texte: signalements.length ? t('admin.signalements-n', { n: signalements.length }) : t('admin.signalements') }),
       signalements.length
         ? el('div', { classe: 'liste-publications' }, signalements.map(carteSignalement))
-        : el('p', { classe: 'texte-discret', texte: 'Aucun signalement en attente.' }),
+        : el('p', { classe: 'texte-discret', texte: t('admin.aucun-signalement') }),
     ]);
   }
 
@@ -116,10 +116,10 @@
     const carte = carteProjet(projet);
     carte.querySelector('.projet-corps').append(...[
       projet.description ? el('p', { classe: 'description-projet', texte: projet.description }) : null,
-      projet.lien ? el('p', {}, [el('a', { href: projet.lien, target: '_blank', rel: 'noopener nofollow', texte: 'Ouvrir le lien du projet' })]) : null,
+      projet.lien ? el('p', {}, [el('a', { href: projet.lien, target: '_blank', rel: 'noopener nofollow', texte: t('admin.ouvrir-lien') })]) : null,
       el('div', { classe: 'profil-actions' }, [
-        boutonAction('Valider', 'bouton-principal', decider('valide'), { succes: `« ${projet.titre} » est validé pour Facebook.` }),
-        boutonAction('Refuser', 'bouton-contour', decider('refuse'), { succes: `« ${projet.titre} » est refusé pour Facebook. Il reste visible sur Palabre.` }),
+        boutonAction(t('admin.valider'), 'bouton-principal', decider('valide'), { succes: t('admin.valide-facebook', { titre: projet.titre }) }),
+        boutonAction(t('commun.refuser'), 'bouton-contour', decider('refuse'), { succes: t('admin.refuse-facebook', { titre: projet.titre }) }),
       ]),
     ].filter(Boolean));
     return carte;
@@ -127,11 +127,11 @@
 
   function sectionFacebook(projets) {
     return el('section', { classe: 'section-profil', id: 'facebook' }, [
-      el('h2', { texte: projets.length ? `Projets proposés pour Facebook (${projets.length})` : 'Projets proposés pour Facebook' }),
-      el('p', { classe: 'texte-discret', texte: 'Ces développeurs ont accepté que leur projet soit présenté sur la page « Palabre Dev ». Valide ceux qui donnent une bonne image de la plateforme.' }),
+      el('h2', { texte: projets.length ? t('admin.proposes-n', { n: projets.length }) : t('admin.proposes') }),
+      el('p', { classe: 'texte-discret', texte: t('admin.proposes-aide') }),
       projets.length
         ? el('div', { classe: 'liste-publications' }, projets.map(carteFacebook))
-        : el('p', { classe: 'texte-discret', texte: 'Aucun projet en attente.' }),
+        : el('p', { classe: 'texte-discret', texte: t('admin.aucun-projet') }),
     ]);
   }
 
@@ -142,28 +142,28 @@
     const idTexte = `texte-facebook-${projet.id}`;
     const zone = el('textarea', { id: idTexte, rows: 8, classe: 'texte-facebook' });
     zone.value = projet.texte; // .value (comme textContent) : le texte reste du texte, jamais du code
-    const copier = el('button', { classe: 'bouton bouton-contour', type: 'button' }, [icone('lien'), 'Copier le texte']);
+    const copier = el('button', { classe: 'bouton bouton-contour', type: 'button' }, [icone('lien'), t('admin.copier-texte')]);
     copier.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(zone.value);
-        toast('Texte copié. Colle-le dans la publication Facebook.');
+        toast(t('admin.texte-copie'));
       } catch {
         // Presse-papiers refusé par le navigateur : le texte est sélectionné, il reste à faire « Copier ».
         zone.focus();
         zone.select();
-        toast('Le texte est sélectionné : copie-le avec ton clavier.', 'erreur');
+        toast(t('admin.texte-selectionne'), 'erreur');
       }
     });
     const carte = carteProjet(projet);
     carte.querySelector('.projet-corps').append(
-      el('div', { classe: 'champ' }, [el('label', { for: idTexte, texte: 'Texte de la publication (modifiable)' }), zone]),
+      el('div', { classe: 'champ' }, [el('label', { for: idTexte, texte: t('admin.texte-publication') }), zone]),
       el('div', { classe: 'profil-actions' }, [
         copier,
         // noopener : la page Facebook ouverte ne peut pas agir sur l'onglet de Palabre.
-        el('a', { classe: 'bouton bouton-contour', href: projet.lienPartage, target: '_blank', rel: 'noopener' }, [icone('facebook'), 'Ouvrir Facebook']),
-        complet ? null : boutonAction('Marquer comme publié', 'bouton-principal',
+        el('a', { classe: 'bouton bouton-contour', href: projet.lienPartage, target: '_blank', rel: 'noopener' }, [icone('facebook'), t('admin.ouvrir-facebook')]),
+        complet ? null : boutonAction(t('admin.marquer-publie'), 'bouton-principal',
           () => api(`/admin/projets/${projet.id}/facebook-publie`, { methode: 'POST', donnees: {} }),
-          { confirmation: `Marquer « ${projet.titre} » comme publié ? À faire seulement après l'avoir vraiment publié sur la page Facebook : le développeur sera prévenu.`, succes: `« ${projet.titre} » est marqué comme publié. Son développeur est prévenu.` }),
+          { confirmation: t('admin.marquer-question', { titre: projet.titre }), succes: t('admin.marque-publie', { titre: projet.titre }) }),
       ]),
     );
     return carte;
@@ -172,11 +172,11 @@
   function sectionAPublier({ projets, publiesAujourdhui, maxParJour }) {
     const complet = publiesAujourdhui >= maxParJour;
     return el('section', { classe: 'section-profil', id: 'a-publier' }, [
-      el('h2', { texte: projets.length ? `À publier sur Facebook (${projets.length})` : 'À publier sur Facebook' }),
-      el('p', { classe: `compteur-facebook${complet ? ' complet' : ''}` }, [el('strong', { texte: `Publiés aujourd'hui : ${publiesAujourdhui} / ${maxParJour}` }), complet ? ' Maximum atteint, reprends demain.' : null]),
+      el('h2', { texte: projets.length ? t('admin.a-publier-n', { n: projets.length }) : t('admin.a-publier') }),
+      el('p', { classe: `compteur-facebook${complet ? ' complet' : ''}` }, [el('strong', { texte: t('admin.publies-aujourdhui', { n: publiesAujourdhui, max: maxParJour }) }), complet ? t('admin.maximum') : null]),
       projets.length
         ? el('div', { classe: 'liste-publications' }, projets.map((projet) => carteAPublier(projet, complet)))
-        : el('p', { classe: 'texte-discret', texte: 'Aucun projet validé en attente de publication.' }),
+        : el('p', { classe: 'texte-discret', texte: t('admin.aucun-valide') }),
     ]);
   }
 
@@ -184,7 +184,7 @@
   function sectionBloques(membres) {
     if (membres.length === 0) return null;
     return el('section', { classe: 'section-profil', id: 'bloques' }, [
-      el('h2', { texte: `Membres bloqués (${membres.length})` }),
+      el('h2', { texte: t('admin.bloques-n', { n: membres.length }) }),
       el('ul', { classe: 'liste-membres' }, membres.map((membre) => el('li', { classe: 'ligne-membre' }, [
         avatar(membre, 'moyen'),
         el('div', { classe: 'ligne-membre-infos' }, [
@@ -192,16 +192,16 @@
           el('p', { classe: 'texte-discret', texte: [membre.ville, membre.pays].filter(Boolean).join(', ') }),
         ]),
         el('div', { classe: 'ligne-membre-actions' }, [
-          boutonAction('Débloquer', 'bouton-contour',
+          boutonAction(t('messages.debloquer'), 'bouton-contour',
             () => api(`/admin/membres/${encodeURIComponent(membre.identifiant)}/debloquer`, { methode: 'POST', donnees: {} }),
-            { confirmation: `Débloquer ${membre.nom} ?`, succes: `${membre.nom} peut de nouveau se connecter.` }),
+            { confirmation: t('admin.debloquer-question', { nom: membre.nom }), succes: t('admin.peut-se-connecter', { nom: membre.nom }) }),
         ]),
       ]))),
     ]);
   }
 
   // ---------- Défi de la semaine ----------
-  const PHASES_DEFI = { reponses: 'réponses ouvertes', vote: 'vote en cours', termine: 'terminé' };
+  const PHASES_DEFI = { reponses: t('admin.phase.reponses'), vote: t('admin.phase.vote'), termine: t('admin.phase.termine') };
   function sectionDefis(defis) {
     const enCours = defis.some((d) => d.phase !== 'termine');
     const champ = (id, nom, controle, aide) => el('div', { classe: 'champ' }, [el('label', { for: id, texte: nom }), controle, aide ? el('span', { classe: 'aide', texte: aide }) : null, el('p', { classe: 'erreur-champ', 'data-erreur': controle.name })]);
@@ -210,13 +210,13 @@
     const finReponses = el('input', { id: 'defi-fin-reponses', name: 'finReponsesLe', type: 'datetime-local', required: true });
     const finVote = el('input', { id: 'defi-fin-vote', name: 'finVoteLe', type: 'datetime-local', required: true });
     const zoneMessage = el('p', { classe: 'message', role: 'alert' });
-    const bouton = el('button', { classe: 'bouton bouton-principal', type: 'submit', texte: 'Lancer le défi' });
+    const bouton = el('button', { classe: 'bouton bouton-principal', type: 'submit', texte: t('admin.lancer-defi') });
     const formulaire = el('form', { classe: 'bloc-formulaire', novalidate: true }, [
-      champ('defi-titre', 'Titre du défi', titre),
-      champ('defi-probleme', 'Problème à résoudre', probleme, 'Un problème concret, que plusieurs solutions peuvent résoudre.'),
+      champ('defi-titre', t('admin.titre-defi'), titre),
+      champ('defi-probleme', t('admin.probleme'), probleme, t('admin.probleme-aide')),
       el('div', { classe: 'champs-cote-a-cote' }, [
-        champ('defi-fin-reponses', 'Fin des réponses', finReponses),
-        champ('defi-fin-vote', 'Fin du vote', finVote),
+        champ('defi-fin-reponses', t('admin.fin-reponses'), finReponses),
+        champ('defi-fin-vote', t('admin.fin-vote'), finVote),
       ]),
       zoneMessage,
       el('div', {}, [bouton]),
@@ -232,7 +232,7 @@
       try {
         await api('/admin/defis', { methode: 'POST', donnees: { titre: titre.value, probleme: probleme.value, finReponsesLe: versIso(finReponses.value), finVoteLe: versIso(finVote.value) } });
         await afficher();
-        message('Le défi est lancé. Il apparaît sur /defis, dans le fil et dans la colonne de droite.', 'succes');
+        message(t('admin.defi-lance'), 'succes');
       } catch (erreur) {
         const zoneErreur = erreur.champ && formulaire.querySelector(`[data-erreur="${erreur.champ}"]`);
         if (zoneErreur) zoneErreur.textContent = erreur.message;
@@ -240,26 +240,26 @@
         bouton.disabled = false;
       }
     });
-    const date = (iso) => new Date(iso).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+    const date = (iso) => new Date(iso).toLocaleString(REGION, { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
     return el('section', { classe: 'section-profil', id: 'defis' }, [
-      el('h2', { texte: 'Défi de la semaine' }),
+      el('h2', { texte: t('nav.defi') }),
       enCours
-        ? el('p', { classe: 'texte-discret', texte: 'Un défi est en cours. Le suivant pourra être lancé quand il sera terminé (ou supprimé).' })
+        ? el('p', { classe: 'texte-discret', texte: t('admin.defi-en-cours') })
         : formulaire,
       defis.length ? el('ul', { classe: 'liste-membres' }, defis.map((d) => el('li', { classe: 'ligne-membre' }, [
         el('div', { classe: 'ligne-membre-infos' }, [
           el('a', { href: '/defis', texte: d.titre }),
           el('p', { classe: 'texte-discret', texte: [
             PHASES_DEFI[d.phase],
-            `${d.nbReponses} réponse${d.nbReponses > 1 ? 's' : ''}`,
-            `${d.nbVotes} vote${d.nbVotes > 1 ? 's' : ''}`,
-            d.phase === 'reponses' ? `réponses jusqu'au ${date(d.finReponsesLe)}` : null,
-            d.phase !== 'termine' ? `vote jusqu'au ${date(d.finVoteLe)}` : (d.gagnant ? `gagnant : ${d.gagnant}` : 'pas de gagnant'),
+            t('commun.reponses', { n: d.nbReponses }),
+            t('defis.votes', { n: d.nbVotes }),
+            d.phase === 'reponses' ? t('admin.reponses-jusqu-au', { date: date(d.finReponsesLe) }) : null,
+            d.phase !== 'termine' ? t('admin.vote-jusqu-au', { date: date(d.finVoteLe) }) : (d.gagnant ? t('admin.gagnant', { nom: d.gagnant }) : t('admin.pas-de-gagnant')),
           ].filter(Boolean).join(', ') }),
         ]),
         el('div', { classe: 'ligne-membre-actions' }, [
-          boutonAction('Supprimer', 'bouton-contour', () => api(`/admin/defis/${d.id}`, { methode: 'DELETE', donnees: {} }),
-            { confirmation: `Supprimer le défi « ${d.titre} » ? Ses réponses et ses votes seront supprimés aussi.`, succes: 'Défi supprimé.', danger: true }),
+          boutonAction(t('commun.supprimer'), 'bouton-contour', () => api(`/admin/defis/${d.id}`, { methode: 'DELETE', donnees: {} }),
+            { confirmation: t('admin.supprimer-defi-question', { titre: d.titre }), succes: t('admin.defi-supprime'), danger: true }),
         ]),
       ]))) : null,
     ]);
@@ -270,24 +270,24 @@
   function sectionRecents(membres) {
     if (membres.length === 0) return null;
     const etat = (membre) => {
-      if (!membre.emailConfirme) return 'Email non confirmé';
-      if (!membre.profilComplet) return 'Profil de dev à compléter';
-      if (membre.sansLien) return 'Profil à confirmer (aucun lien)';
+      if (!membre.emailConfirme) return t('admin.email-non-confirme');
+      if (!membre.profilComplet) return t('admin.profil-a-completer');
+      if (membre.sansLien) return t('admin.profil-a-confirmer');
       return null;
     };
     return el('section', { classe: 'section-profil', id: 'recents' }, [
-      el('h2', { texte: 'Derniers inscrits' }),
+      el('h2', { texte: t('admin.derniers-inscrits') }),
       el('ul', { classe: 'liste-membres' }, membres.map((membre) => el('li', { classe: 'ligne-membre' }, [
         avatar(membre, 'moyen'),
         el('div', { classe: 'ligne-membre-infos' }, [
           lienMembre(membre),
           el('p', { classe: 'texte-discret', texte: [
-            membre.type === 'dev' ? 'Développeur' : 'Client',
-            membre.age !== null ? `${membre.age} ans` : null,
+            membre.type === 'dev' ? t('acces.developpeur') : t('commun.client'),
+            membre.age !== null ? t('admin.age', { n: membre.age }) : null,
             membre.specialite,
             membre.experience,
-            [membre.ville, membre.pays].filter(Boolean).join(', '),
-            `inscrit ${dateRelative(membre.inscritLe)}`,
+            lieuDe(membre),
+            t('admin.inscrit', { quand: dateRelative(membre.inscritLe) }),
           ].filter(Boolean).join(', ') }),
           etat(membre) ? el('p', { classe: 'texte-discret etat-inscription', texte: etat(membre) }) : null,
         ]),
@@ -318,8 +318,8 @@
     }
     const zone = document.querySelector('[data-admin]');
     if (!moi.estAdmin) {
-      zone.replaceChildren(etatVide('calme', 'Page réservée', 'Cette page est réservée aux administrateurs de Palabre.',
-        el('a', { classe: 'bouton bouton-principal', href: '/fil', texte: 'Retour au fil' })));
+      zone.replaceChildren(etatVide('calme', t('admin.reservee'), t('admin.reservee-aide'),
+        el('a', { classe: 'bouton bouton-principal', href: '/fil', texte: t('admin.retour-fil') })));
       return;
     }
     try {

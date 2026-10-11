@@ -12,6 +12,8 @@
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/confirmer-email.css">
   <title>Confirme ton email – Palabre</title>
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
   <script src="/js/app.js" defer></script>
   <script src="/js/confirmer-email.js" defer></script>
 </head>
@@ -34,18 +36,18 @@
 
       <div class="feuille-contenu">
         <span class="medaillon" aria-hidden="true"><svg class="icone"><use href="/icons/icones.svg#feuille"></use></svg></span>
-        <h1 class="feuille-titre" data-titre>Confirme ton email</h1>
-        <p class="feuille-texte" data-texte>Entre le code à 6 chiffres envoyé à <strong data-email>ton adresse</strong>.</p>
+        <h1 data-t="code.titre" class="feuille-titre" data-titre>Confirme ton email</h1>
+        <p class="feuille-texte" data-texte><span data-t="code.entre">Entre le code à 6 chiffres envoyé à</span> <strong data-t="code.ton-adresse" data-email>ton adresse</strong>.</p>
 
         <form data-code novalidate>
           <!-- Une petite feuille par chiffre. Seule sa forme est inclinée : le chiffre reste droit. -->
-          <div class="branche" role="group" aria-label="Code à 6 chiffres" data-branche>
-            <span class="petite-feuille" data-feuille><span class="petite-forme" aria-hidden="true"><span class="petite-vive"></span><span class="petite-seche"></span></span><input class="chiffre" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" aria-label="Chiffre 1 sur 6"></span>
-            <span class="petite-feuille" data-feuille><span class="petite-forme" aria-hidden="true"><span class="petite-vive"></span><span class="petite-seche"></span></span><input class="chiffre" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Chiffre 2 sur 6"></span>
-            <span class="petite-feuille" data-feuille><span class="petite-forme" aria-hidden="true"><span class="petite-vive"></span><span class="petite-seche"></span></span><input class="chiffre" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Chiffre 3 sur 6"></span>
-            <span class="petite-feuille" data-feuille><span class="petite-forme" aria-hidden="true"><span class="petite-vive"></span><span class="petite-seche"></span></span><input class="chiffre" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Chiffre 4 sur 6"></span>
-            <span class="petite-feuille" data-feuille><span class="petite-forme" aria-hidden="true"><span class="petite-vive"></span><span class="petite-seche"></span></span><input class="chiffre" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Chiffre 5 sur 6"></span>
-            <span class="petite-feuille" data-feuille><span class="petite-forme" aria-hidden="true"><span class="petite-vive"></span><span class="petite-seche"></span></span><input class="chiffre" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Chiffre 6 sur 6"></span>
+          <div class="branche" role="group" aria-label="Code à 6 chiffres" data-t-aria-label="code.six-chiffres" data-branche>
+            <span class="petite-feuille" data-feuille><span class="petite-forme" aria-hidden="true"><span class="petite-vive"></span><span class="petite-seche"></span></span><input class="chiffre" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" aria-label="Chiffre 1 sur 6" data-t-aria-label="code.chiffre-1"></span>
+            <span class="petite-feuille" data-feuille><span class="petite-forme" aria-hidden="true"><span class="petite-vive"></span><span class="petite-seche"></span></span><input class="chiffre" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Chiffre 2 sur 6" data-t-aria-label="code.chiffre-2"></span>
+            <span class="petite-feuille" data-feuille><span class="petite-forme" aria-hidden="true"><span class="petite-vive"></span><span class="petite-seche"></span></span><input class="chiffre" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Chiffre 3 sur 6" data-t-aria-label="code.chiffre-3"></span>
+            <span class="petite-feuille" data-feuille><span class="petite-forme" aria-hidden="true"><span class="petite-vive"></span><span class="petite-seche"></span></span><input class="chiffre" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Chiffre 4 sur 6" data-t-aria-label="code.chiffre-4"></span>
+            <span class="petite-feuille" data-feuille><span class="petite-forme" aria-hidden="true"><span class="petite-vive"></span><span class="petite-seche"></span></span><input class="chiffre" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Chiffre 5 sur 6" data-t-aria-label="code.chiffre-5"></span>
+            <span class="petite-feuille" data-feuille><span class="petite-forme" aria-hidden="true"><span class="petite-vive"></span><span class="petite-seche"></span></span><input class="chiffre" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Chiffre 6 sur 6" data-t-aria-label="code.chiffre-6"></span>
             <!-- L'arbre à palabres, caché tant que le code n'est pas confirmé : un tronc, puis le badge « vérifié ». -->
             <span class="arbre" aria-hidden="true">
               <svg class="tronc" viewBox="0 0 60 70" data-tronc><path d="M25 70c2-14 2-26-1-36l-8-14 4-2 7 11 3-16h4l-1 18 8-12 4 3-9 14c-2 9-2 21 0 34z"/></svg>
@@ -55,11 +57,11 @@
           </div>
           <p class="erreur-champ" data-erreur="code" role="alert"></p>
           <p class="visuellement-cache" aria-live="polite" data-annonce></p>
-          <button class="bouton bouton-principal bouton-plein" type="submit" data-confirmer><span class="rond-attente" aria-hidden="true" hidden></span><span data-libelle>Confirmer</span></button>
+          <button class="bouton bouton-principal bouton-plein" type="submit" data-confirmer><span class="rond-attente" aria-hidden="true" hidden></span><span data-t="commun.confirmer" data-libelle>Confirmer</span></button>
         </form>
 
-        <p class="feuille-renvoi">Tu n'as rien reçu ? <button class="bouton bouton-lien" type="button" data-renvoyer>Renvoyer le code</button></p>
-        <p class="feuille-sortie"><button class="bouton bouton-lien" type="button" data-deconnexion>Mauvaise adresse ? Se déconnecter</button></p>
+        <p class="feuille-renvoi"><span data-t="code.rien-recu">Tu n'as rien reçu ?</span> <button data-t="code.renvoyer" class="bouton bouton-lien" type="button" data-renvoyer>Renvoyer le code</button></p>
+        <p class="feuille-sortie"><button data-t="code.mauvaise-adresse" class="bouton bouton-lien" type="button" data-deconnexion>Mauvaise adresse ? Se déconnecter</button></p>
       </div>
     </div>
   </main>

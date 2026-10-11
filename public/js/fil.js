@@ -1,7 +1,7 @@
 // Fil d'actualité : zone « Publier », rangée « Disponibles maintenant », puis les publications par 10.
 // La carte d'une publication (j'aime, commentaires…) est dans publication.js.
 (function () {
-  const { etatDefi, api, el, avatar, prenom, utilisateurConnecte, reduireImage, icone, etatVide, toast, filPublications, cartePublication, videoPublication } = window.Palabre;
+  const { t, deNom, etatDefi, api, el, avatar, prenom, utilisateurConnecte, reduireImage, icone, etatVide, toast, filPublications, cartePublication, videoPublication } = window.Palabre;
 
   let filtre = 'tout';     // 'tout' ou 'amis'
   let imageChoisie = null; // image réduite, prête à être envoyée (data URL)
@@ -15,7 +15,7 @@
       const { devs } = await api('/devs/disponibles');
       if (devs.length === 0) return;
       section.querySelector('[data-rangee]').replaceChildren(...devs.map((dev) => el('li', {}, [
-        el('a', { classe: 'dev-disponible', href: `/${dev.identifiant}`, 'aria-label': `Profil de ${dev.nom}` }, [
+        el('a', { classe: 'dev-disponible', href: `/${dev.identifiant}`, 'aria-label': t('commun.profil-de', { nom: dev.nom, deNom: deNom(dev.nom) }) }, [
           avatar(dev, 'rangee'),
           el('span', { classe: 'dev-prenom', texte: prenom(dev) }),
         ]),
@@ -36,7 +36,7 @@
       let ferme = null;
       try { ferme = localStorage.getItem(CLE_DEFI_FERME); } catch { /* navigation privée */ }
       if (!defi || ferme === String(defi.id)) return;
-      const fermer = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': 'Fermer la carte du défi' }, [icone('fermer')]);
+      const fermer = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': t('fil.fermer-defi') }, [icone('fermer')]);
       fermer.addEventListener('click', () => {
         try { localStorage.setItem(CLE_DEFI_FERME, String(defi.id)); } catch { /* tant pis : elle reviendra */ }
         zone.hidden = true;
@@ -45,7 +45,7 @@
       zone.replaceChildren(
         el('span', { classe: 'defi-fil-icone' }, [icone('trophee')]),
         el('a', { classe: 'defi-fil-texte', href: '/defis' }, [
-          el('span', { classe: 'defi-fil-surtitre', texte: 'Défi de la semaine' }),
+          el('span', { classe: 'defi-fil-surtitre', texte: t('nav.defi') }),
           el('strong', { texte: defi.titre }),
           el('span', { classe: 'texte-discret', texte: etatDefi(defi) }),
         ]),
@@ -65,7 +65,7 @@
     const bouton = formulaire.querySelector('button[type="submit"]');
     const champ = formulaire.elements.texte;
     formulaire.querySelector('[data-mon-avatar]').replaceChildren(avatar(moi, 'moyen'));
-    champ.placeholder = `Quoi de neuf, ${prenom(moi)} ?`;
+    champ.placeholder = t('fil.quoi-de-neuf-prenom', { prenom: prenom(moi) });
 
     // Le champ compact s'agrandit dès qu'on touche dedans, qu'on y arrive au clavier ou qu'on y écrit.
     const ouvrir = () => formulaire.classList.add('ouvert');
@@ -96,7 +96,7 @@
       choisir.value = '';
       if (!fichier) return;
       ouvrir();
-      message('Préparation de l\'image…', '');
+      message(t('fil.preparation-image'), '');
       try {
         imageChoisie = await reduireImage(fichier);
         formulaire.querySelector('[data-apercu-image]').src = imageChoisie;
@@ -162,7 +162,7 @@
       zoneErreur.textContent = '';
       message('', '');
       if (!champ.value.trim()) {
-        zoneErreur.textContent = 'Écris quelque chose avant de publier.';
+        zoneErreur.textContent = t('fil.ecris-avant');
         champ.focus();
         return;
       }
@@ -180,7 +180,7 @@
         // La zone se replie, prête pour la prochaine publication.
         document.activeElement.blur();
         formulaire.classList.remove('ouvert');
-        toast('Publié !');
+        toast(t('fil.publie'));
       } catch (erreur) {
         if (erreur.champ === 'texte') zoneErreur.textContent = erreur.message;
         else if (erreur.champ === 'video') {
@@ -200,13 +200,13 @@
     const zone = document.querySelector('[data-fil]');
     const etat = document.querySelector('[data-etat-fil]');
     document.querySelector('.filtres-fil').hidden = true;
-    const toutLeFil = el('a', { classe: 'bouton bouton-contour bouton-plein charger-plus', href: '/fil', texte: 'Voir tout le fil' });
+    const toutLeFil = el('a', { classe: 'bouton bouton-contour bouton-plein charger-plus', href: '/fil', texte: t('fil.voir-tout') });
     try {
       const { publication } = await api(`/publications/${encodeURIComponent(id)}`);
       zone.replaceChildren(cartePublication(publication));
       zone.after(toutLeFil);
     } catch (erreur) {
-      etat.replaceChildren(etatVide('calme', 'Publication introuvable', erreur.statut === 404 ? 'Elle a peut-être été supprimée.' : erreur.message, toutLeFil));
+      etat.replaceChildren(etatVide('calme', t('publication.introuvable'), erreur.statut === 404 ? t('publication.peut-etre-supprimee') : erreur.message, toutLeFil));
       etat.hidden = false;
     }
   }
@@ -235,9 +235,9 @@
       boutonPlus: document.querySelector('[data-charger-plus]'),
       parametres: () => (filtre === 'amis' ? { amis: '1' } : {}),
       vide: () => (filtre === 'amis'
-        ? etatVide('amis', 'Tes amis n\'ont encore rien publié', 'Ajoute des amis depuis leur profil pour retrouver leurs publications ici.',
-          el('a', { classe: 'bouton bouton-principal', href: '/chercher' }, [icone('recherche'), 'Trouver des développeurs']))
-        : etatVide('palabre', 'Lance la palabre !', 'Personne n\'a encore publié. Partage une idée, pose une question ou montre un projet.')),
+        ? etatVide('amis', t('fil.amis-rien'), t('fil.amis-rien-aide'),
+          el('a', { classe: 'bouton bouton-principal', href: '/chercher' }, [icone('recherche'), t('fil.trouver-devs')]))
+        : etatVide('palabre', t('fil.lance'), t('fil.lance-aide'))),
     });
     brancherPublier(moi);
     brancherFiltres();

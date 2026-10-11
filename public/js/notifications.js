@@ -1,7 +1,7 @@
 // Page « Notifications » : par 10, les suivantes en défilant, rangées par période (aujourd'hui, cette semaine,
 // plus ancien). Chaque ligne montre la personne qui a agi, avec une petite pastille qui dit de quoi il s'agit.
 (function () {
-  const { api, el, avatar, icone, utilisateurConnecte, dateRelative, etatVide, chargement, chargementInfini, toast } = window.Palabre;
+  const { t, api, el, avatar, icone, utilisateurConnecte, dateRelative, etatVide, chargement, chargementInfini, toast } = window.Palabre;
 
   // Type de notification → icône de la pastille et sa couleur (classes .pastille-… du CSS).
   const TYPES = {
@@ -20,7 +20,7 @@
     avis_recu: ['etoile', 'ocre'],
     projet_facebook: ['facebook', 'bleu'],
   };
-  const PERIODES = { jour: 'Aujourd\'hui', semaine: 'Cette semaine', avant: 'Plus ancien' };
+  const PERIODES = { jour: t('notifications.aujourd-hui'), semaine: t('notifications.cette-semaine'), avant: t('notifications.plus-ancien') };
 
   // « Aujourd'hui » : depuis minuit ; « Cette semaine » : les 7 derniers jours ; sinon « Plus ancien ».
   function periode(iso) {
@@ -61,7 +61,7 @@
         el('span', { classe: `notif-pastille pastille-${couleur}` }, [icone(nomIcone)]),
       ]),
       el('span', { classe: 'notif-corps' }, [
-        notification.lue ? null : el('span', { classe: 'visuellement-cache', texte: 'Non lue : ' }),
+        notification.lue ? null : el('span', { classe: 'visuellement-cache', texte: t('notifications.non-lue') }),
         texteAvecNom(notification),
         el('span', { classe: 'texte-discret notif-date', texte: dateRelative(notification.creeLe) }),
       ]),
@@ -107,7 +107,7 @@
   async function charger() {
     const etat = document.querySelector('[data-etat]');
     const liste = document.querySelector('[data-notifications]');
-    if (!infini) infini = chargementInfini(liste, () => page(), { fin: 'Tu as vu toutes tes notifications.' });
+    if (!infini) infini = chargementInfini(liste, () => page(), { fin: t('notifications.toutes-vues') });
     etat.hidden = true;
     infini.reprendre(false);
     const fini = liste.children.length ? () => {} : chargement(liste, 3); // squelettes au premier chargement seulement
@@ -116,11 +116,11 @@
       fini();
       infini.reprendre(encore);
       etat.hidden = liste.children.length > 0;
-      etat.replaceChildren(etatVide('calme', 'Tout est calme', 'Tu seras prévenu ici d\'un j\'aime, d\'un message, d\'une invitation en équipe ou d\'une proposition.'));
+      etat.replaceChildren(etatVide('calme', t('notifications.calme'), t('notifications.calme-aide')));
     } catch (erreur) {
       fini();
       etat.hidden = false;
-      etat.replaceChildren(etatVide('calme', 'Les notifications ne chargent pas', erreur.message));
+      etat.replaceChildren(etatVide('calme', t('notifications.ne-chargent-pas'), erreur.message));
     }
   }
 
@@ -133,7 +133,7 @@
     document.querySelector('[data-tout-lire]').addEventListener('click', async () => {
       try {
         await api('/notifications/lues', { methode: 'POST', donnees: {} });
-        toast('Tout est marqué comme lu.');
+        toast(t('notifications.tout-lu'));
         charger();
       } catch (erreur) {
         toast(erreur.message, 'erreur');

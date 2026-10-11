@@ -15,6 +15,8 @@
   <script src="/js/theme.js"></script>
   <link rel="stylesheet" href="/css/style.css">
   <title>Mes amis – Palabre</title>
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
   <script src="/js/app.js" defer></script>
   <script src="/js/amis.js" defer></script>
 </head>
@@ -25,14 +27,14 @@
     <nav data-nav></nav>
   </div></header>
   <main class="conteneur page-profil">
-    <h1 class="titre-page">Mes amis</h1>
+    <h1 data-t="amis.titre" class="titre-page">Mes amis</h1>
     <p class="message" role="status" data-message></p>
     <div data-amis aria-live="polite">
       <div class="squelettes" aria-hidden="true">
       <div class="squelette"><div class="squelette-entete"><span class="os os-rond"></span><span class="os os-court"></span></div><span class="os"></span><span class="os os-moyen"></span></div>
       <div class="squelette"><span class="os os-moyen"></span><span class="os"></span><span class="os os-court"></span></div>
     </div>
-    <p class="visuellement-cache">Chargement…</p>
+    <p data-t="commun.chargement" class="visuellement-cache">Chargement…</p>
     </div>
   </main>
 </body>

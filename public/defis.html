@@ -14,7 +14,9 @@
   <script src="/js/theme.js"></script>
   <link rel="stylesheet" href="/css/style.css">
   <title>Défi de la semaine – Palabre</title>
-  <meta name="description" content="Chaque semaine, un problème concret à résoudre : les développeurs répondent, les membres votent, un gagnant est désigné.">
+  <meta name="description" content="Chaque semaine, un problème concret à résoudre : les développeurs répondent, les membres votent, un gagnant est désigné." data-t-content="defis.description">
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
   <script src="/js/app.js" defer></script>
   <script src="/js/defis.js" defer></script>
 </head>
@@ -27,13 +29,13 @@
     <nav data-nav></nav>
   </div></header>
   <main class="conteneur page-fil">
-    <h1 class="titre-page">Défi de la semaine</h1>
+    <h1 data-t="nav.defi" class="titre-page">Défi de la semaine</h1>
     <div data-defi aria-live="polite">
       <div class="squelettes" aria-hidden="true">
         <div class="squelette"><span class="os os-moyen"></span><span class="os"></span><span class="os os-court"></span></div>
         <div class="squelette"><div class="squelette-entete"><span class="os os-rond"></span><span class="os os-court"></span></div><span class="os"></span></div>
       </div>
-      <p class="visuellement-cache">Chargement…</p>
+      <p data-t="commun.chargement" class="visuellement-cache">Chargement…</p>
     </div>
   </main>
 </body>

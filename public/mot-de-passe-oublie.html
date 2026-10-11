@@ -15,6 +15,8 @@
   <script src="/js/theme.js"></script>
   <link rel="stylesheet" href="/css/style.css">
   <title>Mot de passe oublié – Palabre</title>
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
   <script src="/js/app.js" defer></script>
   <script src="/js/formulaires.js" defer></script>
 </head>
@@ -27,19 +29,19 @@
   </div>
   <main class="conteneur">
     <div class="carte-formulaire">
-      <h1>Mot de passe oublié</h1>
-      <p class="sous-titre">Indique ton email : tu recevras un lien pour choisir un nouveau mot de passe.</p>
+      <h1 data-t="oubli.titre">Mot de passe oublié</h1>
+      <p data-t="oubli.texte" class="sous-titre">Indique ton email : tu recevras un lien pour choisir un nouveau mot de passe.</p>
       <form data-formulaire="mot-de-passe-oublie" novalidate>
         <div class="champ">
-          <label for="email">Email</label>
+          <label data-t="champ.email" for="email">Email</label>
           <input id="email" name="email" type="email" autocomplete="email" inputmode="email" required>
           <p class="erreur-champ" data-erreur="email"></p>
         </div>
         <p class="message" role="alert" data-message></p>
-        <button class="bouton bouton-principal bouton-plein" type="submit">Envoyer le lien</button>
+        <button data-t="oubli.envoyer" class="bouton bouton-principal bouton-plein" type="submit">Envoyer le lien</button>
       </form>
       <div class="liens-formulaire">
-        <p><a href="/connexion">Retour à la connexion</a></p>
+        <p><a data-t="oubli.retour" href="/connexion">Retour à la connexion</a></p>
       </div>
     </div>
   </main>

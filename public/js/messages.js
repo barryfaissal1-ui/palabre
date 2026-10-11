@@ -8,7 +8,7 @@
 // seulement quand une conversation est ouverte ET que l'onglet est visible. En arrière-plan, plus aucune requête.
 (function () {
   const {
-    api, el, avatar, nomMembre, utilisateurConnecte, reduireImage, signaler, icone, etatVide, chargement, toast, confirmer, menuOptions, prenom, dateRelative,
+    t, deNom, REGION, api, el, avatar, nomMembre, utilisateurConnecte, reduireImage, signaler, icone, etatVide, chargement, toast, confirmer, menuOptions, prenom, dateRelative,
   } = window.Palabre;
 
   const DELAI_CONVERSATION = 5000; // nouveaux messages de la conversation ouverte
@@ -25,23 +25,23 @@
   let minuterieListe = 0;
 
   // ---------- Dates ----------
-  const heure = (iso) => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const heure = (iso) => new Date(iso).toLocaleTimeString(REGION, { hour: '2-digit', minute: '2-digit' });
   const memeJour = (a, b) => a.toDateString() === b.toDateString();
   // « Aujourd'hui », « Hier », puis la date : le titre qui sépare les messages de deux jours différents.
   function nomDuJour(iso) {
     const date = new Date(iso);
     const hier = new Date();
     hier.setDate(hier.getDate() - 1);
-    if (memeJour(date, new Date())) return 'Aujourd\'hui';
-    if (memeJour(date, hier)) return 'Hier';
-    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: date.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' });
+    if (memeJour(date, new Date())) return t('notifications.aujourd-hui');
+    if (memeJour(date, hier)) return t('messages.hier');
+    return date.toLocaleDateString(REGION, { day: 'numeric', month: 'long', year: date.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' });
   }
   // Dans la liste : l'heure pour aujourd'hui, sinon « Hier » ou la date courte.
   function quand(iso) {
     const date = new Date(iso);
     if (memeJour(date, new Date())) return heure(iso);
     const nom = nomDuJour(iso);
-    return nom === 'Hier' ? nom : date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    return nom === t('messages.hier') ? nom : date.toLocaleDateString(REGION, { day: 'numeric', month: 'short' });
   }
 
   // ---------- La liste des conversations ----------
@@ -55,14 +55,14 @@
     const groupe = conversation.type === 'groupe';
     const dernier = conversation.dernierMessage;
     let apercu = '';
-    if (dernier && groupe) apercu = dernier.systeme ? dernier.texte : `${dernier.estMoi ? 'Toi' : dernier.prenom} : ${dernier.texte}`;
-    else if (dernier) apercu = `${dernier.estMoi ? 'Toi : ' : ''}${dernier.texte}`;
+    if (dernier && groupe) apercu = dernier.systeme ? dernier.texte : t('messages.apercu-de', { qui: dernier.estMoi ? t('messages.toi') : dernier.prenom, texte: dernier.texte });
+    else if (dernier) apercu = (dernier.estMoi ? t('messages.apercu-de', { qui: t('messages.toi'), texte: dernier.texte }) : dernier.texte);
     const cote = el('span', { classe: 'conversation-cote' }, [
       dernier ? el('span', { texte: quand(dernier.creeLe) }) : null,
       conversation.nonLus
-        ? el('span', { classe: 'compteur', texte: String(conversation.nonLus), 'aria-label': `${conversation.nonLus} message${conversation.nonLus > 1 ? 's' : ''} non lu${conversation.nonLus > 1 ? 's' : ''}` })
+        ? el('span', { classe: 'compteur', texte: String(conversation.nonLus), 'aria-label': t('messages.non-lus', { n: conversation.nonLus }) })
         : null,
-      conversation.enAttente ? el('span', { classe: 'etiquette-attente', texte: 'En attente' }) : null,
+      conversation.enAttente ? el('span', { classe: 'etiquette-attente', texte: t('messages.en-attente') }) : null,
     ]);
     const lien = el('a', {
       classe: `conversation-item${conversation.nonLus ? ' non-lue' : ''}`, href: adresseDe(conversation),
@@ -89,11 +89,11 @@
     zoneListe.replaceChildren(...visibles.map(ligneConversation));
     etatListe.hidden = visibles.length > 0;
     if (visibles.length > 0) return;
-    if (filtre) etatListe.replaceChildren(etatVide('recherche', 'Aucune conversation à ce nom', 'Vérifie l\'orthographe, ou efface la recherche.'));
-    else if (onglet === 'demandes') etatListe.replaceChildren(etatVide('calme', 'Aucune demande de message', 'Quand un membre que tu ne connais pas t\'écrit, son premier message arrive ici. Tu choisis de l\'accepter ou non.'));
+    if (filtre) etatListe.replaceChildren(etatVide('recherche', t('messages.aucune-a-ce-nom'), t('messages.aucune-a-ce-nom-aide')));
+    else if (onglet === 'demandes') etatListe.replaceChildren(etatVide('calme', t('messages.aucune-demande'), t('messages.aucune-demande-aide')));
     else {
-      etatListe.replaceChildren(etatVide('palabre', 'Pas encore de message', 'Ouvre le profil d\'un membre et touche « Message » pour lancer la conversation.',
-        el('a', { classe: 'bouton bouton-principal', href: '/amis' }, [icone('amis'), 'Voir mes amis'])));
+      etatListe.replaceChildren(etatVide('palabre', t('messages.pas-encore'), t('messages.pas-encore-aide'),
+        el('a', { classe: 'bouton bouton-principal', href: '/amis' }, [icone('amis'), t('equipe.voir-mes-amis')])));
     }
   }
 
@@ -113,7 +113,7 @@
     } catch (erreur) {
       fini();
       if (squelettes) {
-        etatListe.replaceChildren(etatVide('calme', 'Les messages ne chargent pas', erreur.message));
+        etatListe.replaceChildren(etatVide('calme', t('messages.ne-chargent-pas'), erreur.message));
         etatListe.hidden = false;
       }
     }
@@ -130,16 +130,16 @@
   function lecteurVocal(vocal) {
     let audio = null;
     let rang = 0;
-    const lire = el('button', { classe: 'vocal-lecture', type: 'button', 'aria-label': 'Écouter le message vocal' }, [icone('lecture')]);
+    const lire = el('button', { classe: 'vocal-lecture', type: 'button', 'aria-label': t('vocal.ecouter') }, [icone('lecture')]);
     const avance = el('span', { classe: 'vocal-avance' });
     const barre = el('span', { classe: 'vocal-barre' }, [avance]);
     const temps = el('span', { classe: 'vocal-temps', texte: minutes(vocal.duree) });
-    const vitesse = el('button', { classe: 'vocal-vitesse', type: 'button', texte: 'x1', 'aria-label': 'Vitesse de lecture : x1' });
+    const vitesse = el('button', { classe: 'vocal-vitesse', type: 'button', texte: 'x1', 'aria-label': t('vocal.vitesse', { vitesse: 'x1' }) });
     // Un enregistrement du navigateur n'annonce pas toujours sa durée : on se fie alors à celle gardée par le serveur.
     const total = () => (audio && Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : vocal.duree);
     const dessiner = (joue) => {
       lire.replaceChildren(icone(joue ? 'pause' : 'lecture'));
-      lire.setAttribute('aria-label', joue ? 'Mettre en pause' : 'Écouter le message vocal');
+      lire.setAttribute('aria-label', joue ? t('vocal.pause') : t('vocal.ecouter'));
     };
     function preparer() {
       audio = new Audio(vocal.url);
@@ -159,7 +159,7 @@
       });
       audio.addEventListener('error', () => {
         dessiner(false);
-        toast('Ce message vocal ne peut pas être lu.', 'erreur');
+        toast(t('vocal.illisible'), 'erreur');
       });
     }
     lire.addEventListener('click', () => {
@@ -175,7 +175,7 @@
     vitesse.addEventListener('click', () => {
       rang = (rang + 1) % VITESSES.length;
       vitesse.textContent = VITESSES[rang][1];
-      vitesse.setAttribute('aria-label', `Vitesse de lecture : ${VITESSES[rang][1]}`);
+      vitesse.setAttribute('aria-label', t('vocal.vitesse', { vitesse: VITESSES[rang][1] }));
       if (audio) audio.playbackRate = VITESSES[rang][0];
     });
     // Toucher la barre déplace la lecture à cet endroit.
@@ -195,11 +195,11 @@
   // (environ 180 Ko) : cela passe en 3G.
   const DUREE_MAX_VOCAL_S = 60;
   function enregistreurVocal({ envoyer, erreur, pendant }) {
-    const micro = el('button', { classe: 'bouton-icone bouton-micro', type: 'button', 'aria-label': 'Enregistrer un message vocal', title: 'Message vocal' }, [icone('micro')]);
+    const micro = el('button', { classe: 'bouton-icone bouton-micro', type: 'button', 'aria-label': t('vocal.enregistrer'), title: t('vocal.message-vocal') }, [icone('micro')]);
     const temps = el('span', { classe: 'enregistrement-temps', texte: '0:00', 'aria-live': 'off' });
-    const aide = el('span', { classe: 'texte-discret enregistrement-aide', texte: 'Enregistrement…' });
-    const annuler = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': 'Annuler l\'enregistrement', title: 'Annuler' }, [icone('supprimer')]);
-    const valider = el('button', { classe: 'bouton bouton-principal bouton-envoyer', type: 'button', 'aria-label': 'Envoyer le message vocal', title: 'Envoyer' }, [icone('envoyer')]);
+    const aide = el('span', { classe: 'texte-discret enregistrement-aide', texte: t('vocal.enregistrement') });
+    const annuler = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': t('vocal.annuler'), title: t('commun.annuler') }, [icone('supprimer')]);
+    const valider = el('button', { classe: 'bouton bouton-principal bouton-envoyer', type: 'button', 'aria-label': t('vocal.envoyer'), title: t('commun.envoyer') }, [icone('envoyer')]);
     const barre = el('div', { classe: 'enregistrement', hidden: true }, [annuler, el('span', { classe: 'enregistrement-point', 'aria-hidden': 'true' }), temps, aide, valider]);
     const possible = Boolean(window.MediaRecorder && navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
     micro.hidden = !possible;
@@ -229,8 +229,8 @@
         demarrage = false;
         maintenu = null;
         erreur(refus.name === 'NotAllowedError' || refus.name === 'SecurityError'
-          ? 'Le micro est bloqué pour Palabre. Autorise-le dans les réglages de ton navigateur (le cadenas à côté de l\'adresse), puis réessaie.'
-          : 'Aucun micro n\'a été trouvé sur cet appareil.');
+          ? t('vocal.micro-bloque')
+          : t('vocal.pas-de-micro'));
         return;
       }
       demarrage = false;
@@ -240,7 +240,7 @@
       enregistreur.addEventListener('dataavailable', (evenement) => { if (evenement.data.size) prise.morceaux.push(evenement.data); });
       enregistreur.start();
       temps.textContent = '0:00';
-      aide.textContent = maintenu ? 'Relâche pour envoyer, glisse à gauche pour annuler' : 'Enregistrement…';
+      aide.textContent = maintenu ? t('vocal.relache') : t('vocal.enregistrement');
       barre.hidden = false;
       pendant(true);
       prise.minuteur = setInterval(() => {
@@ -262,19 +262,19 @@
         ranger();
         if (!aEnvoyer) return;
         if (duree < 1) {
-          erreur('Message vocal trop court. Touche le micro, parle, puis touche « Envoyer ».');
+          erreur(t('vocal.trop-court'));
           return;
         }
         const son = new Blob(morceaux, { type: enregistreur.mimeType });
         if (son.size > 400 * 1024) {
-          erreur('Ce message vocal est trop lourd. Essaie plus court.');
+          erreur(t('vocal.trop-lourd'));
           return;
         }
         try {
           const donnees = await new Promise((fini, echec) => {
             const lecteur = new FileReader();
             lecteur.onload = () => fini(lecteur.result);
-            lecteur.onerror = () => echec(new Error('L\'enregistrement n\'a pas pu être lu.'));
+            lecteur.onerror = () => echec(new Error(t('vocal.pas-lu')));
             lecteur.readAsDataURL(son);
           });
           await envoyer({ vocal: { donnees, duree } });
@@ -300,7 +300,7 @@
       const longtemps = Date.now() - maintenu.depuis >= 500;
       maintenu = null;
       if (prise && longtemps) terminer(true);
-      else aide.textContent = 'Enregistrement…';
+      else aide.textContent = t('vocal.enregistrement');
     });
     micro.addEventListener('pointercancel', () => { maintenu = null; });
     // Au clavier (Entrée ou Espace) : pas de « maintien », on démarre et on valide avec les boutons.
@@ -330,8 +330,8 @@
   function choisirReaction(message, element) {
     document.querySelectorAll('.barre-reactions').forEach((b) => b.remove());
     const mienne = (message.reactions.find((r) => r.moi) || {}).emoji;
-    const barre = el('div', { classe: 'barre-reactions', role: 'group', 'aria-label': 'Réagir à ce message' }, REACTIONS.map((emoji) => {
-      const bouton = el('button', { type: 'button', texte: emoji, 'aria-pressed': String(emoji === mienne), 'aria-label': `Réagir avec ${emoji}` });
+    const barre = el('div', { classe: 'barre-reactions', role: 'group', 'aria-label': t('reactions.reagir') }, REACTIONS.map((emoji) => {
+      const bouton = el('button', { type: 'button', texte: emoji, 'aria-pressed': String(emoji === mienne), 'aria-label': t('reactions.reagir-avec', { emoji }) });
       bouton.addEventListener('click', async () => {
         fermer();
         try {
@@ -363,12 +363,12 @@
 
   // Qui a réagi : une petite fenêtre, ouverte en touchant le compteur sous la bulle.
   function montrerReactions(message) {
-    const fermer = el('button', { classe: 'bouton bouton-principal', type: 'button', texte: 'Fermer' });
+    const fermer = el('button', { classe: 'bouton bouton-principal', type: 'button', texte: t('commun.fermer') });
     const dialogue = el('dialog', { classe: 'dialogue', 'aria-labelledby': 'reactions-titre' }, [
-      el('h2', { id: 'reactions-titre', texte: 'Réactions' }),
+      el('h2', { id: 'reactions-titre', texte: t('reactions.titre') }),
       el('ul', { classe: 'liste-reactions' }, message.reactions.map((r) => el('li', {}, [
         el('span', { classe: 'reaction-emoji', texte: r.emoji, 'aria-hidden': 'true' }),
-        el('span', { texte: r.qui.join(', ') + (r.nombre > r.qui.length ? ` et ${r.nombre - r.qui.length} autres` : '') }),
+        el('span', { texte: r.qui.join(', ') + (r.nombre > r.qui.length ? t('reactions.et-autres', { n: r.nombre - r.qui.length }) : '') }),
       ]))),
       el('div', { classe: 'dialogue-actions' }, [fermer]),
     ]);
@@ -380,9 +380,9 @@
 
   async function supprimerMessage(message, pourTous) {
     const question = pourTous
-      ? 'Supprimer ce message pour tout le monde ? Son texte et sa photo seront effacés. Il restera la mention « Message supprimé ».'
-      : 'Supprimer ce message pour toi ? Les autres le garderont.';
-    if (!(await confirmer(question, { bouton: 'Supprimer', danger: true }))) return;
+      ? t('messages.supprimer-pour-tous-question')
+      : t('messages.supprimer-pour-moi-question');
+    if (!(await confirmer(question, { bouton: t('commun.supprimer'), danger: true }))) return;
     try {
       const reponse = await api(`/messages/message/${message.id}`, { methode: 'DELETE', donnees: { pourTous } });
       if (reponse.message) redessiner(reponse.message);
@@ -405,11 +405,11 @@
     // La ligne laissée par un appel : « Appel audio, 4 min » (feuille verte) ou « Appel manqué » (terre cuite, avec « Rappeler »).
     if (message.appel) {
       const manque = message.appel.statut !== 'termine';
-      const nomType = message.appel.type === 'video' ? 'Appel vidéo' : 'Appel audio';
-      let texte = `${nomType}, ${message.appel.duree < 60 ? `${Math.max(1, message.appel.duree)} s` : `${Math.round(message.appel.duree / 60)} min`}`;
-      if (manque) texte = message.appel.parMoi ? `${nomType} sans réponse` : 'Appel manqué';
+      const nomType = message.appel.type === 'video' ? t('appels.video') : t('appels.audio');
+      let texte = t('appels.duree', { type: nomType, duree: message.appel.duree < 60 ? t('appels.secondes', { n: Math.max(1, message.appel.duree) }) : t('appels.minutes', { n: Math.round(message.appel.duree / 60) }) });
+      if (manque) texte = message.appel.parMoi ? t('appels.sans-reponse', { type: nomType }) : t('appels.manque');
       const rappeler = manque && ouverte && ouverte.donnees.peutEcrire
-        ? el('button', { classe: 'bouton bouton-contour bouton-compact', type: 'button', texte: 'Rappeler' })
+        ? el('button', { classe: 'bouton bouton-contour bouton-compact', type: 'button', texte: t('appels.rappeler') })
         : null;
       if (rappeler) rappeler.addEventListener('click', () => lancerAppel(message.appel.type));
       return el('div', { classe: `ligne-appel${manque ? ' appel-manque' : ''}`, 'data-message': message.id }, [
@@ -428,12 +428,12 @@
     if (message.reponse) {
       citation = el('button', { classe: 'bulle-citation', type: 'button' }, [
         el('strong', { texte: message.reponse.prenom }),
-        el('span', { texte: message.reponse.texte === null ? 'Message supprimé' : message.reponse.texte }),
+        el('span', { texte: message.reponse.texte === null ? t('messages.supprime') : message.reponse.texte }),
       ]);
       citation.addEventListener('click', () => {
         const origine = ouverte.zone.querySelector(`[data-message="${message.reponse.id}"]`);
         if (!origine) {
-          toast('Ce message est plus haut : touche « Voir les messages précédents ».');
+          toast(t('messages.plus-haut'));
           return;
         }
         origine.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -446,7 +446,7 @@
     let reactions = null;
     if (message.reactions && message.reactions.length) {
       reactions = el('div', { classe: 'bulle-reactions' }, message.reactions.map((r) => {
-        const bouton = el('button', { classe: `reaction${r.moi ? ' reaction-moi' : ''}`, type: 'button', 'aria-label': `${r.nombre} réaction${r.nombre > 1 ? 's' : ''} ${r.emoji} : voir qui` }, [
+        const bouton = el('button', { classe: `reaction${r.moi ? ' reaction-moi' : ''}`, type: 'button', 'aria-label': t('reactions.voir-qui', { n: r.nombre, emoji: r.emoji }) }, [
           el('span', { texte: r.emoji, 'aria-hidden': 'true' }), el('span', { texte: String(r.nombre) }),
         ]);
         bouton.addEventListener('click', () => montrerReactions(message));
@@ -455,22 +455,22 @@
     }
 
     const menu = menuOptions(() => [
-      peutAgir ? { texte: 'Répondre', icone: 'repondre', action: () => repondreA(message) } : null,
-      peutAgir ? { texte: 'Réagir', icone: 'sourire', action: () => choisirReaction(message, element) } : null,
-      message.supprime || message.vocal ? null : { texte: 'Copier', icone: 'copier', action: async () => {
+      peutAgir ? { texte: t('messages.repondre'), icone: 'repondre', action: () => repondreA(message) } : null,
+      peutAgir ? { texte: t('messages.reagir'), icone: 'sourire', action: () => choisirReaction(message, element) } : null,
+      message.supprime || message.vocal ? null : { texte: t('messages.copier'), icone: 'copier', action: async () => {
         try {
           await navigator.clipboard.writeText(message.texte);
-          toast('Message copié.');
+          toast(t('messages.copie'));
         } catch {
-          toast('Ton navigateur n\'a pas permis la copie.', 'erreur');
+          toast(t('messages.copie-refusee'), 'erreur');
         }
       } },
-      message.supprimable ? { texte: 'Supprimer pour tout le monde', icone: 'supprimer', danger: true, action: () => supprimerMessage(message, true) } : null,
-      { texte: 'Supprimer pour moi', icone: 'supprimer', danger: true, action: () => supprimerMessage(message, false) },
-      message.estMoi || message.supprime ? null : { texte: 'Signaler', icone: 'signaler', action: () => signaler('message', message.id) },
+      message.supprimable ? { texte: t('messages.supprimer-pour-tous'), icone: 'supprimer', danger: true, action: () => supprimerMessage(message, true) } : null,
+      { texte: t('messages.supprimer-pour-moi'), icone: 'supprimer', danger: true, action: () => supprimerMessage(message, false) },
+      message.estMoi || message.supprime ? null : { texte: t('signalement.titre'), icone: 'signaler', action: () => signaler('message', message.id) },
     ], { cote: message.estMoi ? 'droite' : 'gauche' });
     menu.classList.add('bulle-menu');
-    menu.querySelector('button').setAttribute('aria-label', 'Actions sur ce message');
+    menu.querySelector('button').setAttribute('aria-label', t('messages.actions'));
     // Le menu doit rester entièrement dans la conversation, quelle que soit la largeur de la bulle : une fois
     // ouvert, on le mesure et on le déplace (classes .menu-vers-…) du côté où il tient, et vers le haut près du bas.
     // (Cet écouteur passe après celui de menuOptions(), qui vient d'ouvrir le menu.)
@@ -509,10 +509,10 @@
       signee ? el('a', { classe: 'bulle-auteur', href: `/${message.auteur.identifiant}`, texte: message.auteur.nom }) : null,
       citation,
       message.image
-        ? el('a', { href: message.image, target: '_blank', rel: 'noopener', 'aria-label': 'Ouvrir la photo' }, [el('img', { src: message.image, alt: 'Photo jointe au message', loading: 'lazy', decoding: 'async' })])
+        ? el('a', { href: message.image, target: '_blank', rel: 'noopener', 'aria-label': t('messages.ouvrir-photo') }, [el('img', { src: message.image, alt: t('messages.photo-jointe'), loading: 'lazy', decoding: 'async' })])
         : null,
       // textContent : le texte d'un membre n'est jamais interprété. Un lien écrit dans un message reste du simple texte.
-      message.vocal ? lecteurVocal(message.vocal) : el('span', { classe: 'bulle-texte', texte: message.supprime ? 'Message supprimé' : message.texte }),
+      message.vocal ? lecteurVocal(message.vocal) : el('span', { classe: 'bulle-texte', texte: message.supprime ? t('messages.supprime') : message.texte }),
       el('span', { classe: 'bulle-heure', texte: heure(message.creeLe) }),
       reactions,
       menu,
@@ -577,10 +577,10 @@
   }
   // Téléphone et caméra en privé ; téléphone seulement dans le groupe d'une équipe (appel audio à quatre au plus).
   function boutonsAppel({ video }) {
-    const audio = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': 'Appel audio', title: 'Appel audio' }, [icone('telephone')]);
+    const audio = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': t('appels.audio'), title: t('appels.audio') }, [icone('telephone')]);
     audio.addEventListener('click', () => lancerAppel('audio'));
     if (!video) return [audio];
-    const camera = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': 'Appel vidéo', title: 'Appel vidéo' }, [icone('video')]);
+    const camera = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': t('appels.video'), title: t('appels.video') }, [icone('video')]);
     camera.addEventListener('click', () => lancerAppel('video'));
     return [audio, camera];
   }
@@ -603,14 +603,14 @@
     const ligne = ouverte.ecritIci;
     ligne.hidden = prenoms.length === 0;
     if (ligne.hidden) return;
-    let texte = `${prenoms[0]} écrit`;
-    if (prenoms.length === 2) texte = `${prenoms[0]} et ${prenoms[1]} écrivent`;
-    else if (prenoms.length > 2) texte = 'Plusieurs personnes écrivent';
+    let texte = t('messages.ecrit', { prenom: prenoms[0] });
+    if (prenoms.length === 2) texte = t('messages.ecrivent', { a: prenoms[0], b: prenoms[1] });
+    else if (prenoms.length > 2) texte = t('messages.plusieurs-ecrivent');
     // Les prénoms viennent d'autres membres : textContent, comme partout.
     ligne.replaceChildren(el('span', { texte }), el('span', { classe: 'points-ecriture', 'aria-hidden': 'true' }, [el('span'), el('span'), el('span')]));
   }
   // « En ligne » ou « Actif il y a 2 h » ; rien si l'un des deux cache son statut.
-  const textePresence = (presence) => (presence.enLigne ? 'En ligne' : `Actif ${dateRelative(presence.vuLe)}`);
+  const textePresence = (presence) => (presence.enLigne ? t('messages.en-ligne') : t('messages.actif', { quand: dateRelative(presence.vuLe) }));
 
   // Dans un groupe : le petit avatar de chacun sous le dernier message qu'il a lu.
   function dessinerVusPar() {
@@ -626,7 +626,7 @@
       parMessage.get(lue).push(membre);
     });
     parMessage.forEach((lecteurs, apresBulle) => {
-      apresBulle.after(el('div', { classe: 'vus-par', role: 'img', 'aria-label': `Vu par ${lecteurs.map((m) => m.prenom).join(', ')}` }, lecteurs.map((m) => avatar(m, 'mini'))));
+      apresBulle.after(el('div', { classe: 'vus-par', role: 'img', 'aria-label': t('messages.vu-par', { prenoms: lecteurs.map((m) => m.prenom).join(', ') }) }, lecteurs.map((m) => avatar(m, 'mini'))));
     });
   }
 
@@ -660,14 +660,14 @@
   function zoneEcriture({ envoyer, avertissement = null }) {
     let image = null;
     let reponse = null; // le message auquel on répond (sa citation s'affiche au-dessus du champ)
-    const champ = el('textarea', { rows: '1', maxlength: '2000', placeholder: 'Écrire un message…', 'aria-label': 'Écrire un message' });
-    const choisir = el('input', { type: 'file', accept: 'image/*', classe: 'visuellement-cache', 'aria-label': 'Joindre une photo' });
-    const boutonPhoto = el('label', { classe: 'bouton-icone', title: 'Joindre une photo' }, [icone('image'), choisir]);
-    const boutonEnvoyer = el('button', { classe: 'bouton bouton-principal bouton-envoyer', type: 'submit', 'aria-label': 'Envoyer le message', title: 'Envoyer' }, [icone('envoyer')]);
-    const retirer = el('button', { classe: 'bouton-discret', type: 'button', texte: 'Retirer la photo' });
-    const apercu = el('div', { classe: 'apercu-photo', hidden: true }, [el('img', { alt: 'Photo à envoyer' }), retirer]);
+    const champ = el('textarea', { rows: '1', maxlength: '2000', placeholder: t('messages.ecrire-aide'), 'aria-label': t('messages.ecrire') });
+    const choisir = el('input', { type: 'file', accept: 'image/*', classe: 'visuellement-cache', 'aria-label': t('messages.joindre-photo') });
+    const boutonPhoto = el('label', { classe: 'bouton-icone', title: t('messages.joindre-photo') }, [icone('image'), choisir]);
+    const boutonEnvoyer = el('button', { classe: 'bouton bouton-principal bouton-envoyer', type: 'submit', 'aria-label': t('messages.envoyer'), title: t('commun.envoyer') }, [icone('envoyer')]);
+    const retirer = el('button', { classe: 'bouton-discret', type: 'button', texte: t('messages.retirer-photo') });
+    const apercu = el('div', { classe: 'apercu-photo', hidden: true }, [el('img', { alt: t('messages.photo-a-envoyer') }), retirer]);
     const erreurZone = el('p', { classe: 'erreur-champ', role: 'alert' });
-    const annulerReponse = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': 'Ne plus répondre à ce message' }, [icone('fermer')]);
+    const annulerReponse = el('button', { classe: 'bouton-icone', type: 'button', 'aria-label': t('messages.ne-plus-repondre') }, [icone('fermer')]);
     const citationReponse = el('p', { classe: 'reponse-texte' });
     const barreReponse = el('div', { classe: 'reponse-en-cours', hidden: true }, [icone('repondre'), citationReponse, annulerReponse]);
     const ligne = el('div', { classe: 'ligne-ecriture' }, [boutonPhoto, champ]);
@@ -704,7 +704,7 @@
     // Appelée par le menu d'un message ou par le glissement de sa bulle.
     formulaire.repondreA = (message) => {
       reponse = message;
-      citationReponse.replaceChildren(el('strong', { texte: message.estMoi ? 'Toi' : message.auteur.prenom }), ` ${message.texte}`);
+      citationReponse.replaceChildren(el('strong', { texte: message.estMoi ? t('messages.toi') : message.auteur.prenom }), ` ${message.texte}`);
       barreReponse.hidden = false;
       champ.focus();
     };
@@ -743,7 +743,7 @@
       evenement.preventDefault();
       erreurZone.textContent = '';
       if (!champ.value.trim()) {
-        erreurZone.textContent = image ? 'Ajoute un mot avec ta photo.' : '';
+        erreurZone.textContent = image ? t('messages.mot-avec-photo') : '';
         champ.focus();
         return;
       }
@@ -765,11 +765,11 @@
 
   // ---------- Le haut de la conversation ----------
   function enteteConversation(autre, { menu = null } = {}) {
-    const retour = el('button', { classe: 'bouton-icone bouton-retour', type: 'button', 'aria-label': 'Retour à la liste des conversations' }, [icone('fleche-gauche')]);
+    const retour = el('button', { classe: 'bouton-icone bouton-retour', type: 'button', 'aria-label': t('messages.retour-liste') }, [icone('fleche-gauche')]);
     retour.addEventListener('click', () => aller('/messages'));
-    const role = [autre.type === 'client' ? 'Client' : 'Développeur', autre.ville].filter(Boolean).join(', ');
+    const role = [autre.type === 'client' ? t('commun.client') : t('acces.developpeur'), autre.ville].filter(Boolean).join(', ');
     const sousTitre = el('p', { classe: 'texte-discret', texte: role });
-    const lienAvatar = el('a', { classe: 'lien-avatar avec-presence', href: `/${autre.identifiant}`, 'aria-label': `Profil de ${autre.nom}` }, [avatar(autre, 'moyen')]);
+    const lienAvatar = el('a', { classe: 'lien-avatar avec-presence', href: `/${autre.identifiant}`, 'aria-label': t('commun.profil-de', { nom: autre.nom, deNom: deNom(autre.nom) }) }, [avatar(autre, 'moyen')]);
     const entete = el('header', { classe: 'conversation-entete' }, [
       retour,
       lienAvatar,
@@ -801,9 +801,9 @@
   }
 
   async function bloquer(autre) {
-    if (!(await confirmer(`Bloquer ${autre.nom} ? Cette personne ne pourra plus t'écrire ni voir vos conversations. Elle ne sera pas prévenue.`, { bouton: 'Bloquer', danger: true }))) return false;
+    if (!(await confirmer(t('messages.bloquer-question', { nom: autre.nom }), { bouton: t('messages.bloquer'), danger: true }))) return false;
     await api(`/messages/blocages/${encodeURIComponent(autre.identifiant)}`, { methode: 'POST', donnees: {} });
-    toast(`${prenom(autre)} est bloqué.`);
+    toast(t('messages.est-bloque', { prenom: prenom(autre) }));
     return true;
   }
 
@@ -818,8 +818,8 @@
       reponse = await api(`/messages/conversations/${id}`);
     } catch (erreur) {
       fini();
-      panneau.replaceChildren(etatVide('calme', 'Conversation introuvable', erreur.statut === 404 ? 'Elle n\'existe pas, ou tu n\'y as plus accès.' : erreur.message,
-        el('a', { classe: 'bouton bouton-principal', href: '/messages', texte: 'Toutes mes conversations' })));
+      panneau.replaceChildren(etatVide('calme', t('messages.introuvable'), erreur.statut === 404 ? t('messages.introuvable-aide') : erreur.message,
+        el('a', { classe: 'bouton bouton-principal', href: '/messages', texte: t('messages.toutes') })));
       return;
     }
     fini();
@@ -827,34 +827,34 @@
     const { autre } = conversation;
     document.title = `${autre.nom} – Messages – Palabre`;
 
-    const zone = el('div', { classe: 'fil-messages', role: 'log', 'aria-label': `Messages avec ${autre.nom}`, tabindex: '0' });
+    const zone = el('div', { classe: 'fil-messages', role: 'log', 'aria-label': t('messages.avec', { nom: autre.nom }), tabindex: '0' });
     const mentionVu = el('p', { classe: 'mention-vu', texte: 'Vu', hidden: true });
     window.Palabre.conversationOuverte = id; // app.js n'annonce pas par une carte les messages de la conversation ouverte
     ouverte = { id, donnees: conversation, zone, mentionVu, dernierId: 0, monDernierId: 0, dernierDeLAutre: 0, dernierJour: null, vuJusqua: conversation.vuJusqua };
 
     const menu = menuOptions(() => [
-      { texte: 'Voir le profil', icone: 'utilisateur', action: () => { window.location.href = `/${autre.identifiant}`; } },
+      { texte: t('chercher.voir-profil'), icone: 'utilisateur', action: () => { window.location.href = `/${autre.identifiant}`; } },
       conversation.jeBloque
-        ? { texte: 'Débloquer', icone: 'valide', action: async () => {
+        ? { texte: t('messages.debloquer'), icone: 'valide', action: async () => {
           try {
             await api(`/messages/blocages/${encodeURIComponent(autre.identifiant)}`, { methode: 'DELETE', donnees: {} });
-            toast(`${prenom(autre)} est débloqué.`);
+            toast(t('messages.est-debloque', { prenom: prenom(autre) }));
             ouvrir(id);
           } catch (erreur) { toast(erreur.message, 'erreur'); }
         } }
-        : { texte: 'Bloquer', icone: 'bloquer', action: async () => {
+        : { texte: t('messages.bloquer'), icone: 'bloquer', action: async () => {
           try { if (await bloquer(autre)) ouvrir(id); } catch (erreur) { toast(erreur.message, 'erreur'); }
         } },
       // On signale le dernier message reçu : l'équipe ne verra que celui-là, pas le reste de la conversation.
-      { texte: 'Signaler', icone: 'signaler', action: () => {
+      { texte: t('signalement.titre'), icone: 'signaler', action: () => {
         if (ouverte.dernierDeLAutre) signaler('message', ouverte.dernierDeLAutre);
-        else toast('Il n\'y a aucun message de cette personne à signaler.', 'erreur');
+        else toast(t('messages.rien-a-signaler'), 'erreur');
       } },
-      { texte: 'Supprimer la conversation', icone: 'supprimer', danger: true, action: async () => {
-        if (!(await confirmer('Supprimer cette conversation ? Elle disparaîtra de ta liste seulement : l\'autre personne la garde.', { bouton: 'Supprimer', danger: true }))) return;
+      { texte: t('messages.supprimer-conversation'), icone: 'supprimer', danger: true, action: async () => {
+        if (!(await confirmer(t('messages.supprimer-conversation-question'), { bouton: t('commun.supprimer'), danger: true }))) return;
         try {
           await api(`/messages/conversations/${id}/masquer`, { methode: 'POST', donnees: {} });
-          toast('Conversation supprimée de ta liste.');
+          toast(t('messages.conversation-supprimee'));
           aller('/messages');
         } catch (erreur) { toast(erreur.message, 'erreur'); }
       } },
@@ -864,20 +864,20 @@
     let bas;
     if (conversation.estDemandeRecue) {
       bas = el('div', { classe: 'zone-demande' }, [
-        el('p', {}, [el('strong', { texte: `${prenom(autre)} veut t'écrire.` }), ' Vous n\'êtes pas amis. Tant que tu n\'acceptes pas, cette personne ne peut rien envoyer d\'autre et ne sait pas que tu as lu.']),
+        el('p', {}, [el('strong', { texte: t('messages.veut-ecrire', { prenom: prenom(autre) }) }), t('messages.pas-amis')]),
         el('div', { classe: 'profil-actions' }, [
-          boutonAction('Accepter', 'bouton-principal', async () => {
+          boutonAction(t('commun.accepter'), 'bouton-principal', async () => {
             await api(`/messages/conversations/${id}/accepter`, { methode: 'POST', donnees: {} });
             onglet = 'principal';
             choisirOnglet();
             await ouvrir(id);
           }),
-          boutonAction('Refuser', 'bouton-contour', async () => {
+          boutonAction(t('commun.refuser'), 'bouton-contour', async () => {
             await api(`/messages/conversations/${id}/refuser`, { methode: 'POST', donnees: {} });
-            toast('Demande refusée.');
+            toast(t('profil.demande-refusee'));
             aller('/messages');
           }),
-          boutonAction('Bloquer', 'bouton-lien', async () => { if (await bloquer(autre)) aller('/messages'); }),
+          boutonAction(t('messages.bloquer'), 'bouton-lien', async () => { if (await bloquer(autre)) aller('/messages'); }),
         ]),
       ]);
     } else if (conversation.peutEcrire) {
@@ -894,7 +894,7 @@
       bas = el('p', { classe: 'zone-demande texte-discret', texte: conversation.raison });
     }
 
-    const plusAnciens = el('button', { classe: 'bouton bouton-contour bouton-compact plus-anciens', type: 'button', texte: 'Voir les messages précédents', hidden: !reponse.precedent });
+    const plusAnciens = el('button', { classe: 'bouton bouton-contour bouton-compact plus-anciens', type: 'button', texte: t('messages.precedents'), hidden: !reponse.precedent });
     let precedent = reponse.precedent;
     plusAnciens.addEventListener('click', async () => {
       plusAnciens.disabled = true;
@@ -930,7 +930,7 @@
       ouverte.entete,
       // Client et dev : on rappelle la demande dont il est question.
       conversation.demande
-        ? el('a', { classe: 'bandeau-demande', href: `/demande?id=${conversation.demande.id}` }, [icone('demandes'), el('span', {}, ['À propos de la demande : ', el('strong', { texte: conversation.demande.titre })])])
+        ? el('a', { classe: 'bandeau-demande', href: `/demande?id=${conversation.demande.id}` }, [icone('demandes'), el('span', {}, [t('messages.a-propos-demande'), el('strong', { texte: conversation.demande.titre })])])
         : null,
       zone,
       (ouverte.ecritIci = ligneEcriture()),
@@ -945,16 +945,16 @@
   }
 
   // ---------- Ouvrir un groupe (la discussion d'une équipe éclair) ----------
-  const roleDe = (membre) => [membre.chef ? 'Chef d\'équipe' : null, membre.estClient ? 'Client' : null, membre.roleEquipe].filter(Boolean).join(', ');
+  const roleDe = (membre) => [membre.chef ? t('messages.chef') : null, membre.estClient ? t('commun.client') : null, membre.roleEquipe].filter(Boolean).join(', ');
 
   // Le panneau « Membres » : qui est là, et son rôle dans l'équipe.
   function montrerMembres(groupe) {
-    const fermer = el('button', { classe: 'bouton bouton-principal', type: 'button', texte: 'Fermer' });
+    const fermer = el('button', { classe: 'bouton bouton-principal', type: 'button', texte: t('commun.fermer') });
     const dialogue = el('dialog', { classe: 'dialogue dialogue-membres', 'aria-labelledby': 'membres-titre' }, [
-      el('h2', { id: 'membres-titre', texte: `${groupe.membres.length} membre${groupe.membres.length > 1 ? 's' : ''}` }),
+      el('h2', { id: 'membres-titre', texte: t('messages.membres', { n: groupe.membres.length }) }),
       el('ul', { classe: 'liste-membres-groupe' }, groupe.membres.map((membre) => el('li', {}, [
-        el('a', { classe: 'lien-avatar', href: `/${membre.identifiant}`, 'aria-label': `Profil de ${membre.nom}` }, [avatar(membre, 'moyen')]),
-        el('div', {}, [nomMembre(membre), el('p', { classe: 'texte-discret', texte: `${roleDe(membre) || 'Membre'}${membre.estMoi ? ' (toi)' : ''}` })]),
+        el('a', { classe: 'lien-avatar', href: `/${membre.identifiant}`, 'aria-label': t('commun.profil-de', { nom: membre.nom, deNom: deNom(membre.nom) }) }, [avatar(membre, 'moyen')]),
+        el('div', {}, [nomMembre(membre), el('p', { classe: 'texte-discret', texte: `${roleDe(membre) || t('messages.membre')}${membre.estMoi ? t('messages.role-toi') : ''}` })]),
       ]))),
       el('div', { classe: 'dialogue-actions' }, [fermer]),
     ]);
@@ -969,11 +969,11 @@
     const champ = el('input', { id: 'titre-groupe', type: 'text', maxlength: '80', required: true });
     champ.value = groupe.titre;
     const erreurZone = el('p', { classe: 'erreur-champ', role: 'alert' });
-    const annuler = el('button', { classe: 'bouton bouton-lien', type: 'button', texte: 'Annuler' });
-    const valider = el('button', { classe: 'bouton bouton-principal', type: 'submit', texte: 'Enregistrer' });
+    const annuler = el('button', { classe: 'bouton bouton-lien', type: 'button', texte: t('commun.annuler') });
+    const valider = el('button', { classe: 'bouton bouton-principal', type: 'submit', texte: t('commun.enregistrer') });
     const formulaire = el('form', { novalidate: true }, [
-      el('h2', { id: 'renommer-titre', texte: 'Nom du groupe' }),
-      el('div', { classe: 'champ' }, [el('label', { for: 'titre-groupe', texte: 'Nom' }), champ, erreurZone]),
+      el('h2', { id: 'renommer-titre', texte: t('messages.nom-du-groupe') }),
+      el('div', { classe: 'champ' }, [el('label', { for: 'titre-groupe', texte: t('messages.nom') }), champ, erreurZone]),
       el('div', { classe: 'dialogue-actions' }, [annuler, valider]),
     ]);
     const dialogue = el('dialog', { classe: 'dialogue', 'aria-labelledby': 'renommer-titre' }, [formulaire]);
@@ -985,7 +985,7 @@
       try {
         await api(`/messages/groupes/${groupe.id}`, { methode: 'PUT', donnees: { titre: champ.value } });
         dialogue.close();
-        toast('Groupe renommé.');
+        toast(t('messages.groupe-renomme'));
         chargerListe();
         ouvrirGroupe(groupe.id);
       } catch (erreur) {
@@ -1008,56 +1008,56 @@
       reponse = await api(`/messages/groupes/${id}`);
     } catch (erreur) {
       fini();
-      panneau.replaceChildren(etatVide('calme', 'Groupe introuvable', erreur.statut === 404 ? 'Il n\'existe pas, ou tu n\'en fais plus partie.' : erreur.message,
-        el('a', { classe: 'bouton bouton-principal', href: '/messages', texte: 'Toutes mes conversations' })));
+      panneau.replaceChildren(etatVide('calme', t('messages.groupe-introuvable'), erreur.statut === 404 ? t('messages.groupe-introuvable-aide') : erreur.message,
+        el('a', { classe: 'bouton bouton-principal', href: '/messages', texte: t('messages.toutes') })));
       return;
     }
     fini();
     const { groupe } = reponse;
     document.title = `${groupe.titre} – Messages – Palabre`;
-    const zone = el('div', { classe: 'fil-messages', role: 'log', 'aria-label': `Messages du groupe ${groupe.titre}`, tabindex: '0' });
+    const zone = el('div', { classe: 'fil-messages', role: 'log', 'aria-label': t('messages.du-groupe', { titre: groupe.titre }), tabindex: '0' });
     const mentionVu = el('p', { classe: 'mention-vu', hidden: true });
     window.Palabre.conversationOuverte = id;
     ouverte = { id, estGroupe: true, donnees: groupe, zone, mentionVu, dernierId: 0, monDernierId: 0, dernierDeLAutre: 0, dernierJour: null, vuJusqua: 0 };
 
     const menu = menuOptions(() => [
-      { texte: 'Membres', icone: 'amis', action: () => montrerMembres(groupe) },
-      groupe.demande ? { texte: 'Voir la demande', icone: 'demandes', action: () => { window.location.href = `/demande?id=${groupe.demande.id}`; } } : null,
-      groupe.jeSuisChef && !groupe.ferme ? { texte: 'Renommer le groupe', icone: 'modifier', action: () => renommer(groupe) } : null,
-      { texte: groupe.sourdine ? 'Réactiver les notifications' : 'Mettre en sourdine', icone: 'cloche', action: async () => {
+      { texte: t('messages.membres-titre'), icone: 'amis', action: () => montrerMembres(groupe) },
+      groupe.demande ? { texte: t('demandes.voir'), icone: 'demandes', action: () => { window.location.href = `/demande?id=${groupe.demande.id}`; } } : null,
+      groupe.jeSuisChef && !groupe.ferme ? { texte: t('messages.renommer'), icone: 'modifier', action: () => renommer(groupe) } : null,
+      { texte: groupe.sourdine ? t('messages.reactiver') : t('messages.sourdine'), icone: 'cloche', action: async () => {
         try {
           await api(`/messages/groupes/${id}/sourdine`, { methode: 'POST', donnees: { active: !groupe.sourdine } });
           groupe.sourdine = !groupe.sourdine;
-          toast(groupe.sourdine ? 'Groupe en sourdine : plus de notification pour lui.' : 'Notifications du groupe réactivées.');
+          toast(groupe.sourdine ? t('messages.en-sourdine') : t('messages.reactivees'));
         } catch (erreur) { toast(erreur.message, 'erreur'); }
       } },
-      { texte: 'Signaler', icone: 'signaler', action: () => {
+      { texte: t('signalement.titre'), icone: 'signaler', action: () => {
         if (ouverte.dernierDeLAutre) signaler('message', ouverte.dernierDeLAutre);
-        else toast('Il n\'y a aucun message d\'un autre membre à signaler.', 'erreur');
+        else toast(t('messages.rien-a-signaler-groupe'), 'erreur');
       } },
       // Le chef ne quitte pas : il dissout l'équipe depuis la page de la demande.
-      groupe.jeSuisChef && !groupe.ferme ? null : { texte: 'Quitter le groupe', icone: 'deconnexion', danger: true, action: async () => {
+      groupe.jeSuisChef && !groupe.ferme ? null : { texte: t('messages.quitter'), icone: 'deconnexion', danger: true, action: async () => {
         const moiDansLeGroupe = groupe.membres.find((m) => m.estMoi);
         const question = groupe.ferme || (moiDansLeGroupe && moiDansLeGroupe.estClient)
-          ? 'Quitter ce groupe ? Tu ne verras plus ses messages.'
-          : 'Quitter ce groupe ? Tu ne verras plus ses messages. Si le client n\'a pas encore choisi, tu quittes aussi l\'équipe.';
-        if (!(await confirmer(question, { bouton: 'Quitter', danger: true }))) return;
+          ? t('messages.quitter-question')
+          : t('messages.quitter-question-equipe');
+        if (!(await confirmer(question, { bouton: t('messages.quitter-bouton'), danger: true }))) return;
         try {
           const { quitteLEquipe } = await api(`/messages/groupes/${id}/quitter`, { methode: 'POST', donnees: {} });
-          toast(quitteLEquipe ? 'Tu as quitté l\'équipe et son groupe.' : 'Tu as quitté le groupe.');
+          toast(quitteLEquipe ? t('messages.quitte-equipe') : t('messages.quitte'));
           chargerListe();
           aller('/messages');
         } catch (erreur) { toast(erreur.message, 'erreur'); }
       } },
     ]);
 
-    const retour = el('button', { classe: 'bouton-icone bouton-retour', type: 'button', 'aria-label': 'Retour à la liste des conversations' }, [icone('fleche-gauche')]);
+    const retour = el('button', { classe: 'bouton-icone bouton-retour', type: 'button', 'aria-label': t('messages.retour-liste') }, [icone('fleche-gauche')]);
     retour.addEventListener('click', () => aller('/messages'));
-    const ouvrirMembres = el('button', { classe: 'entete-groupe', type: 'button', 'aria-label': `${groupe.titre}, ${groupe.membres.length} membres : voir les membres` }, [
+    const ouvrirMembres = el('button', { classe: 'entete-groupe', type: 'button', 'aria-label': t('messages.voir-membres', { titre: groupe.titre, n: groupe.membres.length }) }, [
       avatarsEmpiles(groupe.membres.filter((m) => !m.estMoi).concat(groupe.membres.filter((m) => m.estMoi)), 'mini'),
       el('span', { classe: 'conversation-qui' }, [
         el('strong', { classe: 'conversation-titre', texte: groupe.titre }),
-        el('span', { classe: 'texte-discret', texte: `${groupe.membres.length} membre${groupe.membres.length > 1 ? 's' : ''}${groupe.ferme ? ', équipe dissoute' : ''}` }),
+        el('span', { classe: 'texte-discret', texte: `${t('messages.membres', { n: groupe.membres.length })}${groupe.ferme ? t('messages.membres-dissoute') : ''}` }),
       ]),
     ]);
     ouvrirMembres.addEventListener('click', () => montrerMembres(groupe));
@@ -1074,7 +1074,7 @@
       })
       : el('p', { classe: 'zone-demande texte-discret', texte: groupe.raison });
 
-    const plusAnciens = el('button', { classe: 'bouton bouton-contour bouton-compact plus-anciens', type: 'button', texte: 'Voir les messages précédents', hidden: !reponse.precedent });
+    const plusAnciens = el('button', { classe: 'bouton bouton-contour bouton-compact plus-anciens', type: 'button', texte: t('messages.precedents'), hidden: !reponse.precedent });
     let precedent = reponse.precedent;
     plusAnciens.addEventListener('click', async () => {
       plusAnciens.disabled = true;
@@ -1103,7 +1103,7 @@
     panneau.replaceChildren(...[
       el('header', { classe: 'conversation-entete' }, [retour, ouvrirMembres, ...(groupe.peutEcrire && groupe.membres.length > 1 ? boutonsAppel({ video: false }) : []), menu]),
       groupe.demande
-        ? el('a', { classe: 'bandeau-demande', href: `/demande?id=${groupe.demande.id}` }, [icone('demandes'), el('span', {}, ['Équipe éclair pour la demande : ', el('strong', { texte: groupe.demande.titre })])])
+        ? el('a', { classe: 'bandeau-demande', href: `/demande?id=${groupe.demande.id}` }, [icone('demandes'), el('span', {}, [t('messages.equipe-pour'), el('strong', { texte: groupe.demande.titre })])])
         : null,
       zone,
       (ouverte.ecritIci = ligneEcriture()),
@@ -1136,7 +1136,7 @@
       const bas = info.peutEcrire
         ? zoneEcriture({
           avertissement: info.seraUneDemande
-            ? `Vous n'êtes pas encore amis : ton premier message sera une demande. Tu pourras continuer quand ${prenom(info.autre)} l'aura acceptée.`
+            ? t('messages.sera-une-demande', { prenom: prenom(info.autre) })
             : null,
           envoyer: async (donnees) => {
             const reponse = await api(`/messages/avec/${encodeURIComponent(identifiant)}`, { methode: 'POST', donnees: { ...donnees, ...(demandeId ? { demandeId: Number(demandeId) } : {}) } });
@@ -1148,15 +1148,15 @@
         : el('p', { classe: 'zone-demande texte-discret', texte: info.raison });
       panneau.replaceChildren(
         enteteConversation(info.autre),
-        el('div', { classe: 'fil-messages' }, [etatVide('palabre', `Écris à ${prenom(info.autre)}`, 'Présente-toi en quelques mots : c\'est le début de la conversation.')]),
+        el('div', { classe: 'fil-messages' }, [etatVide('palabre', t('messages.ecris-a', { prenom: prenom(info.autre) }), t('messages.presente-toi'))]),
         bas,
       );
       const champ = panneau.querySelector('textarea');
       if (champ) champ.focus();
     } catch (erreur) {
       fini();
-      panneau.replaceChildren(etatVide('calme', 'Impossible d\'écrire à ce membre', erreur.message,
-        el('a', { classe: 'bouton bouton-principal', href: '/messages', texte: 'Toutes mes conversations' })));
+      panneau.replaceChildren(etatVide('calme', t('messages.impossible'), erreur.message,
+        el('a', { classe: 'bouton bouton-principal', href: '/messages', texte: t('messages.toutes') })));
     }
   }
 
@@ -1165,8 +1165,8 @@
     ouverte = null;
     window.Palabre.conversationOuverte = null;
     document.body.classList.remove('conversation-ouverte');
-    document.title = 'Messages – Palabre';
-    panneau.replaceChildren(etatVide('palabre', 'Tes conversations', 'Choisis une conversation dans la liste, ou écris à un membre depuis son profil.'));
+    document.title = t('titre.messages');
+    panneau.replaceChildren(etatVide('palabre', t('messages.tes-conversations'), t('messages.choisis')));
     dessinerListe();
   }
 

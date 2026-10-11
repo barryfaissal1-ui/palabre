@@ -590,3 +590,9 @@ CREATE TABLE IF NOT EXISTS exports_donnees (
   cree_le        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_exports_donnees_membre ON exports_donnees (utilisateur_id, cree_le DESC);
+
+-- Langue du membre : 'fr' ou 'en'. Vide tant qu'il n'a pas choisi (le site suit alors son navigateur).
+-- Sert au serveur pour écrire dans la bonne langue ce qu'il lui envoie : notifications, push, emails.
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS langue TEXT;
+ALTER TABLE utilisateurs DROP CONSTRAINT IF EXISTS utilisateurs_langue_check;
+ALTER TABLE utilisateurs ADD CONSTRAINT utilisateurs_langue_check CHECK (langue IN ('fr', 'en'));

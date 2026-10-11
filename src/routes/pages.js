@@ -9,7 +9,9 @@ const path = require('node:path');
 const db = require('../db/pool');
 const config = require('../config');
 const v = require('../utils/validation');
-const { lirePage, pageErreur } = require('../utils/statique');
+const { lirePage, pageErreur, dansLaLangue } = require('../utils/statique');
+const { langueDe } = require('../utils/langue');
+const { t } = require('../utils/textes');
 
 const router = express.Router();
 const DOSSIER_PUBLIC = path.join(__dirname, '..', '..', 'public');
@@ -34,12 +36,13 @@ const lireModele = lirePage;
 // Remplace le <title> de la page par un titre et des balises de partage propres à ce contenu.
 function rendrePage(res, fichier, { titre, description, chemin, image, type = 'website', statut = 200, fond = false }) {
   const url = `${config.urlPublique}${chemin}`;
+  const langue = langueDe(res.req); // la langue du visiteur : son cookie, sinon son navigateur
   const balises = [
     `<title>${echapper(titre)}</title>`,
     `<meta name="description" content="${echapper(description)}">`,
     `<link rel="canonical" href="${echapper(url)}">`,
     `<meta property="og:site_name" content="Palabre">`,
-    `<meta property="og:locale" content="fr_FR">`,
+    `<meta property="og:locale" content="${langue === 'en' ? 'en_GB' : 'fr_FR'}">`,
     `<meta property="og:type" content="${type}">`,
     `<meta property="og:title" content="${echapper(titre)}">`,
     `<meta property="og:description" content="${echapper(description)}">`,
@@ -55,7 +58,7 @@ function rendrePage(res, fichier, { titre, description, chemin, image, type = 'w
     `<meta name="twitter:image" content="${echapper(`${config.urlPublique}${image || IMAGE_PAR_DEFAUT}`)}">`,
   ].join('\n  ');
   // La fonction en second argument évite que « $ » dans un titre soit pris pour un code de remplacement.
-  let html = lireModele(fichier).replace(/<title>[^<]*<\/title>/, () => balises);
+  let html = dansLaLangue(res.req, lireModele(fichier)).replace(/<title[^>]*>[^<]*<\/title>/, () => balises);
   if (fond) html = html.replace('<!-- photos-de-fond -->', () => baliseFond(0));
   // no-cache : la page est toujours revérifiée (c'est elle qui porte les adresses versionnées du style et des scripts).
   res.status(statut).set('Cache-Control', 'no-cache').type('html').send(html);
@@ -64,8 +67,8 @@ function rendrePage(res, fichier, { titre, description, chemin, image, type = 'w
 // Accueil
 router.get('/', (req, res) => {
   rendrePage(res, 'index.html', {
-    titre: 'Palabre – le réseau des développeurs africains',
-    description: 'Palabre réunit les développeurs africains : partage tes projets, forme des équipes éclair, et trouve des clients qui ont besoin de toi.',
+    titre: t(langueDe(req), 'titre.accueil'),
+    description: t(langueDe(req), 'og.accueil.description'),
     chemin: '/',
     fond: true,
   });
@@ -74,8 +77,8 @@ router.get('/', (req, res) => {
 // Calculateur « Combien coûte mon projet ? »
 router.get('/calculateur', (req, res) => {
   rendrePage(res, 'calculateur.html', {
-    titre: 'Combien coûte mon projet ? – Palabre',
-    description: 'Site, boutique en ligne, application mobile ou logiciel de gestion : estime le prix de ton projet en FCFA en quatre questions, gratuitement et sans compte.',
+    titre: t(langueDe(req), 'titre.calculateur'),
+    description: t(langueDe(req), 'og.calculateur.description'),
     chemin: '/calculateur',
   });
 });
@@ -135,6 +138,7 @@ function baliseFond(rang, { differe = false } = {}) {
 router.get(['/connexion', '/inscription'], (req, res) => {
   const inscription = req.path === '/inscription';
   // loading="lazy" : la photo du panneau est décorative, elle ne retarde jamais l'affichage du formulaire.
+  const langue = langueDe(req);
   let html = lireModele('connexion.html').replace('<!-- photo-panneau -->', () => baliseFond(1, { differe: true }));
   if (inscription) {
     html = html
@@ -151,6 +155,12 @@ router.get(['/connexion', '/inscription'], (req, res) => {
       // Chaque texte marqué data-selon-type est remplacé par sa version « client », lue dans son propre attribut.
       .replace(/(data-selon-type data-dev="[^"]*" data-client="([^"]*)">)[^<]*/g, '$1$2');
   }
+  // Dans une autre langue : les textes marqués data-t, puis le titre de l'onglet (connexion ou inscription).
+  if (langue !== 'fr') {
+    html = dansLaLangue(req, html).replace(/<title>[^<]*<\/title>/, () => `<title>${t(langue, inscription ? 'titre.inscription' : 'titre.connexion')}</title>`);
+    // Le panneau « client » : son texte vient de la clé data-t-client, pas de la clé data-t (qui est celle du dev).
+    if (req.query.type === 'client') html = html.replace(/(data-t-client="([^"]+)"[^<>]*>)[^<]*/g, (tout, balise, cle) => `${balise}${echapper(t(langue, cle))}`);
+  }
   res.set('Cache-Control', 'no-cache').type('html').send(html);
 });
 
@@ -158,18 +168,19 @@ router.get(['/connexion', '/inscription'], (req, res) => {
 // Un groupe d'équipe : /messages/groupe/12, la même page elle aussi.
 router.get('/messages/groupe/:id', (req, res, next) => {
   if (!/^\d+$/.test(req.params.id)) return next();
-  res.set('Cache-Control', 'no-cache').type('html').send(lireModele('messages.html'));
+  res.set('Cache-Control', 'no-cache').type('html').send(dansLaLangue(req, lireModele('messages.html'), 'titre.messages'));
 });
 
 router.get('/messages/:id', (req, res, next) => {
   if (!/^\d+$/.test(req.params.id)) return next();
-  res.set('Cache-Control', 'no-cache').type('html').send(lireModele('messages.html'));
+  res.set('Cache-Control', 'no-cache').type('html').send(dansLaLangue(req, lireModele('messages.html'), 'titre.messages'));
 });
 
 // Page d'un projet : /projets/12
 router.get('/projets/:id', async (req, res, next) => {
   const id = v.idPositif(req.params.id);
   if (!id) return next();
+  const langue = langueDe(req);
   const { rows: [projet] } = await db.query(
     `SELECT p.titre, p.description, p.image, u.nom FROM projets p
        JOIN utilisateurs u ON u.id = p.dev_id
@@ -177,11 +188,11 @@ router.get('/projets/:id', async (req, res, next) => {
     [id],
   );
   if (!projet) {
-    return rendrePage(res, 'projet.html', { titre: 'Projet introuvable – Palabre', description: 'Ce projet n\'existe plus.', chemin: '/', statut: 404 });
+    return rendrePage(res, 'projet.html', { titre: t(langue, 'og.projet.introuvable'), description: t(langue, 'projet.introuvable'), chemin: '/', statut: 404 });
   }
   rendrePage(res, 'projet.html', {
-    titre: `${projet.titre} – réalisé par ${projet.nom} | Palabre`,
-    description: raccourcir(projet.description) || `Un projet réalisé par ${projet.nom}, à découvrir sur Palabre, le réseau des développeurs africains.`,
+    titre: t(langue, 'og.projet.titre', { titre: projet.titre, nom: projet.nom }),
+    description: raccourcir(projet.description) || t(langue, 'og.projet.description', { nom: projet.nom }),
     chemin: `/projets/${id}`,
     image: projet.image ? `/fichiers/${projet.image}` : null,
     type: 'article',
@@ -194,6 +205,7 @@ router.get('/projets/:id', async (req, res, next) => {
 router.get('/publication/:id', async (req, res, next) => {
   if (!/^\d+$/.test(req.params.id)) return next();
   const id = v.idPositif(req.params.id);
+  const langue = langueDe(req);
   const { rows: [publication] } = id ? await db.query(
     `SELECT p.texte, p.image, u.nom, COALESCE(u.confidentialite->>'publications', 'tous') = 'tous' AS publique FROM publications p
        JOIN utilisateurs u ON u.id = p.auteur_id
@@ -205,16 +217,16 @@ router.get('/publication/:id', async (req, res, next) => {
   // c'est l'API qui décide), mais le serveur n'écrit RIEN d'elle dans les balises de partage.
   if (!publication.publique) {
     return rendrePage(res, 'publication.html', {
-      titre: 'Publication sur Palabre',
-      description: 'Connecte-toi à Palabre, le réseau des développeurs africains, pour lire cette publication.',
+      titre: t(langue, 'og.publication.reservee'),
+      description: t(langue, 'og.publication.reservee-description'),
       chemin: `/publication/${id}`,
       image: null,
       type: 'article',
     });
   }
   rendrePage(res, 'publication.html', {
-    titre: `${publication.nom} sur Palabre`,
-    description: raccourcir(publication.texte, 160) || `Une publication de ${publication.nom} sur Palabre, le réseau des développeurs africains.`,
+    titre: t(langue, 'publication.sur-palabre', { nom: publication.nom }),
+    description: raccourcir(publication.texte, 160) || t(langue, 'og.publication.description', { nom: publication.nom }),
     chemin: `/publication/${id}`,
     image: publication.image ? `/fichiers/${publication.image}` : null,
     type: 'article',
@@ -226,17 +238,20 @@ router.get('/publication/:id', async (req, res, next) => {
 router.get('/:identifiant', async (req, res, next) => {
   const identifiant = req.params.identifiant.toLowerCase();
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(identifiant) || v.IDENTIFIANTS_RESERVES.has(identifiant)) return next();
+  const langue = langueDe(req);
   const { rows: [membre] } = await db.query(
-    'SELECT nom, type, ville, pays, bio, avatar FROM utilisateurs WHERE identifiant = $1 AND bloque = FALSE',
+    'SELECT nom, type, ville, pays, bio, avatar FROM utilisateurs WHERE identifiant = $1 AND bloque = FALSE AND supprime_le IS NULL',
     [identifiant],
   );
   if (!membre) {
-    return rendrePage(res, 'profil.html', { titre: 'Profil introuvable – Palabre', description: 'Ce profil n\'existe pas ou a été supprimé.', chemin: '/', statut: 404 });
+    return rendrePage(res, 'profil.html', { titre: t(langue, 'profil.introuvable-titre'), description: t(langue, 'profil.introuvable-aide'), chemin: '/', statut: 404 });
   }
-  const role = membre.type === 'dev' ? 'Développeur' : 'Client';
+  const role = t(langue, membre.type === 'dev' ? 'acces.developpeur' : 'commun.client');
+  const cleDuPays = `pays.${membre.pays.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+  const pays = t(langue, cleDuPays) === cleDuPays ? membre.pays : t(langue, cleDuPays);
   rendrePage(res, 'profil.html', {
-    titre: `${membre.nom} – ${role} à ${membre.ville}, ${membre.pays} | Palabre`,
-    description: raccourcir(membre.bio) || `Découvre le profil de ${membre.nom} sur Palabre, le réseau des développeurs africains.`,
+    titre: t(langue, 'og.profil.titre', { nom: membre.nom, metier: role, ville: membre.ville, pays }),
+    description: raccourcir(membre.bio) || t(langue, 'og.profil.description', { nom: membre.nom }),
     chemin: `/${identifiant}`,
     image: membre.avatar ? `/fichiers/${membre.avatar}` : null,
     type: 'profile',

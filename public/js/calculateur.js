@@ -2,7 +2,14 @@
 // Les questions sont construites à partir de la grille (grille-prix.js) : modifier la grille suffit.
 // Le calcul se fait ici, dans le navigateur, sans rien envoyer au serveur.
 (function () {
-  const { el, fcfa, utilisateurConnecte } = window.Palabre;
+  const { t, el, fcfa, utilisateurConnecte } = window.Palabre;
+  // Les libellés de la grille (grille-prix.js les écrit en français) : traduits par leur identifiant,
+  // clé « calcul.<famille>.<id>.<nom | aide | unite> ». Sans traduction, on garde le texte de la grille.
+  const libelle = (famille, element, champ) => {
+    const cle = `calcul.${famille}.${element.id}.${champ}`;
+    const traduit = t(cle);
+    return traduit === cle ? element[champ] : traduit;
+  };
   const GRILLE = window.GRILLE_PRIX;
   const { estimerPrix } = window;
 
@@ -15,7 +22,7 @@
 
   const pourcent = (p) => `+${p} %`;
   const typeChoisi = () => GRILLE.types.find((t) => t.id === formulaire.elements.type.value);
-  const unite = () => (typeChoisi() ? typeChoisi().unite : 'pages ou écrans');
+  const unite = () => (typeChoisi() ? libelle('types', typeChoisi(), 'unite') : t('calcul.pages-ou-ecrans'));
 
   // Une carte à choisir : bouton radio (un seul choix) ou case à cocher (plusieurs).
   function carte(genre, nom, element, titre, aide, prix, coche) {
@@ -40,14 +47,14 @@
 
   function construire() {
     const erreur = el('p', { classe: 'erreur-champ', role: 'alert', 'data-erreur-etape': true });
-    const retour = el('button', { classe: 'bouton bouton-contour', type: 'button', texte: 'Retour', hidden: true, 'data-retour': true });
-    const suivant = el('button', { classe: 'bouton bouton-principal', type: 'submit', texte: 'Continuer', 'data-suivant': true });
+    const retour = el('button', { classe: 'bouton bouton-contour', type: 'button', texte: t('commun.retour'), hidden: true, 'data-retour': true });
+    const suivant = el('button', { classe: 'bouton bouton-principal', type: 'submit', texte: t('commun.continuer'), 'data-suivant': true });
 
     formulaire.replaceChildren(
-      ecran(1, 'Quel type de projet ?', null, GRILLE.types.flatMap((t) => carte('radio', 'type', t, t.nom, t.aide, `${fcfa(t.min).replace(' FCFA', '')} à ${fcfa(t.max)}`, false))),
-      ecran(2, 'Quelle taille ?', 'Compte les pages d\'un site, ou les écrans d\'une application.', GRILLE.tailles.flatMap((t, i) => carte('radio', 'taille', t, t.nom, null, t.pourcentage ? pourcent(t.pourcentage) : 'Prix de base', i === 0))),
-      ecran(3, 'Quelles options ?', 'Coche ce dont tu as besoin. Tu peux aussi ne rien cocher.', GRILLE.options.flatMap((o) => carte('checkbox', 'options', o, o.nom, o.aide, `+ ${fcfa(o.prix)}`, false))),
-      ecran(4, 'Pour quand ?', null, GRILLE.delais.flatMap((d, i) => carte('radio', 'delai', d, d.nom, d.aide, d.pourcentage ? `${pourcent(d.pourcentage)} sur le total` : 'Sans supplément', i === 0))),
+      ecran(1, t('calcul.quel-type'), null, GRILLE.types.flatMap((type) => carte('radio', 'type', type, libelle('types', type, 'nom'), libelle('types', type, 'aide'), t('calcul.fourchette', { min: fcfa(type.min).replace(' FCFA', ''), max: fcfa(type.max) }), false))),
+      ecran(2, t('calcul.quelle-taille'), t('calcul.taille-aide'), GRILLE.tailles.flatMap((taille, i) => carte('radio', 'taille', taille, libelle('tailles', taille, 'nom'), null, taille.pourcentage ? pourcent(taille.pourcentage) : t('calcul.prix-de-base-majuscule'), i === 0))),
+      ecran(3, t('calcul.quelles-options'), t('calcul.options-aide'), GRILLE.options.flatMap((o) => carte('checkbox', 'options', o, libelle('options', o, 'nom'), libelle('options', o, 'aide'), `+ ${fcfa(o.prix)}`, false))),
+      ecran(4, t('calcul.pour-quand'), null, GRILLE.delais.flatMap((d, i) => carte('radio', 'delai', d, libelle('delais', d, 'nom'), libelle('delais', d, 'aide'), d.pourcentage ? t('calcul.sur-le-total', { pourcent: pourcent(d.pourcentage) }) : t('calcul.sans-supplement'), i === 0))),
       erreur,
       el('div', { classe: 'actions-etape' }, [retour, suivant]),
     );
@@ -56,7 +63,7 @@
     formulaire.addEventListener('submit', (evenement) => {
       evenement.preventDefault();
       if (etape === 1 && !formulaire.elements.type.value) {
-        erreur.textContent = 'Choisis un type de projet pour continuer.';
+        erreur.textContent = t('calcul.choisis-type');
         return;
       }
       aller(etape + 1);
@@ -84,9 +91,9 @@
     } else {
       formulaire.querySelectorAll('.etape').forEach((e) => { e.hidden = Number(e.dataset.etape) !== etape; });
       formulaire.querySelector('[data-retour]').hidden = etape === 1;
-      formulaire.querySelector('[data-suivant]').textContent = etape === NB_ETAPES ? 'Voir l\'estimation' : 'Continuer';
+      formulaire.querySelector('[data-suivant]').textContent = etape === NB_ETAPES ? t('calcul.voir-estimation') : t('commun.continuer');
       document.querySelector('[data-barre]').value = etape;
-      document.querySelector('[data-texte-progression]').textContent = `Étape ${etape} sur ${NB_ETAPES}`;
+      document.querySelector('[data-texte-progression]').textContent = t('calcul.etape', { n: etape, total: NB_ETAPES });
     }
     // Le titre de l'écran reçoit le focus : les lecteurs d'écran annoncent la nouvelle question.
     const titre = fini ? resultat.querySelector('h2') : formulaire.querySelector(`.etape[data-etape="${etape}"] legend`);
@@ -108,33 +115,33 @@
     const versDemande = `/demandes?${new URLSearchParams({ publier: '1', categorie: type.categorie, budget: milieu })}`;
     // Sans compte : on passe d'abord par l'inscription « client », qui ramène ensuite au formulaire.
     const adressePublier = moi ? versDemande : `/inscription?${new URLSearchParams({ type: 'client', suite: versDemande })}`;
-    const texteWhatsApp = `D'après le calculateur de Palabre, mon projet (${type.nom.toLowerCase()}) coûterait entre ${fcfa(min).replace(' FCFA', '')} et ${fcfa(max)}. Fais ton estimation : ${window.location.origin}/calculateur`;
+    const texteWhatsApp = t('calcul.whatsapp', { type: libelle('types', type, 'nom').toLowerCase(), min: fcfa(min).replace(' FCFA', ''), max: fcfa(max), lien: `${window.location.origin}/calculateur` });
 
-    const recommencer = el('button', { classe: 'bouton bouton-lien', type: 'button', texte: 'Modifier mes réponses' });
+    const recommencer = el('button', { classe: 'bouton bouton-lien', type: 'button', texte: t('calcul.modifier-reponses') });
     recommencer.addEventListener('click', () => aller(1));
 
     resultat.replaceChildren(
-      el('h2', { tabindex: '-1', texte: 'Ton estimation' }),
+      el('h2', { tabindex: '-1', texte: t('calcul.ton-estimation') }),
       el('p', { classe: 'fourchette' }, [
-        'Entre ', el('strong', { texte: fcfa(min).replace(' FCFA', '') }), ' et ', el('strong', { texte: fcfa(max) }),
+        t('calcul.entre'), el('strong', { texte: fcfa(min).replace(' FCFA', '') }), t('calcul.et'), el('strong', { texte: fcfa(max) }),
       ]),
-      el('p', { classe: 'message', texte: 'C\'est une estimation. Le vrai prix se fixe avec le développeur, selon ce que tu veux exactement.' }),
-      el('h3', { texte: 'Détail du calcul' }),
+      el('p', { classe: 'message', texte: t('calcul.avertissement') }),
+      el('h3', { texte: t('calcul.detail') }),
       el('dl', { classe: 'detail-calcul' }, [
-        ligne(type.nom, `${fcfa(type.min).replace(' FCFA', '')} à ${fcfa(type.max)}`),
-        ligne(`${taille.nom} ${type.unite}`, taille.pourcentage ? pourcent(taille.pourcentage) : 'prix de base'),
-        ...options.map((o) => ligne(o.nom, `+ ${fcfa(o.prix)}`)),
-        delai.pourcentage ? ligne(`Délai ${delai.nom.toLowerCase()}`, `${pourcent(delai.pourcentage)} sur le total`) : null,
-        ligne('Total arrondi', `${fcfa(min).replace(' FCFA', '')} à ${fcfa(max)}`),
+        ligne(libelle('types', type, 'nom'), t('calcul.fourchette', { min: fcfa(type.min).replace(' FCFA', ''), max: fcfa(type.max) })),
+        ligne(`${libelle('tailles', taille, 'nom')} ${libelle('types', type, 'unite')}`, taille.pourcentage ? pourcent(taille.pourcentage) : t('calcul.prix-de-base')),
+        ...options.map((o) => ligne(libelle('options', o, 'nom'), `+ ${fcfa(o.prix)}`)),
+        delai.pourcentage ? ligne(t('calcul.delai-nom', { nom: libelle('delais', delai, 'nom').toLowerCase() }), t('calcul.sur-le-total', { pourcent: pourcent(delai.pourcentage) })) : null,
+        ligne(t('calcul.total-arrondi'), t('calcul.fourchette', { min: fcfa(min).replace(' FCFA', ''), max: fcfa(max) })),
       ]),
       el('div', { classe: 'actions-resultat' }, [
-        el('a', { classe: 'bouton bouton-principal bouton-plein', href: adressePublier, texte: 'Publier ma demande avec ce budget' }),
-        el('a', { classe: 'bouton bouton-contour bouton-plein', href: `https://wa.me/?text=${encodeURIComponent(texteWhatsApp)}`, target: '_blank', rel: 'noopener', texte: 'Partager sur WhatsApp' }),
+        el('a', { classe: 'bouton bouton-principal bouton-plein', href: adressePublier, texte: t('calcul.publier') }),
+        el('a', { classe: 'bouton bouton-contour bouton-plein', href: `https://wa.me/?text=${encodeURIComponent(texteWhatsApp)}`, target: '_blank', rel: 'noopener', texte: t('calcul.partager-whatsapp') }),
         recommencer,
       ]),
       el('p', { classe: 'texte-discret', texte: moi
-        ? `Budget proposé dans la demande : ${fcfa(milieu)} (le milieu de la fourchette). Tu pourras le modifier.`
-        : `Tu créeras d'abord ton compte client (gratuit). Budget proposé : ${fcfa(milieu)}, le milieu de la fourchette.` }),
+        ? t('calcul.budget-propose-membre', { budget: fcfa(milieu) })
+        : t('calcul.budget-propose-visiteur', { budget: fcfa(milieu) }) }),
     );
   }
 
