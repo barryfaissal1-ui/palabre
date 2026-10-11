@@ -11,6 +11,7 @@ const { lireImageDataUrl } = require('../utils/images');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
 const { effacerPublication } = require('../utils/purge');
 const { controler, mettreEnAttente, PHRASE_ATTENTE } = require('../utils/moderation');
+const { refuserLesLiens, limiterNouveauCompte } = require('../utils/nouveaux-comptes');
 const { lireLienVideo } = require('../utils/videos');
 const { notifier, retirerActeur, avecLesAutres } = require('../utils/notifications');
 const { publicationsVisibles } = require('../utils/confidentialite');
@@ -209,6 +210,9 @@ router.post('/', limitePublications, async (req, res) => {
   // Le filtre automatique : une insulte ou un lien dangereux est refusé ici ; une phrase d'arnaque met la
   // publication « en attente » (enregistrée mais cachée jusqu'à la vérification d'un administrateur).
   const filtre = await controler(req, [[texte, 'texte']]);
+  // Les 3 premiers jours d'un compte : pas de lien (ni dans le texte, ni en vidéo), 5 publications par jour.
+  refuserLesLiens(moi, [[texte, 'texte'], [typeof corps.video === 'string' ? corps.video : '', 'video']]);
+  await limiterNouveauCompte(moi, 'publication');
   const image = corps.image ? lireImageDataUrl(corps.image) : null;
   const video = lireLienVideo(corps.video);
 
@@ -256,6 +260,7 @@ router.put('/:id', limitePublications, async (req, res) => {
   if (!publication) return;
   if (publication.auteur_id !== moi.id) return res.status(403).json({ erreur: 'Tu ne peux modifier que tes propres publications.' });
   const filtre = await controler(req, [[texte, 'texte']]); // le texte corrigé repasse par le filtre
+  refuserLesLiens(moi, [[texte, 'texte']]);
   const faite = await db.transaction(async (client) => {
     // La limite des 48 heures est vérifiée ici, avec l'horloge de la base, jamais avec celle du navigateur.
     const { rows: [avant] } = await client.query('SELECT texte FROM publications WHERE id = $1 AND cree_le > now() - make_interval(hours => $2) FOR UPDATE', [publication.id, DUREE_MODIFICATION_H]);
@@ -362,6 +367,8 @@ router.post('/:id/commentaires', limiteCommentaires, async (req, res) => {
   const publication = await publicationDeLaRoute(req, res);
   if (!publication) return;
   const filtre = await controler(req, [[texte, 'texte']]);
+  refuserLesLiens(moi, [[texte, 'texte']]);
+  await limiterNouveauCompte(moi, 'commentaire');
   const { rows } = await db.query(
     `WITH nouveau AS (
        INSERT INTO commentaires (publication_id, auteur_id, texte) VALUES ($1, $2, $3)
@@ -402,6 +409,7 @@ router.put('/:id/commentaires/:commentaireId', limiteCommentaires, async (req, r
   const publication = await publicationDeLaRoute(req, res);
   if (!publication) return;
   const filtre = await controler(req, [[texte, 'texte']]);
+  refuserLesLiens(moi, [[texte, 'texte']]);
   const commentaireId = v.idPositif(req.params.commentaireId);
   const resultat = await db.transaction(async (client) => {
     const { rows: [avant] } = await client.query(

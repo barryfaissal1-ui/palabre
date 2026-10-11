@@ -23,11 +23,14 @@ const dernierEmail = (adresse, sujet = /./) => emailsEnvoyes.filter((m) => m.a =
 // les tests n'ont pas à attendre les 3 secondes imposées aux inscriptions.
 const jetonAncien = () => jetonOuverture(Date.now() - 10000);
 
-// Rend un compte « prêt » directement en base : email confirmé, et profil complet si c'est un dev.
+// Rend un compte « prêt » directement en base : email confirmé, profil complet si c'est un dev, et inscrit depuis
+// quatre jours : les limites des trois premiers jours d'un compte (pas de lien, 5 publications par jour) ne
+// s'appliquent donc pas aux tests, sauf à ceux qui les vérifient (tests/nouveaux-comptes.test.js).
 async function validerCompte(email) {
   await pool.query(
     `UPDATE utilisateurs
-        SET email_confirme_le = now(), profil_complete_le = CASE WHEN type = 'dev' THEN now() END
+        SET email_confirme_le = now(), profil_complete_le = CASE WHEN type = 'dev' THEN now() END,
+            cree_le = LEAST(cree_le, now() - interval '4 days')
       WHERE email = $1`,
     [email],
   );

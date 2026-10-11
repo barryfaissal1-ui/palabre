@@ -8,6 +8,8 @@ const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/mem
 const { notifier } = require('../utils/notifications');
 
 const router = express.Router();
+const { limiterNouveauCompte } = require('../utils/nouveaux-comptes');
+
 const limiteDemandes = limiteParMembre(40, 60, 'Trop de demandes d\'amis. Réessaie plus tard.');
 
 router.use(exigerConnexion);
@@ -52,6 +54,7 @@ router.post('/demandes', limiteDemandes, async (req, res) => {
   if (autre.id === moi.id) {
     throw new v.ErreurValidation('Tu ne peux pas t\'ajouter toi-même.', 'identifiant');
   }
+  await limiterNouveauCompte(moi, 'demande_ami'); // 10 demandes d'ami par jour pendant les 3 premiers jours
 
   const client = await db.pool.connect();
   let etat;
