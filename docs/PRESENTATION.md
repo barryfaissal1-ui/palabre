@@ -16,6 +16,24 @@ L'équipe :
 
 ---
 
+## Le thème du concours, mot pour mot
+
+Email de la CADEV du 9 octobre 2026 : *« Une plateforme d'échange pour les développeurs, par les développeurs et pour les développeurs. »* Les développeurs doivent pouvoir **se retrouver, échanger, poser des questions, partager leurs connaissances, présenter leurs projets et collaborer**. Le jury demande aussi : *ce qui rendra votre plateforme réellement utile.*
+
+Ce que Palabre répond à chaque point (à montrer dans la vidéo, dans cet ordre) :
+
+| Le thème demande | Dans Palabre |
+| --- | --- |
+| Se retrouver | Profils, amis, « Devs à découvrir », « Disponibles maintenant », recherche de devs |
+| Échanger | Messagerie privée, groupes, messages vocaux, appels audio et vidéo |
+| Poser des questions | Publications de type « Question » dans le fil, commentaires et réponses |
+| Partager ses connaissances | Publications « Idée », vidéos dans le fil, défi de la semaine |
+| Présenter ses projets | Projets avec badge « Lien vérifié », vitrine par secteur sur l'accueil, partage Facebook et WhatsApp |
+| Collaborer | Équipes éclair : plusieurs devs répondent ensemble à une demande, avec leur groupe de discussion |
+| Être réellement utile | Les clients publient de vraies demandes en FCFA : les devs trouvent du travail, pas seulement des discussions |
+
+---
+
 ## 1. Version écrite (description du projet sur Systalink)
 
 **Palabre, l'arbre à palabres des développeurs africains**
@@ -24,7 +42,7 @@ Palabre est née d'un moment difficile. L'un de nous, développeur à Koudougou,
 
 Sur Palabre, les clients publient leurs demandes avec un budget en FCFA, et les développeurs proposent leurs services. Pour les gros projets, un développeur peut former une **équipe éclair** avec ses amis de la plateforme, chacun avec un rôle. Chaque développeur a un **profil prouvé** : ses projets sont vérifiés automatiquement, et seuls les clients qu'il a réellement servis peuvent laisser un avis.
 
-Palabre est aussi un réseau social complet : fil d'actualité, amis, messagerie avec groupes d'équipe, messages vocaux, appels audio et vidéo, défi de la semaine et notifications. Le site s'installe sur le téléphone, reste léger en 3G, existe en français et en anglais, et prend au sérieux la sécurité et la vie privée de ses membres.
+Mais Palabre, c'est d'abord un lieu où les développeurs se retrouvent. On y pose ses questions et on y partage ce qu'on sait dans le fil d'actualité. On y présente ses projets, on s'y fait des amis, on s'écrit, on s'appelle, on se lance des défis chaque semaine. Et quand un projet est trop gros pour un seul, on collabore. Le site s'installe sur le téléphone, reste léger en 3G, existe en français et en anglais, et prend au sérieux la sécurité et la vie privée de ses membres.
 
 Palabre, c'est la plateforme que nous aurions aimé trouver. Nous l'avons construite pour toute l'Afrique.
 
@@ -48,7 +66,7 @@ Le client publie sa demande avec son budget en FCFA. Les développeurs lui répo
 
 Pour que le client puisse faire confiance, chaque développeur a un **profil prouvé** : ses projets sont vérifiés automatiquement, et seuls les vrais clients peuvent laisser un avis.
 
-Et parce qu'un développeur, c'est aussi une communauté, nous avons fait de Palabre un vrai réseau social : un fil, des amis, des messages, des appels, des messages vocaux. Le tout pensé pour la 3G, en français et en anglais, avec la sécurité des comptes prise au sérieux.
+Mais un développeur ne cherche pas seulement du travail. Il a besoin des autres : pour poser une question quand il bloque, pour partager ce qu'il a appris, pour montrer ce qu'il a construit. Alors Palabre est aussi un vrai réseau social : un fil où l'on pose ses questions et partage ses idées, des amis, des messages, des appels, des messages vocaux et un défi chaque semaine. Le tout pensé pour la 3G, en français et en anglais, avec la sécurité des comptes prise au sérieux.
 
 Palabre, c'est la plateforme que nous aurions aimé trouver. Nous l'avons construite pour que le prochain développeur qui cherche du travail la trouve.
 
