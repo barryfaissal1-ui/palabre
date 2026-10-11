@@ -989,6 +989,8 @@
     "profil.ajoute-competences": "Add your skills so clients can find you.",
     "profil.ajouter-ami": "Add friend",
     "profil.ajouter-lien": "Add a link",
+    "profil.amis-en-commun": { un: "{n} mutual friend", autres: "{n} mutual friends" },
+    "profil.ancien-client": "Former client",
     "profil.avis-demande": "Request: {titre}",
     "profil.cercle-aide": "Open a member's profile and tap “Add friend”.",
     "profil.chargement": "Loading profile…",

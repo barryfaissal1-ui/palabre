@@ -9,20 +9,26 @@ Ce qui suit a été fait sans que tu puisses le voir. Tout est testé par le ser
 - [ ] Change un réglage de confidentialité avec le compte `adama@demo.palabre.dev`, puis regarde son profil et ses publications avec un autre compte, et sans compte.
 - [ ] **Change d'email avec une vraie adresse** : je n'ai vérifié l'envoi du code que dans les tests (aucun vrai email n'est parti).
 - [ ] **Supprime un compte que tu as créé pour l'essai**, après avoir écrit à quelqu'un : chez l'autre, la conversation doit rester, sous le nom « Membre parti ».
+- [ ] **Supprime un compte client d'essai qui a laissé un avis** : sur le profil du dev, l'avis doit rester, signé « Ancien client », sans nom ni lien. La note moyenne ne doit pas changer.
 - [ ] « Télécharger mes données » sur un téléphone : le fichier doit arriver dans les téléchargements.
 
 **Langues**
 - [ ] **Relis l'anglais.** C'est moi qui l'ai écrit, et aucun anglophone ne l'a relu. Les deux fichiers se lisent côte à côte : `public/langues/fr.js` et `public/langues/en.js` (mêmes clés, même ordre). Les pages `/a-propos` et `/conditions` surtout.
+- [ ] **Première visite avec un téléphone réglé en anglais, au Burkina** : efface les données du site (ou ouvre une fenêtre privée) et ouvre l'accueil. Il doit être en français. Je ne l'ai essayé que dans Chrome sur ordinateur, en changeant le fuseau horaire à la main.
 - [ ] Connecte-toi avec `kwame@demo.palabre.dev` : tout le site doit être en anglais.
 - [ ] Les captures de la version anglaise sont dans `docs/captures/anglais/`, celles des paramètres dans `docs/captures/parametres/`.
 
 ## Mes choix, à valider
 
-- **Première visite : anglais si le téléphone est en anglais.** C'est ce que tu as demandé. Attention : beaucoup de téléphones vendus en Afrique francophone sont réglés en anglais. Un visiteur burkinabè peut donc arriver sur un site en anglais, avec seulement le petit lien « Français » en bas de page pour revenir. Si tu préfères le français pour tout le monde à la première visite, c'est une ligne à changer dans `public/js/app.js` et une dans `src/utils/langue.js`.
+- **Première visite (réglé le 11 octobre, à ta demande)** : anglais seulement si le navigateur est en anglais ET que le fuseau horaire de l'appareil est celui d'un pays africain anglophone (les 19 fuseaux que tu as donnés) ou d'un pays hors d'Afrique. Sinon, français. Un téléphone en anglais à Ouagadougou arrive donc en français. Trois choses à savoir :
+  - **Le serveur ne connaît pas le fuseau** : sans cookie, il envoie la page d'après la langue du navigateur, comme avant. Si le navigateur annonce l'anglais et que l'appareil est au Burkina, la toute première page arrive en anglais et le script la réécrit aussitôt en français, avant l'affichage. Les pages suivantes arrivent directement en français (le cookie est posé). Conséquence : un robot de partage (Facebook, WhatsApp) qui annonce l'anglais reçoit encore l'aperçu en anglais.
+  - **J'ai ajouté quatre fuseaux « français »** qui ne commencent pas par `Africa/` : Madagascar, Comores, Mayotte, La Réunion (`Indian/…`). Sans cela, un Malgache au téléphone en anglais aurait été compté « hors d'Afrique », donc en anglais.
+  - **Limite que je ne peux pas lever** : certains navigateurs (surtout d'anciens Firefox) rangent plusieurs pays sous un même fuseau. Le Bénin, le Niger ou le Cameroun peuvent être annoncés comme `Africa/Lagos` : un téléphone en anglais y verrait l'anglais. À l'inverse, le Rwanda ou la Zambie peuvent être annoncés comme `Africa/Maputo` : français. Dans les deux cas le lien du bas de page corrige en un toucher. Chrome et les téléphones Android donnent en général le vrai fuseau du pays.
 - **Accès aux paramètres sur téléphone** : l'avatar de l'en-tête n'existe pas sur téléphone (il est dans le menu du bas, où il mène au profil). J'ai donc mis un bouton « Paramètres » sur son propre profil, à côté de « Modifier mon profil ». Le menu de l'avatar existe sur ordinateur et tablette.
 - **« Qui peut m'appeler : mes amis et mes clients »** est la valeur par défaut, et elle garde le comportement d'avant : un inconnu dont tu as accepté la demande de message peut aussi t'appeler. Le texte d'aide le dit (« Un appel n'est possible que dans une conversation que tu as acceptée »).
 - **Liste d'amis cachée** : la liste n'est plus donnée, mais le **nombre** d'amis reste affiché sur le profil.
-- **Suppression d'un compte** : les avis qu'un client a laissés à des devs partent avec lui (ce sont ses données). Si tu préfères qu'ils restent sous « Membre parti », dis-le.
+- **Suppression d'un compte client (réglé le 11 octobre, à ta demande)** : ses avis restent sur le profil des devs, signés « Ancien client » / « Former client », sans nom, sans avatar ni lien. La note et le texte de l'avis restent. **Le titre de la demande, lui, ne reste pas** (la demande est supprimée avec le compte : c'est une donnée du client). Si tu veux garder le titre comme preuve, dis-le.
+- **Une panne réparée au passage** : depuis le passage en deux langues, le profil d'un dev avec qui on a des amis en commun affichait « Profil introuvable » (une fonction avait été retirée par erreur). Mon parcours d'avant ne l'avait pas vu, parce que le compte utilisé n'avait pas d'amis en commun avec le profil ouvert. Réparé, avec la phrase « 2 amis en commun » traduite. En anglais, les cartes des avis avaient aussi perdu leur cadre : réparé.
 - **Liste des pays** : j'ai ajouté 21 pays anglophones et lusophones (Ghana, Nigeria, Kenya, Afrique du Sud…), sinon un Ghanéen ne pouvait pas s'inscrire.
 - **Code des erreurs** : il est fabriqué à partir de la phrase française (« Adresse email invalide. » donne `adresse-email-invalide`). Si on réécrit une phrase, son code change.
 

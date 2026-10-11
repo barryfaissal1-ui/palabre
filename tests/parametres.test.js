@@ -360,6 +360,38 @@ test('supprimer mon compte : mes données partent, mes messages déjà envoyés 
   assert.equal((await connexion(parti.email, '!')).statut, 401);
 });
 
+test('un client supprime son compte : ses avis restent sur le profil du dev, signés « Ancien client », sans rien de lui', async () => {
+  await inscrire('lassina', 'client');
+  const demande = (await poster('lassina', '/api/demandes', DEMANDE)).corps.demande.id;
+  const proposition = await poster('cheick', `/api/demandes/${demande}/propositions`, { message: 'Je peux le faire en trois semaines.', montantFcfa: 380000 });
+  assert.equal(proposition.statut, 201);
+  // La demande est attribuée à Cheick puis terminée (écrit en base : ce test porte sur la suppression, pas sur ce parcours).
+  await pool.query('UPDATE propositions SET statut = \'acceptee\' WHERE demande_id = $1', [demande]);
+  await pool.query('UPDATE demandes SET statut = \'terminee\' WHERE id = $1', [demande]);
+  const commentaire = `Travail soigné, livré à l'heure ${suffixe}`;
+  assert.equal((await poster('lassina', '/api/avis', { demandeId: demande, identifiant: membres.cheick.identifiant, note: 5, commentaire })).statut, 201);
+
+  const profilDeCheick = async (qui) => (await appel(`/api/profils/${membres.cheick.identifiant}`, { qui })).corps.profil;
+  const avant = await profilDeCheick('awa');
+  assert.equal(avant.avis[0].client.identifiant, membres.lassina.identifiant);
+  assert.equal(avant.avis[0].titreDemande, DEMANDE.titre);
+
+  assert.equal((await appel('/api/parametres/compte', { methode: 'DELETE', qui: 'lassina', donnees: { motDePasse: 'motdepasse1' } })).statut, 200);
+
+  // L'avis est toujours là, avec sa note et son texte : il compte dans la moyenne du dev.
+  const apres = await profilDeCheick('awa');
+  assert.equal(apres.nbAvis, 1);
+  assert.equal(apres.noteMoyenne, 5);
+  assert.deepEqual([apres.avis[0].note, apres.avis[0].commentaire, apres.avis[0].client, apres.avis[0].titreDemande], [5, commentaire, null, null]);
+  // Plus rien du client : ni nom, ni identifiant, ni sa demande, ni son compte.
+  const texte = JSON.stringify(apres);
+  assert.ok(!texte.includes(membres.lassina.identifiant) && !texte.includes('lassina') && !texte.includes(DEMANDE.titre));
+  const { rows: [ligne] } = await pool.query('SELECT client_id, demande_id FROM avis WHERE dev_id = $1', [membres.cheick.id]);
+  assert.deepEqual({ ...ligne }, { client_id: null, demande_id: null });
+  assert.equal((await pool.query('SELECT 1 FROM demandes WHERE id = $1', [demande])).rows.length, 0);
+  assert.equal((await pool.query('SELECT 1 FROM utilisateurs WHERE id = $1', [membres.lassina.id])).rows.length, 0);
+});
+
 test('la page /parametres est servie, mise en cache par le service worker, et son nom est réservé', async () => {
   const page = await appelBrut('/parametres');
   assert.equal(page.statut, 200);

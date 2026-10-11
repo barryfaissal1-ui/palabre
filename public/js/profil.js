@@ -197,7 +197,7 @@
     ]);
     const zoneActions = el('div', { classe: 'profil-zone-actions' }, [
       profil.amitie === 'amis' ? el('p', { classe: 'profil-lien avec-icone' }, [icone('valide'), t('profil.vous-etes-amis')]) : null,
-      commun ? el('p', { classe: 'profil-lien avec-icone' }, [icone('amis'), `${commun} ${pluriel(commun, 'ami')} en commun`]) : null,
+      commun ? el('p', { classe: 'profil-lien avec-icone' }, [icone('amis'), t('profil.amis-en-commun', { n: commun })]) : null,
       actions(profil),
     ]);
     return [tete, presentation, zoneActions];
@@ -249,8 +249,9 @@
     }
     return el('div', { classe: 'panneau-marge' }, [
       el('p', { classe: 'note-moyenne' }, [etoiles(profil.noteMoyenne), t('profil.note-moyenne', { note: virgule(profil.noteMoyenne), n: profil.nbAvis })]),
-      el('ul', { classe: 'liste-avis' }, profil.avis.map((a) => el('li', { classe: t('profil.chiffre.avis') }, [
-        el('p', { classe: 'avis-entete' }, [etoiles(a.note), ' ', el('a', { href: `/${a.client.identifiant}`, texte: a.client.nom }), el('span', { classe: 'texte-discret', texte: `, ${dateRelative(a.creeLe)}` })]),
+      el('ul', { classe: 'liste-avis' }, profil.avis.map((a) => el('li', { classe: 'avis' }, [
+        el('p', { classe: 'avis-entete' }, [etoiles(a.note), ' ', // Un client qui a supprimé son compte : l'avis reste (c'est une preuve du travail du dev), sans nom ni lien.
+          a.client ? el('a', { href: `/${a.client.identifiant}`, texte: a.client.nom }) : el('span', { classe: 'avis-ancien-client', texte: t('profil.ancien-client') }), el('span', { classe: 'texte-discret', texte: `, ${dateRelative(a.creeLe)}` })]),
         a.commentaire ? el('p', { classe: 'avis-texte', texte: a.commentaire }) : null,
         a.titreDemande ? el('p', { classe: 'texte-discret avis-demande', texte: t('profil.avis-demande', { titre: a.titreDemande }) }) : null,
       ]))),
@@ -293,7 +294,7 @@
     const liste = [
       { id: 'publications', nom: t('profil.onglet.publications'), contenu: () => ongletPublications(profil, moi) },
       estDev ? { id: 'projets', nom: t('profil.onglet.projets'), contenu: () => ongletProjets(profil) } : null,
-      estDev ? { id: t('profil.chiffre.avis'), nom: t('profil.onglet.avis'), contenu: () => ongletAvis(profil) } : null,
+      estDev ? { id: 'avis', nom: t('profil.onglet.avis'), contenu: () => ongletAvis(profil) } : null,
       { id: 'amis', nom: t('nav.amis'), contenu: () => ongletAmis(profil, moi) },
     ].filter(Boolean);
     // Sans compte, les publications sont fermées : un visiteur arrive sur les projets du dev.

@@ -4,7 +4,7 @@
   // Les textes sont dans public/langues/fr.js et en.js (chargés avant ce fichier). Tout texte de l'interface passe
   // par t('cle') dans un script, ou par un attribut data-t="cle" dans une page HTML.
   // Le choix est gardé dans un cookie « langue » (le serveur le lit pour ses messages, ses emails, ses notifications)
-  // et, pour un membre, dans son compte. Première visite : anglais si le navigateur est en anglais, sinon français.
+  // et, pour un membre, dans son compte. Première visite : voir languePremiereVisite(), juste en dessous.
   const LANGUES = window.PalabreLangues || {};
   function langueDuCookie() {
     const trouve = /(?:^|; )langue=(fr|en)(?:;|$)/.exec(document.cookie);
@@ -13,8 +13,32 @@
   function garderLangue(valeur) {
     document.cookie = `langue=${valeur}; path=/; max-age=${365 * 24 * 60 * 60}; samesite=lax`;
   }
-  const langue = langueDuCookie() || (/^en/i.test(navigator.language || '') ? 'en' : 'fr');
+  // Première visite, sans cookie. Beaucoup de téléphones vendus en Afrique francophone sont réglés en anglais : la
+  // langue du navigateur ne suffit donc pas. Anglais seulement si le navigateur est en anglais ET que le fuseau
+  // horaire de l'appareil est celui d'un pays africain anglophone, ou d'un pays hors d'Afrique. Sinon : français.
+  // (Un choix fait dans /parametres ou par le lien du bas de page pose le cookie : il passe toujours avant.)
+  const FUSEAUX_ANGLOPHONES = [
+    'Africa/Lagos', 'Africa/Accra', 'Africa/Nairobi', 'Africa/Johannesburg', 'Africa/Kampala', 'Africa/Dar_es_Salaam', 'Africa/Kigali',
+    'Africa/Lusaka', 'Africa/Harare', 'Africa/Gaborone', 'Africa/Windhoek', 'Africa/Monrovia', 'Africa/Freetown',
+    'Africa/Banjul', 'Africa/Blantyre', 'Africa/Maseru', 'Africa/Mbabane', 'Africa/Juba', 'Africa/Khartoum',
+  ];
+  // Îles africaines francophones dont le fuseau ne commence pas par « Africa/ » (Madagascar, Comores, Mayotte, La Réunion).
+  const FUSEAUX_FRANCOPHONES_DES_ILES = ['Indian/Antananarivo', 'Indian/Comoro', 'Indian/Mayotte', 'Indian/Reunion'];
+  function languePremiereVisite(langueNavigateur, fuseau) {
+    if (!/^en/i.test(langueNavigateur || '')) return 'fr';
+    if (!fuseau) return 'fr'; // fuseau inconnu (très vieux navigateur) : la langue par défaut
+    if (FUSEAUX_FRANCOPHONES_DES_ILES.includes(fuseau)) return 'fr';
+    if (!fuseau.startsWith('Africa/')) return 'en';
+    return FUSEAUX_ANGLOPHONES.includes(fuseau) ? 'en' : 'fr';
+  }
+  function fuseauDeLAppareil() {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { return ''; }
+  }
+  const langue = langueDuCookie() || languePremiereVisite(navigator.language, fuseauDeLAppareil());
   if (!langueDuCookie()) garderLangue(langue);
+  // Sans cookie, le serveur a choisi d'après l'en-tête Accept-Language seulement (il ne connaît pas le fuseau) : il a
+  // pu envoyer la page en anglais alors qu'on vient de choisir le français. Dans ce cas on la réécrit en français.
+  const pageServieEn = document.documentElement.lang === 'en';
   // Dates et nombres : « 3 oct. 2026 » et « 250 000 » en français, « 3 Oct 2026 » et « 250,000 » en anglais.
   const REGION = langue === 'en' ? 'en-GB' : 'fr-FR';
   const pluriel = new Intl.PluralRules(langue);
@@ -36,7 +60,7 @@
   const ATTRIBUTS_TRADUITS = ['placeholder', 'aria-label', 'title', 'alt', 'content'];
   function traduirePage(racine = document) {
     document.documentElement.lang = langue;
-    if (langue === 'fr') return;
+    if (langue === 'fr' && !pageServieEn) return;
     // Le titre de l'onglet : la clé « titre.<nom de la page> » (titre.connexion pour /connexion, titre.accueil pour /).
     // Les pages dont le titre dépend du contenu (profil, projet, publication) l'écrivent elles-mêmes.
     if (racine === document) {

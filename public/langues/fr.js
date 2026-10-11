@@ -990,6 +990,8 @@
     "profil.ajoute-competences": "Ajoute tes compétences pour que les clients te trouvent.",
     "profil.ajouter-ami": "Ajouter en ami",
     "profil.ajouter-lien": "Ajouter un lien",
+    "profil.amis-en-commun": { un: "{n} ami en commun", autres: "{n} amis en commun" },
+    "profil.ancien-client": "Ancien client",
     "profil.avis-demande": "Demande : {titre}",
     "profil.cercle-aide": "Ouvre le profil d'un membre et touche « Ajouter en ami ».",
     "profil.chargement": "Chargement du profil…",

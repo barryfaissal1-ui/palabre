@@ -878,7 +878,9 @@ La « dernière connexion » montre la date et le type d'appareil (« Chrome sur
 
 Toutes les tables sont reliées au compte par `ON DELETE CASCADE` : supprimer la ligne du membre supprime ses publications, ses commentaires, ses projets, ses demandes, ses propositions, ses amitiés, ses photos.
 
-Une seule chose demande du soin : les messages déjà envoyés à d'autres. Ils font partie de **leurs** conversations. Avant de supprimer le compte, ces messages sont donc rattachés à un compte vide, appelé « Membre parti » : pas de nom, pas d'email utilisable, pas de photo, un mot de passe impossible. Personne ne peut s'y connecter, lui écrire, ni le trouver. Les photos et les vocaux, eux, sont effacés pour de bon (il reste « Message supprimé »).
+Première exception : **les avis qu'un client a laissés à des devs**. Ils font partie de la preuve du travail du dev (c'est le « profil prouvé »). Juste avant la suppression, dans la même transaction, on vide `client_id` et `demande_id` de ces avis : ils ne sont plus reliés à rien du client, donc la cascade ne les emporte pas. La note et le texte restent, la moyenne du dev ne bouge pas. La route du profil renvoie alors `client: null`, et la page écrit « Ancien client » : pas de nom, pas d'avatar, pas de lien, pas de titre de demande.
+
+Deuxième exception, qui demande plus de soin : les messages déjà envoyés à d'autres. Ils font partie de **leurs** conversations. Avant de supprimer le compte, ces messages sont donc rattachés à un compte vide, appelé « Membre parti » : pas de nom, pas d'email utilisable, pas de photo, un mot de passe impossible. Personne ne peut s'y connecter, lui écrire, ni le trouver. Les photos et les vocaux, eux, sont effacés pour de bon (il reste « Message supprimé »).
 
 ### Télécharger ses données
 
@@ -911,7 +913,11 @@ Ce que les membres écrivent (publications, messages, demandes) n'est jamais tra
 
 ### Quelle langue pour qui ?
 
-Dans l'ordre : le cookie `langue` (le choix fait sur cet appareil), la langue du compte (`utilisateurs.langue`, qui suit le membre sur tous ses appareils), puis la langue du navigateur. À la première visite : anglais si le navigateur est en anglais, sinon français.
+Dans l'ordre : le cookie `langue` (le choix fait sur cet appareil), la langue du compte (`utilisateurs.langue`, qui suit le membre sur tous ses appareils), puis la langue du navigateur.
+
+**À la première visite**, il n'y a ni cookie ni compte. La langue du navigateur ne suffit pas : beaucoup de téléphones vendus en Afrique francophone sont réglés en anglais. Le script (`languePremiereVisite()` dans `public/js/app.js`) regarde donc aussi le **fuseau horaire** de l'appareil (`Intl.DateTimeFormat().resolvedOptions().timeZone`, par exemple `Africa/Ouagadougou`). Anglais seulement si le navigateur est en anglais ET que le fuseau est celui d'un pays africain anglophone (une liste de 19 fuseaux : Lagos, Accra, Nairobi…) ou d'un pays hors d'Afrique. Sinon, français. Le fuseau ne quitte jamais l'appareil : il sert au choix, puis seul le cookie `langue` est gardé.
+
+Le serveur, lui, ne connaît pas le fuseau : sans cookie, il choisit d'après l'en-tête `Accept-Language`. Il peut donc envoyer la première page en anglais à un téléphone du Burkina réglé en anglais. Le script le voit (`<html lang="en">` alors qu'il vient de choisir le français) et réécrit la page en français avant qu'elle s'affiche. Dès la page suivante, le cookie est là et le serveur envoie directement la bonne langue. `tests/premiere-visite.test.js` exécute ce début de script dans un faux navigateur, avec chaque fuseau.
 
 Le choix se fait à un seul endroit pour un membre, `/parametres`, rubrique Langue. Un visiteur a un petit lien en bas des pages publiques. Il n'y a pas de bouton de langue dans l'en-tête.
 

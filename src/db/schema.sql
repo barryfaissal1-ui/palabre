@@ -400,6 +400,10 @@ ALTER TABLE signalements ADD CONSTRAINT signalements_cible_type_check
 -- Une conversation est « privee » (deux membres : membre_a et membre_b, comme depuis le début) ou « groupe ».
 -- Un groupe n'a ni membre_a ni membre_b : ses membres sont dans conversation_membres. Les requêtes des
 -- conversations privées filtrent sur membre_a / membre_b : elles ne voient donc jamais un groupe, et rien n'y change.
+-- Un avis survit à la suppression du compte du client : il reste sur le profil du dev, sans client ni demande
+-- (« Ancien client »). La route de suppression vide ces deux colonnes avant de supprimer le compte.
+ALTER TABLE avis ALTER COLUMN client_id DROP NOT NULL;
+ALTER TABLE avis ALTER COLUMN demande_id DROP NOT NULL;
 ALTER TABLE conversations ALTER COLUMN membre_a DROP NOT NULL;
 ALTER TABLE conversations ALTER COLUMN membre_b DROP NOT NULL;
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'privee';

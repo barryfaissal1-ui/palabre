@@ -237,7 +237,8 @@ router.post('/export', async (req, res) => {
 
 // DELETE /api/parametres/compte  { motDePasse }
 // Tout ce qui est à moi est réellement supprimé (publications, commentaires, projets, demandes, propositions, amis,
-// photos, vocaux…) : les tables sont reliées au compte par ON DELETE CASCADE. Une seule chose reste : le texte des
+// photos, vocaux…) : les tables sont reliées au compte par ON DELETE CASCADE. Deux choses restent. Les avis que j'ai
+// laissés à des devs, signés « Ancien client », sans rien de moi : ils prouvent leur travail. Et le texte des
 // messages que j'ai DÉJÀ envoyés à d'autres. Ils font partie de leurs conversations ; on les rattache à un compte
 // vide, « Membre parti », qui ne porte plus rien de moi (ni nom, ni email, ni photo) et avec lequel personne ne
 // peut se connecter.
@@ -274,6 +275,9 @@ router.delete('/compte', limiteMotDePasse, async (req, res) => {
     }
     // Les groupes des équipes dont j'étais le chef sont fermés (l'équipe disparaît avec moi).
     await client.query('UPDATE conversations SET ferme_le = COALESCE(ferme_le, now()) WHERE type = \'groupe\' AND equipe_id IN (SELECT id FROM equipes WHERE chef_id = $1)', [moi.id]);
+    // Les avis que j'ai laissés à des devs restent sur leur profil : ils font partie de la preuve de leur travail.
+    // Ils ne portent plus rien de moi : ni mon compte, ni ma demande (« Ancien client » dans la page).
+    await client.query('UPDATE avis SET client_id = NULL, demande_id = NULL WHERE client_id = $1', [moi.id]);
     await client.query('DELETE FROM utilisateurs WHERE id = $1', [moi.id]);
   });
   fermerSession(res);

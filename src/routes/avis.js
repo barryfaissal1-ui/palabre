@@ -10,15 +10,16 @@ const router = express.Router();
 const limiteAvis = limiteParMembre(20, 60, 'Trop d\'avis envoyés. Réessaie plus tard.');
 
 // Avis reçus par un dev, avec leur moyenne (utilisé par routes/profils.js).
+// Un client qui a supprimé son compte : son avis reste, sans client ni demande (client: null, « Ancien client » dans la page).
 async function avisDe(devId) {
   const { rows } = await db.query(
     `SELECT a.note, a.commentaire, a.cree_le,
             CASE WHEN d.masque THEN NULL ELSE d.titre END AS titre_demande, -- demande masquée par un administrateur : son titre ne ressort pas ici
             ${COLONNES_MEMBRE}
        FROM avis a
-       JOIN utilisateurs u ON u.id = a.client_id
-       JOIN demandes d ON d.id = a.demande_id
-      WHERE a.dev_id = $1 AND u.bloque = FALSE
+       LEFT JOIN utilisateurs u ON u.id = a.client_id
+       LEFT JOIN demandes d ON d.id = a.demande_id
+      WHERE a.dev_id = $1 AND (a.client_id IS NULL OR u.bloque = FALSE)
       ORDER BY a.id DESC`,
     [devId],
   );
@@ -29,7 +30,7 @@ async function avisDe(devId) {
       commentaire: ligne.commentaire,
       creeLe: ligne.cree_le,
       titreDemande: ligne.titre_demande,
-      client: apercuMembre(ligne),
+      client: ligne.identifiant ? apercuMembre(ligne) : null,
     })),
     nbAvis: rows.length,
     noteMoyenne: rows.length ? Math.round((somme / rows.length) * 10) / 10 : null,
