@@ -65,7 +65,7 @@
     // Répondre : par le sujet touché, ou par la recherche dans ce qui a été écrit.
     function repondre(question, sujet = null) {
       bulle('moi', [el('p', { texte: question })]);
-      const id = sujet || moteur.chercher(question, index);
+      const id = sujet || moteur.chercher(question, index, profil);
       if (!id) {
         bulle('griot', [el('p', { texte: t('assistant.pas-compris') }), el('div', { classe: 'griot-boutons' }, [boutonContact(t('assistant.ecrire-equipe'))])]);
         return;

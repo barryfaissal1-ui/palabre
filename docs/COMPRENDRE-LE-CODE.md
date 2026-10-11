@@ -1045,14 +1045,24 @@ Fichiers : `public/js/assistant-recherche.js` (les sujets et la recherche), `pub
 
 Un bouton rond « Besoin d'aide ? » ouvre une fenêtre où l'on touche une suggestion ou écrit une question. Le Griot répond en deux ou trois phrases, avec un ou deux boutons vers la bonne page.
 
-Ce n'est **pas** une intelligence artificielle. Il n'y a ni service payant, ni bibliothèque, ni serveur : la question est comparée, **dans le navigateur**, aux mots-clés de 18 sujets. Rien n'est envoyé, rien n'est enregistré, personne ne lit les questions. La fenêtre le dit : « Assistant automatique, pas une personne. »
+Ce n'est **pas** une intelligence artificielle. Il n'y a ni service payant, ni bibliothèque, ni serveur : la question est comparée, **dans le navigateur**, aux mots-clés de 26 sujets. Rien n'est envoyé, rien n'est enregistré, personne ne lit les questions. La fenêtre le dit : « Assistant automatique, pas une personne. »
 
-### La recherche, pas à pas (`chercher(question, index)`)
+### La recherche, pas à pas (`chercher(question, index, profil)`)
+
+Règle de départ : **une mauvaise réponse est pire que « je n'ai pas compris »**. Le Griot ne répond que si un sujet se détache nettement.
 
 1. **Nettoyer** : minuscules, accents retirés, ponctuation remplacée par des espaces.
-2. **Remettre d'aplomb** les abréviations (`assistant.abreviations` : « koi » devient « quoi », « mdp » devient « motdepasse ») et **retirer les petits mots** qui ne disent rien du sujet (`assistant.mots-vides` : « le », « de », « comment »).
-3. **Comparer** chaque mot restant aux mots-clés des sujets. Deux mots « se ressemblent » s'ils sont pareils, s'ils ont le même début (« oublier » pour « oublie »), ou à une lettre près pour un mot de 5 lettres et plus (« suprimer » pour « supprimer »). C'est `ressemble()`, avec la distance entre deux mots (`distance()`).
-4. **Compter les points** : un point par mot retrouvé, un de plus pour une expression entière (« mot de passe »). Le sujet qui a le plus de points gagne. Aucun point : « Je n'ai pas compris ta question. »
+2. **Remettre d'aplomb** les abréviations (`assistant.abreviations` : « koi » devient « quoi », « mdp » devient « motdepasse », « dev » devient « developpeur ») et détacher un article collé (« lequipe » devient « equipe »).
+3. **Retirer les mots-outils** (`assistant.mots-vides` : « comment », « mon », « je », « le », « faire », « avoir », « est », « quoi », « pour », « the », « how »…). Ils ne disent rien du sujet : une question faite seulement de mots-outils (« comment je fais ») ne trouve jamais rien.
+4. **Comparer** chaque mot restant aux mots-clés des sujets (`proximite()`) : 2 points pour le même mot, 1 point pour un mot proche. « Proche » veut dire le même début à quelques lettres près (« oublier » pour « oublie »), ou **la même première lettre** et une seule faute de frappe (« suprimer »). La première lettre doit être la bonne : sans cette règle, « publie » passait pour « oublie », et « comment je publie mon projet » recevait la réponse sur le mot de passe.
+5. **Compter les points** de chaque sujet (`pointsDe()`) : chaque mot de la question compte une fois, et une expression retrouvée d'un seul tenant (« mot de passe », « sans internet ») ajoute 2 points.
+6. **Exiger un écart net** : le premier sujet doit avoir au moins une fois et demie les points du deuxième (`ECART`). Sinon, « Je n'ai pas compris ta question » : le Griot ne devine pas.
+
+Trois précisions :
+
+- Un sujet **« faible »** (la présentation de Palabre, les salutations) ne répond que si aucun autre sujet n'a de point : « bonjour, c'est gratuit ? » parle de gratuité, pas de bonjour.
+- Un sujet peut mener à **un autre selon la personne** (`autre`) : « publier mon projet » est un projet du profil pour un dev, une demande pour un client.
+- **Un mot-clé d'un seul mot n'appartient qu'à un sujet.** S'il était dans deux, ils seraient toujours à égalité, donc jamais de réponse. Un mot à double sens (« équipe », « application », « site », « compte ») ne s'écrit que dans une expression (« équipe éclair », « application mobile », « supprimer mon compte »). Un test le vérifie.
 
 Les mots-clés des deux langues valent toujours : un membre dont le site est en français peut écrire en anglais.
 
@@ -1072,10 +1082,13 @@ La fenêtre est un `<dialog>` ouvert par `showModal()` : la touche Échap la fer
 
 1. Dans `SUJETS` (`public/js/assistant-recherche.js`), une ligne : `{ id: 'mon-sujet', pour: TOUS, boutons: ['regles'] }`.
 2. Dans `public/langues/fr.js` **et** `en.js`, ses trois textes : `assistant.sujet.mon-sujet.question` (la suggestion), `.mots` (les mots-clés, séparés par des virgules) et `.reponse` (2 ou 3 phrases).
+3. Dans `tests/assistant.test.js`, deux ou trois phrases comme les gens les écriraient, avec le sujet attendu (test « questions réalistes »).
+
+Bien choisir un mot-clé : se demander **dans quelle autre question ce mot apparaît**. « Supprimer » seul répondrait aussi à « supprimer une publication » : on écrit « supprimer mon compte ». « Combien » seul est gardé, parce que « c'est combien ? » est une vraie question de prix ; en échange, « combien de temps… » reçoit la réponse sur les prix (limite connue).
 
 C'est tout : la fenêtre, la recherche et les suggestions suivent. `tests/assistant.test.js` échoue s'il manque un texte, si la suggestion ne trouve pas sa propre réponse, ou si un bouton n'existe pas. Pour changer seulement une réponse ou ajouter un mot-clé, on ne touche qu'aux fichiers de langue.
 
-**Une réponse ne doit jamais donner un chiffre que le site n'applique pas.** Un test vérifie les quatre valeurs citées (30 jours, une heure, 18 ans, trois signalements) contre le code, et qu'aucun prix n'est écrit : les prix viennent de la grille du calculateur.
+**Une réponse ne doit jamais donner un chiffre que le site n'applique pas.** Un test vérifie les valeurs citées (30 jours, une heure, 18 ans, trois signalements) contre le code, et qu'aucun prix n'est écrit : les prix viennent de la grille du calculateur.
 
 ## 12. Le système de design
 
@@ -1260,7 +1273,7 @@ Les chiffres avant / après sont dans `docs/PERFORMANCE.md` : les pages pèsent 
 
 ## 14. Les tests automatiques
 
-Pour le Griot (`tests/assistant.test.js`, sans serveur) : chaque suggestion trouve sa réponse dans les deux langues, les fautes courantes aussi, une question hors sujet donne « pas compris », un visiteur ne reçoit aucun lien réservé aux membres, les valeurs citées sont celles du code, et rien n'est envoyé au serveur.
+Pour le Griot (`tests/assistant.test.js`, sans serveur) : chaque suggestion trouve sa réponse dans les deux langues, les fautes courantes aussi, une cinquantaine de questions réalistes (dont celles qui recevaient une réponse fausse) trouvent le bon sujet, une question hors sujet ou faite de mots-outils donne « pas compris », deux sujets à égalité aussi, aucun mot-clé seul n'est dans deux sujets, un visiteur ne reçoit aucun lien réservé aux membres, les valeurs citées sont celles du code, et rien n'est envoyé au serveur.
 
 Pour la modération : `tests/regles.test.js` (acceptation obligatoire, nouvelle version), `tests/moderation.test.js` (insultes et variantes, mots innocents, arnaque en attente puis approuvée, liens), `tests/nouveaux-comptes.test.js`, `tests/sanctions.test.js` (masquage après 3 signalements, sanctions progressives, lecture seule, contestation, journal), `tests/anti-arnaque.test.js`.
 

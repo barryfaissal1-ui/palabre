@@ -564,7 +564,9 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--er
 .bouton-griot .icone { width: 26px; height: 26px; }
 .bouton-griot:hover { filter: brightness(1.08); }
 .bouton-griot:focus-visible { outline: 3px solid var(--surface); outline-offset: 0; box-shadow: 0 0 0 5px var(--action), var(--ombre-2); }
-body:has(dialog.ecran-appel) .bouton-griot, body.conversation-ouverte .bouton-griot { display: none; }
+/* Caché pendant un appel, dans une conversation, et tant que la fenêtre du Griot est ouverte (sur ordinateur, il
+   dépassait dans le coin, derrière le panneau). */
+body:has(dialog.ecran-appel) .bouton-griot, body.conversation-ouverte .bouton-griot, body:has(dialog.griot[open]) .bouton-griot { display: none; }
 @media print { .bouton-griot { display: none; } }
 .compteur {
   display: inline-grid;

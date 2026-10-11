@@ -1,10 +1,33 @@
+# À vérifier : correction du Griot (11 octobre 2026)
+
+348 tests passent. Essayé dans Chrome sur téléphone 390 px et sur ordinateur, en clair et en sombre, en français et en anglais (48 contrôles).
+
+## À faire par toi
+
+- [ ] **Relire les 8 nouvelles réponses**, en français puis en anglais : `paiement`, `salutations`, `age`, `amis-messages`, `appels`, `pays`, `projet-profil`, `connexion-lente` (clés `assistant.sujet.<sujet>.reponse`).
+- [ ] **Reposer tes 32 questions.** Je n'avais que celles de ton message : elles sont toutes dans les tests, mais pas les autres.
+- [ ] **« C'est pour quel pays ? »** : la réponse dit « toute l'Afrique ». La liste de l'inscription compte 46 pays d'Afrique et « Autre », pas les 54 : la réponse le dit (« s'il n'y est pas, prends Autre »). À toi de voir si la liste doit être complétée.
+
+## Ce qui a changé dans le comportement
+
+- **Le Griot répond moins souvent, mais mieux.** Sans écart net entre deux sujets, il dit « pas compris ». Exemples voulus : « équipe » seul, « je veux une application », « comment me connecter », « je suis dev ».
+- **« Je veux un site pour ma boutique »** mène maintenant au calculateur (avant : publier une demande), comme tu l'as demandé.
+- **Visiteur, « comment je publie mon projet »** : on ne sait pas s'il est dev ou client. La réponse explique les projets du profil, finit par « Tu es client ? Publie plutôt une demande », et propose les deux inscriptions.
+- **Un sujet de plus que ta liste** : « connexion lente » (pour « le site marche sans internet ? »).
+
+## Limites connues
+
+- **« Combien de temps pour avoir une réponse ? »** reçoit la réponse sur les prix : le mot « combien » est gardé seul, parce que « c'est combien ? » est la question de prix la plus courte.
+- **« Message vocal »** reçoit la réponse générale sur les amis et les messages : il n'y a pas de sujet sur les vocaux.
+- **Toujours sans réponse** : notifications, mode sombre, photo de profil, avis, changer d'email, sanctions.
+
 # À vérifier : le Griot de Palabre (11 octobre 2026)
 
 344 tests passent. Essayé dans Chrome sur téléphone 390 px et sur ordinateur, en clair et en sombre, en français et en anglais (96 contrôles). Captures : `docs/captures/griot/`.
 
 ## À faire par toi
 
-- [ ] **Relire toutes les réponses du Griot**, une par une, en français puis en anglais. C'est moi qui les ai écrites. Elles sont dans `public/langues/fr.js` et `en.js`, clés `assistant.sujet.<sujet>.reponse` (18 sujets). Vérifie surtout que chacune dit vrai sur le site d'aujourd'hui.
+- [ ] **Relire toutes les réponses du Griot**, une par une, en français puis en anglais. C'est moi qui les ai écrites. Elles sont dans `public/langues/fr.js` et `en.js`, clés `assistant.sujet.<sujet>.reponse` (26 sujets depuis la correction). Vérifie surtout que chacune dit vrai sur le site d'aujourd'hui.
 - [ ] **Relire les suggestions** (`.question`) : ce sont les premières phrases que voit un visiteur.
 - [ ] **Poser tes propres questions**, avec tes mots et tes fautes, et noter celles qu'il ne comprend pas. Pour les corriger, ajoute un mot-clé dans `assistant.sujet.<sujet>.mots`.
 - [ ] **Faire essayer par ton ami et ton petit frère** : ils n'écriront pas comme moi.
@@ -25,7 +48,7 @@
 
 - **Comprendre le sens.** Il compare des mots. « Je me suis fait avoir par un dev » ne contient aucun mot-clé : il répond « pas compris ».
 - **Les autres langues** : français et anglais seulement.
-- **Les sujets absents** : par exemple les messages, les appels, les notifications, les amis. Il répond « pas compris » et propose d'écrire à l'équipe.
+- **Les sujets absents** : par exemple les notifications, le mode sombre, les avis. Il répond « pas compris » et propose d'écrire à l'équipe.
 - **Les questions sur un compte précis** (« pourquoi ma publication est cachée ? ») : il ne lit rien du compte.
 
 ## Ce que je n'ai pas pu vérifier

@@ -61,7 +61,6 @@ test('fautes courantes, abréviations, majuscules et accents : la bonne réponse
     'scamer': 'arnaques',
     'comment installer lappli': 'installer',
     'instal the app': 'installer',
-    'je veux un site pour ma boutique': 'publier-demande',
     'je veux recruter un programmeur': 'trouver-dev',
     'changer de langue english': 'langue',
     'contacter lequipe': 'contact',
@@ -75,11 +74,117 @@ test('fautes courantes, abréviations, majuscules et accents : la bonne réponse
 });
 
 test('question hors sujet : « pas compris », plutôt qu\'une réponse au hasard', () => {
-  for (const question of ['quel temps fait-il à Bobo', 'qui a gagné le match hier', 'recette du riz gras', 'bonjour', 'merci beaucoup', 'comment vas-tu ?', '???', '', '   ', 'azertyuiop', 'what is the capital of Ghana', '12345']) {
+  for (const question of ['quel temps fait-il à Bobo', 'qui a gagné le match hier', 'recette du riz gras', 'quel temps fait il a bobo', 'comment vas-tu ?', '???', '', '   ', 'azertyuiop', 'what is the capital of Ghana', '12345']) {
     assert.equal(trouve(question), null, `« ${question} »`);
   }
   // Un texte qui n'en est pas un ne fait rien planter.
   for (const valeur of [null, undefined, 42, {}]) assert.equal(moteur.chercher(valeur, index), null);
+});
+
+test('questions réalistes : le bon sujet, jamais un sujet voisin', () => {
+  const cas = {
+    // Les réponses fausses relevées par l'équipe.
+    'comment je publie mon projet': 'projet-profil',
+    'je cherche du travail': 'trouver-travail',
+    'comment avoir des clients': 'trouver-travail',
+    'comment devenir dev sur palabre': 'inscription',
+    'je veux parler a quelqu un de lequipe': 'contact',
+    'combien pour faire une application mobile': 'prix',
+    'je veux un site pour ma boutique': 'prix',
+    'le site marche sans internet ?': 'connexion-lente',
+    // Les sujets ajoutés.
+    'on paye comment': 'paiement',
+    'comment etre payé': 'paiement',
+    'bonjour': 'salutations',
+    'bonsoir': 'salutations',
+    'salut': 'salutations',
+    'merci': 'salutations',
+    'merci beaucoup': 'salutations',
+    'quel âge': 'age',
+    'je suis mineur': 'age',
+    'comment ajouter un ami': 'amis-messages',
+    'ecrire a quelqu\'un': 'amis-messages',
+    'jai recu une demande de message dun inconnu': 'amis-messages',
+    'comment faire un appel video': 'appels',
+    'appel audio dans un groupe': 'appels',
+    'c\'est pour quel pays': 'pays',
+    'ajouter un projet a mon profil': 'projet-profil',
+    'ca marche en 3g ?': 'connexion-lente',
+    // Un bonjour devant une vraie question ne change pas la réponse.
+    'bonjour, c\'est gratuit ?': 'gratuit',
+    'slt cmt creer un compte svp': 'inscription',
+    // Des voisins qui ne doivent pas se mélanger.
+    'je suis client': 'publier-demande',
+    'faut il payer avant': 'arnaques',
+    'faut il payer pour s\'inscrire': 'gratuit',
+    'signaler un message': 'signaler',
+    'inviter des amis dans une equipe eclair': 'equipe-eclair',
+    'jai besoin daide': 'contact',
+    'combien coute mon projet': 'prix',
+    'comment ca marche': 'palabre',
+    // En anglais.
+    'how do i publish my project': 'projet-profil',
+    'i am looking for work': 'trouver-travail',
+    'how do i get clients': 'trouver-travail',
+    'how do i become a developer on palabre': 'inscription',
+    'i want to talk to someone from the team': 'contact',
+    'how much for a mobile app': 'prix',
+    'does it work without internet': 'connexion-lente',
+    'how do i get paid': 'paiement',
+    'hello': 'salutations',
+    'thanks': 'salutations',
+    'how old do i have to be': 'age',
+    'how do i add a friend': 'amis-messages',
+    'can i make a video call': 'appels',
+    'which country is it for': 'pays',
+  };
+  for (const [question, attendu] of Object.entries(cas)) assert.equal(trouve(question), attendu, question);
+});
+
+test('« publier mon projet » : un projet du profil pour un dev, une demande pour un client', () => {
+  const pour = (profil) => moteur.chercher('comment je publie mon projet', index, profil);
+  assert.equal(pour('dev'), 'projet-profil');
+  assert.equal(pour('client'), 'publier-demande');
+  assert.equal(pour('visiteur'), 'projet-profil');
+  assert.deepEqual(moteur.boutonsPour('projet-profil', 'dev').map((b) => b.href), ['/projets']);
+  // Les autres sujets ne changent pas selon la personne.
+  for (const profil of ['visiteur', 'dev', 'client']) assert.equal(moteur.chercher('mot de passe oublié', index, profil), 'mot-de-passe');
+});
+
+test('des mots-outils seuls ne donnent jamais un sujet', () => {
+  for (const question of ['comment je fais', 'c\'est quoi ça', 'comment', 'mon', 'je veux faire', 'pourquoi pas', 'est-ce que je peux', 'c koi', 'comment on fait pour avoir', 'le la les un une', 'how do i', 'what is it', 'can you', 'where is my']) {
+    assert.equal(trouve(question), null, `« ${question} »`);
+  }
+  // Chaque mot-outil des deux listes, seul, ne trouve rien.
+  for (const mot of index.vides) assert.equal(trouve(mot), null, mot);
+  // Et aucun mot-clé n'est fait seulement de mots-outils : il serait vide, donc jamais retrouvé.
+  for (const langue of ['fr', 'en']) {
+    for (const id of ids) {
+      for (const expression of dictionnaires[langue][`assistant.sujet.${id}.mots`].split(',')) assert.ok(moteur.motsDe(expression, index).length > 0, `${langue} ${id} : « ${expression.trim()} »`);
+    }
+  }
+});
+
+test('sans écart net entre deux sujets, « pas compris » plutôt que deviner', () => {
+  // Deux sujets à égalité.
+  assert.equal(trouve('langue et securite'), null);
+  assert.equal(trouve('badge ou defi'), null);
+  // Le mot « équipe » seul ne mène nulle part, surtout pas aux équipes éclair.
+  assert.equal(trouve('equipe'), null);
+  assert.equal(trouve('c\'est quoi une equipe'), null);
+  // Une faute sur la première lettre n'est pas une faute de frappe : « publie » n'est pas « oublie ».
+  assert.equal(moteur.proximite('publie', 'oublie'), 0);
+  assert.equal(moteur.proximite('cherche', 'cher'), 0);
+  assert.equal(moteur.proximite('suprimer', 'supprimer'), 1);
+  assert.equal(moteur.proximite('prix', 'prix'), 2);
+  // Un mot-clé d'un seul mot n'appartient qu'à un sujet : sinon les deux seraient toujours à égalité.
+  const vus = new Map();
+  for (const sujet of index.sujets.filter((s) => !s.faible)) {
+    for (const cle of sujet.cles.filter((c) => c.length === 1)) {
+      assert.ok(!vus.has(cle[0]) || vus.get(cle[0]) === sujet.id, `« ${cle[0]} » : ${vus.get(cle[0])} et ${sujet.id}`);
+      vus.set(cle[0], sujet.id);
+    }
+  }
 });
 
 test('un visiteur ne reçoit jamais un lien réservé aux membres ; deux boutons au plus par réponse', () => {
@@ -144,6 +249,9 @@ test('les réponses ne donnent que des valeurs que le site applique vraiment', (
   assert.match(fr('inscription'), /18 ans/);
   assert.match(fr('inscription'), /6 chiffres/);
   assert.match(en('inscription'), /6-digit/);
+  assert.equal(require('../src/utils/profil-dev').AGE_MINIMUM, 18);
+  assert.match(fr('age'), /18 ans/);
+  assert.match(en('age'), /18 or older/);
   // Trois signalements cachent un contenu.
   assert.equal(require('../src/utils/sanctions').SEUIL_SIGNALEMENTS, 3);
   assert.match(fr('signaler'), /trois membres/);
