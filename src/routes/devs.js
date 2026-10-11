@@ -28,7 +28,7 @@ router.get('/disponibles', exigerConnexion, async (req, res) => {
                        AND LEAST(a.demandeur_id, a.receveur_id) = LEAST($1, u.id)
                        AND GREATEST(a.demandeur_id, a.receveur_id) = GREATEST($1, u.id)) AS est_ami
        FROM utilisateurs u
-      WHERE u.type = 'dev' AND u.disponible AND u.bloque = FALSE AND u.id <> $1 AND ${LISTABLE('$1')}
+      WHERE u.type = 'dev' AND u.disponible AND u.bloque = FALSE AND u.desactive_le IS NULL AND u.id <> $1 AND ${LISTABLE('$1')}
       ORDER BY est_ami DESC,
                (lower(u.ville) = lower($2) AND u.pays = $3) DESC,
                (u.pays = $3) DESC,
@@ -55,7 +55,7 @@ router.get('/suggestions', exigerConnexion, async (req, res) => {
             (lower(u.ville) = lower($2) AND u.pays = $3) AS meme_ville,
             (u.pays = $3) AS meme_pays
        FROM utilisateurs u
-      WHERE u.type = 'dev' AND u.bloque = FALSE AND u.id <> $1 AND ${LISTABLE('$1')}
+      WHERE u.type = 'dev' AND u.bloque = FALSE AND u.desactive_le IS NULL AND u.id <> $1 AND ${LISTABLE('$1')}
         AND NOT EXISTS (SELECT 1 FROM amities a
                          WHERE LEAST(a.demandeur_id, a.receveur_id) = LEAST($1, u.id)
                            AND GREATEST(a.demandeur_id, a.receveur_id) = GREATEST($1, u.id))
@@ -111,7 +111,7 @@ router.get('/', async (req, res) => {
        LEFT JOIN LATERAL (
          SELECT round(avg(a.note), 1)::float AS moyenne, count(*)::int AS nb FROM avis a WHERE a.dev_id = u.id
        ) notes ON TRUE
-      WHERE u.bloque = FALSE AND ${LISTABLE('$10::int')}
+      WHERE u.bloque = FALSE AND u.desactive_le IS NULL AND ${LISTABLE('$10::int')}
         AND (u.type = 'dev' OR $7::text IS NOT NULL)
         AND ($7::text IS NULL OR u.nom ILIKE $7 ESCAPE '\\' OR u.identifiant LIKE '%' || $9::text || '%')
         AND ($1::int IS NULL OR EXISTS (

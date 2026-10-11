@@ -114,7 +114,7 @@ function enteteVapid(endpoint) {
 async function envoyerPush(utilisateurId, type, message) {
   if (!vapid) return 0;
   try {
-    const { rows: [membre] } = await db.query('SELECT preferences_notifications AS preferences, langue FROM utilisateurs WHERE id = $1 AND bloque = FALSE', [utilisateurId]);
+    const { rows: [membre] } = await db.query('SELECT preferences_notifications AS preferences, langue FROM utilisateurs WHERE id = $1 AND bloque = FALSE AND desactive_le IS NULL', [utilisateurId]);
     if (!membre || ((membre.preferences || {}).push || {})[familleDe(type)] === false) return 0;
     const { rows: abonnements } = await db.query('SELECT id, endpoint, p256dh, auth FROM abonnements_push WHERE utilisateur_id = $1', [utilisateurId]);
     // Le titre et le texte sont écrits en français par le code ; ils partent dans la langue du destinataire.

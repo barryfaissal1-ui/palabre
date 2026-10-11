@@ -32,8 +32,8 @@ const CIBLES = {
 // GET /api/admin/statistiques — les comptes bloqués et les contenus masqués ne sont pas comptés.
 router.get('/statistiques', async (req, res) => {
   const { rows: [s] } = await db.query(
-    `SELECT (SELECT count(*)::int FROM utilisateurs WHERE type = 'dev' AND bloque = FALSE) AS devs,
-            (SELECT count(*)::int FROM utilisateurs WHERE type = 'client' AND bloque = FALSE) AS clients,
+    `SELECT (SELECT count(*)::int FROM utilisateurs WHERE type = 'dev' AND bloque = FALSE AND desactive_le IS NULL) AS devs,
+            (SELECT count(*)::int FROM utilisateurs WHERE type = 'client' AND bloque = FALSE AND desactive_le IS NULL) AS clients,
             (SELECT count(*)::int FROM utilisateurs WHERE bloque) AS bloques,
             (SELECT count(*)::int FROM publications WHERE masque = FALSE) AS publications,
             (SELECT count(*)::int FROM demandes WHERE masque = FALSE) AS demandes,
@@ -205,7 +205,7 @@ router.get('/projets-facebook', async (req, res) => {
     `SELECT p.id, p.titre, p.description, p.secteur, p.lien, p.image, p.lien_verifie_le, p.cree_le, ${COLONNES_MEMBRE}
        FROM projets p
        JOIN utilisateurs u ON u.id = p.dev_id
-      WHERE p.statut_facebook = 'en_attente' AND p.publier_facebook AND p.masque = FALSE AND u.bloque = FALSE
+      WHERE p.statut_facebook = 'en_attente' AND p.publier_facebook AND p.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL
       ORDER BY p.id
       LIMIT $1`,
     [MAX_AFFICHES],
@@ -276,7 +276,7 @@ router.get('/facebook-a-publier', async (req, res) => {
       `SELECT p.id, p.titre, p.description, p.secteur, p.lien, p.image, p.lien_verifie_le, p.cree_le, ${COLONNES_MEMBRE}
          FROM projets p
          JOIN utilisateurs u ON u.id = p.dev_id
-        WHERE p.statut_facebook = 'valide' AND p.publier_facebook AND p.masque = FALSE AND u.bloque = FALSE
+        WHERE p.statut_facebook = 'valide' AND p.publier_facebook AND p.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL
         ORDER BY p.id
         LIMIT $1`,
       [MAX_AFFICHES],

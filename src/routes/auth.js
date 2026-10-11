@@ -54,6 +54,9 @@ function profilPrive(u) {
     // Le petit son à l'arrivée d'un message : activé tant que le membre ne l'a pas coupé dans son profil.
     sonMessages: (u.preferences_notifications || {}).sonMessages !== false,
     langue: u.langue || null, // 'fr', 'en', ou rien tant que le membre n'a pas choisi
+    // Compte désactivé : la page l'envoie sur /bon-retour. La date n'est remplie que si la suppression est demandée.
+    desactive: Boolean(u.desactive_le),
+    suppressionPrevueLe: u.suppression_prevue_le || null,
 
     id: u.id,
     type: u.type,
@@ -332,6 +335,38 @@ router.post('/deconnexion', async (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------- Revenir : réactiver un compte désactivé, annuler une suppression ----------
+
+// La page /bon-retour : POST /api/auth/reactiver  (il faut être connecté : s'être reconnecté prouve que c'est bien lui)
+// Le compte redevient visible tout de suite ; une suppression demandée est annulée du même coup.
+router.post('/reactiver', exigerConnexion, async (req, res) => {
+  const moi = req.utilisateur;
+  if (moi.desactive_le || moi.suppression_prevue_le) {
+    await db.transaction(async (client) => {
+      await client.query('UPDATE utilisateurs SET desactive_le = NULL, suppression_prevue_le = NULL WHERE id = $1', [moi.id]);
+      await client.query('DELETE FROM annulations_suppression WHERE utilisateur_id = $1', [moi.id]);
+      await journaliser(moi.id, 'compte_reactive', req, {}, client);
+    });
+  }
+  res.json({ ok: true, profilComplet: !profilDevIncomplet(moi) });
+});
+
+// Le bouton « Annuler la suppression » de l'email : POST /api/auth/annuler-suppression  { jeton }
+// Comme pour « Ce n'était pas moi », c'est le bouton de la page qui agit, jamais l'ouverture du lien.
+// La suppression est annulée et le compte réactivé ; il reste à se connecter.
+router.post('/annuler-suppression', limiteSensible, async (req, res) => {
+  const jeton = typeof req.body?.jeton === 'string' ? req.body.jeton : '';
+  const annule = await db.transaction(async (client) => {
+    const { rows: [ligne] } = await client.query('DELETE FROM annulations_suppression WHERE jeton_hash = $1 RETURNING utilisateur_id', [deuxEtapes.hacher(jeton)]);
+    if (!ligne) return false;
+    const { rowCount } = await client.query('UPDATE utilisateurs SET desactive_le = NULL, suppression_prevue_le = NULL WHERE id = $1 AND supprime_le IS NULL', [ligne.utilisateur_id]);
+    if (rowCount) await journaliser(ligne.utilisateur_id, 'compte_reactive', req, {}, client);
+    return rowCount > 0;
+  });
+  if (!annule) return res.status(400).json({ erreur: 'Ce lien n\'est plus valable. Connecte-toi pour retrouver ton compte.' });
+  res.json({ message: 'Suppression annulée. Ton compte est de nouveau actif : tu peux te connecter.', suite: '/connexion' });
+});
+
 // Renvoie le membre connecté, ou null pour un visiteur (pas d'erreur : c'est un cas normal).
 router.get('/moi', async (req, res) => {
   if (!req.utilisateur) return res.json({ utilisateur: null });
@@ -339,7 +374,7 @@ router.get('/moi', async (req, res) => {
   const { rows } = await db.query(
     `SELECT (SELECT count(*)::int FROM amities a
                JOIN utilisateurs u ON u.id = a.demandeur_id
-              WHERE a.receveur_id = $1 AND a.statut = 'en_attente' AND u.bloque = FALSE) AS demandes_amis,
+              WHERE a.receveur_id = $1 AND a.statut = 'en_attente' AND u.bloque = FALSE AND u.desactive_le IS NULL) AS demandes_amis,
             (SELECT count(*)::int FROM notifications n
               WHERE n.utilisateur_id = $1 AND n.lue = FALSE) AS notifications,
             (SELECT count(*)::int FROM projets pv

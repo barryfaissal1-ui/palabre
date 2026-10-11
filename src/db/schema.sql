@@ -677,3 +677,17 @@ CREATE TABLE IF NOT EXISTS journal_securite (
 );
 CREATE INDEX IF NOT EXISTS idx_journal_securite_membre ON journal_securite (utilisateur_id, id DESC);
 CREATE INDEX IF NOT EXISTS idx_journal_securite_date ON journal_securite (cree_le);
+
+-- Compte désactivé (par son propriétaire) : profil, publications, projets et propositions invisibles ; dans les
+-- conversations, son nom devient « Membre indisponible ». Tout revient quand il se reconnecte.
+-- suppression_prevue_le : il a demandé la suppression ; passé cette date (30 jours), le ménage supprime le compte.
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS desactive_le TIMESTAMPTZ;
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS suppression_prevue_le TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_utilisateurs_suppression ON utilisateurs (suppression_prevue_le) WHERE suppression_prevue_le IS NOT NULL;
+
+-- Lien « Annuler la suppression » de l'email : un par membre, à usage unique, gardé haché.
+CREATE TABLE IF NOT EXISTS annulations_suppression (
+  utilisateur_id INTEGER PRIMARY KEY REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  jeton_hash     TEXT NOT NULL UNIQUE,
+  cree_le        TIMESTAMPTZ NOT NULL DEFAULT now()
+);

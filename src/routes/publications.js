@@ -37,7 +37,7 @@ const selection = (nbCommentaires = COMMENTAIRES_APERCU) => `
          (SELECT count(*)::int FROM jaime j WHERE j.publication_id = p.id) AS nb_jaime,
          (SELECT count(*)::int FROM commentaires c
             JOIN utilisateurs cu ON cu.id = c.auteur_id
-           WHERE c.publication_id = p.id AND c.masque = FALSE AND cu.bloque = FALSE) AS nb_commentaires,
+           WHERE c.publication_id = p.id AND c.masque = FALSE AND cu.bloque = FALSE AND cu.desactive_le IS NULL) AS nb_commentaires,
          EXISTS (SELECT 1 FROM jaime j WHERE j.publication_id = p.id AND j.utilisateur_id = $1) AS jaime_par_moi
     FROM publications p
     JOIN utilisateurs u ON u.id = p.auteur_id
@@ -45,7 +45,7 @@ const selection = (nbCommentaires = COMMENTAIRES_APERCU) => `
       SELECT ju.nom, ju.prenom, ju.identifiant
         FROM jaime j
         JOIN utilisateurs ju ON ju.id = j.utilisateur_id
-       WHERE j.publication_id = p.id AND j.utilisateur_id <> $1 AND ju.bloque = FALSE
+       WHERE j.publication_id = p.id AND j.utilisateur_id <> $1 AND ju.bloque = FALSE AND ju.desactive_le IS NULL
        ORDER BY EXISTS (SELECT 1 FROM amities a
                          WHERE a.statut = 'acceptee'
                            AND LEAST(a.demandeur_id, a.receveur_id) = LEAST($1, ju.id)
@@ -58,11 +58,11 @@ const selection = (nbCommentaires = COMMENTAIRES_APERCU) => `
         FROM (SELECT c.id, c.texte, c.cree_le, c.auteur_id, ${COLONNES_MEMBRE}
                 FROM commentaires c
                 JOIN utilisateurs u ON u.id = c.auteur_id -- ici « u » est l'auteur du commentaire
-               WHERE c.publication_id = p.id AND c.masque = FALSE AND u.bloque = FALSE
+               WHERE c.publication_id = p.id AND c.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL
                ORDER BY c.id DESC
                LIMIT ${nbCommentaires}) d
     ) apercu ON TRUE
-   WHERE p.masque = FALSE AND u.bloque = FALSE AND ${publicationsVisibles('$1')}`;
+   WHERE p.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL AND ${publicationsVisibles('$1')}`;
 const SELECTION = selection();
 
 function versPublication(ligne, moi) {
@@ -107,7 +107,7 @@ async function publicationDeLaRoute(req, res) {
       // (Un administrateur doit pouvoir la supprimer après un signalement.)
       `SELECT p.id, p.auteur_id, p.image FROM publications p
          JOIN utilisateurs u ON u.id = p.auteur_id
-        WHERE p.id = $1 AND p.masque = FALSE AND u.bloque = FALSE AND ($3::boolean OR ${publicationsVisibles('$2')})`,
+        WHERE p.id = $1 AND p.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL AND ($3::boolean OR ${publicationsVisibles('$2')})`,
       [id, req.utilisateur.id, Boolean(req.utilisateur.est_admin)],
     );
     if (rows[0]) return rows[0];
@@ -301,7 +301,7 @@ router.get('/:id/commentaires', async (req, res) => {
     `SELECT c.id, c.texte, c.cree_le, c.auteur_id, ${COLONNES_MEMBRE}
        FROM commentaires c
        JOIN utilisateurs u ON u.id = c.auteur_id
-      WHERE c.publication_id = $1 AND c.masque = FALSE AND u.bloque = FALSE
+      WHERE c.publication_id = $1 AND c.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL
       ORDER BY c.id
       LIMIT $2`,
     [publication.id, MAX_COMMENTAIRES_AFFICHES],
@@ -331,7 +331,7 @@ router.post('/:id/commentaires', limiteCommentaires, async (req, res) => {
   const { rows: autres } = await db.query(
     `SELECT c.auteur_id FROM commentaires c
        JOIN utilisateurs u ON u.id = c.auteur_id
-      WHERE c.publication_id = $1 AND c.masque = FALSE AND u.bloque = FALSE AND c.auteur_id NOT IN ($2, $3)
+      WHERE c.publication_id = $1 AND c.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL AND c.auteur_id NOT IN ($2, $3)
       GROUP BY c.auteur_id ORDER BY max(c.id) DESC LIMIT 10`,
     [publication.id, moi.id, publication.auteur_id],
   );

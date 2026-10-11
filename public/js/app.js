@@ -106,6 +106,8 @@
       erreur.suite = corps.suite; // page où régler le problème (/bienvenue, /confirmer-email)
       // Email pas encore confirmé : le serveur refuse tout, on ramène la personne à la page du code.
       if (corps.suite === '/confirmer-email' && window.location.pathname !== '/confirmer-email') window.location.replace('/confirmer-email');
+      // Compte désactivé : une seule page lui répond, celle où il peut le réactiver.
+      if (corps.suite === '/bon-retour' && window.location.pathname !== '/bon-retour') window.location.replace('/bon-retour');
       throw erreur;
     }
     return corps;
@@ -372,8 +374,9 @@
   // « lien: false » quand le nom est déjà dans un lien (un lien ne peut pas en contenir un autre).
   function nomMembre(membre, { lien = true } = {}) {
     // Un compte supprimé : son nom, « Membre parti », est écrit dans la langue de celui qui lit, et ne mène nulle part.
-    const parti = /^membre-parti-/.test(membre.identifiant || '');
-    const texte = parti ? t('commun.membre-parti') : membre.nom;
+    // Un compte désactivé par son propriétaire : « Membre indisponible », sans lien non plus.
+    const parti = /^membre-parti-/.test(membre.identifiant || '') || Boolean(membre.indisponible);
+    const texte = membre.indisponible ? t('commun.membre-indisponible') : (parti ? t('commun.membre-parti') : membre.nom);
     const nom = lien && !parti
       ? el('a', { classe: 'nom-auteur', href: `/${membre.identifiant}`, texte })
       : el('span', { classe: 'nom-auteur', texte });
@@ -1370,6 +1373,8 @@
     const moi = await utilisateurConnecte();
     // Tant que l'email n'est pas confirmé, le membre ne voit que la page du code.
     if (moi && !moi.emailConfirme) return window.location.replace('/confirmer-email');
+    // Compte désactivé (ou suppression demandée) : il faut d'abord le réactiver.
+    if (moi && moi.desactive) return window.location.replace('/bon-retour');
     // La langue choisie dans le compte suit le membre sur tous ses appareils. Un compte qui n'a pas encore de
     // langue reçoit celle de ce navigateur (le serveur écrit ainsi ses notifications et ses emails dans la bonne).
     if (moi && moi.langue && moi.langue !== langue) return changerLangue(moi.langue);

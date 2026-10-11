@@ -8,12 +8,13 @@ const db = require('../db/pool');
 const config = require('../config');
 const v = require('../utils/validation');
 const mailer = require('../utils/mailer'); // appelé par « mailer.envoyerEmail » : les tests peuvent le remplacer
-const { emailCode } = require('../utils/gabarit-email');
+const { emailCode, emailSuppressionPrevue } = require('../utils/gabarit-email');
 const { exigerConnexion, fermerSession } = require('../middleware/auth');
 const sessions = require('../utils/sessions');
 const { assurerAppareil, noterAppareil } = require('../utils/appareils');
 const { creerCodesSecours } = require('../utils/deux-etapes');
 const { journaliser, journalDe } = require('../utils/journal');
+const { DELAI_SUPPRESSION_JOURS } = require('../utils/purge');
 const { apercuMembre, COLONNES_MEMBRE } = require('../utils/membres');
 const { lireConfidentialite, reglageValide } = require('../utils/confidentialite');
 const { langueValide, langueDe, poserCookieLangue } = require('../utils/langue');
@@ -287,55 +288,62 @@ router.post('/export', async (req, res) => {
   });
 });
 
-// ---------- Supprimer mon compte ----------
+// ---------- Désactiver ou supprimer mon compte ----------
 
-// DELETE /api/parametres/compte  { motDePasse }
-// Tout ce qui est à moi est réellement supprimé (publications, commentaires, projets, demandes, propositions, amis,
-// photos, vocaux…) : les tables sont reliées au compte par ON DELETE CASCADE. Deux choses restent. Les avis que j'ai
-// laissés à des devs, signés « Ancien client », sans rien de moi : ils prouvent leur travail. Et le texte des
-// messages que j'ai DÉJÀ envoyés à d'autres. Ils font partie de leurs conversations ; on les rattache à un compte
-// vide, « Membre parti », qui ne porte plus rien de moi (ni nom, ni email, ni photo) et avec lequel personne ne
-// peut se connecter.
+// Le compte se met en sommeil : désactivé, toutes ses sessions fermées. « suppression » : true quand le membre a
+// demandé la suppression (le compte sera supprimé pour de bon dans 30 jours, sauf s'il revient).
+async function mettreEnSommeil(req, res, { suppression }) {
+  const moi = req.utilisateur;
+  const prevue = await db.transaction(async (client) => {
+    const { rows: [compte] } = await client.query(
+      `UPDATE utilisateurs
+          SET desactive_le = COALESCE(desactive_le, now()),
+              suppression_prevue_le = CASE WHEN $2 THEN now() + make_interval(hours => $3 * 24) ELSE suppression_prevue_le END
+        WHERE id = $1 RETURNING suppression_prevue_le`,
+      // 30 jours comptés en heures : un changement d'heure dans le fuseau de la base ne décale pas l'échéance.
+      [moi.id, suppression, DELAI_SUPPRESSION_JOURS],
+    );
+    await sessions.revoquerToutes(moi.id, {}, client);
+    await journaliser(moi.id, 'compte_desactive', req, {}, client);
+    return compte.suppression_prevue_le;
+  });
+  fermerSession(res);
+  return prevue;
+}
+
+// « Désactiver temporairement » : POST /api/parametres/desactiver  { motDePasse }
+// Mon profil, mes publications, mes projets et mes propositions deviennent invisibles ; mes conversations restent
+// chez les autres, sous le nom « Membre indisponible ». Rien n'est supprimé : tout revient quand je me reconnecte.
+router.post('/desactiver', limiteMotDePasse, async (req, res) => {
+  await verifierMotDePasse(req.utilisateur, req.body?.motDePasse);
+  await mettreEnSommeil(req, res, { suppression: false });
+  res.json({ ok: true });
+});
+
+// « Supprimer mon compte » : DELETE /api/parametres/compte  { motDePasse }
+// Rien n'est supprimé tout de suite. Le compte est désactivé pendant 30 jours ; un email confirme la date et porte
+// un lien « Annuler la suppression » ; se reconnecter permet aussi d'annuler. Passé ce délai, la tâche de ménage
+// (src/utils/purge.js) supprime le compte pour de bon.
 router.delete('/compte', limiteMotDePasse, async (req, res) => {
   const moi = req.utilisateur;
   await verifierMotDePasse(moi, req.body?.motDePasse);
-  await db.transaction(async (client) => {
-    // Une demande de message que j'ai envoyée et qui attend encore : elle part avec moi.
-    await client.query('DELETE FROM conversations WHERE type = \'privee\' AND statut = \'demande\' AND cree_par = $1', [moi.id]);
-    const { rowCount: aEcrit } = await client.query('SELECT 1 FROM messages WHERE auteur_id = $1 AND systeme = FALSE LIMIT 1', [moi.id]);
-    if (aEcrit) {
-      const hasard = crypto.randomBytes(6).toString('hex');
-      const { rows: [parti] } = await client.query(
-        `INSERT INTO utilisateurs (type, nom, prenom, nom_famille, identifiant, email, mot_de_passe_hash, pays, ville, disponible, email_confirme_le, supprime_le)
-         VALUES ($1, 'Membre parti', 'Membre', 'parti', $2, $3, '!', 'Autre', '—', FALSE, now(), now()) RETURNING id`,
-        [moi.type, `membre-parti-${hasard}`, `parti-${hasard}@supprime.invalid`],
-      );
-      // Photos et vocaux : supprimés pour de bon (le fichier part avec le compte), il reste « Message supprimé ».
-      await client.query(
-        `UPDATE messages SET texte = 'Message supprimé', fichier_id = NULL, vocal_duree = NULL, supprime_le = now(), modifie_le = now()
-          WHERE auteur_id = $1 AND (fichier_id IS NOT NULL OR vocal_duree IS NOT NULL)`,
-        [moi.id],
-      );
-      await client.query('UPDATE messages SET auteur_id = $2, modifie_le = now() WHERE auteur_id = $1', [moi.id, parti.id]);
-      // Le nouveau compte a le plus grand numéro : il prend la place « membre_b » (membre_a < membre_b).
-      await client.query(
-        `UPDATE conversations SET membre_a = CASE WHEN membre_a = $1 THEN membre_b ELSE membre_a END, membre_b = $2
-          WHERE type = 'privee' AND $1 IN (membre_a, membre_b)`,
-        [moi.id, parti.id],
-      );
-      await client.query('UPDATE conversations SET cree_par = $2 WHERE cree_par = $1', [moi.id, parti.id]);
-      // Dans les groupes, « Membre parti » n'est plus membre : il a quitté.
-      await client.query('UPDATE conversation_membres SET membre_id = $2, quitte_le = COALESCE(quitte_le, now()) WHERE membre_id = $1', [moi.id, parti.id]);
-    }
-    // Les groupes des équipes dont j'étais le chef sont fermés (l'équipe disparaît avec moi).
-    await client.query('UPDATE conversations SET ferme_le = COALESCE(ferme_le, now()) WHERE type = \'groupe\' AND equipe_id IN (SELECT id FROM equipes WHERE chef_id = $1)', [moi.id]);
-    // Les avis que j'ai laissés à des devs restent sur leur profil : ils font partie de la preuve de leur travail.
-    // Ils ne portent plus rien de moi : ni mon compte, ni ma demande (« Ancien client » dans la page).
-    await client.query('UPDATE avis SET client_id = NULL, demande_id = NULL WHERE client_id = $1', [moi.id]);
-    await client.query('DELETE FROM utilisateurs WHERE id = $1', [moi.id]);
-  });
-  fermerSession(res);
-  res.json({ ok: true });
+  const prevue = await mettreEnSommeil(req, res, { suppression: true });
+  // Le lien de l'email : à usage unique, gardé haché, valable jusqu'à la suppression.
+  const jeton = crypto.randomBytes(32).toString('hex');
+  await db.query(
+    `INSERT INTO annulations_suppression (utilisateur_id, jeton_hash) VALUES ($1, $2)
+     ON CONFLICT (utilisateur_id) DO UPDATE SET jeton_hash = EXCLUDED.jeton_hash, cree_le = now()`,
+    [moi.id, crypto.createHash('sha256').update(jeton).digest('hex')],
+  );
+  try {
+    await mailer.envoyerEmail({
+      a: moi.email,
+      ...emailSuppressionPrevue({ prenom: moi.prenom || moi.nom, date: prevue, jours: DELAI_SUPPRESSION_JOURS, lien: `${config.urlPublique}/annuler-suppression?jeton=${jeton}`, langue: langueDe(req) }),
+    });
+  } catch (err) {
+    console.error('Email de suppression impossible :', err.message); // se reconnecter permet toujours d'annuler
+  }
+  res.json({ ok: true, suppressionPrevueLe: prevue });
 });
 
 module.exports = router;

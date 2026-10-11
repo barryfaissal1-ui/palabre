@@ -51,6 +51,8 @@
         return;
       }
       await celebrer();
+      // Compte désactivé : le serveur ne répondra à rien d'autre tant qu'il n'est pas réactivé.
+      if (utilisateur.desactive) { window.location.href = '/bon-retour'; return; }
       // Une inscription laissée en route reprend là où elle s'était arrêtée.
       if (!utilisateur.emailConfirme) window.location.href = etape('/confirmer-email');
       else if (!utilisateur.profilComplet) window.location.href = etape('/bienvenue');

@@ -12,7 +12,8 @@
     "test": "node --test tests/*.test.js",
     "photos": "node scripts/optimiser-photos.mjs",
     "demo": "node scripts/demo.js",
-    "cles-push": "node scripts/cles-push.js"
+    "cles-push": "node scripts/cles-push.js",
+    "purger": "node scripts/purger.js"
   },
   "engines": {
     "node": ">=20"

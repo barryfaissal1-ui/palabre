@@ -4,7 +4,12 @@ const db = require('../db/pool');
 
 // Ce qu'on montre d'un membre à côté d'une publication, d'un commentaire ou dans une liste d'amis.
 // Jamais d'email ni de numéro WhatsApp ici.
+// Un compte désactivé par son propriétaire ne montre plus rien de lui : ni nom, ni photo, ni lien vers son profil.
+// Il n'apparaît plus que dans les conversations déjà ouvertes, sous le nom « Membre indisponible ».
 function apercuMembre(ligne) {
+  if (ligne.desactive_le) {
+    return { nom: 'Membre indisponible', prenom: 'Membre', identifiant: 'membre-indisponible', type: ligne.type_compte, ville: null, pays: null, avatar: null, nbProjetsVerifies: 0, indisponible: true };
+  }
   return {
     nom: ligne.nom,
     // Le vrai prénom (« Aimé par Awa », « Écris à Awa »…). Secours pour une ligne sans prénom : le premier mot du nom.
@@ -23,7 +28,7 @@ function apercuMembre(ligne) {
 // Le nombre de projets vérifiés est une sous-requête de la même requête : jamais une requête par membre.
 const NB_PROJETS_VERIFIES = `(SELECT count(*)::int FROM projets pv
     WHERE pv.dev_id = u.id AND pv.masque = FALSE AND pv.lien IS NOT NULL AND pv.lien_verifie_le IS NOT NULL)`;
-const COLONNES_MEMBRE = `u.nom, u.prenom, u.identifiant, u.type AS type_compte, u.ville, u.pays, u.avatar,
+const COLONNES_MEMBRE = `u.nom, u.prenom, u.identifiant, u.type AS type_compte, u.ville, u.pays, u.avatar, u.desactive_le,
     ${NB_PROJETS_VERIFIES} AS nb_projets_verifies`;
 
 // Lien entre deux membres, vu par « moi » : 'amis', 'envoyee', 'recue' ou 'aucune'.

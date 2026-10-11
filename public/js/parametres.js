@@ -2,7 +2,7 @@
 // Une liste de rubriques ; chaque réglage s'enregistre tout seul au changement, avec un toast « Enregistré ».
 // La rubrique ouverte est dans l'adresse (/parametres#confidentialite) : le bouton « retour » du téléphone marche.
 (function () {
-  const { t, langue, changerLangue, api, utilisateurConnecte, el, icone, avatar, nomMembre, toast, confirmer, listeChoix, etatVide, chargement, dateRelative } = window.Palabre;
+  const { t, langue, changerLangue, api, utilisateurConnecte, el, icone, avatar, nomMembre, toast, confirmer, listeChoix, etatVide, chargement, dateRelative, REGION } = window.Palabre;
 
   const RUBRIQUES = [
     { cle: 'compte', icone: 'utilisateur', titre: t('parametres.compte.titre'), texte: t('parametres.compte.resume') },
@@ -187,11 +187,35 @@
       }
       if (!await confirmer(t('parametres.suppression.question'), { bouton: t('parametres.suppression.titre'), danger: true })) return;
       try {
-        if (window.Palabre.push) await window.Palabre.push.couper().catch(() => {});
-        await api('/parametres/compte', { methode: 'DELETE', donnees: { motDePasse: formSuppression.motDePasse.value } });
-        window.location.href = '/';
+        // Couper le push sur cet appareil, sans jamais bloquer la suite : sur un navigateur où le service worker
+        // n'est pas prêt, cette étape pourrait attendre indéfiniment. On lui laisse une seconde et demie.
+        if (window.Palabre.push) await Promise.race([window.Palabre.push.couper().catch(() => {}), new Promise((suite) => setTimeout(suite, 1500))]);
+        const { suppressionPrevueLe } = await api('/parametres/compte', { methode: 'DELETE', donnees: { motDePasse: formSuppression.motDePasse.value } });
+        // Rien n'est encore supprimé : on dit la date, puis on revient à l'accueil (la session est fermée).
+        const date = new Date(suppressionPrevueLe).toLocaleDateString(REGION, { day: 'numeric', month: 'long', year: 'numeric' });
+        toast(t('parametres.suppression.prevue', { date }));
+        setTimeout(() => { window.location.href = '/'; }, 2600);
       } catch (erreur) {
         montrerErreur(formSuppression, erreur);
+      }
+    });
+
+    // « Désactiver temporairement » : rien n'est supprimé, tout revient à la prochaine connexion.
+    const formDesactivation = zone.querySelector('[data-formulaire-desactivation]');
+    formDesactivation.addEventListener('submit', async (evenement) => {
+      evenement.preventDefault();
+      effacerErreurs(formDesactivation);
+      if (!formDesactivation.motDePasse.value) {
+        erreurDe(formDesactivation, 'motDePasse').textContent = t('parametres.suppression.mot-de-passe');
+        return;
+      }
+      if (!await confirmer(t('parametres.desactivation.question'), { bouton: t('parametres.desactivation.bouton') })) return;
+      try {
+        await api('/parametres/desactiver', { methode: 'POST', donnees: { motDePasse: formDesactivation.motDePasse.value } });
+        toast(t('parametres.desactivation.fait'));
+        setTimeout(() => { window.location.href = '/'; }, 2200);
+      } catch (erreur) {
+        montrerErreur(formDesactivation, erreur);
       }
     });
   }

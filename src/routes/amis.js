@@ -16,7 +16,7 @@ router.use(exigerConnexion);
 async function membreVise(valeur, res) {
   const identifiant = typeof valeur === 'string' ? valeur.trim().toLowerCase() : '';
   const { rows } = await db.query(
-    'SELECT id, identifiant FROM utilisateurs WHERE identifiant = $1 AND bloque = FALSE',
+    'SELECT id, identifiant FROM utilisateurs WHERE identifiant = $1 AND bloque = FALSE AND desactive_le IS NULL',
     [identifiant],
   );
   if (rows[0]) return rows[0];
@@ -33,7 +33,7 @@ router.get('/', async (req, res) => {
        JOIN utilisateurs u ON u.id = CASE WHEN a.demandeur_id = $1 THEN a.receveur_id ELSE a.demandeur_id END
       WHERE $1 IN (a.demandeur_id, a.receveur_id)
         AND a.statut IN ('acceptee', 'en_attente')
-        AND u.bloque = FALSE
+        AND u.bloque = FALSE AND u.desactive_le IS NULL
       ORDER BY u.nom`,
     [moi.id],
   );

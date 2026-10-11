@@ -152,4 +152,18 @@ function emailEssaisConnexion({ prenom, essais, dureeMin, lien, langue = 'fr' })
   };
 }
 
-module.exports = { gabaritEmail, emailCode, emailMotDePasse, emailAlerteConnexion, emailEssaisConnexion, dateGmt, echapperHtml };
+// Email « Ton compte Palabre sera supprimé le … » : confirme la demande de suppression, donne la date, et porte le
+// bouton « Annuler la suppression » (lien à usage unique). Se reconnecter permet aussi d'annuler.
+function emailSuppressionPrevue({ prenom, date, jours, lien, langue = 'fr' }) {
+  const T = (cle, variables) => textes.t(langue, cle, variables);
+  const jour = new Intl.DateTimeFormat(langue === 'en' ? 'en-GB' : 'fr-FR', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(date));
+  const avant = [T('email.suppression.avant', { date: jour, n: jours }), T('email.suppression.d-ici-la')];
+  const apres = [T('email.suppression.apres')];
+  return {
+    sujet: T('email.suppression.sujet', { date: jour }),
+    texte: `${T('email.bonjour', { prenom })}\n\n${avant.join('\n\n')}\n${lien}\n\n${apres.join('\n\n')}\n\n${T('email.signature')}`,
+    html: gabaritEmail({ langue, titre: T('email.suppression.titre'), prenom, avant, bouton: { texte: T('email.suppression.bouton'), lien }, apres }),
+  };
+}
+
+module.exports = { gabaritEmail, emailCode, emailMotDePasse, emailAlerteConnexion, emailEssaisConnexion, emailSuppressionPrevue, dateGmt, echapperHtml };

@@ -103,13 +103,13 @@ async function competencesDe(utilisateurId) {
 // Les amis d'un membre ($1), sans les comptes bloqués.
 const AMIS_DE = `SELECT u.id AS ami_id FROM amities a
     JOIN utilisateurs u ON u.id = CASE WHEN a.demandeur_id = $1 THEN a.receveur_id ELSE a.demandeur_id END
-   WHERE a.statut = 'acceptee' AND $1 IN (a.demandeur_id, a.receveur_id) AND u.bloque = FALSE`;
+   WHERE a.statut = 'acceptee' AND $1 IN (a.demandeur_id, a.receveur_id) AND u.bloque = FALSE AND u.desactive_le IS NULL`;
 
 // Amis d'un membre (onglet « Amis » de son profil) : GET /api/profils/:identifiant/amis — membres connectés.
 router.get('/:identifiant/amis', exigerConnexion, async (req, res) => {
   const moi = req.utilisateur;
   // Le réglage « Qui peut voir ma liste d'amis » : les membres, mes amis seulement, ou moi seulement.
-  const { rows: [membre] } = await db.query('SELECT id, confidentialite FROM utilisateurs WHERE identifiant = $1 AND bloque = FALSE AND supprime_le IS NULL', [String(req.params.identifiant || '').toLowerCase()]);
+  const { rows: [membre] } = await db.query('SELECT id, confidentialite FROM utilisateurs WHERE identifiant = $1 AND bloque = FALSE AND desactive_le IS NULL AND supprime_le IS NULL', [String(req.params.identifiant || '').toLowerCase()]);
   if (!membre) return res.status(404).json({ erreur: 'Ce profil n\'existe pas.' });
   const regle = lireConfidentialite(membre).listeAmis;
   const permis = membre.id === moi.id || regle === 'membres' || (regle === 'amis' && await etatAmitie(moi.id, membre.id) === 'amis');
@@ -119,7 +119,7 @@ router.get('/:identifiant/amis', exigerConnexion, async (req, res) => {
        FROM utilisateurs m
        JOIN amities a ON a.statut = 'acceptee' AND m.id IN (a.demandeur_id, a.receveur_id)
        JOIN utilisateurs u ON u.id = CASE WHEN a.demandeur_id = m.id THEN a.receveur_id ELSE a.demandeur_id END
-      WHERE m.identifiant = $1 AND m.bloque = FALSE AND u.bloque = FALSE
+      WHERE m.identifiant = $1 AND m.bloque = FALSE AND m.desactive_le IS NULL AND u.bloque = FALSE AND u.desactive_le IS NULL
       ORDER BY u.nom
       LIMIT 200`,
     [String(req.params.identifiant || '').toLowerCase()],
@@ -133,7 +133,7 @@ router.get('/:identifiant', limiteLectureProfils, async (req, res) => {
   const { rows } = await db.query(
     `SELECT u.*, ${NB_PROJETS_VERIFIES} AS nb_projets_verifies,
             (SELECT count(*)::int FROM defis df WHERE df.gagnant_id = u.id AND df.statut = 'termine') AS nb_defis_gagnes
-       FROM utilisateurs u WHERE u.identifiant = $1 AND u.bloque = FALSE AND u.supprime_le IS NULL`,
+       FROM utilisateurs u WHERE u.identifiant = $1 AND u.bloque = FALSE AND u.desactive_le IS NULL AND u.supprime_le IS NULL`,
     [identifiant],
   );
   if (!rows[0]) return res.status(404).json({ erreur: 'Ce profil n\'existe pas.' });
@@ -146,7 +146,7 @@ router.get('/:identifiant', limiteLectureProfils, async (req, res) => {
   const { rows: [amis] } = await db.query(
     `SELECT count(*)::int AS nb FROM amities a
        JOIN utilisateurs u ON u.id = CASE WHEN a.demandeur_id = $1 THEN a.receveur_id ELSE a.demandeur_id END
-      WHERE a.statut = 'acceptee' AND $1 IN (a.demandeur_id, a.receveur_id) AND u.bloque = FALSE`,
+      WHERE a.statut = 'acceptee' AND $1 IN (a.demandeur_id, a.receveur_id) AND u.bloque = FALSE AND u.desactive_le IS NULL`,
     [rows[0].id],
   );
   profil.nbAmis = amis.nb;

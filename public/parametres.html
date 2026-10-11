@@ -106,9 +106,20 @@
           <button data-t="parametres.mdp.changer" class="bouton bouton-contour" type="submit">Changer le mot de passe</button>
         </form>
 
+        <form class="bloc-formulaire" data-formulaire-desactivation novalidate>
+          <h3 data-t="parametres.desactivation.titre">Désactiver temporairement</h3>
+          <p data-t="parametres.desactivation.aide" class="aide">Une pause, sans rien perdre. Ton profil, tes publications, tes projets et tes propositions deviennent invisibles ; dans tes conversations, ton nom devient « Membre indisponible ». Tout revient dès que tu te reconnectes.</p>
+          <div class="champ">
+            <label data-t="parametres.ton-mot-de-passe" for="mot-de-passe-desactivation">Ton mot de passe</label>
+            <input id="mot-de-passe-desactivation" name="motDePasse" type="password" autocomplete="current-password">
+            <p class="erreur-champ" data-erreur="motDePasse"></p>
+          </div>
+          <button data-t="parametres.desactivation.bouton" class="bouton bouton-contour" type="submit">Désactiver mon compte</button>
+        </form>
+
         <form class="bloc-formulaire bloc-danger" data-formulaire-suppression novalidate>
           <h3 data-t="parametres.suppression.titre">Supprimer mon compte</h3>
-          <p data-t="parametres.suppression.aide" class="aide">Ton profil, tes publications, tes commentaires, tes projets, tes demandes et tes propositions sont supprimés pour de bon. Les messages que tu as déjà envoyés restent chez leurs destinataires, sous le nom « Membre parti ».</p>
+          <p data-t="parametres.suppression.aide" class="aide">Ton compte est d'abord désactivé pendant 30 jours : tu peux changer d'avis en te reconnectant, ou avec le lien de l'email de confirmation. Ensuite, ton profil, tes publications, tes commentaires, tes projets, tes demandes et tes propositions sont supprimés pour de bon. Les messages déjà envoyés restent chez leurs destinataires, sous le nom « Membre parti » ; les avis laissés à des devs restent, signés « Ancien client ».</p>
           <div class="champ">
             <label data-t="parametres.ton-mot-de-passe" for="mot-de-passe-suppression">Ton mot de passe</label>
             <input id="mot-de-passe-suppression" name="motDePasse" type="password" autocomplete="current-password">

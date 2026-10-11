@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#171512">
+  <meta name="robots" content="noindex">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="preload" href="/fonts/bricolage-grotesque-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="/js/theme.js"></script>
+  <link rel="stylesheet" href="/css/style.css">
+  <title>Annuler la suppression – Palabre</title>
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
+  <script src="/js/app.js" defer></script>
+  <script src="/js/pas-moi.js" defer></script>
+</head>
+<!-- Page ouverte par le bouton « Annuler la suppression » de l'email « Ton compte Palabre sera supprimé le … ».
+     Ouvrir la page ne fait rien : c'est le bouton qui agit. Le script est celui de /pas-moi (même fonctionnement). -->
+<body class="page-formulaire">
+  <div>
+    <div class="bande"></div>
+    <header class="entete"><div class="conteneur entete-interieur">
+      <a class="marque" href="/"><img src="/icons/logo-96.webp" alt="" width="32" height="32">Palabre</a>
+    </div></header>
+  </div>
+  <main class="conteneur">
+    <div class="carte-formulaire">
+      <h1 data-t="annuler.titre">Garder ton compte ?</h1>
+      <p data-t="annuler.texte" class="sous-titre">Tu as demandé la suppression de ton compte Palabre. Ce bouton annule la suppression et réactive ton compte : ton profil, tes publications et tes projets redeviennent visibles.</p>
+      <p class="message" role="alert" data-message></p>
+      <button data-t="annuler.bouton" class="bouton bouton-principal bouton-plein" type="button" data-proteger data-route="/auth/annuler-suppression">Annuler la suppression</button>
+      <div class="liens-formulaire">
+        <p><a data-t="annuler.laisser" href="/">Ne rien changer : retour à l'accueil</a></p>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

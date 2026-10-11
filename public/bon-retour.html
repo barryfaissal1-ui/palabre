@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#171512">
+  <meta name="robots" content="noindex">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="preload" href="/fonts/bricolage-grotesque-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="/js/theme.js"></script>
+  <link rel="stylesheet" href="/css/style.css">
+  <title>Bon retour – Palabre</title>
+  <script src="/langues/fr.js" defer></script>
+  <script src="/langues/en.js" defer></script>
+  <script src="/js/app.js" defer></script>
+  <script src="/js/bon-retour.js" defer></script>
+</head>
+<!-- Page d'un membre qui se reconnecte à un compte désactivé (ou en attente de suppression) : tant qu'il n'a pas
+     réactivé son compte, le serveur ne répond à rien d'autre (src/middleware/auth.js, exigerCompteActif). -->
+<body class="page-formulaire">
+  <div>
+    <div class="bande"></div>
+    <header class="entete"><div class="conteneur entete-interieur">
+      <a class="marque" href="/"><img src="/icons/logo-96.webp" alt="" width="32" height="32">Palabre</a>
+    </div></header>
+  </div>
+  <main class="conteneur">
+    <div class="carte-formulaire">
+      <h1 data-t="bon-retour.titre" data-titre>Bon retour</h1>
+      <p data-t="bon-retour.texte" class="sous-titre" data-texte>Ton compte est désactivé : ton profil, tes publications et tes projets sont invisibles. Réactive-le pour tout retrouver comme avant.</p>
+      <p class="message" role="alert" data-message></p>
+      <button data-t="bon-retour.reactiver" class="bouton bouton-principal bouton-plein" type="button" data-reactiver>Réactiver mon compte</button>
+      <div class="liens-formulaire">
+        <p><button data-t="bon-retour.plus-tard" class="bouton bouton-lien" type="button" data-plus-tard>Pas maintenant : me déconnecter</button></p>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

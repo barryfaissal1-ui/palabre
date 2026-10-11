@@ -85,13 +85,15 @@ async function blocagesEntre(executeur, moiId, autreId) {
 async function droitDEcrire(executeur, moi, autreId, conversation, demandePrecise = null) {
   const [blocages, lien, { rows: [autre] }] = await Promise.all([
     blocagesEntre(executeur, moi.id, autreId), lienEntre(executeur, moi.id, autreId, demandePrecise),
-    executeur.query('SELECT confidentialite, supprime_le FROM utilisateurs WHERE id = $1', [autreId]),
+    executeur.query('SELECT confidentialite, supprime_le, desactive_le FROM utilisateurs WHERE id = $1', [autreId]),
   ]);
   const libre = lien.amis || lien.demandeId !== null;
   const reglages = lireConfidentialite(autre);
   const acceptee = Boolean(conversation && conversation.statut === 'acceptee');
   let raison = null;
   if (autre && autre.supprime_le) raison = 'Ce membre a quitté Palabre.';
+  // Compte désactivé par son propriétaire : la conversation reste lisible, mais on ne peut ni lui écrire ni l'appeler.
+  else if (autre && autre.desactive_le) raison = 'Ce membre est indisponible pour le moment.';
   // Son réglage « Qui peut m'envoyer un message » : ses amis et ses clients seulement. Une conversation qu'il a
   // déjà acceptée reste ouverte.
   else if (reglages.messages === 'proches' && !libre && !acceptee && !blocages.parMoi && !blocages.parLui) raison = 'Ce membre ne reçoit des messages que de ses amis et de ses clients.';
@@ -106,7 +108,7 @@ async function droitDEcrire(executeur, moi, autreId, conversation, demandePrecis
 // Retrouve le membre visé par son identifiant de profil ; erreur 404 s'il n'existe pas (ou si c'est moi).
 async function membreVise(valeur, moi) {
   const identifiant = typeof valeur === 'string' ? valeur.trim().toLowerCase() : '';
-  const { rows } = await db.query(`SELECT u.id, ${COLONNES_MEMBRE} FROM utilisateurs u WHERE u.identifiant = $1 AND u.bloque = FALSE AND u.supprime_le IS NULL`, [identifiant]);
+  const { rows } = await db.query(`SELECT u.id, ${COLONNES_MEMBRE} FROM utilisateurs u WHERE u.identifiant = $1 AND u.bloque = FALSE AND u.desactive_le IS NULL AND u.supprime_le IS NULL`, [identifiant]);
   if (!rows[0] || rows[0].id === moi.id) throw new v.ErreurHttp(404, 'Ce membre n\'existe pas.');
   return rows[0];
 }

@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
     // s'affiche à côté. Un compte bloqué ou supprimé n'est pas montré.
     `SELECT n.id, n.type, n.texte, n.lien, n.lue, n.cree_le, n.nombre, n.cible_type, u.id AS acteur_present, ${COLONNES_MEMBRE}
        FROM notifications n
-       LEFT JOIN utilisateurs u ON u.id = n.acteur_id AND u.bloque = FALSE
+       LEFT JOIN utilisateurs u ON u.id = n.acteur_id AND u.bloque = FALSE AND u.desactive_le IS NULL
       WHERE n.utilisateur_id = $1 AND ($3::int IS NULL OR n.id < $3) ORDER BY n.id DESC LIMIT $2`,
     [moi.id, PAR_PAGE + 1, avant], // une de plus pour savoir s'il en reste
   );

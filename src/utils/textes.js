@@ -75,6 +75,7 @@ function codeDe(phrase) {
 // ---------- Traduire une réponse de l'API ----------
 // Ces champs portent un texte écrit par le serveur (jamais par un membre) : ils sont traduits à la sortie.
 const CHAMPS_TRADUITS = new Set(['erreur', 'message', 'raison', 'nomCategorie', 'nomSecteur', 'apercu', 'appareil']);
+const NOMS_DU_SERVEUR = new Set(['Membre indisponible', 'Membre parti']);
 const LISTES_NOMMEES = new Set(['categories', 'secteurs']); // [{ id, nom }] : « nom » est traduit
 
 function traduireReponse(langue, corps, profondeur = 0) {
@@ -83,6 +84,8 @@ function traduireReponse(langue, corps, profondeur = 0) {
   for (const [cle, valeur] of Object.entries(corps)) {
     if (typeof valeur === 'string') {
       if (CHAMPS_TRADUITS.has(cle)) corps[cle] = traduire(langue, valeur);
+      // Les deux noms que le serveur donne lui-même à un membre (compte désactivé, compte supprimé).
+      else if (cle === 'nom' && NOMS_DU_SERVEUR.has(valeur)) corps[cle] = traduire(langue, valeur);
     } else if (LISTES_NOMMEES.has(cle) && Array.isArray(valeur)) {
       valeur.forEach((element) => { if (element && typeof element.nom === 'string') element.nom = traduire(langue, element.nom); });
     } else if (valeur && typeof valeur === 'object' && !(valeur instanceof Date)) {

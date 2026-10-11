@@ -10,6 +10,7 @@ try {
 }
 const { creerApp } = require('./src/app');
 const { migrer } = require('./src/db/migrate');
+const { lancerMenage } = require('./src/utils/purge');
 
 async function demarrer() {
   await migrer();
@@ -19,6 +20,9 @@ async function demarrer() {
     if (config.production && !config.smtp.host) {
       console.warn('ATTENTION : SMTP_HOST est vide. Les codes de confirmation et les liens de mot de passe ne partiront pas par email : ils ne seront écrits que dans ce journal.');
     }
+    // Le ménage (comptes à supprimer après 30 jours, corbeille, journal de sécurité, sessions périmées) :
+    // une fois maintenant, puis toutes les heures.
+    lancerMenage();
   });
 }
 

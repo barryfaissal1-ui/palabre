@@ -6,7 +6,7 @@ const cookieParser = require('cookie-parser');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const config = require('./config');
-const { chargerUtilisateur, exigerEmailConfirme } = require('./middleware/auth');
+const { chargerUtilisateur, exigerEmailConfirme, exigerCompteActif } = require('./middleware/auth');
 const { langueDe } = require('./utils/langue');
 const { codeDe, traduireReponse } = require('./utils/textes');
 
@@ -91,6 +91,8 @@ function creerApp() {
   }));
   // Tant que l'email n'est pas confirmé, seul /api/auth répond (le code, le renvoi, la déconnexion).
   app.use('/api', exigerEmailConfirme);
+  // Compte désactivé par son propriétaire : seul /api/auth répond (réactiver, se déconnecter).
+  app.use('/api', exigerCompteActif);
   app.use('/api/auth', require('./routes/auth'));
   app.use('/api/profils', require('./routes/profils'));
   app.use('/api/publications', require('./routes/publications'));

@@ -41,7 +41,7 @@ const COLONNES_MEMBRE_CONNECTE = `id, type, est_admin, nom, prenom, nom_famille,
   email_confirme_le, profil_complete_le, specialite, experience,
   lien_github, lien_github_verifie_le, lien_gitlab, lien_gitlab_verifie_le,
   lien_portfolio, lien_portfolio_verifie_le, lien_linkedin, lien_linkedin_verifie_le, sessions_depuis,
-  vu_le, masquer_presence, preferences_notifications, confidentialite, derniere_connexion_le, derniere_connexion_appareil, langue, deux_etapes`
+  vu_le, masquer_presence, preferences_notifications, confidentialite, derniere_connexion_le, derniere_connexion_appareil, langue, deux_etapes, desactive_le, suppression_prevue_le`
   .split(',').map((colonne) => `u.${colonne.trim()}`).join(', ');
 
 // Ajoute req.utilisateur et req.session si la session est valide (sinon laisse vide).
@@ -65,7 +65,7 @@ async function chargerUtilisateur(req, res, next) {
       req.utilisateur = rows[0];
       req.session = { id: sid, vuLe: rows[0].session_vu_le };
       sessions.noterPassage(req.session); // « actif il y a 2 h » dans la liste des appareils
-      noterActivite(rows[0]); // « en ligne » : noté au plus une fois par minute, sans faire attendre la requête
+      if (!rows[0].desactive_le) noterActivite(rows[0]); // « en ligne » : noté au plus une fois par minute, sans faire attendre la requête
     } else fermerSession(res);
   } catch {
     fermerSession(res);
@@ -83,6 +83,13 @@ function exigerConnexion(req, res, next) {
 function exigerEmailConfirme(req, res, next) {
   if (!req.utilisateur || req.utilisateur.email_confirme_le || req.path.startsWith('/auth/')) return next();
   res.status(403).json({ erreur: 'Confirme d\'abord ton email avec le code reçu.', suite: '/confirmer-email' });
+}
+
+// Compte désactivé (ou en attente de suppression) : se reconnecter ouvre bien une session, mais elle ne sert qu'à
+// une chose, réactiver le compte (page /bon-retour). Tout le reste de l'API est fermé, sauf /api/auth.
+function exigerCompteActif(req, res, next) {
+  if (!req.utilisateur || !req.utilisateur.desactive_le || req.path.startsWith('/auth/')) return next();
+  res.status(403).json({ erreur: 'Ton compte est désactivé. Réactive-le pour continuer.', suite: '/bon-retour' });
 }
 
 // Un dev qui n'a pas rempli « Ton profil de dev » peut regarder le site, mais pas répondre aux demandes.
@@ -114,4 +121,4 @@ function exigerDev(req, res, next) {
 }
 
 module.exports = { ouvrirSession, fermerSession, signerJeton, poserCookieSession, NOM_COOKIE, chargerUtilisateur, exigerConnexion, exigerAdmin, exigerClient, exigerDev,
-  exigerEmailConfirme, exigerProfilComplet, profilDevIncomplet, MESSAGE_PROFIL_INCOMPLET };
+  exigerEmailConfirme, exigerCompteActif, exigerProfilComplet, profilDevIncomplet, MESSAGE_PROFIL_INCOMPLET };

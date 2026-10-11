@@ -21,7 +21,7 @@ const SELECTION = `
          ${COLONNES_MEMBRE}
     FROM projets p
     JOIN utilisateurs u ON u.id = p.dev_id
-   WHERE u.bloque = FALSE AND p.masque = FALSE`;
+   WHERE u.bloque = FALSE AND u.desactive_le IS NULL AND p.masque = FALSE`;
 
 function versProjet(ligne, moi) {
   return {

@@ -6,6 +6,14 @@ const { creerApp } = require('../src/app');
 const { migrer } = require('../src/db/migrate');
 const { pool } = require('../src/db/pool');
 const { avecComptesPrets, dernierCode } = require('./aide');
+const { purger } = require('../src/utils/purge');
+
+// La suppression d'un compte est différée de 30 jours : on avance l'échéance en base, puis on lance le ménage
+// (ce que fait le serveur toutes les heures). Le détail du délai est testé dans tests/desactivation.test.js.
+async function apresTrenteJours(utilisateurId) {
+  await pool.query('UPDATE utilisateurs SET suppression_prevue_le = now() - interval \'1 minute\' WHERE id = $1 AND suppression_prevue_le IS NOT NULL', [utilisateurId]);
+  await purger();
+}
 
 let serveur;
 let base;
@@ -328,6 +336,7 @@ test('supprimer mon compte : mes données partent, mes messages déjà envoyés 
   assert.equal((await supprimer()).statut, 400);
   assert.equal((await appelBrut('/api/parametres/compte', { methode: 'DELETE', donnees: { motDePasse: 'kolatier-vert-48' } })).statut, 401);
   assert.equal((await supprimer('kolatier-vert-48')).statut, 200);
+  await apresTrenteJours(membres.dao.id);
 
   // Plus de compte : ni session, ni connexion, ni profil, ni publication.
   assert.equal(await moi(membres.dao.cookie), null);
@@ -372,6 +381,10 @@ test('un client supprime son compte : ses avis restent sur le profil du dev, sig
   assert.equal(avant.avis[0].titreDemande, DEMANDE.titre);
 
   assert.equal((await appel('/api/parametres/compte', { methode: 'DELETE', qui: 'lassina', donnees: { motDePasse: 'kolatier-vert-48' } })).statut, 200);
+  // Pendant les 30 jours, l'avis est déjà anonyme (le compte est désactivé) ; après, il le reste.
+  const pendant = await profilDeCheick('awa');
+  assert.deepEqual([pendant.nbAvis, pendant.avis[0].client, pendant.avis[0].titreDemande], [1, null, null]);
+  await apresTrenteJours(membres.lassina.id);
 
   // L'avis est toujours là, avec sa note et son texte : il compte dans la moyenne du dev.
   const apres = await profilDeCheick('awa');

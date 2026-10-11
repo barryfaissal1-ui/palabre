@@ -184,7 +184,7 @@ router.get('/projets/:id', async (req, res, next) => {
   const { rows: [projet] } = await db.query(
     `SELECT p.titre, p.description, p.image, u.nom FROM projets p
        JOIN utilisateurs u ON u.id = p.dev_id
-      WHERE p.id = $1 AND u.bloque = FALSE AND p.masque = FALSE`,
+      WHERE p.id = $1 AND u.bloque = FALSE AND u.desactive_le IS NULL AND p.masque = FALSE`,
     [id],
   );
   if (!projet) {
@@ -209,7 +209,7 @@ router.get('/publication/:id', async (req, res, next) => {
   const { rows: [publication] } = id ? await db.query(
     `SELECT p.texte, p.image, u.nom, COALESCE(u.confidentialite->>'publications', 'tous') = 'tous' AS publique FROM publications p
        JOIN utilisateurs u ON u.id = p.auteur_id
-      WHERE p.id = $1 AND p.masque = FALSE AND u.bloque = FALSE`,
+      WHERE p.id = $1 AND p.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL`,
     [id],
   ) : { rows: [] };
   if (!publication) return pageErreur(res, 404);
@@ -240,7 +240,7 @@ router.get('/:identifiant', async (req, res, next) => {
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(identifiant) || v.IDENTIFIANTS_RESERVES.has(identifiant)) return next();
   const langue = langueDe(req);
   const { rows: [membre] } = await db.query(
-    'SELECT nom, type, ville, pays, bio, avatar FROM utilisateurs WHERE identifiant = $1 AND bloque = FALSE AND supprime_le IS NULL',
+    'SELECT nom, type, ville, pays, bio, avatar FROM utilisateurs WHERE identifiant = $1 AND bloque = FALSE AND desactive_le IS NULL AND supprime_le IS NULL',
     [identifiant],
   );
   if (!membre) {

@@ -28,7 +28,7 @@ const SELECTION = `
            WHERE p.demande_id = d.id AND p.statut <> 'brouillon') AS nb_propositions
     FROM demandes d
     JOIN utilisateurs u ON u.id = d.client_id
-   WHERE d.masque = FALSE AND u.bloque = FALSE`;
+   WHERE d.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL`;
 
 function versDemande(ligne, moi, { extrait = false } = {}) {
   const longue = extrait && ligne.description.length > 220;
@@ -67,7 +67,7 @@ async function lirePropositions(condition, valeurs, moi, pourClient) {
        FROM propositions p
        LEFT JOIN equipes e ON e.id = p.equipe_id
        JOIN utilisateurs u ON u.id = COALESCE(p.dev_id, e.chef_id)
-      WHERE u.bloque = FALSE AND ${condition}
+      WHERE u.bloque = FALSE AND u.desactive_le IS NULL AND ${condition}
       ORDER BY p.id`,
     valeurs,
   );
@@ -234,7 +234,7 @@ async function demandeOuverte(client, valeurId) {
   const { rows } = await client.query(
     `SELECT d.id, d.titre, d.client_id, d.statut FROM demandes d
        JOIN utilisateurs u ON u.id = d.client_id
-      WHERE d.id = $1 AND d.masque = FALSE AND u.bloque = FALSE
+      WHERE d.id = $1 AND d.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL
       FOR SHARE OF d`,
     [v.idPositif(valeurId)],
   );
@@ -303,7 +303,7 @@ router.post('/:id/equipes', exigerDev, exigerProfilComplet, limitePropositions, 
     // On ne peut inviter que ses amis (amitié acceptée) qui sont développeurs.
     const { rows: amis } = await client.query(
       `SELECT u.id, u.identifiant, u.prenom, u.nom, COALESCE(u.confidentialite->>'equipes', 'amis') = 'personne' AS refuse_les_invitations FROM utilisateurs u
-        WHERE u.identifiant = ANY($2::text[]) AND u.type = 'dev' AND u.bloque = FALSE
+        WHERE u.identifiant = ANY($2::text[]) AND u.type = 'dev' AND u.bloque = FALSE AND u.desactive_le IS NULL
           AND EXISTS (SELECT 1 FROM amities a
                        WHERE a.statut = 'acceptee'
                          AND ((a.demandeur_id = $1 AND a.receveur_id = u.id) OR (a.demandeur_id = u.id AND a.receveur_id = $1)))`,

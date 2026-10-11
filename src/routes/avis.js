@@ -29,8 +29,9 @@ async function avisDe(devId) {
       note: ligne.note,
       commentaire: ligne.commentaire,
       creeLe: ligne.cree_le,
-      titreDemande: ligne.titre_demande,
-      client: ligne.identifiant ? apercuMembre(ligne) : null,
+      // Client parti ou compte désactivé : l'avis reste (c'est la preuve du travail du dev), sans rien du client.
+      titreDemande: ligne.desactive_le ? null : ligne.titre_demande,
+      client: ligne.identifiant && !ligne.desactive_le ? apercuMembre(ligne) : null,
     })),
     nbAvis: rows.length,
     noteMoyenne: rows.length ? Math.round((somme / rows.length) * 10) / 10 : null,

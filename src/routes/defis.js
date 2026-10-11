@@ -34,9 +34,9 @@ async function cloreDefisFinis() {
       const { rows: [premier] } = await client.query(
         `SELECT r.id, r.dev_id, count(vo.utilisateur_id)::int AS nb_votes
            FROM defi_reponses r
-           JOIN utilisateurs u ON u.id = r.dev_id AND u.bloque = FALSE
+           JOIN utilisateurs u ON u.id = r.dev_id AND u.bloque = FALSE AND u.desactive_le IS NULL
            LEFT JOIN defi_votes vo ON vo.reponse_id = r.id
-                AND EXISTS (SELECT 1 FROM utilisateurs votant WHERE votant.id = vo.utilisateur_id AND votant.bloque = FALSE)
+                AND EXISTS (SELECT 1 FROM utilisateurs votant WHERE votant.id = vo.utilisateur_id AND votant.bloque = FALSE AND votant.desactive_le IS NULL)
           WHERE r.defi_id = $1
           GROUP BY r.id
           ORDER BY nb_votes DESC, r.id ASC
@@ -60,7 +60,7 @@ async function cloreDefisFinis() {
 // Le défi à montrer : celui en cours, sinon le dernier terminé (pour voir le gagnant). $1 = date limite d'affichage.
 const SELECTION_DEFI = `
   SELECT d.id, d.titre, d.probleme, d.fin_reponses_le, d.fin_vote_le, d.gagnant_reponse_id, ${PHASE} AS phase,
-         (SELECT count(*)::int FROM defi_reponses r JOIN utilisateurs ru ON ru.id = r.dev_id AND ru.bloque = FALSE
+         (SELECT count(*)::int FROM defi_reponses r JOIN utilisateurs ru ON ru.id = r.dev_id AND ru.bloque = FALSE AND ru.desactive_le IS NULL
            WHERE r.defi_id = d.id) AS nb_reponses
     FROM defis d
    WHERE d.statut IN ('ouvert', 'termine')
@@ -113,11 +113,11 @@ router.get('/courant', async (req, res) => {
   const { rows } = await db.query(
     `SELECT r.id, r.texte, r.lien, r.lien_verifie_le, r.cree_le, r.dev_id, ${COLONNES_MEMBRE},
             (SELECT count(*)::int FROM defi_votes vo
-               JOIN utilisateurs votant ON votant.id = vo.utilisateur_id AND votant.bloque = FALSE
+               JOIN utilisateurs votant ON votant.id = vo.utilisateur_id AND votant.bloque = FALSE AND votant.desactive_le IS NULL
               WHERE vo.reponse_id = r.id) AS nb_votes
        FROM defi_reponses r
        JOIN utilisateurs u ON u.id = r.dev_id
-      WHERE r.defi_id = $1 AND u.bloque = FALSE
+      WHERE r.defi_id = $1 AND u.bloque = FALSE AND u.desactive_le IS NULL
       ORDER BY r.id`,
     [ligne.id],
   );
@@ -202,7 +202,7 @@ router.post('/:id/vote', exigerConnexion, limiteVotes, async (req, res) => {
     if (defi.phase === 'reponses') throw new v.ErreurValidation('Le vote n\'est pas encore ouvert.');
     if (defi.phase !== 'vote') throw new v.ErreurValidation('Le vote est terminé.');
     const { rows: [reponse] } = await client.query(
-      `SELECT r.id, r.dev_id FROM defi_reponses r JOIN utilisateurs u ON u.id = r.dev_id AND u.bloque = FALSE
+      `SELECT r.id, r.dev_id FROM defi_reponses r JOIN utilisateurs u ON u.id = r.dev_id AND u.bloque = FALSE AND u.desactive_le IS NULL
         WHERE r.id = $1 AND r.defi_id = $2`,
       [reponseId, defi.id],
     );
