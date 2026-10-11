@@ -56,6 +56,18 @@ Ouvre Moussa dans une fenêtre et Rasmata dans une fenêtre privée :
 
 Une fois ces actions faites, elles ne sont plus « à faire ». Pour tout remettre comme au début : `npm run demo -- retirer`, puis `npm run demo`.
 
+### Comptes anglophones, et un compte aux publications réservées
+
+| Compte | Email | Ce qu'il montre |
+| --- | --- | --- |
+| Kwame Asante (Accra, Ghana) | `kwame@demo.palabre.dev` | développeur, site **en anglais**, 2 publications en anglais |
+| Ngozi Okafor (Lagos, Nigeria) | `ngozi@demo.palabre.dev` | développeuse, site en anglais, 2 publications en anglais |
+| Wanjiru Kamau (Nairobi, Kenya) | `wanjiru@demo.palabre.dev` | cliente, site en anglais, une demande écrite en anglais |
+| Adama Ouattara (Bobo-Dioulasso) | `adama@demo.palabre.dev` | développeur dont les **publications sont réservées à ses amis** (Awa, Bintou, Moussa) |
+
+- Se connecter avec Kwame : tout le site passe en anglais (c'est la langue de son compte), y compris ses notifications. Ce que les autres membres ont écrit reste en français.
+- Les publications d'Adama : visibles dans le fil d'Awa, de Bintou et de Moussa ; invisibles pour les autres membres, et pour un visiteur. Son profil, lui, reste public.
+
 ### Ce que ces comptes ne montrent pas
 
 - **L'inscription** (code à 6 chiffres, page « Ton profil de dev ») : il faut créer un nouveau compte.

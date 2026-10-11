@@ -15,7 +15,7 @@
 const zlib = require('node:zlib');
 const jwt = require('jsonwebtoken');
 const config = require('../src/config');
-const { pool } = require('../src/db/pool');
+const { pool, transaction } = require('../src/db/pool');
 const { migrer } = require('../src/db/migrate');
 const { creerApp } = require('../src/app');
 const mailer = require('../src/utils/mailer');
@@ -709,6 +709,64 @@ async function creerComptesComplets(avecAdmin) {
   }
 }
 
+// ---------- Comptes anglophones, et un compte aux publications réservées à ses amis ----------
+// Trois membres dont le site est en anglais (Ghana, Nigeria, Kenya), avec des publications et une demande écrites en
+// anglais, et Adama, dont les publications ne sont visibles que de ses amis (réglage de confidentialité).
+// Écrit directement en base : pas d'email, pas de lien à visiter. Ne fait rien si ces comptes existent déjà.
+// cle, type, prénom, nom, ville, pays, langue, bio, spécialité, expérience, année de naissance, confidentialité
+const AUTRES_COMPTES = [
+  ['kwame', 'dev', 'Kwame', 'Asante', 'Accra', 'Ghana', 'en', 'Full-stack developer. I build payment and booking tools for small businesses in Accra.', 'web', 'plus-5', 1991, {}],
+  ['ngozi', 'dev', 'Ngozi', 'Okafor', 'Lagos', 'Nigeria', 'en', 'Mobile developer, Flutter and Kotlin. Offline-first apps for places where the network comes and goes.', 'mobile', '3-5', 1995, {}],
+  ['wanjiru', 'client', 'Wanjiru', 'Kamau', 'Nairobi', 'Kenya', 'en', 'I run a tea cooperative and I am looking for developers who understand rural connectivity.', null, null, null, {}],
+  ['adama', 'dev', 'Adama', 'Ouattara', 'Bobo-Dioulasso', 'Burkina Faso', 'fr', 'Développeur back-end. Je partage mes notes de travail avec mes amis seulement.', 'back-end', '3-5', 1994, { publications: 'amis' }],
+];
+const AUTRES_AMITIES = [['kwame', 'ngozi'], ['kwame', 'awa'], ['ngozi', 'kofi'], ['adama', 'awa'], ['adama', 'bintou'], ['adama', 'dev']];
+const AUTRES_PUBLICATIONS = [
+  ['kwame', 'projet', 'Just shipped a booking tool for a guesthouse in Cape Coast: rooms, deposits by MTN MoMo, and a WhatsApp reminder the day before. Three weeks from first sketch to first booking.'],
+  ['ngozi', 'question', 'How do you test a mobile app on a slow network? I throttle to 2G in the emulator, but real phones in the market still surprise me. What is your routine?'],
+  ['kwame', 'idee', 'A tip that saved me this week: ask the client to show you the phone their customers actually use before you design anything.'],
+  ['ngozi', 'idee', 'Flash teams are a good idea. Lagos, Accra, Koudougou: the best person for the job is not always in your city.'],
+  ['adama', 'idee', 'Note pour mes amis : j\'ai enfin compris les index partiels de PostgreSQL. Je vous montre ça au prochain atelier.'],
+  ['adama', 'question', 'Entre nous : qui a déjà facturé une maintenance au mois ? Je cherche le bon tarif avant d\'en parler à un client.'],
+];
+
+async function creerAutresComptes() {
+  const { rows: [modele] } = await pool.query('SELECT mot_de_passe_hash FROM utilisateurs WHERE email = $1', [email('awa')]);
+  const { rows: [deja] } = await pool.query('SELECT 1 FROM utilisateurs WHERE email = $1', [email('kwame')]);
+  if (!modele || deja) return 0;
+  return transaction(async (client) => {
+    const ids = {};
+    for (const [cle, type, prenom, nomFamille, ville, pays, langue, bio, specialite, experience, annee, confidentialite] of AUTRES_COMPTES) {
+      // Le même mot de passe que les autres comptes de démonstration (son empreinte est recopiée).
+      const { rows: [cree] } = await client.query(
+        `INSERT INTO utilisateurs (type, nom, prenom, nom_famille, identifiant, email, mot_de_passe_hash, pays, ville, bio, langue, confidentialite,
+                                   specialite, experience, date_naissance, email_confirme_le, profil_complete_le,
+                                   lien_portfolio, lien_portfolio_verifie_le)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, CASE WHEN $15::int IS NULL THEN NULL ELSE make_date($15::int, 5, 15) END, now(),
+                 CASE WHEN $1 = 'dev' THEN now() END, CASE WHEN $1 = 'dev' THEN 'https://demo.palabre.dev/' || $5 END, CASE WHEN $1 = 'dev' THEN now() END)
+         RETURNING id`,
+        [type, `${prenom} ${nomFamille}`, prenom, nomFamille, `${cle}-${nomFamille.toLowerCase()}`, email(cle), modele.mot_de_passe_hash, pays, ville, bio, langue, JSON.stringify(confidentialite), specialite, experience, annee],
+      );
+      ids[cle] = cree.id;
+    }
+    const idDe = async (cle) => ids[cle] || (await client.query('SELECT id FROM utilisateurs WHERE email = $1', [email(cle)])).rows[0]?.id;
+    for (const [a, b] of AUTRES_AMITIES) {
+      const [de, vers] = [await idDe(a), await idDe(b)];
+      if (de && vers) await client.query('INSERT INTO amities (demandeur_id, receveur_id, statut) VALUES ($1, $2, \'acceptee\') ON CONFLICT DO NOTHING', [de, vers]);
+    }
+    for (const [rang, [cle, type, texte]] of AUTRES_PUBLICATIONS.entries()) {
+      // Étalées sur les derniers jours, pour qu'elles se mêlent au fil.
+      await client.query('INSERT INTO publications (auteur_id, type, texte, cree_le) VALUES ($1, $2, $3, now() - make_interval(hours => $4))', [ids[cle], type, texte, 6 + rang * 9]);
+    }
+    await client.query(
+      `INSERT INTO demandes (client_id, titre, description, budget_fcfa, delai, categorie)
+       VALUES ($1, 'Mobile app for a tea cooperative', 'Farmers record their deliveries on a phone, even without network. The cooperative sees the totals and pays by M-Pesa. English and Swahili.', 650000, '2 months', 'appli-mobile')`,
+      [ids.wanjiru],
+    );
+    return AUTRES_COMPTES.length;
+  });
+}
+
 async function main() {
   // Garde-fou : jamais par accident sur le site en ligne (le mot de passe de ces comptes est écrit dans la documentation).
   if (config.production && !process.argv.includes('--forcer')) {
@@ -735,8 +793,10 @@ async function main() {
   // son mot de passe est public, et un administrateur peut masquer des contenus et bloquer des membres.
   const complets = await creerComptesComplets(!config.production || process.argv.includes('--admin'));
   if (complets) console.log(`Deux comptes « tout tester » ajoutés : ${complets.dev} (développeur${complets.admin ? ' et administrateur' : ''}) et ${complets.client} (cliente).`);
+  const autres = await creerAutresComptes();
+  if (autres) console.log(`${autres} comptes ajoutés : trois membres anglophones (${email('kwame')}, ${email('ngozi')}, ${email('wanjiru')}) et ${email('adama')}, dont les publications sont réservées à ses amis.`);
   if (!bilan) {
-    console.log(`Les comptes de démonstration existent déjà : ${conversations || complets ? 'seul ce qui manquait a été ajouté' : 'rien n\'a été modifié'}.\nPour repartir de zéro : npm run demo -- retirer, puis npm run demo`);
+    console.log(`Les comptes de démonstration existent déjà : ${conversations || complets || autres ? 'seul ce qui manquait a été ajouté' : 'rien n\'a été modifié'}.\nPour repartir de zéro : npm run demo -- retirer, puis npm run demo`);
     return;
   }
   console.log(`Contenu de démonstration créé : ${bilan.membres} membres, ${bilan.publications} publications, des projets, 6 demandes, 2 avis.`);

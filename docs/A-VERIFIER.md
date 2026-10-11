@@ -1,3 +1,46 @@
+# À vérifier : paramètres, confidentialité et site en deux langues (11 octobre 2026)
+
+Ce qui suit a été fait sans que tu puisses le voir. Tout est testé par le serveur et parcouru dans Chrome (téléphone 390 px et ordinateur, clair et sombre, en français et en anglais), mais plusieurs choix sont les miens : dis-moi ceux qui ne te conviennent pas.
+
+## À essayer toi-même
+
+**Paramètres**
+- [ ] Ouvre `/parametres` sur ton téléphone : la liste, une rubrique, le retour. Sur ordinateur : le menu de l'avatar en haut à droite.
+- [ ] Change un réglage de confidentialité avec le compte `adama@demo.palabre.dev`, puis regarde son profil et ses publications avec un autre compte, et sans compte.
+- [ ] **Change d'email avec une vraie adresse** : je n'ai vérifié l'envoi du code que dans les tests (aucun vrai email n'est parti).
+- [ ] **Supprime un compte que tu as créé pour l'essai**, après avoir écrit à quelqu'un : chez l'autre, la conversation doit rester, sous le nom « Membre parti ».
+- [ ] « Télécharger mes données » sur un téléphone : le fichier doit arriver dans les téléchargements.
+
+**Langues**
+- [ ] **Relis l'anglais.** C'est moi qui l'ai écrit, et aucun anglophone ne l'a relu. Les deux fichiers se lisent côte à côte : `public/langues/fr.js` et `public/langues/en.js` (mêmes clés, même ordre). Les pages `/a-propos` et `/conditions` surtout.
+- [ ] Connecte-toi avec `kwame@demo.palabre.dev` : tout le site doit être en anglais.
+- [ ] Les captures de la version anglaise sont dans `docs/captures/anglais/`, celles des paramètres dans `docs/captures/parametres/`.
+
+## Mes choix, à valider
+
+- **Première visite : anglais si le téléphone est en anglais.** C'est ce que tu as demandé. Attention : beaucoup de téléphones vendus en Afrique francophone sont réglés en anglais. Un visiteur burkinabè peut donc arriver sur un site en anglais, avec seulement le petit lien « Français » en bas de page pour revenir. Si tu préfères le français pour tout le monde à la première visite, c'est une ligne à changer dans `public/js/app.js` et une dans `src/utils/langue.js`.
+- **Accès aux paramètres sur téléphone** : l'avatar de l'en-tête n'existe pas sur téléphone (il est dans le menu du bas, où il mène au profil). J'ai donc mis un bouton « Paramètres » sur son propre profil, à côté de « Modifier mon profil ». Le menu de l'avatar existe sur ordinateur et tablette.
+- **« Qui peut m'appeler : mes amis et mes clients »** est la valeur par défaut, et elle garde le comportement d'avant : un inconnu dont tu as accepté la demande de message peut aussi t'appeler. Le texte d'aide le dit (« Un appel n'est possible que dans une conversation que tu as acceptée »).
+- **Liste d'amis cachée** : la liste n'est plus donnée, mais le **nombre** d'amis reste affiché sur le profil.
+- **Suppression d'un compte** : les avis qu'un client a laissés à des devs partent avec lui (ce sont ses données). Si tu préfères qu'ils restent sous « Membre parti », dis-le.
+- **Liste des pays** : j'ai ajouté 21 pays anglophones et lusophones (Ghana, Nigeria, Kenya, Afrique du Sud…), sinon un Ghanéen ne pouvait pas s'inscrire.
+- **Code des erreurs** : il est fabriqué à partir de la phrase française (« Adresse email invalide. » donne `adresse-email-invalide`). Si on réécrit une phrase, son code change.
+
+## Ce qui n'est pas traduit, volontairement
+
+- Ce qu'écrivent les membres : publications, commentaires, messages, demandes, propositions, projets.
+- Les messages « système » d'un groupe (« Awa a rejoint l'équipe ») et le titre d'un groupe (« Équipe : … ») : ils sont écrits en base une fois pour toutes, en français.
+- Les notifications **déjà reçues** : elles gardent la langue qu'avait le membre quand elles sont arrivées.
+- Le texte proposé à l'administrateur pour la page Facebook « Palabre Dev » (la page est en français).
+- Les noms des compétences (ce sont des noms de technologies) et les noms des villes.
+- La page `/admin` est traduite, mais les motifs de signalement que l'équipe y lit restent en français.
+
+## Ce que je n'ai pas pu vérifier
+
+- **Aucun vrai email** n'est parti : ni le code de changement d'adresse, ni les emails en anglais.
+- **Aucun vrai push** (comme avant) : les titres en anglais sont vérifiés par les tests seulement.
+- **Un texte anglais trop long sur un très petit écran** (360 px) : je n'ai parcouru le site qu'en 390 px et 1280 px.
+
 # À vérifier : messagerie et appels (travail en 7 parties du 10 octobre 2026)
 
 ## Où en est chaque partie

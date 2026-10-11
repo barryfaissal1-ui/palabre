@@ -86,6 +86,8 @@ tests/                 tests automatiques
 - [x] Refonte du design, étape A : système de design (icônes Lucide, ombres, animations, toasts, états vides illustrés, squelettes de chargement, mode sombre)
 - [x] Prénom et nom saisis séparément (inscription et profil)
 - [x] Appels audio et vidéo dans Palabre (WebRTC, sans bibliothèque) : à deux, ou en audio jusqu'à quatre dans le groupe d'une équipe ; écran d'appel aux couleurs de Palabre
+- [x] Site en français et en anglais : 1 400 textes dans deux dictionnaires, pluriels, dates et nombres selon la langue, erreurs, notifications et emails dans la langue de chacun
+- [x] Paramètres et confidentialité : qui voit mes publications, mes amis, mon numéro ; qui peut m'écrire, m'appeler, m'inviter ; email, mot de passe, autres appareils, téléchargement et suppression de ses données
 - [x] Finitions de la messagerie : carte d'arrivée d'un message sur les autres pages, petit son réglable dans le profil, appel entrant vu en 5 secondes, titres clairs des notifications du téléphone
 - [x] Messages vocaux d'une minute, légers (24 kb/s), avec un lecteur maison (pause, avancement, vitesse)
 - [x] Messagerie vivante sans WebSocket : « Awa écrit… », « En ligne » (masquable), « Vu par » dans les groupes

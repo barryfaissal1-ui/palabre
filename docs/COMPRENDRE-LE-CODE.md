@@ -836,6 +836,108 @@ Sur ordinateur, le menu « … » d'une bulle s'ouvrait parfois hors de la conve
 
 En prenant la capture du réglage, la page `/modifier-profil` dépassait à droite sur téléphone (429 px au lieu de 390). La cause : dans une grille CSS, une colonne `1fr` ne descend jamais sous la largeur de son contenu, et deux listes au texte long (« Développement web », « Plus de 5 ans ») ne tenaient pas côte à côte. Les colonnes des formulaires sont maintenant en `minmax(0, 1fr)` (le 0 autorise la colonne à rétrécir), et ces deux listes se placent l'une sous l'autre sur téléphone (classe `champs-larges`).
 
+## 11 sexdecies. Paramètres et confidentialité
+
+Fichiers : `src/routes/parametres.js`, `src/utils/confidentialite.js`, `public/parametres.html`, `public/js/parametres.js`, `tests/parametres.test.js`.
+
+### La page
+
+`/parametres` range tout ce qui se règle en huit rubriques : Compte, Langue, Confidentialité, Notifications, Sécurité, Membres bloqués, Apparence, Mes données. Sur téléphone on voit la liste, puis la rubrique choisie avec un retour. Sur ordinateur, les rubriques sont à gauche et la rubrique ouverte à droite. La rubrique ouverte est écrite dans l'adresse (`/parametres#confidentialite`) : le bouton « retour » du téléphone marche, et on peut envoyer le lien d'une rubrique.
+
+Il n'y a pas de bouton « Enregistrer » : chaque réglage part au serveur dès qu'on le change, et un petit message « Enregistré » le confirme. Si le serveur refuse, le réglage revient à sa valeur d'avant.
+
+### Les réglages de confidentialité : le serveur décide, pas la page
+
+Les réglages sont gardés dans une seule colonne, `utilisateurs.confidentialite`, au format JSON. Une clé absente vaut sa valeur par défaut, et la valeur par défaut est **le comportement d'avant** : un membre qui ne touche à rien ne voit aucune différence.
+
+La règle la plus importante : **chaque réglage est appliqué par le serveur, dans la route qui donne l'information**. Cacher un bouton dans la page ne protège rien, car n'importe qui peut appeler une route à la main.
+
+| Réglage | Où le serveur l'applique |
+| --- | --- |
+| Qui voit mes publications | dans la requête commune des publications (`publicationsVisibles()`) : le fil, le profil, la page publique et la lecture d'une publication la suivent tous ; un j'aime ou un commentaire sur une publication qu'on ne peut pas voir répond « 404 » ; les balises de partage ne citent rien d'une publication réservée |
+| Qui voit ma liste d'amis | `GET /api/profils/:identifiant/amis` |
+| Qui voit mon numéro WhatsApp | `profilVisible()` : le numéro n'est tout simplement pas mis dans la réponse |
+| Qui peut m'écrire | `droitDEcrire()`, la règle unique de la messagerie |
+| Qui peut m'appeler | `POST /api/messages/appels` |
+| Qui peut m'inviter dans une équipe | `POST /api/demandes/:id/equipes` |
+| Apparaître dans la recherche | les trois requêtes de `src/routes/devs.js` (`dansLaRecherche()`) ; un client à qui le dev a envoyé une proposition le retrouve quand même |
+
+Le profil public d'un dev (nom, spécialité, projets vérifiés, avis) reste toujours visible : c'est sa vitrine.
+
+### Changer d'email, sans perdre son compte
+
+Le code à six chiffres part à la **nouvelle** adresse. Tant qu'il n'est pas saisi, l'ancienne reste la bonne : une faute de frappe dans la nouvelle adresse ne coûte rien. Le mot de passe est redemandé avant, pour qu'un téléphone resté ouvert sur une table ne suffise pas à prendre le compte. Le code est haché, valable 15 minutes, cinq essais.
+
+### Déconnecter les autres appareils
+
+Chaque session porte sa date d'ouverture. La colonne `sessions_depuis` dit : « toute session ouverte avant cette date est refusée ». Pour fermer les autres appareils, on met cette date à maintenant, puis on rouvre une session neuve pour l'appareil qui a fait la demande. Changer de mot de passe fait la même chose.
+
+La « dernière connexion » montre la date et le type d'appareil (« Chrome sur Android »), lu dans l'en-tête que le navigateur envoie. L'adresse IP n'est ni gardée ni affichée.
+
+### Supprimer son compte
+
+Toutes les tables sont reliées au compte par `ON DELETE CASCADE` : supprimer la ligne du membre supprime ses publications, ses commentaires, ses projets, ses demandes, ses propositions, ses amitiés, ses photos.
+
+Une seule chose demande du soin : les messages déjà envoyés à d'autres. Ils font partie de **leurs** conversations. Avant de supprimer le compte, ces messages sont donc rattachés à un compte vide, appelé « Membre parti » : pas de nom, pas d'email utilisable, pas de photo, un mot de passe impossible. Personne ne peut s'y connecter, lui écrire, ni le trouver. Les photos et les vocaux, eux, sont effacés pour de bon (il reste « Message supprimé »).
+
+### Télécharger ses données
+
+Un fichier JSON avec son profil, ses publications, ses commentaires, ses messages envoyés, ses demandes et ses propositions. Des autres membres, il ne contient que le nom : jamais leur email, leur numéro, ni leurs messages. Trois téléchargements par jour, comptés dans la table `exports_donnees`. La date de naissance n'y est pas : elle ne sort de la base par aucune route.
+
+## 11 septdecies. Le site en deux langues
+
+Fichiers : `public/langues/fr.js`, `public/langues/en.js`, `public/js/app.js` (`t()`, `traduirePage()`, `changerLangue()`), `src/utils/langue.js`, `src/utils/textes.js`, `tests/langues.test.js`, `tests/textes-serveur.test.js`.
+
+### Une clé, deux textes
+
+Chaque texte du site a une **clé** (`fil.publier`, `demande.statut.ouverte`) et deux valeurs : une dans `fr.js`, une dans `en.js`. Les deux fichiers ont exactement les mêmes clés, dans le même ordre : on peut les lire côte à côte.
+
+- Dans un script : `t('fil.publier')`.
+- Dans une page HTML : `<button data-t="fil.publier">Publier</button>`. La page reste écrite en français ; en anglais, `traduirePage()` remplace le texte de chaque balise marquée. Pour un attribut : `data-t-placeholder`, `data-t-aria-label`, `data-t-title`, `data-t-alt`.
+
+Sans framework ni bibliothèque : `t()` fait une vingtaine de lignes.
+
+### Les trois pièges d'une traduction
+
+1. **Les pluriels.** « 1 réponse », « 3 réponses » : la clé porte les deux formes, `{ un: '{n} réponse', autres: '{n} réponses' }`, et `t('cle', { n: 3 })` choisit. C'est le navigateur qui connaît la règle de chaque langue (`Intl.PluralRules`) : en français « 0 réponse » est au singulier, en anglais « 0 replies » est au pluriel.
+2. **L'ordre des mots.** « Profil de Kofi » devient « Kofi's profile » : on ne colle jamais deux morceaux de phrase. La phrase entière est dans le dictionnaire, avec un trou : `'Profil {deNom}'` et `"{nom}'s profile"`.
+3. **Les dates et les nombres.** « il y a 5 min » et « 5 min. ago », « 250 000 FCFA » et « 250,000 FCFA » : écrits par le navigateur (`Intl.RelativeTimeFormat`, `Intl.NumberFormat`), pas par nous.
+
+### Ce qui ne change jamais : les valeurs
+
+La base garde des identifiants (`site-web`, `plus-5`) ou le nom français d'un pays (`Côte d'Ivoire`). Seul l'**affichage** est traduit. Passer le site en anglais ne modifie donc aucune donnée, et un membre francophone et un membre anglophone voient le même profil, chacun dans sa langue.
+
+Ce que les membres écrivent (publications, messages, demandes) n'est jamais traduit.
+
+### Quelle langue pour qui ?
+
+Dans l'ordre : le cookie `langue` (le choix fait sur cet appareil), la langue du compte (`utilisateurs.langue`, qui suit le membre sur tous ses appareils), puis la langue du navigateur. À la première visite : anglais si le navigateur est en anglais, sinon français.
+
+Le choix se fait à un seul endroit pour un membre, `/parametres`, rubrique Langue. Un visiteur a un petit lien en bas des pages publiques. Il n'y a pas de bouton de langue dans l'en-tête.
+
+### Le serveur parle aussi les deux langues
+
+Le serveur lit les mêmes dictionnaires que le navigateur (`require('../../public/langues/fr.js')`) : il n'y a qu'une liste de textes pour tout le site.
+
+Dans le code du serveur, les messages restent écrits en français, là où on les lit : `throw new ErreurValidation('Adresse email invalide.')`. Juste avant l'envoi d'une réponse, `src/app.js` fait deux choses :
+
+- il ajoute à chaque erreur un **code stable**, `adresse-email-invalide`, le même dans toutes les langues (un programme s'y fie, le texte est fait pour être lu) ;
+- pour une personne qui lit l'anglais, il retrouve la phrase française dans le dictionnaire et rend sa version anglaise. Une phrase à trou comme « Au moins 2 caractères. » est reconnue par une expression régulière fabriquée à partir de son modèle « Au moins {n} caractères. ».
+
+Une notification est écrite dans la langue de celui qui la **reçoit**, pas de celui qui agit : si Awa (français) aime la publication de Kofi (anglais), Kofi lit « Awa liked your post. ». Même règle pour les push et les emails.
+
+Les pages elles-mêmes sont servies déjà traduites, balises de partage comprises : un lien collé dans WhatsApp par un anglophone montre un titre en anglais.
+
+### Comment on sait que rien n'est oublié
+
+Trois tests font ce travail à notre place :
+
+- `fr.js` et `en.js` ont les mêmes clés, les mêmes variables `{nom}`, les mêmes pluriels ;
+- un petit lecteur de code parcourt tous les scripts et toutes les pages de l'interface et **échoue s'il trouve un texte français qui ne passe pas par `t()` ou `data-t`** ;
+- un autre parcourt le serveur et échoue si une de ses phrases n'a pas sa traduction.
+
+En français, un quatrième contrôle garantit que rien n'a bougé : le texte écrit dans chaque page est, mot pour mot, celui de sa clé.
+
 ## 12. Le système de design
 
 Un « système de design », c'est un petit nombre de règles visuelles appliquées partout, pour que le site ait l'air d'une seule et même application. Tout est écrit à la main : aucune bibliothèque d'interface, aucun framework, donc des pages qui restent légères en 3G (les icônes pèsent 8 Ko en tout, les illustrations 4 Ko).
