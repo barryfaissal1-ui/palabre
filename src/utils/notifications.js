@@ -84,6 +84,8 @@ const TITRES_PUSH = {
   avis_recu: (qui) => `Nouvel avis ${deNom(qui)}`,
   defi_gagne: () => 'Tu as gagné le défi de la semaine',
   projet_facebook: () => 'Ton projet et la page Facebook',
+  contenu_approuve: () => 'Ton contenu est maintenant visible',
+  contenu_retire: () => 'Ton contenu n\'a pas été publié',
 };
 // Quand le titre dit déjà tout, le texte du push ne le répète pas.
 const CORPS_PUSH = {

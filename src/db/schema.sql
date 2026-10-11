@@ -717,3 +717,25 @@ CREATE INDEX IF NOT EXISTS idx_publications_corbeille ON publications (supprimee
 -- Acceptation des règles de la communauté : la date et la version acceptée (src/utils/regles.js).
 ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS regles_acceptees_le TIMESTAMPTZ;
 ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS regles_version INTEGER;
+
+-- La file « À modérer » : un contenu que le filtre automatique a retenu (il ressemble à une arnaque). Il est caché
+-- (colonne masque de sa table) jusqu'à la décision d'un administrateur : « approuve » le rend visible, « retire » non.
+CREATE TABLE IF NOT EXISTS moderation_attente (
+  id         SERIAL PRIMARY KEY,
+  cible_type TEXT NOT NULL CHECK (cible_type IN ('publication', 'commentaire', 'demande', 'projet')),
+  cible_id   INTEGER NOT NULL,
+  auteur_id  INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  raison     TEXT NOT NULL,
+  cree_le    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  decide_le  TIMESTAMPTZ,
+  decision   TEXT CHECK (decision IN ('approuve', 'retire')),
+  decide_par INTEGER REFERENCES utilisateurs(id) ON DELETE SET NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_moderation_attente_ouverte ON moderation_attente (cible_type, cible_id) WHERE decide_le IS NULL;
+
+-- Domaines que les administrateurs interdisent dans les liens, en plus des listes du filtre (/admin).
+CREATE TABLE IF NOT EXISTS domaines_interdits (
+  domaine    TEXT PRIMARY KEY CHECK (domaine = lower(domaine)),
+  ajoute_par INTEGER REFERENCES utilisateurs(id) ON DELETE SET NULL,
+  cree_le    TIMESTAMPTZ NOT NULL DEFAULT now()
+);

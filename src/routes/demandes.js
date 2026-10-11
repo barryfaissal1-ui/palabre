@@ -136,6 +136,8 @@ function propositionsVisibles(ligneDemande, moi) {
   );
 }
 
+const { controler, mettreEnAttente, PHRASE_ATTENTE } = require('../utils/moderation');
+
 function lireProposition(corps) {
   return {
     message: v.texte(corps.message, 'message', { min: 10, max: 2000 }),
@@ -186,11 +188,16 @@ router.post('/', exigerClient, limiteDemandes, async (req, res) => {
     delai: v.texte(corps.delai, 'delai', { max: 60, optionnel: true }),
     categorie: v.parmi(corps.categorie, CATEGORIES, 'categorie'),
   };
+  const filtre = await controler(req, [[donnees.titre, 'titre'], [donnees.description, 'description'], [donnees.delai, 'delai']]);
   const { rows } = await db.query(
     `INSERT INTO demandes (client_id, titre, description, budget_fcfa, delai, categorie)
      VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
     [moi.id, donnees.titre, donnees.description, donnees.budgetFcfa, donnees.delai, donnees.categorie],
   );
+  if (filtre.enAttente) {
+    await db.transaction((client) => mettreEnAttente(client, 'demande', rows[0].id, moi.id, filtre.raison));
+    return res.status(202).json({ enAttente: true, message: PHRASE_ATTENTE.demande });
+  }
   const { demande } = await lireDemande(rows[0].id, moi);
   res.status(201).json({ demande });
 });
@@ -247,6 +254,8 @@ async function demandeOuverte(client, valeurId) {
 router.post('/:id/propositions', exigerDev, exigerProfilComplet, limitePropositions, async (req, res) => {
   const moi = req.utilisateur;
   const donnees = lireProposition(req.body || {});
+  // Une proposition est privée (le client seul la lit) : le filtre ne retient que les insultes et les liens dangereux.
+  await controler(req, [[donnees.message, 'message']], { mode: 'prive' });
 
   await db.transaction(async (client) => {
     const demande = await demandeOuverte(client, req.params.id);
@@ -286,6 +295,7 @@ router.post('/:id/equipes', exigerDev, exigerProfilComplet, limitePropositions, 
   const moi = req.utilisateur;
   const donnees = lireProposition(corps);
   const roleChef = v.texte(corps.roleChef, 'roleChef', { min: 2, max: 40 });
+  await controler(req, [[donnees.message, 'message'], [roleChef, 'roleChef'], ...(Array.isArray(corps.membres) ? corps.membres : []).map((invite) => [invite?.role, 'membres'])], { mode: 'prive' });
 
   const invites = Array.isArray(corps.membres) ? corps.membres : [];
   if (invites.length === 0) throw new v.ErreurValidation('Invite au moins un ami dans ton équipe.', 'membres');

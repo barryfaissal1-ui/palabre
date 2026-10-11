@@ -51,9 +51,10 @@
       erreurZone.textContent = '';
       valider.disabled = true;
       try {
-        await enregistrer(zone.value);
+        // « enregistrer » rend faux quand le texte corrigé a été retenu par le filtre : il a déjà prévenu l'auteur.
+        const visible = await enregistrer(zone.value);
         fermer();
-        toast(t('commun.enregistre'));
+        if (visible !== false) toast(t('commun.enregistre'));
       } catch (erreur) {
         erreurZone.textContent = erreur.message;
         valider.disabled = false;
@@ -89,6 +90,12 @@
       max: 1000,
       enregistrer: async (nouveau) => {
         const reponse = await api(`/publications/${publication.id}/commentaires/${commentaire.id}`, { methode: 'PUT', donnees: { texte: nouveau } });
+        if (reponse.enAttente) {
+          toast(reponse.message);
+          element.remove();
+          apresSuppression();
+          return false;
+        }
         Object.assign(commentaire, reponse.commentaire);
         texteCommentaire.textContent = commentaire.texte;
         ecrireDate();
@@ -167,6 +174,12 @@
       envoyer.disabled = true;
       try {
         const reponse = await api(`/publications/${publication.id}/commentaires`, { methode: 'POST', donnees: { texte: champ.value } });
+        // Retenu par le filtre automatique : il sera visible après vérification.
+        if (reponse.enAttente) {
+          champ.value = '';
+          toast(reponse.message);
+          return;
+        }
         liste.append(commentaire(reponse.commentaire));
         champ.value = '';
         compter(1);
@@ -323,10 +336,16 @@
         max: 3000,
         enregistrer: async (nouveau) => {
           const reponse = await api(`/publications/${publication.id}`, { methode: 'PUT', donnees: { texte: nouveau } });
+          if (reponse.enAttente) {
+            toast(reponse.message);
+            carte.remove();
+            return false;
+          }
           publication.texte = reponse.publication.texte;
           publication.modifiee = reponse.publication.modifiee;
           texte.textContent = publication.texte;
           ecrireDate();
+          return true;
         },
         apres: () => texte.classList.remove('coupe'), // après une modification, on montre le texte en entier
       });

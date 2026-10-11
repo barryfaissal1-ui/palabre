@@ -171,11 +171,18 @@
         const donnees = { type: formulaire.elements.type.value, texte: champ.value };
         if (imageChoisie) donnees.image = imageChoisie;
         if (!zoneVideo.hidden && champVideo.value.trim()) donnees.video = champVideo.value.trim();
-        const { publication } = await api('/publications', { methode: 'POST', donnees });
+        const { publication, enAttente, message } = await api('/publications', { methode: 'POST', donnees });
         champ.value = '';
         formulaire.elements.type.value = 'idee';
         retirerImage();
         retirerVideo();
+        // Retenue par le filtre automatique : elle n'entre pas dans le fil, l'auteur est simplement prévenu.
+        if (enAttente) {
+          document.activeElement.blur();
+          formulaire.classList.remove('ouvert');
+          toast(message);
+          return;
+        }
         fil.ajouterEnTete(publication);
         // La zone se replie, prête pour la prochaine publication.
         document.activeElement.blur();

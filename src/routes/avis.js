@@ -2,6 +2,7 @@
 const express = require('express');
 const db = require('../db/pool');
 const v = require('../utils/validation');
+const { controler } = require('../utils/moderation');
 const { exigerConnexion, exigerClient } = require('../middleware/auth');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
 const { notifier, court } = require('../utils/notifications');
@@ -50,6 +51,7 @@ router.post('/', exigerConnexion, exigerClient, limiteAvis, async (req, res) => 
   const identifiant = typeof corps.identifiant === 'string' ? corps.identifiant.trim().toLowerCase() : '';
   const note = v.entier(corps.note, 'note', { min: 1, max: 5 });
   const commentaire = v.texte(corps.commentaire, 'commentaire', { max: 1000, optionnel: true });
+  await controler(req, [[commentaire, 'commentaire']], { mode: 'strict' });
 
   const { rows: [cible] } = await db.query(
     `SELECT d.id AS demande_id, d.titre, u.id AS dev_id, u.identifiant

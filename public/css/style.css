@@ -1202,6 +1202,11 @@ a.nom-auteur:hover { text-decoration: underline; }
 .ligne-corbeille p { margin: 0; overflow-wrap: anywhere; }
 .ligne-corbeille .texte-discret { font-size: var(--t-13); }
 .corbeille-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Tableau de bord : les domaines interdits dans les liens. */
+.formulaire-domaine { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-bottom: 12px; }
+.formulaire-domaine .champ { flex: 1; min-width: 200px; margin: 0; }
+.liste-domaines { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.liste-domaines li { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; border-top: 1px solid var(--ligne); overflow-wrap: anywhere; }
 /* Tableau de bord : les textes d'avant une modification, lus par l'administrateur seulement. */
 .versions-precedentes { display: grid; gap: 6px; margin: 0 0 8px; }
 .versions-precedentes .contenu-signale { opacity: 0.8; }

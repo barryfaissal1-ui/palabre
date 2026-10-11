@@ -8,6 +8,7 @@
 const express = require('express');
 const db = require('../db/pool');
 const v = require('../utils/validation');
+const { controler } = require('../utils/moderation');
 const liens = require('../utils/liens'); // « liens.verifierLien » : les tests peuvent le remplacer
 const { exigerConnexion, exigerDev, exigerProfilComplet } = require('../middleware/auth');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
@@ -156,6 +157,7 @@ router.get('/courant', async (req, res) => {
 router.post('/:id/reponse', exigerConnexion, exigerDev, exigerProfilComplet, limiteReponses, async (req, res) => {
   const moi = req.utilisateur;
   const texte = v.texte(req.body?.texte, 'texte', { min: 20, max: 2000 });
+  await controler(req, [[texte, 'texte']], { mode: 'strict' }); // filtre automatique (src/utils/moderation.js)
   const lien = liens.normaliserLien(req.body?.lien); // adresses internes refusées (voir utils/liens.js)
 
   const { rows: [existante] } = await db.query(

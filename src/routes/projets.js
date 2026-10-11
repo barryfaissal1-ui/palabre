@@ -2,6 +2,7 @@
 const express = require('express');
 const db = require('../db/pool');
 const v = require('../utils/validation');
+const { controler, mettreEnAttente, PHRASE_ATTENTE } = require('../utils/moderation');
 const { exigerConnexion, exigerDev } = require('../middleware/auth');
 const { lireImageDataUrl } = require('../utils/images');
 const { normaliserLien, verifierLien } = require('../utils/liens');
@@ -100,6 +101,7 @@ router.post('/', exigerConnexion, exigerDev, limiteProjets, async (req, res) => 
     publierFacebook: corps.publierFacebook === true,
   };
   const image = corps.image ? lireImageDataUrl(corps.image) : null;
+  const filtre = await controler(req, [[donnees.titre, 'titre'], [donnees.description, 'description']]);
 
   const id = await db.transaction(async (client) => {
     const { rows: [compte] } = await client.query('SELECT count(*)::int AS nb FROM projets WHERE dev_id = $1', [moi.id]);
@@ -118,11 +120,13 @@ router.post('/', exigerConnexion, exigerDev, limiteProjets, async (req, res) => 
       [moi.id, donnees.titre, donnees.description, donnees.secteur, donnees.lien, imageId,
         donnees.publierFacebook, donnees.publierFacebook ? 'en_attente' : 'non'],
     );
+    if (filtre.enAttente) await mettreEnAttente(client, 'projet', rows[0].id, moi.id, filtre.raison);
     return rows[0].id;
   });
 
   // La visite du lien se fait après l'enregistrement : même si elle échoue, le projet est gardé (sans badge).
   await verifierEtNoter(id, donnees.lien);
+  if (filtre.enAttente) return res.status(202).json({ enAttente: true, message: PHRASE_ATTENTE.projet });
   const { projet } = await lireProjet(id, moi);
   res.status(201).json({ projet });
 });

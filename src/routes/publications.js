@@ -10,6 +10,7 @@ const { exigerConnexion } = require('../middleware/auth');
 const { lireImageDataUrl } = require('../utils/images');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
 const { effacerPublication } = require('../utils/purge');
+const { controler, mettreEnAttente, PHRASE_ATTENTE } = require('../utils/moderation');
 const { lireLienVideo } = require('../utils/videos');
 const { notifier, retirerActeur, avecLesAutres } = require('../utils/notifications');
 const { publicationsVisibles } = require('../utils/confidentialite');
@@ -205,6 +206,9 @@ router.post('/', limitePublications, async (req, res) => {
   const moi = req.utilisateur;
   const type = v.parmi(corps.type, TYPES, 'type');
   const texte = v.texte(corps.texte, 'texte', { max: 3000 });
+  // Le filtre automatique : une insulte ou un lien dangereux est refusé ici ; une phrase d'arnaque met la
+  // publication « en attente » (enregistrée mais cachée jusqu'à la vérification d'un administrateur).
+  const filtre = await controler(req, [[texte, 'texte']]);
   const image = corps.image ? lireImageDataUrl(corps.image) : null;
   const video = lireLienVideo(corps.video);
 
@@ -227,6 +231,7 @@ router.post('/', limitePublications, async (req, res) => {
       [moi.id, type, texte, imageId, image ? image.largeur : null, image ? image.hauteur : null, video ? video.plateforme : null, video ? video.id : null],
     );
     id = rows[0].id;
+    if (filtre.enAttente) await mettreEnAttente(client, 'publication', id, moi.id, filtre.raison);
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');
@@ -235,6 +240,8 @@ router.post('/', limitePublications, async (req, res) => {
     client.release();
   }
 
+  // En attente : rien à afficher dans le fil, seulement la phrase qui prévient l'auteur.
+  if (filtre.enAttente) return res.status(202).json({ enAttente: true, message: PHRASE_ATTENTE.publication });
   const { rows } = await db.query(`${SELECTION} AND p.id = $2`, [moi.id, id]);
   res.status(201).json({ publication: versPublication(rows[0], moi) });
 });
@@ -248,6 +255,7 @@ router.put('/:id', limitePublications, async (req, res) => {
   const publication = await publicationDeLaRoute(req, res);
   if (!publication) return;
   if (publication.auteur_id !== moi.id) return res.status(403).json({ erreur: 'Tu ne peux modifier que tes propres publications.' });
+  const filtre = await controler(req, [[texte, 'texte']]); // le texte corrigé repasse par le filtre
   const faite = await db.transaction(async (client) => {
     // La limite des 48 heures est vérifiée ici, avec l'horloge de la base, jamais avec celle du navigateur.
     const { rows: [avant] } = await client.query('SELECT texte FROM publications WHERE id = $1 AND cree_le > now() - make_interval(hours => $2) FOR UPDATE', [publication.id, DUREE_MODIFICATION_H]);
@@ -255,9 +263,11 @@ router.put('/:id', limitePublications, async (req, res) => {
     if (avant.texte === texte) return true; // rien n'a changé : pas de mention « modifiée » pour rien
     await client.query('INSERT INTO historique_textes (cible_type, cible_id, auteur_id, texte) VALUES (\'publication\', $1, $2, $3)', [publication.id, moi.id, avant.texte]);
     await client.query('UPDATE publications SET texte = $2, modifiee_le = now() WHERE id = $1', [publication.id, texte]);
+    if (filtre.enAttente) await mettreEnAttente(client, 'publication', publication.id, moi.id, filtre.raison);
     return true;
   });
   if (!faite) return res.status(403).json({ erreur: 'Une publication ne peut être modifiée que pendant 48 heures.' });
+  if (filtre.enAttente) return res.status(202).json({ enAttente: true, message: PHRASE_ATTENTE.publication });
   const { rows } = await db.query(`${SELECTION} AND p.id = $2`, [moi.id, publication.id]);
   res.json({ publication: versPublication(rows[0], moi) });
 });
@@ -351,6 +361,7 @@ router.post('/:id/commentaires', limiteCommentaires, async (req, res) => {
   const texte = v.texte(req.body?.texte, 'texte', { max: 1000 });
   const publication = await publicationDeLaRoute(req, res);
   if (!publication) return;
+  const filtre = await controler(req, [[texte, 'texte']]);
   const { rows } = await db.query(
     `WITH nouveau AS (
        INSERT INTO commentaires (publication_id, auteur_id, texte) VALUES ($1, $2, $3)
@@ -358,6 +369,11 @@ router.post('/:id/commentaires', limiteCommentaires, async (req, res) => {
      SELECT nouveau.*, ${COLONNES_MEMBRE} FROM nouveau JOIN utilisateurs u ON u.id = nouveau.auteur_id`,
     [publication.id, moi.id, texte],
   );
+  // Retenu par le filtre : caché, et personne n'est prévenu tant qu'un administrateur ne l'a pas approuvé.
+  if (filtre.enAttente) {
+    await db.transaction((client) => mettreEnAttente(client, 'commentaire', rows[0].id, moi.id, filtre.raison));
+    return res.status(202).json({ enAttente: true, message: PHRASE_ATTENTE.commentaire });
+  }
   // L'auteur de la publication est prévenu (une seule notification pour plusieurs commentateurs non lus)…
   const cible = { type: 'publication', id: publication.id };
   const lien = `/publication/${publication.id}`;
@@ -385,6 +401,7 @@ router.put('/:id/commentaires/:commentaireId', limiteCommentaires, async (req, r
   const texte = v.texte(req.body?.texte, 'texte', { max: 1000 });
   const publication = await publicationDeLaRoute(req, res);
   if (!publication) return;
+  const filtre = await controler(req, [[texte, 'texte']]);
   const commentaireId = v.idPositif(req.params.commentaireId);
   const resultat = await db.transaction(async (client) => {
     const { rows: [avant] } = await client.query(
@@ -397,10 +414,12 @@ router.put('/:id/commentaires/:commentaireId', limiteCommentaires, async (req, r
     if (avant.texte !== texte) {
       await client.query('INSERT INTO historique_textes (cible_type, cible_id, auteur_id, texte) VALUES (\'commentaire\', $1, $2, $3)', [commentaireId, moi.id, avant.texte]);
       await client.query('UPDATE commentaires SET texte = $2, modifie_le = now() WHERE id = $1', [commentaireId, texte]);
+      if (filtre.enAttente) await mettreEnAttente(client, 'commentaire', commentaireId, moi.id, filtre.raison);
     }
     return {};
   });
   if (resultat.erreur) return res.status(resultat.statut).json({ erreur: resultat.erreur });
+  if (filtre.enAttente) return res.status(202).json({ enAttente: true, message: PHRASE_ATTENTE.commentaire });
   const { rows } = await db.query(
     `SELECT c.id, c.texte, c.cree_le, c.modifie_le, c.auteur_id, ${COLONNES_MEMBRE} FROM commentaires c JOIN utilisateurs u ON u.id = c.auteur_id WHERE c.id = $1`,
     [commentaireId],

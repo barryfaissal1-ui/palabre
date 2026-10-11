@@ -102,10 +102,15 @@
       envoyer.disabled = true;
       message(zoneMessage, donnees.lien.trim() ? t('projets.enregistrement-visite') : t('projets.enregistrement'), '');
       try {
-        const { projet } = await api('/projets', { methode: 'POST', donnees });
+        const { projet, enAttente, message: phrase } = await api('/projets', { methode: 'POST', donnees });
         formulaire.reset();
         retirerImage();
         await chargerListe();
+        // Retenu par le filtre automatique : il sera visible après vérification par l'équipe.
+        if (enAttente) {
+          message(zoneMessage, phrase, 'succes');
+          return;
+        }
         if (!projet.lien) message(zoneMessage, t('projets.ajoute'), 'succes');
         else if (projet.lienVerifie) message(zoneMessage, t('projets.ajoute-verifie'), 'succes');
         else message(zoneMessage, t('projets.ajoute-muet'), 'erreur');

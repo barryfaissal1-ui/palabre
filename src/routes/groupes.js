@@ -7,6 +7,7 @@
 const express = require('express');
 const db = require('../db/pool');
 const v = require('../utils/validation');
+const { controler } = require('../utils/moderation');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
 const { notifier, court } = require('../utils/notifications');
 const { messageSysteme } = require('../utils/groupes');
@@ -174,6 +175,8 @@ router.post('/:id', limiteMessages, async (req, res) => {
   const groupe = await monGroupe(req.params.id, moi);
   if (groupe.ferme_le) throw new v.ErreurHttp(403, 'Cette équipe a été dissoute : on ne peut plus écrire dans ce groupe.');
   const { texte, image, vocal } = lireContenu(req.body || {});
+  // Message privé : personne ne le lit ; le filtre ne retient que les insultes et les liens dangereux.
+  if (!vocal) await controler(req, [[texte, 'texte']], { mode: 'prive' });
 
   const message = await db.transaction(async (client) => {
     const fichierId = await enregistrerPiece(client, moi.id, { image, vocal });
@@ -245,6 +248,7 @@ router.put('/:id', async (req, res) => {
   if (groupe.mon_role !== 'admin') throw new v.ErreurHttp(403, 'Seul le chef de l\'équipe peut renommer le groupe.');
   if (groupe.ferme_le) throw new v.ErreurHttp(403, 'Ce groupe est fermé.');
   const titre = v.texte(req.body?.titre, 'titre', { min: 3, max: 80 });
+  await controler(req, [[titre, 'titre']], { mode: 'strict' });
   await db.transaction(async (client) => {
     await client.query('UPDATE conversations SET titre = $2 WHERE id = $1', [groupe.id, titre]);
     await messageSysteme(client, groupe.id, moi.id, `${moi.nom} a renommé le groupe : « ${titre} ».`);

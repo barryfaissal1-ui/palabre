@@ -115,6 +115,60 @@
     ]);
   }
 
+  // ---------- Le filtre automatique : contenus retenus, domaines interdits ----------
+  const TYPES_ATTENTE = { publication: t('admin.attente.type.publication'), commentaire: t('admin.attente.type.commentaire'), demande: t('admin.attente.type.demande'), projet: t('admin.attente.type.projet') };
+  function carteAttente(attente) {
+    const decider = (decision) => () => api(`/admin/moderation/attente/${attente.id}`, { methode: 'POST', donnees: { decision } });
+    return el('article', { classe: 'publication carte-signalement' }, [
+      el('p', { classe: 'publication-meta' }, [
+        el('span', { classe: 'type-signalement', texte: TYPES_ATTENTE[attente.cibleType] }),
+        el('span', { classe: 'texte-discret' }, [t('commun.par'), lienMembre(attente.auteur), `, ${dateRelative(attente.creeLe)}`]),
+      ]),
+      attente.texte ? el('blockquote', { classe: 'contenu-signale', texte: attente.texte }) : null,
+      el('div', { classe: 'profil-actions' }, [
+        boutonAction(t('admin.attente.approuver'), 'bouton-principal', decider('approuver'), { succes: t('admin.attente.approuve') }),
+        boutonAction(t('admin.attente.retirer'), 'bouton-contour', decider('retirer'), { succes: t('admin.attente.retire') }),
+      ]),
+    ]);
+  }
+  function sectionAttente(attente) {
+    return el('section', { classe: 'section-profil', id: 'a-moderer' }, [
+      el('h2', { texte: t('admin.attente.titre') }),
+      el('p', { classe: 'texte-discret', texte: t('admin.attente.aide') }),
+      attente.length
+        ? el('div', { classe: 'liste-publications' }, attente.map(carteAttente))
+        : el('p', { classe: 'texte-discret', texte: t('admin.attente.vide') }),
+    ]);
+  }
+  function sectionDomaines(domaines) {
+    const champ = el('input', { id: 'domaine-interdit', type: 'text', autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false', maxlength: '100' });
+    const formulaire = el('form', { classe: 'formulaire-domaine' }, [
+      el('div', { classe: 'champ' }, [el('label', { for: 'domaine-interdit', texte: t('admin.domaines.champ') }), champ]),
+      el('button', { classe: 'bouton bouton-contour', type: 'submit', texte: t('admin.domaines.ajouter') }),
+    ]);
+    formulaire.addEventListener('submit', async (evenement) => {
+      evenement.preventDefault();
+      try {
+        const { domaine } = await api('/admin/domaines-interdits', { methode: 'POST', donnees: { domaine: champ.value } });
+        await afficher();
+        message(t('admin.domaines.ajoute', { domaine }), 'succes');
+      } catch (erreur) {
+        message(erreur.message, 'erreur');
+      }
+    });
+    return el('section', { classe: 'section-profil', id: 'domaines' }, [
+      el('h2', { texte: t('admin.domaines.titre') }),
+      el('p', { classe: 'texte-discret', texte: t('admin.domaines.aide') }),
+      formulaire,
+      domaines.length
+        ? el('ul', { classe: 'liste-domaines' }, domaines.map(({ domaine }) => el('li', {}, [
+          el('span', { texte: domaine }),
+          boutonAction(t('admin.domaines.retirer'), 'bouton-lien', () => api(`/admin/domaines-interdits/${encodeURIComponent(domaine)}`, { methode: 'DELETE', donnees: {} }), { succes: t('admin.domaines.retire', { domaine }) }),
+        ])))
+        : el('p', { classe: 'texte-discret', texte: t('admin.domaines.aucun') }),
+    ]);
+  }
+
   // ---------- Projets proposés pour Facebook ----------
   function carteFacebook(projet) {
     const decider = (decision) => () => api(`/admin/projets/${projet.id}/facebook`, { methode: 'POST', donnees: { decision } });
@@ -301,12 +355,15 @@
   }
 
   async function afficher() {
-    const [{ statistiques }, { signalements }, { projets }, { membres }, { membres: recents }, aPublier, { defis }] = await Promise.all([
+    const [{ statistiques }, { signalements }, { projets }, { membres }, { membres: recents }, aPublier, { defis }, { attente }, { domaines }] = await Promise.all([
       api('/admin/statistiques'), api('/admin/signalements'), api('/admin/projets-facebook'), api('/admin/membres-bloques'), api('/admin/membres-recents'), api('/admin/facebook-a-publier'), api('/admin/defis'),
+      api('/admin/moderation/attente'), api('/admin/domaines-interdits'),
     ]);
     document.querySelector('[data-admin]').replaceChildren(...[
       sectionStatistiques(statistiques),
+      sectionAttente(attente),
       sectionSignalements(signalements),
+      sectionDomaines(domaines),
       sectionFacebook(projets),
       sectionAPublier(aPublier),
       sectionDefis(defis),

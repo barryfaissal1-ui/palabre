@@ -3,6 +3,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const db = require('../db/pool');
 const v = require('../utils/validation');
+const { controler } = require('../utils/moderation');
 const { exigerConnexion, exigerDev } = require('../middleware/auth');
 const { lireImageDataUrl } = require('../utils/images');
 const { etatAmitie, apercuMembre, COLONNES_MEMBRE, NB_PROJETS_VERIFIES } = require('../utils/membres');
@@ -182,6 +183,8 @@ router.put('/moi', exigerConnexion, async (req, res) => {
     bio: v.texte(corps.bio, 'bio', { max: 500, optionnel: true }),
     disponible: corps.disponible !== false,
   };
+  // La présentation et la ville passent par le filtre automatique (src/utils/moderation.js).
+  await controler(req, [[donnees.bio, 'bio'], [donnees.ville, 'ville']], { mode: 'strict' });
 
   // Spécialité, expérience et liens : seulement pour un dev, et seulement si le formulaire les envoie
   // (sinon on garde ce qui est en base). Les liens modifiés sont revisités ; les autres gardent leur badge.
@@ -273,6 +276,7 @@ router.put('/moi/profil-dev', exigerConnexion, exigerDev, async (req, res) => {
     whatsapp: v.whatsapp(corps.whatsapp),
     bio: v.texte(corps.bio, 'bio', { min: 20, max: 300 }),
   };
+  await controler(req, [[donnees.bio, 'bio']], { mode: 'strict' });
   // Au moins un lien, sauf si le dev coche « Je n'ai pas encore de lien » (son profil sera « à confirmer »).
   const aUnLien = Object.values(donnees.liens).some(Boolean);
   if (!aUnLien && corps.sansLien !== true) {

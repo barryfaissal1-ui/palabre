@@ -1,6 +1,6 @@
 // Page « Demandes » : liste par 10, filtres, et formulaire de publication pour les clients.
 (function () {
-  const { t, api, el, utilisateurConnecte, dateRelative, fcfa, icone, etatVide, chargement, chargementInfini } = window.Palabre;
+  const { t, api, el, utilisateurConnecte, dateRelative, fcfa, icone, etatVide, chargement, chargementInfini, toast } = window.Palabre;
 
   const NOMS_STATUTS = { ouverte: t('demande.statut.ouverte'), attribuee: t('demande.statut.attribuee'), terminee: t('demande.statut.terminee'), annulee: t('demande.statut.annulee') };
 
@@ -94,7 +94,7 @@
       const envoyer = formulaire.querySelector('button[type="submit"]');
       envoyer.disabled = true;
       try {
-        const { demande } = await api('/demandes', {
+        const { demande, enAttente, message: phrase } = await api('/demandes', {
           methode: 'POST',
           donnees: {
             titre: formulaire.elements.titre.value,
@@ -104,6 +104,13 @@
             delai: formulaire.elements.delai.value,
           },
         });
+        // Retenue par le filtre automatique : elle sera visible après vérification par l'équipe.
+        if (enAttente) {
+          formulaire.reset();
+          toast(phrase);
+          envoyer.disabled = false;
+          return;
+        }
         window.location.href = `/demande?id=${demande.id}`;
       } catch (erreur) {
         const zone = erreur.champ && formulaire.querySelector(`[data-erreur="${erreur.champ}"]`);

@@ -19,6 +19,8 @@
     ami_accepte: ['ami-ajouter', 'vert'],
     avis_recu: ['etoile', 'ocre'],
     projet_facebook: ['facebook', 'bleu'],
+    contenu_approuve: ['valide', 'vert'],
+    contenu_retire: ['alerte', 'terre'],
   };
   const PERIODES = { jour: t('notifications.aujourd-hui'), semaine: t('notifications.cette-semaine'), avant: t('notifications.plus-ancien') };
 

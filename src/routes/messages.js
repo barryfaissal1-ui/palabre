@@ -11,6 +11,7 @@
 const express = require('express');
 const db = require('../db/pool');
 const v = require('../utils/validation');
+const { controler } = require('../utils/moderation');
 const { exigerConnexion, profilDevIncomplet } = require('../middleware/auth');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
 const { notifier, court } = require('../utils/notifications');
@@ -156,6 +157,8 @@ async function ecrire(req, res, autreId, conversation) {
   const moi = req.utilisateur;
   const corps = req.body || {};
   const { texte, image, vocal } = lireContenu(corps); // du texte (et une photo), ou un message vocal
+  // Message privé : personne ne le lit ; le filtre ne retient que les insultes et les liens dangereux.
+  if (!vocal) await controler(req, [[texte, 'texte']], { mode: 'prive' });
   const demandePrecise = v.idPositif(corps.demandeId);
 
   // Un dev qui n'a pas terminé son profil peut écrire à d'autres devs, mais pas à un client.

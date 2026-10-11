@@ -3,6 +3,7 @@
 const express = require('express');
 const db = require('../db/pool');
 const v = require('../utils/validation');
+const { oublierDomaines } = require('../utils/moderation');
 const { exigerConnexion, exigerAdmin } = require('../middleware/auth');
 const { apercuMembre, COLONNES_MEMBRE } = require('../utils/membres');
 const { notifier, court } = require('../utils/notifications');
@@ -123,6 +124,75 @@ router.get('/signalements', async (req, res) => {
   }
   // cible reste null quand le contenu a été supprimé par son auteur entre-temps.
   res.json({ signalements: cartes.map(({ cibleId, ...carte }) => carte) });
+});
+
+// ---------- Le filtre automatique : file d'attente et domaines interdits ----------
+const CONTENUS = {
+  publication: { table: 'publications', auteur: 'auteur_id', texte: 'left(t.texte, 400)', approuve: 'Ta publication a été vérifiée : elle est maintenant visible.', retire: "Ta publication n'a pas été publiée : elle ne respecte pas les règles de la communauté." },
+  commentaire: { table: 'commentaires', auteur: 'auteur_id', texte: 'left(t.texte, 400)', approuve: 'Ton commentaire a été vérifié : il est maintenant visible.', retire: "Ton commentaire n'a pas été publié : il ne respecte pas les règles de la communauté." },
+  demande: { table: 'demandes', auteur: 'client_id', texte: 'left(t.titre || \' : \' || t.description, 400)', approuve: 'Ta demande a été vérifiée : elle est maintenant visible.', retire: "Ta demande n'a pas été publiée : elle ne respecte pas les règles de la communauté." },
+  projet: { table: 'projets', auteur: 'dev_id', texte: 'left(t.titre || \' : \' || COALESCE(t.description, \'\'), 400)', approuve: 'Ton projet a été vérifié : il est maintenant visible.', retire: "Ton projet n'a pas été publié : il ne respecte pas les règles de la communauté." },
+};
+
+// GET /api/admin/moderation/attente : les contenus retenus par le filtre, du plus ancien au plus récent.
+router.get('/moderation/attente', async (req, res) => {
+  const { rows: attentes } = await db.query(
+    `SELECT a.id, a.cible_type, a.cible_id, a.raison, a.cree_le, ${COLONNES_MEMBRE}
+       FROM moderation_attente a JOIN utilisateurs u ON u.id = a.auteur_id
+      WHERE a.decide_le IS NULL ORDER BY a.id LIMIT $1`,
+    [MAX_AFFICHES],
+  );
+  const textes = new Map();
+  for (const [type, contenu] of Object.entries(CONTENUS)) {
+    const ids = attentes.filter((a) => a.cible_type === type).map((a) => a.cible_id);
+    if (ids.length === 0) continue;
+    const { rows } = await db.query(`SELECT t.id, ${contenu.texte} AS texte FROM ${contenu.table} t WHERE t.id = ANY($1::int[])`, [ids]);
+    rows.forEach((ligne) => textes.set(`${type}:${ligne.id}`, ligne.texte));
+  }
+  res.json({
+    attente: attentes.map((a) => ({ id: a.id, cibleType: a.cible_type, raison: a.raison, creeLe: a.cree_le, auteur: apercuMembre(a), texte: textes.get(`${a.cible_type}:${a.cible_id}`) || null })),
+  });
+});
+
+// POST /api/admin/moderation/attente/:id  { decision: 'approuver' | 'retirer' }
+//   approuver : le contenu devient visible ; retirer : il reste caché. Dans les deux cas l'auteur est prévenu.
+router.post('/moderation/attente/:id', async (req, res) => {
+  const decision = v.parmi(req.body?.decision, ['approuver', 'retirer'], 'decision');
+  const attente = await db.transaction(async (client) => {
+    const { rows: [ligne] } = await client.query('SELECT id, cible_type, cible_id, auteur_id FROM moderation_attente WHERE id = $1 AND decide_le IS NULL FOR UPDATE', [v.idPositif(req.params.id)]);
+    if (!ligne) return null;
+    const contenu = CONTENUS[ligne.cible_type];
+    if (decision === 'approuver') await client.query(`UPDATE ${contenu.table} SET masque = FALSE WHERE id = $1`, [ligne.cible_id]);
+    await client.query('UPDATE moderation_attente SET decide_le = now(), decision = $2, decide_par = $3 WHERE id = $1', [ligne.id, decision === 'approuver' ? 'approuve' : 'retire', req.utilisateur.id]);
+    await notifier(client, ligne.auteur_id, decision === 'approuver' ? 'contenu_approuve' : 'contenu_retire',
+      decision === 'approuver' ? contenu.approuve : contenu.retire,
+      decision === 'approuver' && ligne.cible_type === 'publication' ? `/publication/${ligne.cible_id}` : '/regles');
+    return ligne;
+  });
+  if (!attente) throw new v.ErreurHttp(404, 'Ce contenu a déjà été traité.');
+  res.json({ ok: true });
+});
+
+// Les domaines interdits dans les liens, en plus des listes du filtre : GET, POST { domaine }, DELETE /:domaine
+const nomDeDomaine = (valeur) => {
+  const domaine = String(valeur || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split(/[/?#:]/)[0];
+  if (!/^([a-z0-9-]+\.)+[a-z]{2,24}$/.test(domaine) || domaine.length > 100) throw new v.ErreurValidation('Écris un nom de domaine, comme exemple.com.', 'domaine');
+  return domaine;
+};
+router.get('/domaines-interdits', async (req, res) => {
+  const { rows } = await db.query('SELECT domaine, cree_le FROM domaines_interdits ORDER BY domaine LIMIT 500');
+  res.json({ domaines: rows.map((ligne) => ({ domaine: ligne.domaine, creeLe: ligne.cree_le })) });
+});
+router.post('/domaines-interdits', async (req, res) => {
+  const domaine = nomDeDomaine(req.body?.domaine);
+  await db.query('INSERT INTO domaines_interdits (domaine, ajoute_par) VALUES ($1, $2) ON CONFLICT (domaine) DO NOTHING', [domaine, req.utilisateur.id]);
+  oublierDomaines(); // le filtre relit la liste tout de suite
+  res.status(201).json({ domaine });
+});
+router.delete('/domaines-interdits/:domaine', async (req, res) => {
+  await db.query('DELETE FROM domaines_interdits WHERE domaine = $1', [String(req.params.domaine).toLowerCase()]);
+  oublierDomaines();
+  res.json({ ok: true });
 });
 
 // POST /api/admin/signalements/:id/traiter  { action: 'masquer' | 'bloquer' | 'classer' }
