@@ -1,3 +1,48 @@
+# À vérifier : modération du contenu (11 octobre 2026)
+
+Cinq parties, cinq commits. 336 tests passent. Chaque partie a été essayée dans Chrome (téléphone 390 px et ordinateur, clair et sombre, français et anglais). Captures : `docs/captures/moderation/` (version claire).
+
+## À essayer toi-même
+
+- [ ] **Lis `/regles` et `/conditions` en entier.** C'est moi qui les ai rédigées : ce sont des textes qui engagent l'équipe. Corrige ce qui ne te convient pas, en français puis en anglais (`public/langues/fr.js`, `en.js`, clés `regles.…` et `conditions.…`, et les deux pages HTML).
+- [ ] **Choisis l'adresse de contact** et mets-la dans `CONTACT_MODERATION`. Par défaut c'est `moderation@palabre.dev`, une adresse qui n'existe peut-être pas.
+- [ ] **Relis les listes** de `src/utils/moderation-listes.js` avec ton équipe : vous connaissez mieux que moi les insultes et les arnaques d'ici. Ajoutez, retirez.
+- [ ] **Essaie de tromper le filtre** dans le fil : une insulte déguisée, un mot en mooré ou en dioula, une arnaque écrite autrement.
+- [ ] **Essaie le contraire** : écris dix messages normaux de développeur et vérifie qu'aucun n'est refusé à tort.
+- [ ] **Dans `/admin`** avec `dev@demo.palabre.dev` : la section « À modérer » montre deux publications du compte « Promo Rapide ». Approuve l'une, sanctionne l'auteur de l'autre.
+- [ ] **Connecte-toi avec `promo@demo.palabre.dev`** après la sanction : page « Mes sanctions », puis conteste.
+- [ ] **Un vrai email de sanction** : aucun n'est parti pendant mes essais.
+- [ ] **Relis l'anglais** des 179 nouveaux textes.
+
+## Mes choix, à valider
+
+- **« Envoie ton code » n'est pas retenu.** Tu le citais comme phrase d'arnaque, mais sur un réseau de développeurs « envoie ton code » ou « partage ton code » parle de code source. Sont retenus : « envoie le code reçu par SMS », « donne ton mot de passe », « ton code à 6 chiffres ».
+- **Mots volontairement absents des listes**, parce qu'ils ont un sens ordinaire : « retard », « trainee » (stagiaire en anglais), « queue », « pipe », « baiser », « sexe », « mongol », « pédale », « tg » (Togo), « idiot », « stupide », « débile », « bordel ». « con » et « cons » ne sont refusés que pour un membre dont le site est en français (« pros and cons »).
+- **« putain » est refusé**, même dans « putain de bug ». C'est strict ; dis-le si tu préfères le laisser passer.
+- **Adresses IP** : seules les adresses publiques écrites comme un lien sont refusées. `127.0.0.1` ou `192.168.1.10` passent : les développeurs en parlent tout le temps.
+- **Propositions** : elles sont traitées comme un message privé (insultes et liens seulement), plus le bandeau anti-arnaque pour le client. Tu les listais parmi les textes à filtrer entièrement, mais seul le client les lit.
+- **Présentation, titre de groupe, réponse au défi, avis** : une phrase d'arnaque y est refusée, pas mise en attente (ces tables n'ont pas de quoi cacher un contenu).
+- **Le lien d'une vidéo** compte comme un lien pour un compte de moins de 3 jours.
+- **Les administrateurs** ne sont concernés ni par les limites des nouveaux comptes, ni par les sanctions.
+- **Suspension** : le membre peut encore se déconnecter, contester, régler son compte et marquer ses notifications comme lues. Tout le reste est refusé.
+- **Exclusion** : j'ai ajouté un lien dans l'email pour contester sans se connecter, sinon un exclu ne pouvait pas contester du tout.
+- **« Nouveau sur Palabre »** n'est donné qu'aux clients, comme demandé : un autre développeur ne le voit pas.
+- **Le compte « Promo Rapide »** est ajouté à la démo pour remplir la file. Son profil est visible sur le site comme les autres comptes de démo.
+
+## Ce qui n'est pas fait
+
+- **Aucun email à l'équipe** quand un contenu entre dans la file : il faut ouvrir `/admin`.
+- **Les images** ne sont pas analysées.
+- **Pas de liste des sanctions d'un membre dans `/admin`** : on voit les contestations et le journal, pas la fiche d'un membre.
+- **Les comptes existants** n'ont pas accepté les règles : à leur prochaine visite, la fenêtre « Les règles ont changé » s'ouvre. `npm run demo` l'évite pour les comptes de démonstration.
+
+## Ce que je n'ai pas pu vérifier
+
+- **Le filtre face à de vrais membres** : je l'ai essayé sur environ 150 phrases que j'ai écrites moi-même. Les faux refus et les oublis n'apparaîtront qu'à l'usage.
+- **Aucun vrai email** (avertissement, suspension, exclusion).
+- **Écrans de 360 px** : essais en 390 px et 1280 px seulement.
+- **La valeur juridique des textes** : je ne suis pas juriste. `/conditions` et `/regles` sont à faire relire si le site continue après le concours.
+
 # À vérifier : sécurité des comptes, désactivation, corbeille (11 octobre 2026)
 
 Six parties, six commits. 297 tests passent. Chaque partie qui a un écran a été essayée dans Chrome (téléphone 390 px et ordinateur, clair et sombre, français et anglais), sauf le refus d'un mot de passe trop courant à l'inscription, vérifié par les tests seulement. Captures : `docs/captures/securite/` (version claire).

@@ -109,6 +109,59 @@ La table `journal_securite` note les connexions, les mots de passe faux, les nou
 | « Appareil connu » repose sur un cookie : effacer ses cookies redonne une alerte. | Voulu : un navigateur sans cookie est bien un appareil qu'on ne reconnaît pas. | Rien. |
 | La photo d'une publication mise à la corbeille reste accessible à qui connaît son adresse, jusqu'à la suppression définitive. | Même cas que les contenus masqués (ligne plus bas) : l'adresse est impossible à deviner. | Vérifier le contenu parent avant de servir l'image. |
 
+## Modération (ajout du 11 octobre)
+
+Un réseau ouvert attire aussi des arnaqueurs et des gens agressifs. La modération répond à trois questions : **comment empêcher le pire d'être publié, comment réagir vite quand quelque chose passe, et comment rester juste envers le membre.** Tout est appliqué par le serveur ; la page ne fait qu'afficher.
+
+### 1. Des règles écrites, acceptées, datées
+
+- La page `/regles` dit en clair ce qui est interdit (dix cas), ce qui arrive ensuite, comment signaler et comment contester. Elle existe en français et en anglais.
+- À l'inscription, la case « J'accepte les règles de la communauté et les conditions d'utilisation » est **vérifiée par le serveur** : sans elle, pas de compte. La date et la version acceptées sont gardées.
+- Si les règles changent (`VERSION_REGLES`), le membre peut encore lire, mais le serveur refuse toute écriture tant qu'il ne les a pas acceptées de nouveau.
+- Les conditions disent que Palabre est un intermédiaire : chacun répond de ce qu'il publie et des accords qu'il passe.
+
+### 2. Un filtre avant publication
+
+Chaque texte qu'un membre écrit et que d'autres verront passe par `analyser()` avant d'être enregistré. Trois résultats :
+
+| Résultat | Quand | Ce qui se passe |
+| --- | --- | --- |
+| Refusé | Insulte, menace, mot haineux, contenu sexuel explicite, lien dangereux | Rien n'est enregistré. Le message est poli et ne répète pas le mot. |
+| En attente | Le texte ressemble à une arnaque (paiement d'avance, gain garanti, code à envoyer) | Enregistré mais caché. Un administrateur approuve ou retire. L'auteur est prévenu. |
+| Accepté | Tout le reste | Publié normalement. |
+
+- **Les listes sont écrites par l'équipe** (`src/utils/moderation-listes.js`), sans bibliothèque : environ 130 insultes et menaces, 65 mots et expressions haineux, 60 termes sexuels, 26 formes de phrases d'arnaque, 38 raccourcisseurs de liens, 15 banques et opérateurs imités.
+- **Les déguisements sont défaits** avant la comparaison : accents, majuscules, lettres répétées (« connnnard »), chiffres à la place des lettres (« c0nnard »), lettres espacées (« c o n n a r d »).
+- **La comparaison se fait par mots entiers**, pour ne pas bloquer les innocents : « connexion », « concours », « Niger », « en retard », « queue » ou « partage ton code » passent. Les tests le vérifient un par un.
+- **Liens** : raccourcisseurs refusés (on ne voit pas où ils mènent), adresses IP publiques refusées, faux domaines qui imitent une banque ou un opérateur refusés (« 0range-money.com », « ecobannk.net »). Les administrateurs ajoutent d'autres domaines dans `/admin`.
+- **Messages privés** : personne ne les lit. Le filtre n'y retient que les insultes et les liens dangereux.
+
+### 3. Freiner les comptes créés pour spammer
+
+Pendant ses 3 premiers jours, un compte ne peut pas mettre de lien (publications, commentaires, présentation) et ne dépasse pas 5 publications, 20 commentaires et 10 demandes d'ami par jour. Les limites sont comptées en base : elles tiennent si le serveur redémarre.
+
+### 4. Signalements, sanctions, contestation
+
+- **Trois membres différents** qui signalent un contenu le cachent automatiquement, en attendant l'équipe. Un même compte ne compte qu'une fois ; un compte de moins de 3 jours ne compte pas ; un membre dont trois signalements ont été rejetés ne compte plus. On ne peut donc pas faire taire quelqu'un en créant des comptes.
+- **Sanctions progressives** : avertissement, puis suspension de 7 jours (connexion et lecture possibles, écriture refusée par le serveur), puis exclusion. Pour une faute grave, l'administrateur choisit directement.
+- **Contestation** : une fois par sanction, depuis `/sanctions`. Un membre exclu, qui ne peut plus se connecter, conteste par le lien de l'email. Un administrateur annule ou maintient.
+- **Journal de modération** : chaque décision est notée (qui, quoi, quand) et gardée un an. L'équipe peut rendre des comptes.
+
+### 5. Prévenir la victime plutôt que lire les messages
+
+Quand un message ou une proposition parle d'argent à envoyer (Mobile Money, « envoie d'abord », frais de dossier), le **destinataire** voit un rappel discret : « ne paie jamais avant d'avoir vérifié le profil et les avis ». Rien n'est lu, refusé ni enregistré : le serveur le calcule à l'affichage. Un profil de moins de 7 jours porte la mention « Nouveau sur Palabre » pour les clients.
+
+### Ce que la modération ne fait pas
+
+| Limite | Pourquoi | Ce qu'on pourrait faire ensuite |
+| --- | --- | --- |
+| Le filtre ne lit que le français et l'anglais. Une insulte en mooré, en dioula, en wolof ou en argot récent passe. | Les listes sont écrites à la main par l'équipe. | Ajouter des mots au fil des signalements ; faire relire par des locuteurs. |
+| Le filtre ne comprend pas le sens : une insulte écrite sans aucun mot de la liste passe, une citation ou une blague est refusée. | Comparer des mots est simple à expliquer et à défendre ; « comprendre » demanderait un service extérieur. | Les signalements et l'équipe restent le deuxième filet. |
+| Les images ne sont pas analysées. | Aucune bibliothèque ni service d'analyse d'images. | Signalement, puis masquage par l'équipe. |
+| Un arnaqueur patient attend 3 jours, puis écrit en privé avec des mots ordinaires. | On ne lit pas les messages privés. | Le bandeau anti-arnaque, la mention « Nouveau », les avis vérifiés et le signalement d'un message. |
+| Trois vrais comptes de plus de 3 jours peuvent cacher un contenu correct. | C'est le prix d'une réaction rapide. | L'administrateur approuve, et ces signalements rejetés comptent contre leurs auteurs. |
+| La modération dépend de la présence d'un administrateur : un contenu en attente y reste tant que personne ne regarde. | L'équipe compte trois personnes. | Regarder `/admin` chaque jour pendant le concours ; prévenir par email à chaque nouveau contenu en attente. |
+
 ## Risques connus, acceptés pour le concours
 
 | Risque | Pourquoi il est accepté | Ce qu'on pourrait faire ensuite |

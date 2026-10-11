@@ -126,3 +126,7 @@ npm run demo -- --forcer --admin   # en production : donne aussi /admin à dev@d
 ```
 
 Tous les comptes ont un email en `@demo.palabre.dev` : c'est ce qui permet de les retirer d'un coup, sans toucher aux vrais membres.
+
+## Pour montrer la modération
+
+`promo@demo.palabre.dev` (« Promo Rapide », même mot de passe) est un compte douteux fait exprès. Dans `/admin`, section « À modérer », il a deux publications : une retenue par le filtre automatique (elle ressemble à une arnaque) et une cachée par trois signalements. Avec `dev@demo.palabre.dev`, on peut approuver, retirer ou sanctionner ; avec `promo@demo.palabre.dev`, on voit ensuite la page « Mes sanctions » et on peut contester.

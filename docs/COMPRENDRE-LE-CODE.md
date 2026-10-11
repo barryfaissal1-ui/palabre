@@ -998,6 +998,45 @@ Deux colonnes : `desactive_le` et `suppression_prevue_le`.
 - **Modifier** : `PUT /api/publications/:id` et `PUT …/commentaires/:id`. La limite de 48 heures est dans la requête SQL (`cree_le > now() - 48 heures`), jamais d'après l'heure du navigateur. L'ancien texte part dans `historique_textes` dans la même transaction.
 - **Corbeille** : `DELETE /api/publications/:id` par son auteur écrit `supprimee_le`. La requête commune `selection()` et `publicationDeLaRoute()` portent `p.supprimee_le IS NULL` : le fil, le profil, la page publique, les j'aime et les commentaires suivent tous. `effacerPublication()` fait la suppression définitive (ligne, photo, historique).
 
+## 11 novodecies. La modération : règles, filtre, sanctions
+
+Fichiers : `src/utils/regles.js`, `moderation.js`, `moderation-listes.js`, `nouveaux-comptes.js`, `sanctions.js`, `src/routes/sanctions.js`, `src/routes/admin.js`, `src/routes/signalements.js`. Pages : `/regles`, `/sanctions`, `/admin`.
+
+### Accepter les règles
+
+`VERSION_REGLES` est un simple numéro. À l'inscription, le serveur exige `accepteRegles === true` (une case cochée dans la page ne prouve rien : on peut appeler l'API sans la page) et garde `regles_acceptees_le` et `regles_version`. Le middleware `exigerReglesAcceptees` compare la version du membre à la version actuelle : si elle est plus ancienne, les requêtes qui lisent (`GET`) passent, les autres reçoivent 403. La page ouvre alors la fenêtre « Les règles ont changé ».
+
+L'adresse de contact vient de `CONTACT_MODERATION`. Elle n'est écrite dans aucune page : la page porte un lien vide `<a data-contact-moderation></a>`, que `avecContact()` (`src/utils/statique.js`) remplit au moment de servir.
+
+### Le filtre, pas à pas (`analyser(texte, langue)`)
+
+1. **Nettoyer.** `motsDe()` met tout en minuscules, retire les accents, remplace les chiffres par les lettres qu'ils imitent (`0` devient `o`, `1` devient `i`, `@` devient `a`), ramène « connnnard » à « connard », et recolle quatre lettres isolées ou plus (« c o n n a r d »).
+2. **Comparer par mots entiers.** Chaque mot est cherché dans un `Set`. « connexion » n'est pas « con ». Un mot n'est comparé « réduit » (lettres doubles retirées) que s'il était déguisé : ainsi « niger » n'est jamais confondu avec le mot à deux « g ».
+3. **Les expressions** (« fils de pute », « sale noir ») sont cherchées dans la phrase nettoyée, entre deux espaces.
+4. **Les liens.** `liensDe()` reconnaît une adresse avec `http`, avec `www.`, ou un nom de site à la terminaison connue. « node.js », « index.html » ou une adresse email ne sont pas des liens. `imiteUneMarque()` compare chaque morceau du domaine au nom des banques et opérateurs : même nom avec un chiffre à la place d'une lettre, ou à une lettre près (`distance()`), ou le vrai nom collé à un mot d'appât (« bonus », « login »).
+5. **Les arnaques** sont des expressions régulières, appliquées au texte nettoyé. Elles donnent « en attente », pas « refusé ».
+
+`controler(req, [[texte, 'champ']], { mode })` est ce que les routes appellent. Trois modes : `public` (peut mettre en attente), `strict` (un texte qu'on ne sait pas mettre en attente, comme la présentation : une arnaque y est refusée), `prive` (messages et propositions : insultes et liens seulement).
+
+### « En attente »
+
+Les tables `publications`, `commentaires`, `demandes` et `projets` avaient déjà une colonne `masque`, que toutes les lectures respectent. `mettreEnAttente()` met `masque = TRUE` et inscrit le contenu dans `moderation_attente`, dans la transaction qui le crée. La route répond 202 avec `{ enAttente: true, message }`. Approuver remet `masque = FALSE`. Aucune requête de lecture n'a eu à changer.
+
+### Nouveaux comptes
+
+`estNouveau()` compare `cree_le` à aujourd'hui. `refuserLesLiens()` utilise le même `liensDe()` que le filtre. `limiterNouveauCompte()` compte en base ce que le membre a fait depuis 24 heures.
+
+### Signalements et sanctions
+
+- `cacherSiTropSignale()` est appelé dans la transaction du signalement : il compte les signaleurs qui « pèsent », et à trois, appelle le même `mettreEnAttente()` que le filtre (raison `signalements`).
+- `sanctionner()` choisit la sanction d'après le nombre de sanctions non annulées du membre (`TYPES[nombre]`), sauf si l'administrateur en impose une. La fin d'une suspension est recopiée dans `utilisateurs.suspendu_jusqu_a` : le middleware `exigerNonSuspendu` la lit sans requête de plus.
+- La notification et l'email partent **après** la transaction (`apres()`) : si la base refuse la sanction, personne n'est prévenu à tort.
+- `journalModeration()` écrit dans la même transaction que la décision.
+
+### Le bandeau anti-arnaque
+
+`parleDePaiement(texte)` est appelé au moment de **lire** un message (`versMessage()`) ou une proposition, seulement pour le destinataire. Il n'y a ni colonne ni table : rien n'est gardé, personne ne lit les messages.
+
 ## 12. Le système de design
 
 Un « système de design », c'est un petit nombre de règles visuelles appliquées partout, pour que le site ait l'air d'une seule et même application. Tout est écrit à la main : aucune bibliothèque d'interface, aucun framework, donc des pages qui restent légères en 3G (les icônes pèsent 8 Ko en tout, les illustrations 4 Ko).
@@ -1180,6 +1219,8 @@ Les chiffres avant / après sont dans `docs/PERFORMANCE.md` : les pages pèsent 
 - **`robots.txt`** : dit aux moteurs de recherche de visiter l'accueil, les profils et les projets, et de laisser l'API, l'administration et les pages réservées aux membres.
 
 ## 14. Les tests automatiques
+
+Pour la modération : `tests/regles.test.js` (acceptation obligatoire, nouvelle version), `tests/moderation.test.js` (insultes et variantes, mots innocents, arnaque en attente puis approuvée, liens), `tests/nouveaux-comptes.test.js`, `tests/sanctions.test.js` (masquage après 3 signalements, sanctions progressives, lecture seule, contestation, journal), `tests/anti-arnaque.test.js`.
 
 Pour la sécurité des comptes : `tests/sessions.test.js` (session révoquée refusée), `tests/deux-etapes.test.js` (alerte, « Ce n'était pas moi », code, codes de secours), `tests/mots-de-passe.test.js` (verrou par compte, mots de passe refusés), `tests/journal.test.js`, `tests/desactivation.test.js` (pause, suppression différée, annulation, ménage), `tests/corbeille.test.js` (modifier pendant 48 h, corbeille, restauration, purge).
 
