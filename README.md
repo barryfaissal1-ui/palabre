@@ -88,6 +88,8 @@ tests/                 tests automatiques
 - [x] Appels audio et vidéo dans Palabre (WebRTC, sans bibliothèque) : à deux, ou en audio jusqu'à quatre dans le groupe d'une équipe ; écran d'appel aux couleurs de Palabre
 - [x] Site en français et en anglais : 1 400 textes dans deux dictionnaires, pluriels, dates et nombres selon la langue, erreurs, notifications et emails dans la langue de chacun
 - [x] Paramètres et confidentialité : qui voit mes publications, mes amis, mon numéro ; qui peut m'écrire, m'appeler, m'inviter ; email, mot de passe, autres appareils, téléchargement et suppression de ses données
+- [x] Sécurité des comptes : sessions par appareil, alerte de nouvelle connexion et « Ce n'était pas moi », validation en deux étapes avec codes de secours, verrou après 10 mots de passe faux, mots de passe trop courants refusés, journal de sécurité
+- [x] Désactiver son compte ou le supprimer avec 30 jours pour changer d'avis ; modifier une publication ou un commentaire pendant 48 h ; corbeille de 30 jours
 - [x] Réglages du 11 octobre : à la première visite, l'anglais seulement pour un navigateur en anglais dans un pays africain anglophone ou hors d'Afrique (fuseau horaire) ; les avis d'un client qui supprime son compte restent sur le profil du dev, signés « Ancien client »
 - [x] Finitions de la messagerie : carte d'arrivée d'un message sur les autres pages, petit son réglable dans le profil, appel entrant vu en 5 secondes, titres clairs des notifications du téléphone
 - [x] Messages vocaux d'une minute, légers (24 kb/s), avec un lecteur maison (pause, avancement, vitesse)

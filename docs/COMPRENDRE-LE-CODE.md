@@ -876,6 +876,8 @@ La « dernière connexion » montre la date et le type d'appareil (« Chrome sur
 
 ### Supprimer son compte
 
+Depuis le 11 octobre, la suppression est différée de 30 jours et faite par la tâche de ménage (voir « 11 octodecies »). Ce qui suit décrit ce que fait la suppression définitive, une fois ce délai passé.
+
 Toutes les tables sont reliées au compte par `ON DELETE CASCADE` : supprimer la ligne du membre supprime ses publications, ses commentaires, ses projets, ses demandes, ses propositions, ses amitiés, ses photos.
 
 Première exception : **les avis qu'un client a laissés à des devs**. Ils font partie de la preuve du travail du dev (c'est le « profil prouvé »). Juste avant la suppression, dans la même transaction, on vide `client_id` et `demande_id` de ces avis : ils ne sont plus reliés à rien du client, donc la cascade ne les emporte pas. La note et le texte restent, la moyenne du dev ne bouge pas. La route du profil renvoie alors `client: null`, et la page écrit « Ancien client » : pas de nom, pas d'avatar, pas de lien, pas de titre de demande.
@@ -943,6 +945,58 @@ Trois tests font ce travail à notre place :
 - un autre parcourt le serveur et échoue si une de ses phrases n'a pas sa traduction.
 
 En français, un quatrième contrôle garantit que rien n'a bougé : le texte écrit dans chaque page est, mot pour mot, celui de sa clé.
+
+## 11 octodecies. La sécurité des comptes : sessions, alertes, deux étapes, corbeille
+
+Fichiers : `src/utils/sessions.js`, `appareils.js`, `deux-etapes.js`, `mots-de-passe.js`, `journal.js`, `purge.js`, `src/routes/auth.js`, `src/routes/parametres.js`, `src/routes/publications.js`. Pages : `/parametres` (rubriques Sécurité, Compte, Corbeille), `/confirmer-email?motif=connexion`, `/pas-moi`, `/bon-retour`, `/annuler-suppression`.
+
+### Une session par appareil
+
+Le cookie de session contient un jeton signé (JWT). Avant, il portait seulement le numéro du membre : impossible de fermer UNE session sans fermer toutes les autres. Maintenant il porte aussi l'identifiant d'une ligne de la table `sessions`.
+
+`chargerUtilisateur()` (`src/middleware/auth.js`) lit le membre ET sa session en une seule requête (`JOIN sessions`). Si la session est révoquée, la requête ne rend aucune ligne : il n'y a pas de membre connecté. Révoquer, c'est écrire une date dans `revoquee_le`.
+
+La page ne reçoit jamais l'identifiant d'une session, seulement une empreinte courte (`left(sha256(id), 16)`) qui sert à dire « déconnecte cet appareil-là ». La requête de révocation filtre toujours sur le numéro du membre : on ne peut désigner que ses propres sessions.
+
+### Appareil connu, appareil de confiance
+
+À la première session valide, le navigateur reçoit le cookie `palabre_appareil` : un numéro au hasard suivi de sa signature (HMAC). La base garde l'empreinte du numéro dans `appareils_connus`. Deux niveaux :
+
+- **connu** : pas d'email d'alerte à la connexion ;
+- **de confiance** (case « Faire confiance à cet appareil ») : pas de code en deux étapes.
+
+Un cookie fabriqué à la main n'a pas la bonne signature : il est ignoré, l'appareil reste inconnu.
+
+### La connexion, étape par étape (`POST /api/auth/connexion`)
+
+1. Le mot de passe est comparé (toujours, même si l'email n'existe pas, pour que le temps de réponse ne révèle rien).
+2. Compte verrouillé pour trop d'essais : même réponse qu'un mot de passe faux.
+3. Mot de passe faux : `noterEchec()` augmente le compteur **dans une seule requête SQL** (dix essais au même instant comptent dix). Au dixième : verrou de 15 minutes et email.
+4. Compte verrouillé par « Ce n'était pas moi » : il faut choisir un nouveau mot de passe.
+5. Deux étapes activées et appareil pas de confiance : un code part, aucun cookie de session, seulement un cookie d'attente. La page du code est la même que celle de l'inscription (`?motif=connexion` change le titre et les routes appelées).
+6. Sinon `terminerConnexion()` : la session, le cookie d'appareil, le journal, et l'alerte si l'appareil était inconnu.
+
+### Les mots de passe refusés
+
+`v.motDePasse(valeur, champ, [prénom, nom, identifiant])` appelle `tropCourant()` et `contientLeNom()`. Le mot de passe est « nettoyé » (minuscules, sans accents) puis comparé trois fois : tel quel, sans les signes, et sans les chiffres. La liste est un simple `Set` écrit dans le fichier.
+
+### Le journal
+
+`journaliser(membre, type, req, options, client)`. Dans une transaction, on passe le `client` : l'événement n'existe que si l'action a vraiment eu lieu. La page écrit la phrase à partir du type (`EVENEMENTS` dans `public/js/parametres.js`), donc dans la langue du lecteur.
+
+### Désactiver, supprimer, revenir
+
+Deux colonnes : `desactive_le` et `suppression_prevue_le`.
+
+- **Invisible partout.** Chaque requête qui écartait déjà les comptes bloqués (`u.bloque = FALSE`) écarte aussi les comptes désactivés (`AND u.desactive_le IS NULL`). En plus, `apercuMembre()` rend anonyme tout compte désactivé qui passerait encore : c'est le filet de sécurité.
+- **Sauf dans la messagerie**, où les conversations restent : l'autre voit « Membre indisponible », sans photo ni lien, et ne peut ni écrire ni appeler (`droitDEcrire()`).
+- **Revenir.** Se reconnecter ouvre une session, mais `exigerCompteActif` ferme toute l'API sauf `/api/auth`. La page `/bon-retour` appelle `POST /api/auth/reactiver`.
+- **Supprimer** met le compte en sommeil avec une date à 30 jours (comptés en heures, pour qu'un changement d'heure ne décale rien). `purger()` (`src/utils/purge.js`) fait la suppression définitive : au démarrage du serveur, puis toutes les heures (`setInterval` avec `unref()`, qui n'empêche pas le serveur de s'arrêter), ou à la main par `npm run purger`.
+
+### Modifier et corbeille
+
+- **Modifier** : `PUT /api/publications/:id` et `PUT …/commentaires/:id`. La limite de 48 heures est dans la requête SQL (`cree_le > now() - 48 heures`), jamais d'après l'heure du navigateur. L'ancien texte part dans `historique_textes` dans la même transaction.
+- **Corbeille** : `DELETE /api/publications/:id` par son auteur écrit `supprimee_le`. La requête commune `selection()` et `publicationDeLaRoute()` portent `p.supprimee_le IS NULL` : le fil, le profil, la page publique, les j'aime et les commentaires suivent tous. `effacerPublication()` fait la suppression définitive (ligne, photo, historique).
 
 ## 12. Le système de design
 
@@ -1126,6 +1180,8 @@ Les chiffres avant / après sont dans `docs/PERFORMANCE.md` : les pages pèsent 
 - **`robots.txt`** : dit aux moteurs de recherche de visiter l'accueil, les profils et les projets, et de laisser l'API, l'administration et les pages réservées aux membres.
 
 ## 14. Les tests automatiques
+
+Pour la sécurité des comptes : `tests/sessions.test.js` (session révoquée refusée), `tests/deux-etapes.test.js` (alerte, « Ce n'était pas moi », code, codes de secours), `tests/mots-de-passe.test.js` (verrou par compte, mots de passe refusés), `tests/journal.test.js`, `tests/desactivation.test.js` (pause, suppression différée, annulation, ménage), `tests/corbeille.test.js` (modifier pendant 48 h, corbeille, restauration, purge).
 
 `npm test` lance des tests qui démarrent un vrai serveur et vérifient, entre autres : inscription, refus d'un mauvais mot de passe, protection CSRF, modification de profil, identifiants réservés, confidentialité du numéro WhatsApp, envoi et remplacement de photo, refus d'un faux fichier image.
 

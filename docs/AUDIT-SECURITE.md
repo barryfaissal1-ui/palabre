@@ -50,13 +50,70 @@ Chaque correction a son test dans `tests/securite.test.js`.
 
 Pour le partage, `GET /api/publications/:id` et la page `/publication/:id` répondent aux visiteurs. Ce qui a été vérifié (`tests/partage.test.js`) : c'est la seule route des publications ouverte ; elle ne renvoie ni email ni numéro WhatsApp ; une publication masquée ou d'un membre bloqué donne 404 ; le texte du membre est échappé dans les balises de partage ; la lecture est limitée à 150 par 10 minutes par adresse, pour qu'on ne puisse pas recopier le fil numéro par numéro. Les liens de partage (WhatsApp, Facebook, X) sont de simples liens : aucun script extérieur n'est chargé, la CSP n'a pas changé.
 
+## Protection des comptes (ajout du 11 octobre)
+
+Cette partie répond à une question simple : **que se passe-t-il si quelqu'un d'autre connaît mon mot de passe, ou essaie de le deviner ?** Six protections, chacune vérifiée par des tests.
+
+### 1. Une session par appareil, que le serveur peut fermer
+
+Avant, se déconnecter effaçait seulement le cookie. Maintenant chaque connexion crée une ligne dans la table `sessions` (identifiant au hasard, appareil « Chrome sur Android », dernière activité). Le jeton du cookie porte l'identifiant de cette session, et **chaque requête vérifie qu'elle existe et n'est pas révoquée** (dans la même requête SQL que le membre, donc sans ralentir).
+
+- Se déconnecter révoque la session en base : une copie du cookie ne vaut plus rien.
+- Dans Paramètres, rubrique Sécurité, « Appareils connectés » montre chaque appareil, avec « Déconnecter » pour chacun et « Déconnecter tous les autres ».
+- L'adresse IP est gardée pour les alertes, mais **aucune route ne la renvoie**. L'identifiant d'une session non plus : la page reçoit une empreinte courte.
+- Tests : `tests/sessions.test.js` (jeton sans session, session inventée, session d'un autre membre, déconnexion à distance).
+
+### 2. Prévenir le propriétaire quand un appareil inconnu entre
+
+Un appareil est « connu » s'il a déjà eu une session valide : il porte alors un cookie d'appareil signé, illisible par les scripts. La base n'en garde que l'empreinte.
+
+- Connexion depuis un appareil inconnu : email « Nouvelle connexion à ton compte Palabre » (appareil, date et heure GMT).
+- Le bouton **« Ce n'était pas moi »** de l'email : toutes les sessions sont fermées, le compte est verrouillé, et on arrive sur le choix d'un nouveau mot de passe. Le lien ne sert qu'une fois, dure 24 heures et est gardé haché.
+- **Ouvrir le lien ne fait rien** : c'est le bouton de la page qui agit. Certaines messageries ouvrent les liens toutes seules pour les contrôler.
+
+### 3. La validation en deux étapes (au choix du membre)
+
+Quand elle est activée, le bon mot de passe ne suffit plus depuis un appareil qui n'est pas « de confiance » : un code à 6 chiffres part par email, et la session ne s'ouvre qu'avec ce code. Mêmes règles que le code d'inscription : haché, 15 minutes, 5 essais, un renvoi par minute.
+
+- Entre le mot de passe et le code, le navigateur ne porte qu'un cookie d'attente de 15 minutes, **qui ne donne accès à rien** (testé : présenté comme cookie de session, il est refusé).
+- 8 codes de secours à usage unique, gardés hachés, montrés une seule fois, pour le jour où la boîte email est inaccessible. Un faux code de secours compte dans les mêmes 5 essais.
+- Le mot de passe est redemandé pour activer comme pour couper.
+- Tests : `tests/deux-etapes.test.js`.
+
+### 4. Freiner les essais de mots de passe
+
+- **Par compte**, en plus de la limite par adresse IP : 10 mots de passe faux en 15 minutes ferment la connexion à ce compte pendant 15 minutes. Un attaquant qui change d'adresse à chaque essai est arrêté quand même.
+- La réponse est **exactement celle d'un mot de passe faux**, même avec le bon mot de passe : on ne révèle ni que le compte existe, ni qu'il est verrouillé. C'est le propriétaire qui est prévenu, par email.
+- Le verrou ne bloque pas « mot de passe oublié », qui rouvre le compte.
+- **Mots de passe refusés** : moins de 8 caractères, ou dans notre liste maison (`src/utils/mots-de-passe.js`, plus de 500 entrées écrites par l'équipe, aucune bibliothèque), ou contenant le prénom, le nom ou l'identifiant. La comparaison ignore accents, majuscules, chiffres et signes : « Burkina2026! » reste « burkina ».
+- Tests : `tests/mots-de-passe.test.js` (dont dix essais envoyés au même instant, comptés dix fois).
+
+### 5. Un journal que le membre lit lui-même
+
+La table `journal_securite` note les connexions, les mots de passe faux, les nouveaux appareils, les changements de mot de passe et d'email, les deux étapes, les appareils déconnectés. Le membre voit les 30 derniers événements dans Paramètres. Ni adresse IP ni texte libre ; gardé 90 jours. Tests : `tests/journal.test.js`.
+
+### 6. Rien d'irréversible sans délai
+
+- Supprimer son compte le désactive d'abord 30 jours ; un email permet d'annuler, se reconnecter aussi. Un intrus qui aurait pris le compte ne peut donc pas le détruire en une minute.
+- Une publication supprimée reste 30 jours dans la corbeille de son auteur.
+- Un texte modifié garde son ancienne version, lue par l'administrateur seulement : on ne peut pas publier une insulte, attendre un signalement, puis la maquiller.
+- L'administrateur ne peut pas supprimer un compte depuis le site.
+
+### Ce que ces protections ne font pas
+
+| Limite | Pourquoi | Ce qu'on pourrait faire ensuite |
+| --- | --- | --- |
+| Le code des deux étapes part par email : si la boîte email est déjà prise, il ne protège pas. | Sans SMS ni application de codes, l'email est le seul canal sûr dont on dispose. | Codes par application (TOTP). |
+| Le verrou par compte permet à un inconnu d'empêcher un membre de se connecter pendant 15 minutes, en se trompant 10 fois exprès. | C'est le prix d'un verrou par compte ; « mot de passe oublié » reste ouvert et rouvre le compte tout de suite. | Verrou progressif, ou seulement pour les appareils inconnus. |
+| Le lieu d'une connexion n'est affiché que si l'hébergeur le donne dans un en-tête (`ENTETE_PAYS`, `ENTETE_VILLE`). | Aucune base « adresse IP vers ville » : ce serait une dépendance et des données à tenir à jour. | Brancher l'en-tête de l'hébergeur s'il existe. |
+| « Appareil connu » repose sur un cookie : effacer ses cookies redonne une alerte. | Voulu : un navigateur sans cookie est bien un appareil qu'on ne reconnaît pas. | Rien. |
+| La photo d'une publication mise à la corbeille reste accessible à qui connaît son adresse, jusqu'à la suppression définitive. | Même cas que les contenus masqués (ligne plus bas) : l'adresse est impossible à deviner. | Vérifier le contenu parent avant de servir l'image. |
+
 ## Risques connus, acceptés pour le concours
 
 | Risque | Pourquoi il est accepté | Ce qu'on pourrait faire ensuite |
 | --- | --- | --- |
 | L'inscription dit « Un compte existe déjà avec cet email » : on peut savoir si une adresse est inscrite. | C'est le message que tout le monde attend ; l'inscription est limitée à 20 essais par 15 minutes et protégée contre les robots. | Répondre toujours « Regarde ta boîte email » et envoyer un email différent selon le cas. |
-| La limite de connexion est par adresse IP, pas par compte : une attaque venant de milliers d'adresses n'est pas freinée. | Les mots de passe font 8 caractères au moins et bcrypt est lent. | Ralentir aussi par compte visé. |
-| Se déconnecter efface le cookie mais ne détruit pas le jeton côté serveur. | Il faudrait une table des sessions ; le jeton reste dans un cookie `httpOnly`. | Table des sessions, ou durée plus courte. |
 | Les images publiques d'un contenu masqué ou d'un compte bloqué restent accessibles à qui connaît leur adresse. | L'adresse est impossible à deviner et le contenu n'est plus affiché nulle part. | Vérifier le contenu parent avant de servir l'image. |
 | Les limites d'envoi sont gardées en mémoire : elles repartent de zéro quand le serveur redémarre, et ne sont pas partagées entre deux serveurs. | Palabre tourne sur un seul serveur. | Les garder dans PostgreSQL ou Redis. |
 | Un compte dont l'email n'est jamais confirmé reste en base. | Il ne peut rien faire sur le site. | Supprimer chaque nuit les comptes non confirmés de plus de 7 jours. |

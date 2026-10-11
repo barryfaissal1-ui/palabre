@@ -60,6 +60,7 @@ Pour prévenir les membres sur leur téléphone, même site fermé, ajoute trois
 | `VAPID_PUBLIQUE` | donnée par `npm run cles-push` | La clé que les téléphones voient : elle identifie Palabre auprès de Google, Mozilla et Apple. |
 | `VAPID_PRIVEE` | donnée par `npm run cles-push` | La clé qui signe les envois. **Ne la montre à personne, ne la mets jamais sur GitHub.** |
 | `VAPID_SUJET` | `mailto:` suivi d'un email de l'équipe | Permet au service de push de vous joindre en cas de problème. |
+| `ENTETE_PAYS`, `ENTETE_VILLE` | le nom d'un en-tête, ou rien | Facultatif. Si Systalink ajoute le pays ou la ville du visiteur dans un en-tête, écris son nom ici : Palabre l'affichera dans « Appareils connectés » et dans l'email d'alerte. Laisse vide si tu n'es pas sûr : aucun lieu ne sera affiché, et rien ne casse. |
 
 Lance `npm run cles-push` **une seule fois**, sur ton ordinateur, et copie les trois lignes affichées. Garde-les en lieu sûr : changer de clés plus tard désabonnerait tous les appareils. Le push exige le https (Systalink le fournit) ; sur iPhone, il faut en plus que le membre ait ajouté Palabre à son écran d'accueil.
 
@@ -143,6 +144,10 @@ npm run admin -- ton-email@exemple.com
 - [ ] Sur téléphone, le navigateur propose **d'installer** Palabre.
 - [ ] Une adresse inventée (`/nimporte/quoi`) affiche la page « Cette page n'existe pas ».
 - [ ] Connexion avec un compte de démonstration de `docs/COMPTES-DEMO.md`.
+
+## Le ménage automatique
+
+Au démarrage puis toutes les heures, le serveur supprime les comptes dont la suppression a été demandée il y a 30 jours, vide les corbeilles de plus de 30 jours et le journal de sécurité de plus de 90 jours. Quand il a fait quelque chose, une ligne « Ménage : … » apparaît dans le journal du service. Pour le lancer à la main : `npm run purger`.
 
 ## En cas de problème
 

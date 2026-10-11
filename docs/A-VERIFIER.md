@@ -1,3 +1,45 @@
+# À vérifier : sécurité des comptes, désactivation, corbeille (11 octobre 2026)
+
+Six parties, six commits. 297 tests passent. Chaque partie qui a un écran a été essayée dans Chrome (téléphone 390 px et ordinateur, clair et sombre, français et anglais), sauf le refus d'un mot de passe trop courant à l'inscription, vérifié par les tests seulement. Captures : `docs/captures/securite/` (version claire).
+
+## À essayer toi-même
+
+- [ ] **Deux téléphones** : connecte-toi sur les deux, ouvre Paramètres, Sécurité sur l'un, « Déconnecter » l'autre. L'autre doit être dehors à sa prochaine action.
+- [ ] **Un vrai email d'alerte** : connecte-toi depuis un navigateur que tu n'as jamais utilisé. Aucun vrai email n'est parti pendant mes essais : je n'ai vu ni le rendu dans Gmail, ni si le message arrive en courrier indésirable.
+- [ ] **« Ce n'était pas moi »** depuis ce vrai email, sur téléphone.
+- [ ] **Deux étapes** : active-les, **note les 8 codes**, puis connecte-toi ailleurs. Essaie aussi un code de secours.
+- [ ] **10 mots de passe faux** sur un compte d'essai, puis le bon : il doit être refusé 15 minutes, et l'email doit arriver.
+- [ ] **Inscription avec `azerty123`** puis avec ton prénom dans le mot de passe : les deux doivent être refusés, avec le message sous le champ.
+- [ ] **Désactiver** un compte d'essai, regarder la conversation chez l'autre (« Membre indisponible »), puis se reconnecter.
+- [ ] **Supprimer** un compte d'essai, puis l'annuler par le lien de l'email.
+- [ ] **Modifier** une publication, la supprimer, la restaurer depuis Paramètres, Corbeille.
+- [ ] **Relire l'anglais** des nouveaux textes (environ 130 clés de plus dans `public/langues/en.js`).
+
+## Mes choix, à valider
+
+- **Lieu d'une connexion** : tu demandais « ville approximative si connue ». Sans bibliothèque ni base d'adresses IP, elle n'est connue que si l'hébergeur l'écrit dans un en-tête (`ENTETE_PAYS`, `ENTETE_VILLE`). Sinon rien n'est affiché. À regarder chez Systalink le jour de la mise en ligne.
+- **Adresse IP** : tu demandais « jamais affichée en entier ». Je ne l'affiche pas du tout, même en partie.
+- **Deux étapes et confiance** : le code est demandé tant que l'appareil n'a pas la case « Faire confiance » cochée, même s'il s'est déjà connecté avant. L'appareil sur lequel on active les deux étapes devient de confiance.
+- **Mots de passe** : « burkina » avec des chiffres ou des signes autour est refusé aussi (« Burkina2026! »). Le prénom compte à partir de 3 lettres : avec un prénom court comme « Awa », un mot de passe qui contient « awa » par hasard (« kawasaki ») est refusé.
+- **Avis d'un client désactivé** : ils restent sur le profil du dev, signés « Ancien client », y compris pendant une simple pause.
+- **Publication signalée puis mise à la corbeille** : l'administrateur la voit encore. Sinon il suffirait de la jeter pour échapper au signalement, puis de la restaurer.
+- **Un administrateur qui supprime la publication d'un autre** la supprime pour de bon, sans corbeille.
+- **Modifier** n'est possible que pour l'auteur : un administrateur masque ou supprime, il ne réécrit pas.
+- **Les tests ont changé de mot de passe** (`kolatier-vert-48`) : `motdepasse1` est maintenant refusé comme trop courant.
+
+## Ce qui n'est pas fait
+
+- **Pas de publication dans la corbeille dans la démo** : `npm run demo` n'en crée pas. Pour l'essayer, supprime n'importe quelle publication d'un compte de démo.
+- **Alerte au tout premier appareil** : un compte créé par un script (les comptes de démo) n'a aucun appareil connu, donc sa première connexion envoie une alerte. En production, les adresses `@demo.palabre.dev` doivent exister ou ces emails seront rejetés.
+- **Sessions ouvertes avant cette mise à jour** : elles ne sont plus valables (leur jeton n'a pas de session). Il faut se reconnecter une fois. Sans conséquence tant que le site n'est pas en ligne.
+- **Le ménage ne tourne que si le serveur tourne.** Si Systalink endort le service, lance `npm run purger` de temps en temps.
+
+## Ce que je n'ai pas pu vérifier
+
+- **Aucun vrai email** (alerte, code de connexion, essais, suppression) : contenu vérifié par les tests, rendu jamais vu dans une vraie messagerie.
+- **Écrans de 360 px** : essais en 390 px et 1280 px seulement.
+- **Deux serveurs en même temps** : le ménage est écrit pour ne pas prendre deux fois le même compte, mais je ne l'ai essayé que sur un seul.
+
 # À vérifier : paramètres, confidentialité et site en deux langues (11 octobre 2026)
 
 Ce qui suit a été fait sans que tu puisses le voir. Tout est testé par le serveur et parcouru dans Chrome (téléphone 390 px et ordinateur, clair et sombre, en français et en anglais), mais plusieurs choix sont les miens : dis-moi ceux qui ne te conviennent pas.
