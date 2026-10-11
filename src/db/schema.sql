@@ -561,3 +561,32 @@ INSERT INTO competences (nom) VALUES
   ('MySQL'), ('MongoDB'), ('Firebase'), ('UI/UX Design'), ('Figma'), ('DevOps'),
   ('Intégration Mobile Money'), ('USSD/SMS'), ('Data/IA'), ('Cybersécurité')
 ON CONFLICT (nom) DO NOTHING;
+
+-- ============ Paramètres et confidentialité ============
+-- Réglages de confidentialité (src/utils/confidentialite.js). Une clé absente = la valeur par défaut, c'est-à-dire
+-- le comportement d'avant : rien ne change pour un membre qui ne règle rien.
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS confidentialite JSONB NOT NULL DEFAULT '{}';
+-- Dernière connexion : la date et le type d'appareil (« Chrome sur Android »). Jamais l'adresse IP.
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS derniere_connexion_le TIMESTAMPTZ;
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS derniere_connexion_appareil TEXT;
+-- Compte supprimé : ce qui reste est un compte vide, « Membre parti », auquel sont rattachés les messages déjà
+-- envoyés aux autres. Personne ne peut s'y connecter ni lui écrire.
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS supprime_le TIMESTAMPTZ;
+
+-- Changement d'email en attente : le code (haché) est envoyé à la NOUVELLE adresse. Une seule demande par membre.
+CREATE TABLE IF NOT EXISTS changements_email (
+  utilisateur_id INTEGER PRIMARY KEY REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  email          TEXT NOT NULL CHECK (email = lower(email)),
+  code_hash      TEXT NOT NULL,
+  expire_le      TIMESTAMPTZ NOT NULL,
+  essais         INTEGER NOT NULL DEFAULT 0,
+  cree_le        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- « Télécharger mes données » : 3 par jour au plus.
+CREATE TABLE IF NOT EXISTS exports_donnees (
+  id             SERIAL PRIMARY KEY,
+  utilisateur_id INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  cree_le        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_exports_donnees_membre ON exports_donnees (utilisateur_id, cree_le DESC);

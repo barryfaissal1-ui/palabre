@@ -183,8 +183,10 @@ module.exports = function appels({ maConversation, droitDEcrire, monGroupe }) {
       if (groupe.ferme_le) throw new v.ErreurHttp(403, 'Cette équipe a été dissoute.');
       if (type !== 'audio') throw new v.ErreurValidation('Dans un groupe, les appels sont en audio seulement.', 'type');
       invites = (await db.query(
+        // Un membre qui a réglé « Qui peut m'appeler : personne » ne sonne pas, même dans son groupe.
         `SELECT cm.membre_id FROM conversation_membres cm JOIN utilisateurs u ON u.id = cm.membre_id AND u.bloque = FALSE
-          WHERE cm.conversation_id = $1 AND cm.quitte_le IS NULL AND cm.membre_id <> $2`,
+          WHERE cm.conversation_id = $1 AND cm.quitte_le IS NULL AND cm.membre_id <> $2
+            AND COALESCE(u.confidentialite->>'appels', 'proches') <> 'personne'`,
         [conversation.id, moi.id],
       )).rows.map((ligne) => ligne.membre_id);
       if (invites.length === 0) throw new v.ErreurValidation('Tu es seul dans ce groupe.');
@@ -195,6 +197,9 @@ module.exports = function appels({ maConversation, droitDEcrire, monGroupe }) {
       if (ligne.statut !== 'acceptee' || !droit.peutEcrire) {
         throw new v.ErreurHttp(403, droit.raison || 'Tu pourras appeler ce membre quand il aura accepté ta demande de message.');
       }
+      // Son réglage « Qui peut m'appeler » : vérifié ici, pas seulement en cachant le bouton d'appel.
+      if (droit.reglagesAutre.appels === 'personne') throw new v.ErreurHttp(403, 'Ce membre ne reçoit pas d\'appels.');
+      if (droit.reglagesAutre.appels === 'amis' && !droit.amis) throw new v.ErreurHttp(403, 'Ce membre ne reçoit des appels que de ses amis.');
       invites = [ligne.autre_id];
     }
 

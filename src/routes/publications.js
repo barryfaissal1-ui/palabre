@@ -11,6 +11,7 @@ const { lireImageDataUrl } = require('../utils/images');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
 const { lireLienVideo } = require('../utils/videos');
 const { notifier, retirerActeur, avecLesAutres } = require('../utils/notifications');
+const { publicationsVisibles } = require('../utils/confidentialite');
 
 const router = express.Router();
 const PAR_PAGE = 10;
@@ -25,6 +26,8 @@ const limiteJaime = limiteParMembre(300, 15, 'Doucement sur les j\'aime. Réessa
 
 // Une publication avec son auteur et ses compteurs. $1 est toujours le membre connecté.
 // Les publications masquées par un administrateur et celles des comptes bloqués n'apparaissent jamais.
+// Confidentialité : l'auteur choisit qui voit ses publications (tout le monde, les membres, ses amis). La condition
+// est dans cette requête commune : le fil, le profil, la page publique et la lecture d'une publication la suivent tous.
 // Tout ce qu'il faut pour afficher le fil arrive en UNE requête (sous-requêtes et LATERAL), jamais une par publication :
 //  - « aime » : une personne qui a aimé, autre que moi, un de mes amis en priorité (« Aimé par Awa et 12 autres ») ;
 //  - « apercu » : les 2 derniers commentaires, avec leur auteur.
@@ -59,7 +62,7 @@ const selection = (nbCommentaires = COMMENTAIRES_APERCU) => `
                ORDER BY c.id DESC
                LIMIT ${nbCommentaires}) d
     ) apercu ON TRUE
-   WHERE p.masque = FALSE AND u.bloque = FALSE`;
+   WHERE p.masque = FALSE AND u.bloque = FALSE AND ${publicationsVisibles('$1')}`;
 const SELECTION = selection();
 
 function versPublication(ligne, moi) {
@@ -100,10 +103,12 @@ async function publicationDeLaRoute(req, res) {
   const id = v.idPositif(req.params.id);
   if (id) {
     const { rows } = await db.query(
+      // Une publication que je n'ai pas le droit de voir n'existe pas pour moi : ni j'aime, ni commentaire possibles.
+      // (Un administrateur doit pouvoir la supprimer après un signalement.)
       `SELECT p.id, p.auteur_id, p.image FROM publications p
          JOIN utilisateurs u ON u.id = p.auteur_id
-        WHERE p.id = $1 AND p.masque = FALSE AND u.bloque = FALSE`,
-      [id],
+        WHERE p.id = $1 AND p.masque = FALSE AND u.bloque = FALSE AND ($3::boolean OR ${publicationsVisibles('$2')})`,
+      [id, req.utilisateur.id, Boolean(req.utilisateur.est_admin)],
     );
     if (rows[0]) return rows[0];
   }

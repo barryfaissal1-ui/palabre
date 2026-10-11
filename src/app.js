@@ -83,6 +83,7 @@ function creerApp() {
   app.use('/api/devs', require('./routes/devs'));
   app.use('/api/messages', require('./routes/messages'));
   app.use('/api/defis', require('./routes/defis'));
+  app.use('/api/parametres', require('./routes/parametres'));
   app.use('/api/admin', require('./routes/admin'));
   app.use('/api', require('./routes/references'));
 

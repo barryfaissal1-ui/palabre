@@ -9,6 +9,7 @@ const { etatAmitie, apercuMembre, COLONNES_MEMBRE, NB_PROJETS_VERIFIES } = requi
 const { projetsDe } = require('./projets');
 const { avisDe } = require('./avis');
 const profilDev = require('../utils/profil-dev');
+const { lireConfidentialite } = require('../utils/confidentialite');
 
 const router = express.Router();
 const MAX_COMPETENCES = 15;
@@ -39,6 +40,10 @@ function urlFichier(id) {
 // Ce que tout le monde peut voir d'un profil. L'email n'en fait jamais partie.
 // Le numéro WhatsApp n'est montré qu'aux membres connectés, pour limiter la collecte automatique de numéros.
 function profilVisible(u, competences, visiteur, amitie = null) {
+  const estMoi = Boolean(visiteur && visiteur.id === u.id);
+  const reglages = lireConfidentialite(u);
+  // Qui voit le numéro : les membres connectés (par défaut), mes amis seulement, ou personne. Moi, toujours.
+  const voitNumero = estMoi || (Boolean(visiteur) && (reglages.whatsapp === 'membres' || (reglages.whatsapp === 'amis' && amitie === 'amis')));
   return {
     nom: u.nom,
     prenom: u.prenom || u.nom.split(' ')[0],
@@ -61,10 +66,13 @@ function profilVisible(u, competences, visiteur, amitie = null) {
     // « Profil à confirmer » : un dev qui n'a donné aucun lien vers son travail.
     aConfirmer: u.type === 'dev' && profilDev.liensPublics(u).length === 0,
     competences,
-    whatsapp: visiteur ? u.whatsapp : null,
-    whatsappMasque: !visiteur && Boolean(u.whatsapp),
+    whatsapp: voitNumero ? u.whatsapp : null,
+    // « Connecte-toi pour voir le numéro » : seulement si se connecter suffit vraiment à le voir.
+    whatsappMasque: !visiteur && Boolean(u.whatsapp) && reglages.whatsapp === 'membres',
+    // L'onglet « Amis » : visible selon le réglage du membre (la route /amis le vérifie de son côté).
+    amisVisibles: estMoi || (Boolean(visiteur) && (reglages.listeAmis === 'membres' || (reglages.listeAmis === 'amis' && amitie === 'amis'))),
     membreDepuis: u.cree_le,
-    estMoi: Boolean(visiteur && visiteur.id === u.id),
+    estMoi,
     // Lien d'amitié avec le visiteur connecté ('aucune', 'envoyee', 'recue', 'amis') ; null sinon.
     amitie,
   };
@@ -99,6 +107,13 @@ const AMIS_DE = `SELECT u.id AS ami_id FROM amities a
 
 // Amis d'un membre (onglet « Amis » de son profil) : GET /api/profils/:identifiant/amis — membres connectés.
 router.get('/:identifiant/amis', exigerConnexion, async (req, res) => {
+  const moi = req.utilisateur;
+  // Le réglage « Qui peut voir ma liste d'amis » : les membres, mes amis seulement, ou moi seulement.
+  const { rows: [membre] } = await db.query('SELECT id, confidentialite FROM utilisateurs WHERE identifiant = $1 AND bloque = FALSE AND supprime_le IS NULL', [String(req.params.identifiant || '').toLowerCase()]);
+  if (!membre) return res.status(404).json({ erreur: 'Ce profil n\'existe pas.' });
+  const regle = lireConfidentialite(membre).listeAmis;
+  const permis = membre.id === moi.id || regle === 'membres' || (regle === 'amis' && await etatAmitie(moi.id, membre.id) === 'amis');
+  if (!permis) return res.json({ amis: [], cachee: true });
   const { rows } = await db.query(
     `SELECT ${COLONNES_MEMBRE}
        FROM utilisateurs m
@@ -118,7 +133,7 @@ router.get('/:identifiant', limiteLectureProfils, async (req, res) => {
   const { rows } = await db.query(
     `SELECT u.*, ${NB_PROJETS_VERIFIES} AS nb_projets_verifies,
             (SELECT count(*)::int FROM defis df WHERE df.gagnant_id = u.id AND df.statut = 'termine') AS nb_defis_gagnes
-       FROM utilisateurs u WHERE u.identifiant = $1 AND u.bloque = FALSE`,
+       FROM utilisateurs u WHERE u.identifiant = $1 AND u.bloque = FALSE AND u.supprime_le IS NULL`,
     [identifiant],
   );
   if (!rows[0]) return res.status(404).json({ erreur: 'Ce profil n\'existe pas.' });

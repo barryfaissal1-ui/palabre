@@ -18,6 +18,7 @@ const groupes = require('./groupes');
 const appels = require('./appels');
 const { lireMessages, lireMessage, messagesModifies, origineValide, lireContenu, enregistrerPiece } = require('../utils/messages');
 const { presenceVue, signalerEcriture, finEcriture, quiEcrit } = require('../utils/presence');
+const { lireConfidentialite } = require('../utils/confidentialite');
 
 const router = express.Router();
 const MAX_CONVERSATIONS = 100;
@@ -82,21 +83,30 @@ async function blocagesEntre(executeur, moiId, autreId) {
 // Ai-je le droit d'envoyer un message maintenant ? Renvoie { peutEcrire, raison, libre, demandeId }.
 // Un blocage par l'autre n'est jamais révélé : la raison reste vague.
 async function droitDEcrire(executeur, moi, autreId, conversation, demandePrecise = null) {
-  const [blocages, lien] = await Promise.all([blocagesEntre(executeur, moi.id, autreId), lienEntre(executeur, moi.id, autreId, demandePrecise)]);
+  const [blocages, lien, { rows: [autre] }] = await Promise.all([
+    blocagesEntre(executeur, moi.id, autreId), lienEntre(executeur, moi.id, autreId, demandePrecise),
+    executeur.query('SELECT confidentialite, supprime_le FROM utilisateurs WHERE id = $1', [autreId]),
+  ]);
   const libre = lien.amis || lien.demandeId !== null;
+  const reglages = lireConfidentialite(autre);
+  const acceptee = Boolean(conversation && conversation.statut === 'acceptee');
   let raison = null;
-  if (blocages.parMoi) raison = 'Tu as bloqué ce membre. Débloque-le pour lui écrire.';
+  if (autre && autre.supprime_le) raison = 'Ce membre a quitté Palabre.';
+  // Son réglage « Qui peut m'envoyer un message » : ses amis et ses clients seulement. Une conversation qu'il a
+  // déjà acceptée reste ouverte.
+  else if (reglages.messages === 'proches' && !libre && !acceptee && !blocages.parMoi && !blocages.parLui) raison = 'Ce membre ne reçoit des messages que de ses amis et de ses clients.';
+  else if (blocages.parMoi) raison = 'Tu as bloqué ce membre. Débloque-le pour lui écrire.';
   else if (blocages.parLui) raison = 'Tu ne peux pas écrire à ce membre.';
   else if (conversation && conversation.statut === 'demande' && conversation.cree_par === moi.id && !libre) {
     raison = 'Ta demande de message est envoyée. Tu pourras écrire de nouveau quand elle sera acceptée.';
   }
-  return { peutEcrire: raison === null, raison, libre, demandeId: lien.demandeId, jeBloque: blocages.parMoi };
+  return { peutEcrire: raison === null, raison, libre, demandeId: lien.demandeId, jeBloque: blocages.parMoi, amis: lien.amis, reglagesAutre: reglages };
 }
 
 // Retrouve le membre visé par son identifiant de profil ; erreur 404 s'il n'existe pas (ou si c'est moi).
 async function membreVise(valeur, moi) {
   const identifiant = typeof valeur === 'string' ? valeur.trim().toLowerCase() : '';
-  const { rows } = await db.query(`SELECT u.id, ${COLONNES_MEMBRE} FROM utilisateurs u WHERE u.identifiant = $1 AND u.bloque = FALSE`, [identifiant]);
+  const { rows } = await db.query(`SELECT u.id, ${COLONNES_MEMBRE} FROM utilisateurs u WHERE u.identifiant = $1 AND u.bloque = FALSE AND u.supprime_le IS NULL`, [identifiant]);
   if (!rows[0] || rows[0].id === moi.id) throw new v.ErreurHttp(404, 'Ce membre n\'existe pas.');
   return rows[0];
 }

@@ -302,7 +302,7 @@ router.post('/:id/equipes', exigerDev, exigerProfilComplet, limitePropositions, 
 
     // On ne peut inviter que ses amis (amitié acceptée) qui sont développeurs.
     const { rows: amis } = await client.query(
-      `SELECT u.id, u.identifiant FROM utilisateurs u
+      `SELECT u.id, u.identifiant, u.prenom, u.nom, COALESCE(u.confidentialite->>'equipes', 'amis') = 'personne' AS refuse_les_invitations FROM utilisateurs u
         WHERE u.identifiant = ANY($2::text[]) AND u.type = 'dev' AND u.bloque = FALSE
           AND EXISTS (SELECT 1 FROM amities a
                        WHERE a.statut = 'acceptee'
@@ -312,6 +312,9 @@ router.post('/:id/equipes', exigerDev, exigerProfilComplet, limitePropositions, 
     if (amis.length !== roles.size) {
       throw new v.ErreurValidation('Tu ne peux inviter que tes amis développeurs.', 'membres');
     }
+    // Son réglage « Qui peut m'inviter dans une équipe éclair : personne ».
+    const ferme = amis.find((ami) => ami.refuse_les_invitations);
+    if (ferme) throw new v.ErreurValidation(`${ferme.prenom || ferme.nom} ne souhaite pas être invité dans une équipe éclair.`, 'membres');
 
     let equipeId;
     try {

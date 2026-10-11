@@ -195,12 +195,23 @@ router.get('/publication/:id', async (req, res, next) => {
   if (!/^\d+$/.test(req.params.id)) return next();
   const id = v.idPositif(req.params.id);
   const { rows: [publication] } = id ? await db.query(
-    `SELECT p.texte, p.image, u.nom FROM publications p
+    `SELECT p.texte, p.image, u.nom, COALESCE(u.confidentialite->>'publications', 'tous') = 'tous' AS publique FROM publications p
        JOIN utilisateurs u ON u.id = p.auteur_id
       WHERE p.id = $1 AND p.masque = FALSE AND u.bloque = FALSE`,
     [id],
   ) : { rows: [] };
   if (!publication) return pageErreur(res, 404);
+  // Publication réservée aux membres ou aux amis : la page s'ouvre (un membre connecté qui en a le droit la lira,
+  // c'est l'API qui décide), mais le serveur n'écrit RIEN d'elle dans les balises de partage.
+  if (!publication.publique) {
+    return rendrePage(res, 'publication.html', {
+      titre: 'Publication sur Palabre',
+      description: 'Connecte-toi à Palabre, le réseau des développeurs africains, pour lire cette publication.',
+      chemin: `/publication/${id}`,
+      image: null,
+      type: 'article',
+    });
+  }
   rendrePage(res, 'publication.html', {
     titre: `${publication.nom} sur Palabre`,
     description: raccourcir(publication.texte, 160) || `Une publication de ${publication.nom} sur Palabre, le réseau des développeurs africains.`,

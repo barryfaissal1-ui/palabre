@@ -4,6 +4,10 @@ const db = require('../db/pool');
 const v = require('../utils/validation');
 const { exigerConnexion } = require('../middleware/auth');
 const { apercuMembre, COLONNES_MEMBRE, NB_PROJETS_VERIFIES } = require('../utils/membres');
+const { dansLaRecherche } = require('../utils/confidentialite');
+
+// Un dev peut demander à ne pas apparaître dans les listes de devs ; un compte supprimé n'y est jamais.
+const LISTABLE = (qui) => `u.supprime_le IS NULL AND ${dansLaRecherche(qui)}`;
 
 const router = express.Router();
 const PAR_PAGE = 10;
@@ -24,7 +28,7 @@ router.get('/disponibles', exigerConnexion, async (req, res) => {
                        AND LEAST(a.demandeur_id, a.receveur_id) = LEAST($1, u.id)
                        AND GREATEST(a.demandeur_id, a.receveur_id) = GREATEST($1, u.id)) AS est_ami
        FROM utilisateurs u
-      WHERE u.type = 'dev' AND u.disponible AND u.bloque = FALSE AND u.id <> $1
+      WHERE u.type = 'dev' AND u.disponible AND u.bloque = FALSE AND u.id <> $1 AND ${LISTABLE('$1')}
       ORDER BY est_ami DESC,
                (lower(u.ville) = lower($2) AND u.pays = $3) DESC,
                (u.pays = $3) DESC,
@@ -51,7 +55,7 @@ router.get('/suggestions', exigerConnexion, async (req, res) => {
             (lower(u.ville) = lower($2) AND u.pays = $3) AS meme_ville,
             (u.pays = $3) AS meme_pays
        FROM utilisateurs u
-      WHERE u.type = 'dev' AND u.bloque = FALSE AND u.id <> $1
+      WHERE u.type = 'dev' AND u.bloque = FALSE AND u.id <> $1 AND ${LISTABLE('$1')}
         AND NOT EXISTS (SELECT 1 FROM amities a
                          WHERE LEAST(a.demandeur_id, a.receveur_id) = LEAST($1, u.id)
                            AND GREATEST(a.demandeur_id, a.receveur_id) = GREATEST($1, u.id))
@@ -107,7 +111,7 @@ router.get('/', async (req, res) => {
        LEFT JOIN LATERAL (
          SELECT round(avg(a.note), 1)::float AS moyenne, count(*)::int AS nb FROM avis a WHERE a.dev_id = u.id
        ) notes ON TRUE
-      WHERE u.bloque = FALSE
+      WHERE u.bloque = FALSE AND ${LISTABLE('$10::int')}
         AND (u.type = 'dev' OR $7::text IS NOT NULL)
         AND ($7::text IS NULL OR u.nom ILIKE $7 ESCAPE '\\' OR u.identifiant LIKE '%' || $9::text || '%')
         AND ($1::int IS NULL OR EXISTS (
@@ -117,7 +121,7 @@ router.get('/', async (req, res) => {
         AND ($4::boolean = FALSE OR u.disponible)
       ORDER BY ($8::text IS NOT NULL AND (u.nom ILIKE $8 ESCAPE '\\' OR u.identifiant LIKE $9::text || '%')) DESC, u.disponible DESC, notes.moyenne DESC NULLS LAST, projets_verifies DESC, u.id DESC
       LIMIT $5 OFFSET $6`,
-    [competence, pays, motifVille, disponible, PAR_PAGE + 1, (page - 1) * PAR_PAGE, motifNom, motifDebut, sansAccent],
+    [competence, pays, motifVille, disponible, PAR_PAGE + 1, (page - 1) * PAR_PAGE, motifNom, motifDebut, sansAccent, req.utilisateur ? req.utilisateur.id : 0],
   );
 
   res.json({

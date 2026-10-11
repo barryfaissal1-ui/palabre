@@ -66,6 +66,15 @@ function profilPrive(u) {
   };
 }
 
+// « Chrome sur Android », « Safari sur iPhone »… d'après l'en-tête User-Agent. On ne garde que ces deux mots.
+function typeAppareil(agent) {
+  const a = String(agent || '');
+  const navigateur = [[/Edg\//, 'Edge'], [/OPR\/|Opera/, 'Opera'], [/Firefox\//, 'Firefox'], [/Chrome\//, 'Chrome'], [/Safari\//, 'Safari']].find(([motif]) => motif.test(a));
+  const systeme = [[/Android/, 'Android'], [/iPhone/, 'iPhone'], [/iPad/, 'iPad'], [/Windows/, 'Windows'], [/Mac OS X/, 'Mac'], [/Linux/, 'Linux']].find(([motif]) => motif.test(a));
+  if (!navigateur && !systeme) return 'Appareil inconnu';
+  return [navigateur ? navigateur[1] : 'Navigateur', systeme ? `sur ${systeme[1]}` : null].filter(Boolean).join(' ');
+}
+
 async function identifiantLibre(nom) {
   let base = v.versIdentifiant(nom).padEnd(3, '0');
   if (v.IDENTIFIANTS_RESERVES.has(base)) base = `${base}-dev`;
@@ -163,6 +172,8 @@ router.post('/connexion', limiteSensible, async (req, res) => {
     return res.status(403).json({ erreur: 'Ce compte a été suspendu. Contacte l\'équipe Palabre.' });
   }
 
+  // Dernière connexion (rubrique « Sécurité » des paramètres) : la date et le type d'appareil, jamais l'adresse IP.
+  await db.query('UPDATE utilisateurs SET derniere_connexion_le = now(), derniere_connexion_appareil = $2 WHERE id = $1', [utilisateur.id, typeAppareil(req.get('user-agent'))]);
   ouvrirSession(res, utilisateur);
   res.json({ utilisateur: profilPrive(utilisateur) });
 });
@@ -248,3 +259,4 @@ router.post('/reinitialiser', limiteSensible, async (req, res) => {
 
 module.exports = router;
 module.exports.profilPrive = profilPrive;
+module.exports.typeAppareil = typeAppareil;
