@@ -169,6 +169,8 @@
       el('div', { classe: 'profil-identite' }, [
         avatar(profil, 'profil'),
         el('h1', { classe: 'profil-nom' }, [profil.nom, profil.nbProjetsVerifies > 0 ? badgeFeuille() : null]),
+        // Un compte de moins de 7 jours, vu par un client : la mention l'invite à regarder les projets et les avis.
+        profil.nouveau ? el('p', { classe: 'mention-nouveau', title: t('profil.nouveau-aide'), texte: t('profil.nouveau') }) : null,
         el('p', { classe: 'profil-lieu' }, [icone('lieu'), t(estDev ? 'profil.dev-a' : 'profil.client-a', { lieu })]),
       ]),
     ]);

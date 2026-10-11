@@ -41,6 +41,7 @@ function urlFichier(id) {
 
 // Ce que tout le monde peut voir d'un profil. L'email n'en fait jamais partie.
 // Le numéro WhatsApp n'est montré qu'aux membres connectés, pour limiter la collecte automatique de numéros.
+const JOURS_NOUVEAU = 7;
 function profilVisible(u, competences, visiteur, amitie = null) {
   const estMoi = Boolean(visiteur && visiteur.id === u.id);
   const reglages = lireConfidentialite(u);
@@ -74,6 +75,9 @@ function profilVisible(u, competences, visiteur, amitie = null) {
     // L'onglet « Amis » : visible selon le réglage du membre (la route /amis le vérifie de son côté).
     amisVisibles: estMoi || (Boolean(visiteur) && (reglages.listeAmis === 'membres' || (reglages.listeAmis === 'amis' && amitie === 'amis'))),
     membreDepuis: u.cree_le,
+    // « Nouveau sur Palabre » : un compte de moins de 7 jours. La mention n'est donnée qu'aux clients, pour qui
+    // elle compte avant de confier un travail ; les comptes de démonstration ne la portent pas.
+    nouveau: Boolean(visiteur && visiteur.type === 'client' && !estMoi && !/@demo\.palabre\.dev$/.test(u.email || '') && Date.now() - new Date(u.cree_le).getTime() < JOURS_NOUVEAU * 86400000),
     estMoi,
     // Lien d'amitié avec le visiteur connecté ('aucune', 'envoyee', 'recue', 'amis') ; null sinon.
     amitie,

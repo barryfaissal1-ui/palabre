@@ -1202,6 +1202,14 @@ a.nom-auteur:hover { text-decoration: underline; }
 .ligne-corbeille p { margin: 0; overflow-wrap: anywhere; }
 .ligne-corbeille .texte-discret { font-size: var(--t-13); }
 .corbeille-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Bandeau anti-arnaque : un rappel discret sous un message ou une proposition qui parle d'argent à envoyer. */
+.note-arnaque { display: flex; align-items: flex-start; gap: 6px; margin-top: 6px; padding-top: 6px; border-top: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); font-size: var(--t-13); line-height: 1.35; color: var(--encre); }
+.note-arnaque[hidden] { display: none; }
+.note-arnaque .icone { flex: none; width: 16px; height: 16px; margin-top: 1px; color: var(--accent); }
+.note-arnaque a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.note-arnaque-carte { margin: 0; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--ligne)); border-radius: var(--rayon-petit); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+/* « Nouveau sur Palabre » : un compte de moins de 7 jours, vu par un client. */
+.mention-nouveau { display: inline-block; margin: 4px 0 0; padding: 2px 10px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); font-size: var(--t-13); font-weight: 600; }
 /* Suspension : le bandeau « lecture seule » ; page « Mes sanctions ». */
 .bandeau-suspension { background: color-mix(in srgb, var(--erreur) 12%, var(--surface)); }
 .liste-sanctions { display: grid; gap: 12px; margin-top: 16px; }

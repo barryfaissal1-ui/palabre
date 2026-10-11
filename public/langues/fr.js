@@ -258,6 +258,10 @@
     "apropos.intro": "Palabre est le réseau social des développeurs africains. Sous l'arbre à palabres, on se retrouve pour échanger, s'entraider et décider ensemble : c'est l'idée du site.",
     "apropos.titre": "À propos de Palabre",
 
+    // arnaque
+    "arnaque.attention": "Attention : ne paie jamais avant d'avoir vérifié le profil et les avis. Palabre ne te demandera jamais d'argent.",
+    "arnaque.regles": "Voir les règles",
+
     // avis
     "avis.aide": "Qualité du travail, respect des délais, communication… (facultatif)",
     "avis.apparaitra": "Ton avis apparaîtra sur le profil du développeur. Tu ne peux le donner qu'une fois.",
@@ -1204,6 +1208,8 @@
     "profil.montre": "Montre ce que tu sais faire",
     "profil.montre-aide": "Ajoute tes projets réalisés : chaque lien qui répond ajoute un segment à ton anneau de preuve.",
     "profil.note-moyenne": " {note} sur 5, {n} avis",
+    "profil.nouveau": "Nouveau sur Palabre",
+    "profil.nouveau-aide": "Compte créé il y a moins de 7 jours. Regarde ses projets et ses avis avant de lui confier un travail.",
     "profil.occupe": "Occupé en ce moment",
     "profil.onglet.avis": "Avis",
     "profil.onglet.projets": "Projets",

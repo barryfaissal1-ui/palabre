@@ -93,6 +93,8 @@ async function lirePropositions(condition, valeurs, moi, pourClient) {
     const proposition = {
       id: ligne.id,
       message: ligne.message,
+      // Bandeau anti-arnaque, pour le client qui lit la proposition : elle parle d'un paiement d'avance.
+      alerteArnaque: pourClient && parleDePaiement(ligne.message),
       montantFcfa: ligne.montant_fcfa,
       statut: ligne.statut,
       creeLe: ligne.cree_le,
@@ -136,7 +138,7 @@ function propositionsVisibles(ligneDemande, moi) {
   );
 }
 
-const { controler, mettreEnAttente, PHRASE_ATTENTE } = require('../utils/moderation');
+const { controler, mettreEnAttente, PHRASE_ATTENTE, parleDePaiement } = require('../utils/moderation');
 
 function lireProposition(corps) {
   return {

@@ -75,6 +75,11 @@
       ]),
       ...qui,
       el('p', { classe: 'publication-texte', texte: proposition.message }),
+      // Bandeau anti-arnaque : cette proposition parle d'un paiement d'avance (repéré par le serveur).
+      proposition.alerteArnaque ? el('p', { classe: 'note-arnaque note-arnaque-carte', role: 'note' }, [
+        icone('alerte'),
+        el('span', {}, [t('arnaque.attention'), ' ', el('a', { href: '/regles', target: '_blank', rel: 'noopener', texte: t('arnaque.regles') })]),
+      ]) : null,
       el('p', { classe: 'montant' }, [el('span', { classe: 'texte-discret', texte: t('demande.montant-propose') }), fcfa(proposition.montantFcfa)]),
       boutons.length ? el('div', { classe: 'profil-actions' }, boutons) : null,
     ]);

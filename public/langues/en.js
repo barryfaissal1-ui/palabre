@@ -257,6 +257,10 @@
     "apropos.intro": "Palabre is the social network for African developers. Under the palaver tree, people gather to talk, help each other and decide together: that is the idea behind the site.",
     "apropos.titre": "About Palabre",
 
+    // arnaque
+    "arnaque.attention": "Careful: never pay before checking the profile and the reviews. Palabre will never ask you for money.",
+    "arnaque.regles": "See the rules",
+
     // avis
     "avis.aide": "Quality of work, meeting deadlines, communication… (optional)",
     "avis.apparaitra": "Your review will appear on the developer's profile. You can only give it once.",
@@ -1203,6 +1207,8 @@
     "profil.montre": "Show what you can do",
     "profil.montre-aide": "Add the projects you've built: every link that responds adds a segment to your proof ring.",
     "profil.note-moyenne": " {note} out of 5, {n} reviews",
+    "profil.nouveau": "New on Palabre",
+    "profil.nouveau-aide": "Account created less than 7 days ago. Look at their projects and reviews before giving them work.",
     "profil.occupe": "Busy right now",
     "profil.onglet.avis": "Reviews",
     "profil.onglet.projets": "Projects",

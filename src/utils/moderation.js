@@ -161,6 +161,15 @@ function analyser(texte, langue = 'fr', { prive = false, domaines = new Set() } 
   return { resultat: 'accepte', raison: null, message: null };
 }
 
+// Ce texte parle-t-il d'un paiement d'avance (Mobile Money, « envoie d'abord », frais de dossier…) ? Sert au
+// bandeau anti-arnaque montré au destinataire d'un message ou d'une proposition. Rien n'est refusé ni enregistré :
+// la réponse est calculée à la lecture, à partir du texte.
+function parleDePaiement(texte) {
+  if (typeof texte !== 'string' || !texte) return false;
+  const propre = sansAccents(texte).replace(/[^a-z0-9]+/g, ' ').trim();
+  return L.PAIEMENT_AVANCE.some((motif) => motif.test(propre)) || L.ARNAQUES.some((motif) => motif.test(propre));
+}
+
 // ---------- Les domaines interdits par les administrateurs (table domaines_interdits) ----------
 // Gardés 30 secondes en mémoire : le filtre tourne à chaque texte, il ne doit pas interroger la base à chaque fois.
 let domainesConnus = { le: 0, liste: new Set() };
@@ -214,4 +223,4 @@ async function mettreEnAttente(client, type, id, auteurId, raison) {
   );
 }
 
-module.exports = { analyser, controler, mettreEnAttente, liensDe, contientUnLien, imiteUneMarque, motsDe, domainesInterdits, oublierDomaines, MESSAGES, TABLES, PHRASE_ATTENTE };
+module.exports = { analyser, controler, mettreEnAttente, parleDePaiement, liensDe, contientUnLien, imiteUneMarque, motsDe, domainesInterdits, oublierDomaines, MESSAGES, TABLES, PHRASE_ATTENTE };

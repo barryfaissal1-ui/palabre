@@ -6,6 +6,7 @@ const v = require('./validation');
 const { lireImageDataUrl } = require('./images');
 const { lireVocal } = require('./audio');
 const { apercuMembre, COLONNES_MEMBRE } = require('./membres');
+const { parleDePaiement } = require('./moderation');
 
 // Les six réactions proposées. La liste est fermée : le serveur n'enregistre rien d'autre.
 const REACTIONS = ['❤️', '😂', '👍', '😮', '😢', '🙏'];
@@ -52,6 +53,8 @@ function versMessage(ligne, moi) {
     vocal: !supprime && ligne.fichier_id && ligne.vocal_duree ? { url: `/fichiers/${ligne.fichier_id}`, duree: ligne.vocal_duree } : null,
     creeLe: ligne.cree_le,
     estMoi,
+    // Bandeau anti-arnaque : le message d'un AUTRE parle d'argent à envoyer. Calculé ici, jamais enregistré.
+    alerteArnaque: !estMoi && !supprime && !ligne.systeme && parleDePaiement(ligne.texte),
     systeme: ligne.systeme,
     supprime,
     auteur: apercuMembre(ligne),

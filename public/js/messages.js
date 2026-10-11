@@ -400,6 +400,19 @@
     if (ouverte && ouverte.ecriture && ouverte.ecriture.repondreA) ouverte.ecriture.repondreA(message);
   }
 
+  // « Attention : ne paie jamais avant d'avoir vérifié le profil et les avis. » Discret, sous le message reçu.
+  // Dans une conversation, seul le dernier message concerné garde son rappel : on ne le répète pas dix fois.
+  function noteArnaque() {
+    return el('span', { classe: 'note-arnaque', role: 'note' }, [
+      icone('alerte'),
+      el('span', {}, [t('arnaque.attention'), ' ', el('a', { href: '/regles', target: '_blank', rel: 'noopener', texte: t('arnaque.regles') })]),
+    ]);
+  }
+  function garderLaDerniereNote() {
+    const notes = [...document.querySelectorAll('.note-arnaque')];
+    notes.forEach((note, rang) => { note.hidden = rang < notes.length - 1; });
+  }
+
   function bulle(message) {
     // Message « système » d'un groupe (« Awa a rejoint l'équipe ») : une ligne discrète au centre, pas une bulle.
     // La ligne laissée par un appel : « Appel audio, 4 min » (feuille verte) ou « Appel manqué » (terre cuite, avec « Rappeler »).
@@ -515,8 +528,11 @@
       message.vocal ? lecteurVocal(message.vocal) : el('span', { classe: 'bulle-texte', texte: message.supprime ? t('messages.supprime') : message.texte }),
       el('span', { classe: 'bulle-heure', texte: heure(message.creeLe) }),
       reactions,
+      // Bandeau anti-arnaque : ce message parle d'argent à envoyer (le serveur l'a repéré, personne ne l'a lu).
+      message.alerteArnaque ? noteArnaque() : null,
       menu,
     ]);
+    if (message.alerteArnaque) queueMicrotask(garderLaDerniereNote);
 
     // Sur téléphone : un appui long ouvre le menu, glisser la bulle vers la droite répond.
     let depart = null;

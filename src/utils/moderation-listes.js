@@ -119,6 +119,19 @@ const ARNAQUES = [
   /\b(bitcoin|btc|crypto|usdt|forex|trading|binance)\b.{0,60}\b(guaranteed|risk free|double|x2|x10|daily profit|passive income)\b/,
 ];
 
+// ---------- Paiement d'avance (bandeau anti-arnaque) ----------
+// Dans un message privé ou une proposition, rien n'est refusé ni lu par quelqu'un : mais si le texte parle d'argent
+// à envoyer, le DESTINATAIRE voit un rappel discret (« ne paie jamais avant d'avoir vérifié le profil et les avis »).
+// On préfère prévenir une fois de trop : un vrai développeur qui parle d'acompte ne perd rien à ce rappel.
+const PAIEMENT_AVANCE = [
+  /\b(mobile money|orange money|moov money|wave|mtn money|mtn momo|momo|airtel money|m pesa|mpesa|western union|moneygram|flooz|t money|tmoney)\b/,
+  /\b(paiement|payer|paie|paye|payez|acompte|avance|versement|virement|depot|transfert)\b.{0,30}\b(d avance|en avance|avant|d abord|au debut|a la commande|pour commencer)\b/,
+  /\b(envoie|envoyer|envoyez|verse|verser|versez|paie|paye|payer|payez)\b.{0,20}\b(d abord|moi d abord|l argent|de l argent|la somme|le montant|les frais)\b/,
+  /\bfrais (de dossier|d inscription|d adhesion|de deblocage|d activation|de retrait|d ouverture|de traitement)\b/,
+  /\b(pay|send|transfer|deposit)\b.{0,30}\b(first|upfront|in advance|before i start|before we start|the money|the fee)\b/,
+  /\b(advance payment|upfront payment|down payment|registration fee|processing fee)\b/,
+];
+
 // ---------- Liens ----------
 // Raccourcisseurs : on ne voit pas où le lien mène. Le membre doit coller l'adresse complète.
 const RACCOURCISSEURS = [
@@ -164,6 +177,6 @@ const mots = (liste) => new Set(liste.split(/\s+/).filter(Boolean));
 
 module.exports = {
   INSULTES: mots(INSULTES), INSULTES_FRANCAIS: mots(INSULTES_FRANCAIS), INSULTES_EXPRESSIONS, HAINE: mots(HAINE), HAINE_EXPRESSIONS,
-  SEXUEL: mots(SEXUEL), SEXUEL_EXPRESSIONS, EXPRESSIONS_INNOCENTES, ARNAQUES,
+  SEXUEL: mots(SEXUEL), SEXUEL_EXPRESSIONS, EXPRESSIONS_INNOCENTES, ARNAQUES, PAIEMENT_AVANCE,
   RACCOURCISSEURS: new Set(RACCOURCISSEURS), MARQUES, APPATS: new Set(APPATS), TERMINAISONS: new Set(TERMINAISONS), NOMS_TECHNIQUES,
 };
