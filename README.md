@@ -4,6 +4,8 @@ Le réseau social des développeurs africains – CADEV 2026.
 
 Les devs partagent leurs projets, s'entraident et forment des équipes éclair. Les clients publient leurs demandes et choisissent un dev ou une équipe en confiance grâce au profil prouvé.
 
+**Pour le jury :** [comment Palabre répond au thème de la CADEV, point par point](docs/THEME.md), et [les comptes de démonstration](docs/COMPTES-DEMO.md) pour tout essayer.
+
 ## Technique
 
 - Serveur : Node.js 20+ et Express 5
