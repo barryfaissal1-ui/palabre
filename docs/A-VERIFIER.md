@@ -1,3 +1,34 @@
+# À vérifier : la base de savoir (12 octobre 2026)
+
+355 tests passent. Essayé dans Chrome sur téléphone 390 px et sur ordinateur, en clair et en sombre, en français et en anglais (88 contrôles). Captures : `docs/captures/savoir/`.
+
+## À faire par toi
+
+- [ ] **Recréer la démo** pour voir les questions résolues : `npm run demo -- retirer`, puis `npm run demo`. Je l'ai fait sur cet ordinateur ; ce sera à refaire sur Systalink (`npm run demo -- --forcer`).
+- [ ] **Essayer avec `dev@demo.palabre.dev`** : dans le fil, puce « Sans réponse », la question de Moussa sur la maintenance ; menu « … » du commentaire de Kofi, « Meilleure réponse ». Puis chercher « sms » dans la barre du haut.
+- [ ] **Relire les textes** : « Résolue », « Meilleure réponse », « Sans réponse », « réponse retenue », et en anglais « Solved », « Best answer », « Unanswered ».
+- [ ] **Relire les deux nouvelles réponses du Griot** : `poser-question` et `publication-invisible`.
+- [ ] **Sur un vrai téléphone** : la rangée de puces doit défiler au doigt sans faire bouger la page.
+
+## Mes choix, à valider
+
+- **La recherche de publications est réservée aux membres**, comme le fil. Un visiteur ne cherche que des membres.
+- **Recherche par `LIKE`**, pas par `to_tsvector` : tu laissais le choix. Raisons dans COMPRENDRE-LE-CODE (français et anglais mêlés, accents, aucune extension).
+- **Une page à part, `/recherche`**, pas un onglet de `/chercher` (qui reste la recherche de devs par compétence).
+- **La recherche lit aussi le texte de la meilleure réponse** : une question se retrouve par sa solution.
+- **Sur ordinateur, les puces sont sur leur propre ligne**, sous « Tout le monde / Mes amis » : sur une seule ligne, elles étaient coupées.
+- **Le compteur « réponses retenues » est affiché même à zéro** sur le profil d'un dev, comme les projets vérifiés.
+- **Un administrateur ne peut pas choisir la meilleure réponse** à la place de l'auteur.
+- **Un seul commit pour le code**, pas un par partie : le filtre, la meilleure réponse et la recherche partagent la même requête.
+
+## Limites connues
+
+- **Pas de recherche par sujet ou par mot-dièse** : seulement les mots du texte.
+- **Pas de recherche dans les commentaires**, sauf la meilleure réponse.
+- **Une notification déjà envoyée reste dans la langue du moment** : c'est le cas de toutes les notifications du site.
+- **Le mot cherché n'est pas surligné** dans les résultats.
+- **Un test des défis a échoué une fois** pendant une suite complète, puis est repassé seul et à la suite suivante. Je n'ai pas trouvé la cause ; ce test ne touche pas à ce que j'ai changé.
+
 # À vérifier : correction du Griot (11 octobre 2026)
 
 348 tests passent. Essayé dans Chrome sur téléphone 390 px et sur ordinateur, en clair et en sombre, en français et en anglais (48 contrôles).

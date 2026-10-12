@@ -1045,7 +1045,7 @@ Fichiers : `public/js/assistant-recherche.js` (les sujets et la recherche), `pub
 
 Un bouton rond « Besoin d'aide ? » ouvre une fenêtre où l'on touche une suggestion ou écrit une question. Le Griot répond en deux ou trois phrases, avec un ou deux boutons vers la bonne page.
 
-Ce n'est **pas** une intelligence artificielle. Il n'y a ni service payant, ni bibliothèque, ni serveur : la question est comparée, **dans le navigateur**, aux mots-clés de 26 sujets. Rien n'est envoyé, rien n'est enregistré, personne ne lit les questions. La fenêtre le dit : « Assistant automatique, pas une personne. »
+Ce n'est **pas** une intelligence artificielle. Il n'y a ni service payant, ni bibliothèque, ni serveur : la question est comparée, **dans le navigateur**, aux mots-clés de 28 sujets. Rien n'est envoyé, rien n'est enregistré, personne ne lit les questions. La fenêtre le dit : « Assistant automatique, pas une personne. »
 
 ### La recherche, pas à pas (`chercher(question, index, profil)`)
 
@@ -1089,6 +1089,40 @@ Bien choisir un mot-clé : se demander **dans quelle autre question ce mot appar
 C'est tout : la fenêtre, la recherche et les suggestions suivent. `tests/assistant.test.js` échoue s'il manque un texte, si la suggestion ne trouve pas sa propre réponse, ou si un bouton n'existe pas. Pour changer seulement une réponse ou ajouter un mot-clé, on ne touche qu'aux fichiers de langue.
 
 **Une réponse ne doit jamais donner un chiffre que le site n'applique pas.** Un test vérifie les valeurs citées (30 jours, une heure, 18 ans, trois signalements) contre le code, et qu'aucun prix n'est écrit : les prix viennent de la grille du calculateur.
+
+## 11 unvicies. La base de savoir : filtres du fil, meilleure réponse, recherche
+
+Fichiers : `src/routes/publications.js` (tout le serveur), `public/js/fil.js` (les puces), `public/js/publication.js` (le badge, la marque, le menu), `public/js/app.js` (`brancherRecherche()`), `public/recherche.html` et `public/js/recherche.js` (la page), `tests/savoir.test.js`.
+
+Le thème de la CADEV demande que les développeurs puissent « poser des questions » et « partager leurs connaissances ». Avant, une question se perdait dans le fil au bout de deux jours. Trois ajouts en font une base de savoir.
+
+### 1. Filtrer le fil par type
+
+Sous « Tout le monde / Mes amis », cinq puces : Tout, Questions, Sans réponse, Idées, Projets. La page envoie `?type=question` (ou `idee`, `projet`, `sans-reponse`) à la route du fil.
+
+**Le tri est fait par le serveur, dans la requête SQL**, pas dans la page. Si la page triait elle-même les 10 publications reçues, « Questions » pourrait en montrer 2, puis 0, puis 4 : le défilement infini ne saurait plus s'il reste quelque chose. Ici, la condition s'ajoute à la requête commune `SELECTION` : les autres règles (corbeille, publications masquées, comptes bloqués ou désactivés, confidentialité, « Mes amis », page suivante) continuent de s'appliquer sans qu'on les réécrive. Un type inconnu ne filtre rien.
+
+### 2. La meilleure réponse
+
+L'auteur d'une question ouvre le menu « … » d'un commentaire et choisit « Meilleure réponse ». Ce commentaire passe en premier avec une marque verte, et la question porte le badge « Résolue ».
+
+- **Une colonne** : `publications.meilleure_reponse_id`, qui pointe vers un commentaire. Une seule colonne, donc une seule meilleure réponse : en choisir une autre remplace la première.
+- **Les droits sont vérifiés par le serveur** (`PUT /api/publications/:id/meilleure-reponse`) : seulement l'auteur de la publication, seulement si c'est une question, jamais pour son propre commentaire, et le commentaire doit appartenir à cette publication. Sinon 403 ou 404. Le menu de la page ne fait que cacher le choix à ceux qui n'y ont pas droit.
+- **Une transaction** : la question est verrouillée (`FOR UPDATE`), la colonne change, la notification part. Deux clics au même instant ne font pas deux notifications.
+- **La question redevient « sans réponse » toute seule** : si le commentaire est supprimé, la base vide la colonne (`ON DELETE SET NULL`). S'il est masqué, ou si son auteur est bloqué ou désactivé, la colonne reste mais la lecture ne le compte plus : la sous-requête `mr` de `SELECTION` ne garde qu'une réponse encore visible. Quand le membre revient, sa réponse aussi.
+- **La notification** `meilleure_reponse` prévient l'auteur de la réponse. Si l'auteur de la question change d'avis avant qu'elle soit lue, elle est retirée.
+- **Sur le profil** : `nbReponsesRetenues`, à côté des projets vérifiés. C'est une preuve de plus, dans l'esprit du profil prouvé : ce n'est pas le membre qui dit qu'il aide, ce sont ceux qui ont posé la question.
+
+### 3. Chercher dans les publications
+
+La barre de recherche de l'en-tête répond en deux parties, « Membres » et « Publications » (4 au plus, en version légère : `?court=1`). La touche Entrée, ou « Voir toutes les publications », ouvre la page `/recherche?q=…`, avec les mêmes puces de type et le défilement infini.
+
+- **Tous les mots doivent être présents**, dans le texte de la publication ou dans sa meilleure réponse (c'est elle, le savoir). Ni les majuscules ni les accents ne comptent.
+- **Les questions résolues viennent d'abord**, puis les plus récentes. La page suivante suit ce double tri grâce à un curseur en deux morceaux (« 1-482 » : résolue ou non, puis le numéro).
+- **Pourquoi `LIKE` et pas la recherche plein texte de PostgreSQL** (`to_tsvector`) : celle-ci découpe les mots selon une langue, alors que le fil mêle français, anglais et noms de techniques (« Node.js », « C# »), et elle n'ignore pas les accents sans l'extension `unaccent`. `LIKE` fait ce qu'on attend, sans rien installer chez l'hébergeur. Avec quelques milliers de publications, c'est rapide ; au-delà, il faudra un index.
+- **Sûreté** : les mots arrivent en paramètre (`$2::text[]`), jamais collés dans la requête ; les jokers `%` et `_` sont neutralisés ; 6 mots au plus ; 120 recherches par 5 minutes et par membre.
+- **Aucune fuite** : la recherche part elle aussi de `SELECTION`. Une publication « amis seulement » ne sort que pour les amis de son auteur, y compris dans la liste courte de l'en-tête et y compris quand le mot cherché n'est que dans la meilleure réponse. `tests/savoir.test.js` le vérifie.
+- La recherche de publications est réservée aux membres, comme le fil. Un visiteur garde la recherche de membres.
 
 ## 12. Le système de design
 
@@ -1272,6 +1306,8 @@ Les chiffres avant / après sont dans `docs/PERFORMANCE.md` : les pages pèsent 
 - **`robots.txt`** : dit aux moteurs de recherche de visiter l'accueil, les profils et les projets, et de laisser l'API, l'administration et les pages réservées aux membres.
 
 ## 14. Les tests automatiques
+
+Pour la base de savoir (`tests/savoir.test.js`) : le filtre par type avec « Mes amis », la page suivante, la corbeille et la confidentialité ; la meilleure réponse (qui a le droit, changer d'avis, l'enlever, la notification, le compteur du profil, le retour à « sans réponse » quand le commentaire est supprimé ou masqué, ou son auteur désactivé) ; la recherche (mots, accents, questions résolues d'abord, page suivante, corbeille, comptes bloqués ou désactivés, aucune fuite d'une publication « amis seulement »).
 
 Pour le Griot (`tests/assistant.test.js`, sans serveur) : chaque suggestion trouve sa réponse dans les deux langues, les fautes courantes aussi, une cinquantaine de questions réalistes (dont celles qui recevaient une réponse fausse) trouvent le bon sujet, une question hors sujet ou faite de mots-outils donne « pas compris », deux sujets à égalité aussi, aucun mot-clé seul n'est dans deux sujets, un visiteur ne reçoit aucun lien réservé aux membres, les valeurs citées sont celles du code, et rien n'est envoyé au serveur.
 

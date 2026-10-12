@@ -28,12 +28,13 @@ Messagerie privée avec messages vocaux, réactions et réponses, appels audio e
 **Où le voir :** l'onglet Messages.
 
 ### Poser des questions
-Les publications de type **Question** dans le fil, avec commentaires et réponses aux commentaires.
-**Où le voir :** le fil `/fil`, les publications marquées du badge « Question ».
+Les publications de type **Question** dans le fil. Une question ne se perd plus : le filtre **« Questions »** les rassemble, et le filtre **« Sans réponse »** montre celles qui attendent encore de l'aide. Quand un commentaire a résolu le problème, l'auteur de la question le marque comme **« Meilleure réponse »** : il passe en premier, et la question porte le badge **« Résolue »**.
+**Où le voir :** le fil `/fil`, les puces sous « Tout le monde / Mes amis » ; le menu « … » d'un commentaire sous sa propre question.
 
 ### Partager ses connaissances
 Les publications de type **Idée**, les vidéos YouTube, TikTok et Facebook dans le fil, et le **défi de la semaine** : un problème concret, chaque développeur propose sa solution, la communauté vote.
-**Où le voir :** le fil et la page `/defis`.
+Le fil est aussi une **base de savoir** : la **recherche** retrouve une ancienne question par ses mots ou par ceux de sa meilleure réponse, les questions résolues en premier. Et celui qui aide est reconnu : son profil affiche le nombre de ses **réponses retenues**, à côté de ses projets vérifiés.
+**Où le voir :** la barre de recherche en haut (résultats « Membres » et « Publications »), la page `/recherche`, les chiffres d'un profil, et la page `/defis`.
 
 ### Présenter ses projets
 Chaque développeur montre ses réalisations. Le site vérifie automatiquement que le lien du projet est vraiment en ligne : le projet reçoit alors le badge **« Lien vérifié »**, et le profil un anneau vert. Seul un client qui a réellement travaillé avec un développeur peut laisser un avis. Les projets apparaissent aussi dans la vitrine de l'accueil et se partagent sur WhatsApp et Facebook avec une carte d'aperçu.
@@ -50,7 +51,7 @@ Les **équipes éclair** : pour une demande trop grosse pour une seule personne,
 | Question du sujet | Notre réponse |
 | --- | --- |
 | Comment les développeurs **se rencontrent** | Par la recherche, les suggestions, les profils partagés et les amis en commun, comme sur un réseau social. |
-| Comment ils **échangent** | En public dans le fil, en privé dans la messagerie (texte, vocaux, appels), sans quitter l'application. |
+| Comment ils **échangent** | En public dans le fil, où une question garde sa meilleure réponse et se retrouve par la recherche ; en privé dans la messagerie (texte, vocaux, appels), sans quitter l'application. |
 | Comment ils **partagent leurs projets** | Avec des projets prouvés par un lien vérifié, visibles même sans compte. |
 | Comment ils **collaborent** | Avec les équipes éclair et leur groupe de discussion. |
 | Ce qui rend la plateforme **réellement utile** | Les clients qui publient de vraies demandes avec un budget en FCFA : les développeurs y trouvent du travail, pas seulement des discussions. Et le calculateur « Combien coûte mon projet ? » aide les clients à fixer un budget juste. |
@@ -71,5 +72,4 @@ Le détail technique est dans [COMPRENDRE-LE-CODE.md](COMPRENDRE-LE-CODE.md) et 
 
 ## Prochaines étapes
 
-- Transformer les questions du fil en **base de savoir** : marquer la meilleure réponse, retrouver les anciennes questions par sujet.
 - Publier automatiquement les projets et défis gagnants sur la page Facebook « Palabre Dev ».

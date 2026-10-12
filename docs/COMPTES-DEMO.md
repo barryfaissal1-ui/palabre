@@ -21,13 +21,14 @@ Si tu ne dois en retenir que deux, ce sont ceux-là. Dès la connexion, ils ont 
 
 | Fonction | Ce qui l'attend |
 | --- | --- |
-| Notifications | 17, étalées sur dix jours, dont 12 non lues : j'aime et commentaires regroupés (« Rasmata Ilboudo et 4 autres ont aimé ta publication »), messages, invitation d'équipe, proposition acceptée, avis, demandes d'amis |
+| Notifications | 20, étalées sur dix jours, dont 15 non lues (dont « Awa Ouédraogo a retenu ta réponse comme meilleure réponse ») : j'aime et commentaires regroupés (« Rasmata Ilboudo et 4 autres ont aimé ta publication »), messages, invitation d'équipe, proposition acceptée, avis, demandes d'amis |
 | Amis (`/amis`) | 5 amis, **2 demandes reçues** (Mariam, Aminata) à accepter ou refuser, 1 demande envoyée (Oumar) à annuler |
-| Fil | 2 publications à lui avec j'aime et commentaires ; publier une idée, une question, un projet, une photo, une vidéo ; aimer, commenter, signaler |
+| Fil | 3 publications à lui avec j'aime et commentaires ; les puces Tout / Questions / Sans réponse / Idées / Projets ; publier une idée, une question, un projet, une photo, une vidéo ; aimer, commenter, signaler |
 | Demandes | une proposition **en attente** (l'auberge), une **acceptée** sur une demande terminée (la caisse), une **non retenue** (la paie) ; proposer seul sur une demande ouverte |
 | Équipe éclair | **une invitation à accepter ou refuser** (équipe de Fatoumata, livraison) : l'accepter le fait entrer dans le **groupe de discussion** de l'équipe ; en former une lui-même avec ses 5 amis sur une demande ouverte |
 | Messages | une conversation avec Awa (amie) **à lire**, une avec Rasmata (cliente), et **une demande de message** d'Ibrahim, un inconnu (accepter, refuser, bloquer) |
-| Profil | couverture, 4 projets (3 au lien vérifié : anneau de preuve et badge « Profil prouvé »), 1 avis 5 étoiles, onglets Publications / Projets / Avis / Amis |
+| Base de savoir | sa question sur la maintenance est **sans réponse** : menu « … » du commentaire de Kofi, « Meilleure réponse » (puis la retirer) ; sa question sur les SMS est déjà **résolue** ; chercher « sms » dans la barre du haut, puis ouvrir `/recherche` |
+| Profil | couverture, 4 projets (3 au lien vérifié : anneau de preuve et badge « Profil prouvé »), **1 réponse retenue**, 1 avis 5 étoiles, onglets Publications / Projets / Avis / Amis |
 | Projets (`/projets`) | ajouter un projet, faire vérifier un lien, proposer un projet pour Facebook |
 | Défi (`/defis`) | voter pour une réponse |
 | Modifier le profil | photo, couverture, compétences, liens, disponibilité, WhatsApp |
@@ -102,7 +103,7 @@ Une fois ces actions faites, elles ne sont plus « à faire ». Pour tout remett
 ## Ce que contient la démonstration
 
 - 17 membres (15 + les deux comptes pour tout tester), 22 amitiés ;
-- 21 publications (idées, questions, projets, dont 3 avec une vidéo) avec leurs j'aime et leurs commentaires, étalées sur une semaine ;
+- 23 publications (idées, questions, projets, dont 3 avec une vidéo) avec leurs j'aime et leurs commentaires, étalées sur une semaine ; parmi les questions, 5 sont **résolues** (une meilleure réponse retenue) et 6 **sans réponse** ;
 - des projets pour 10 développeurs, avec des anneaux de preuve de 1 à 11 segments ;
 - 10 demandes de clients : 3 terminées avec avis, 1 attribuée à une équipe éclair, 1 attribuée à un développeur, 5 ouvertes ;
 - 2 défis de la semaine : un terminé (gagné par Fatoumata), un en phase de vote ;
