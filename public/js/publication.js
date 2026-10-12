@@ -67,13 +67,14 @@
   }
 
   // ---------- Commentaires ----------
-  function elementCommentaire(commentaire, publication, apresSuppression, visiteur) {
+  // « savoir.choisir(id) » : l'auteur d'une question retient ce commentaire comme meilleure réponse (null : il l'enlève).
+  function elementCommentaire(commentaire, publication, apresSuppression, visiteur, savoir) {
     async function supprimer() {
       if (!(await confirmer(t('publication.supprimer-commentaire'), { bouton: t('commun.supprimer'), danger: true }))) return;
       try {
         await api(`/publications/${publication.id}/commentaires/${commentaire.id}`, { methode: 'DELETE', donnees: {} });
         element.remove();
-        apresSuppression();
+        apresSuppression(commentaire);
         toast(t('publication.commentaire-supprime'));
       } catch (erreur) {
         toast(erreur.message, 'erreur');
@@ -96,32 +97,39 @@
           apresSuppression();
           return false;
         }
-        Object.assign(commentaire, reponse.commentaire);
+        Object.assign(commentaire, reponse.commentaire, { meilleure: commentaire.meilleure });
         texteCommentaire.textContent = commentaire.texte;
         ecrireDate();
       },
     });
     // Un visiteur ne peut ni signaler ni supprimer : pas de menu « … » pour lui.
+    // « Meilleure réponse » : proposé à l'auteur de la question seulement, jamais pour son propre commentaire.
+    // Le serveur revérifie (403 sinon).
+    const peutRetenir = publication.estMoi && publication.type === 'question' && !commentaire.estMoi;
     const menu = visiteur ? null : menuOptions(() => [
+      peutRetenir && !commentaire.meilleure ? { texte: t('publication.choisir-meilleure'), icone: 'valide', action: () => savoir.choisir(commentaire.id) } : null,
+      peutRetenir && commentaire.meilleure ? { texte: t('publication.retirer-meilleure'), icone: 'fermer', action: () => savoir.choisir(null) } : null,
       commentaire.modifiable && encoreModifiable(commentaire.creeLe) ? { texte: t('commun.modifier'), icone: 'modifier', action: modifier } : null,
       commentaire.estMoi || estAdmin ? { texte: t('commun.supprimer'), icone: 'supprimer', danger: true, action: supprimer } : null,
       commentaire.estMoi ? null : { texte: t('signalement.titre'), icone: 'signaler', action: () => signaler('commentaire', commentaire.id) },
     ], { cote: 'gauche' });
-    const element = el('li', { classe: 'commentaire' }, [
+    const element = el('li', { classe: `commentaire${commentaire.meilleure ? ' meilleure-reponse' : ''}` }, [
       lienAuteur(commentaire.auteur, 'mini'),
       el('div', { classe: 'commentaire-corps' }, [
+        commentaire.meilleure ? el('span', { classe: 'marque-meilleure' }, [icone('valide'), t('publication.meilleure-reponse')]) : null,
         el('div', { classe: 'commentaire-bulle' }, [
           nomMembre(commentaire.auteur),
           texteCommentaire,
         ]),
         el('div', { classe: 'commentaire-pied' }, [quand, menu]),
-      ]),
+      ].filter(Boolean)),
     ]);
     return element;
   }
 
-  // Les 2 derniers commentaires sont déjà là (envoyés avec le fil) ; « Voir les N commentaires » charge le reste.
-  function zoneCommentaires(publication, afficherCompteur, visiteur) {
+  // Les 2 derniers commentaires sont déjà là (envoyés avec le fil), précédés de la meilleure réponse s'il y en a une ;
+  // « Voir les N commentaires » charge le reste. « majResolue » : redessine le badge « Résolue » de la carte.
+  function zoneCommentaires(publication, afficherCompteur, visiteur, majResolue = () => {}) {
     const liste = el('ul', { classe: 'liste-commentaires' });
     const voirTout = el('button', { classe: 'bouton-discret voir-commentaires', type: 'button' });
     const champ = el('input', { type: 'text', maxlength: '1000', placeholder: t('publication.ecrire-commentaire-aide'), 'aria-label': t('publication.ecrire-commentaire'), required: true });
@@ -139,7 +147,29 @@
       zone.hidden = liste.children.length === 0 && formulaire.hidden && voirTout.hidden;
       afficherCompteur();
     }
-    const commentaire = (c) => elementCommentaire(c, publication, () => compter(-1), visiteur);
+    const commentaire = (c) => elementCommentaire(c, publication, (retire) => {
+      // La meilleure réponse vient d'être supprimée : la question redevient « sans réponse ».
+      if (retire && retire.meilleure) {
+        publication.resolue = false;
+        publication.meilleureReponse = null;
+        majResolue();
+      }
+      compter(-1);
+    }, visiteur, { choisir });
+
+    // Retenir (ou enlever) la meilleure réponse. La liste est relue au serveur : la réponse retenue arrive en premier.
+    async function choisir(id) {
+      try {
+        await api(`/publications/${publication.id}/meilleure-reponse`, id ? { methode: 'PUT', donnees: { commentaireId: id } } : { methode: 'DELETE', donnees: {} });
+        publication.resolue = Boolean(id);
+        majResolue();
+        toutCharge = false;
+        await toutVoir();
+        toast(id ? t('publication.meilleure-choisie') : t('publication.meilleure-retiree'));
+      } catch (erreur) {
+        toast(erreur.message, 'erreur');
+      }
+    }
 
     async function toutVoir() {
       if (toutCharge) return;
@@ -190,7 +220,7 @@
       }
     });
 
-    liste.append(...publication.derniersCommentaires.map(commentaire));
+    liste.append(...[publication.meilleureReponse, ...publication.derniersCommentaires].filter(Boolean).map(commentaire));
     return { zone, ecrire, toutVoir, compter };
   }
 
@@ -313,7 +343,9 @@
       preuve.hidden = !texte && !n;
       boutonJaime.setAttribute('aria-pressed', String(publication.jaimeParMoi));
     }
-    const commentaires = zoneCommentaires(publication, afficherPreuve, visiteur);
+    // Une question dont l'auteur a retenu une réponse porte le badge « Résolue ».
+    const badgeResolue = el('span', { classe: 'badge-type badge-resolue', hidden: !publication.resolue }, [icone('valide'), t('publication.resolue')]);
+    const commentaires = zoneCommentaires(publication, afficherPreuve, visiteur, () => { badgeResolue.hidden = !publication.resolue; });
     commentaires.compter();
 
     // Texte coupé après 5 lignes (CSS) ; « Voir plus » n'apparaît que si le texte dépasse vraiment.
@@ -363,6 +395,7 @@
           el('p', { classe: 'publication-meta' }, [
             quand,
             el('span', { classe: `badge-type badge-${publication.type}` }, [icone(type.icone), type.nom]),
+            badgeResolue,
           ]),
         ]),
         menu,
@@ -414,9 +447,10 @@
   // ---------- Un fil chargé 10 par 10, tout seul en défilant ----------
   // zone : où vont les publications ; etat : zone du message (fil vide, erreur) ;
   // boutonPlus : « Voir plus », gardé pour les rares navigateurs sans IntersectionObserver ;
-  // parametres() : les filtres de la requête (amis=1, auteur=…) ; vide() : ce qu'on montre quand il n'y a rien ;
-  // fin : la phrase affichée au bout du fil.
-  function filPublications({ zone, etat, boutonPlus = null, parametres, vide, fin = t('publication.tout-vu') }) {
+  // parametres() : les filtres de la requête (amis=1, auteur=…, type=…) ; vide() : ce qu'on montre quand il n'y a rien ;
+  // fin : la phrase affichée au bout du fil. chemin et cleSuite : la route interrogée et le nom de son paramètre de
+  // page suivante (le fil : « avant » ; la recherche /publications/recherche : « apres »).
+  function filPublications({ zone, etat, boutonPlus = null, parametres, vide, fin = t('publication.tout-vu'), chemin = '/publications', cleSuite = 'avant' }) {
     let suivant = null; // numéro à partir duquel charger la page suivante
     let numero = 0;     // si un filtre change pendant un chargement, l'ancienne réponse est ignorée
 
@@ -424,8 +458,8 @@
     async function page(avantAjout = () => {}) {
       const demande = numero;
       const requete = new URLSearchParams(parametres());
-      if (suivant) requete.set('avant', suivant);
-      const reponse = await api(`/publications?${requete}`);
+      if (suivant) requete.set(cleSuite, suivant);
+      const reponse = await api(`${chemin}?${requete}`);
       if (demande !== numero) return false;
       avantAjout();
       zone.append(...reponse.publications.map((p) => cartePublication(p)));

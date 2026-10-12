@@ -902,14 +902,51 @@
     dialogue.showModal();
   }
 
-  // ---------- Recherche de membres ----------
-  // On tape un nom, les résultats arrivent en direct. On attend 300 ms après la dernière frappe avant d'interroger
+  // ---------- Recherche de membres et de publications ----------
+  // On tape un nom ou un sujet, les résultats arrivent en direct, en deux parties : « Membres » et « Publications ». On attend 300 ms après la dernière frappe avant d'interroger
   // le serveur : une seule requête par mot, pas une par lettre. Sert au panneau plein écran du téléphone (loupe)
   // et à la barre de recherche de l'en-tête sur ordinateur.
   function brancherRecherche(champ, resultats) {
     const avancee = () => el('a', { classe: 'bouton bouton-contour', href: '/chercher' }, [icone('devs'), t('recherche.par-competence')]);
     const conseil = (texte) => resultats.replaceChildren(el('p', { classe: 'texte-discret recherche-conseil', texte }), avancee());
     conseil(t('recherche.deux-lettres'));
+    // Un membre connecté cherche aussi dans les publications (un visiteur : seulement les membres, comme avant).
+    let connecte = false;
+    utilisateurConnecte().then((moi) => {
+      connecte = Boolean(moi);
+      if (!connecte) return;
+      champ.placeholder = t('recherche.partout');
+      champ.setAttribute('aria-label', t('recherche.partout-aide'));
+    });
+    const versTout = (q) => `/recherche?q=${encodeURIComponent(q)}`;
+    // La touche Entrée ouvre la page de tous les résultats.
+    champ.addEventListener('keydown', (evenement) => {
+      const q = champ.value.trim();
+      if (evenement.key !== 'Enter' || !connecte || q.length < 2) return;
+      evenement.preventDefault();
+      window.location.href = versTout(q);
+    });
+    const ligneMembre = (membre) => el('li', {}, [
+      el('a', { classe: 'resultat-membre', href: `/${membre.identifiant}` }, [
+        avatar(membre, 'moyen'),
+        el('span', { classe: 'resultat-texte' }, [
+          nomMembre(membre, { lien: false }),
+          el('span', { classe: 'texte-discret', texte: [membre.type === 'client' ? t('commun.client') : null, lieuDe(membre)].filter(Boolean).join(', ') }),
+        ]),
+      ]),
+    ]);
+    // Une publication trouvée : son type, « Résolue » pour une question qui a sa meilleure réponse, le début du texte.
+    const TYPES_PUBLICATION = { idee: 'idee', question: 'question', projet: 'projet' };
+    const lignePublication = (publication) => el('li', {}, [
+      el('a', { classe: 'resultat-publication', href: `/publication/${publication.id}` }, [
+        el('span', { classe: 'resultat-publication-meta' }, [
+          el('span', { classe: `badge-type badge-${TYPES_PUBLICATION[publication.type] || 'idee'}` }, [icone(TYPES_PUBLICATION[publication.type] || 'idee'), t(`publication.${TYPES_PUBLICATION[publication.type] || 'idee'}`)]),
+          publication.resolue ? el('span', { classe: 'badge-type badge-resolue' }, [icone('valide'), t('publication.resolue')]) : null,
+          el('span', { classe: 'texte-discret', texte: publication.auteur.nom }),
+        ].filter(Boolean)),
+        el('span', { classe: 'resultat-publication-texte', texte: publication.texte }),
+      ]),
+    ]);
 
     let minuterie = null;
     let numero = 0; // numéro de la dernière recherche : la réponse d'une ancienne frappe est ignorée
@@ -924,21 +961,31 @@
       }
       minuterie = setTimeout(async () => {
         try {
-          const { devs } = await api(`/devs?q=${encodeURIComponent(q)}`);
+          // Les deux recherches partent ensemble. Celle des publications est un plus : si elle échoue, les membres restent.
+          const [{ devs }, trouvees] = await Promise.all([
+            api(`/devs?q=${encodeURIComponent(q)}`),
+            connecte ? api(`/publications/recherche?court=1&q=${encodeURIComponent(q)}`).catch(() => ({ publications: [], encore: false })) : { publications: [], encore: false },
+          ]);
           if (demande !== numero) return;
-          if (devs.length === 0) {
-            resultats.replaceChildren(etatVide('recherche', t('recherche.personne'), t('recherche.personne-aide'), avancee()));
+          const { publications } = trouvees;
+          if (devs.length === 0 && publications.length === 0) {
+            resultats.replaceChildren(connecte
+              ? etatVide('recherche', t('recherche.rien'), t('recherche.rien-aide'), avancee())
+              : etatVide('recherche', t('recherche.personne'), t('recherche.personne-aide'), avancee()));
             return;
           }
-          resultats.replaceChildren(el('ul', { classe: 'liste-recherche' }, devs.map((membre) => el('li', {}, [
-            el('a', { classe: 'resultat-membre', href: `/${membre.identifiant}` }, [
-              avatar(membre, 'moyen'),
-              el('span', { classe: 'resultat-texte' }, [
-                nomMembre(membre, { lien: false }),
-                el('span', { classe: 'texte-discret', texte: [membre.type === 'client' ? t('commun.client') : null, lieuDe(membre)].filter(Boolean).join(', ') }),
-              ]),
-            ]),
-          ]))));
+          // Deux parties : « Membres », puis « Publications ». Avec des publications, cinq membres suffisent.
+          const parties = [];
+          if (devs.length) {
+            if (connecte) parties.push(el('h3', { classe: 'recherche-partie', texte: t('recherche.membres') }));
+            parties.push(el('ul', { classe: 'liste-recherche' }, devs.slice(0, publications.length ? 5 : devs.length).map(ligneMembre)));
+          }
+          if (publications.length) {
+            parties.push(el('h3', { classe: 'recherche-partie', texte: t('recherche.publications') }));
+            parties.push(el('ul', { classe: 'liste-recherche' }, publications.map(lignePublication)));
+            parties.push(el('a', { classe: 'bouton bouton-contour recherche-tout', href: versTout(q) }, [icone('recherche'), t('recherche.voir-tout')]));
+          }
+          resultats.replaceChildren(...parties);
         } catch (erreur) {
           if (demande === numero) conseil(erreur.message);
         }

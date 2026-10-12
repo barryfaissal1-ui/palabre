@@ -785,3 +785,11 @@ CREATE TABLE IF NOT EXISTS journal_moderation (
   cree_le    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_journal_moderation_date ON journal_moderation (cree_le);
+
+-- ---------- Base de savoir : la meilleure réponse d'une question ----------
+-- L'auteur d'une publication de type « question » retient UN commentaire. Si ce commentaire est supprimé, la colonne
+-- se vide toute seule (ON DELETE SET NULL) : la question redevient « sans réponse ». Un commentaire masqué ou dont
+-- l'auteur est bloqué ou désactivé ne compte pas non plus : c'est vérifié à chaque lecture (src/routes/publications.js).
+ALTER TABLE publications ADD COLUMN IF NOT EXISTS meilleure_reponse_id INTEGER REFERENCES commentaires(id) ON DELETE SET NULL;
+-- Pour compter les « réponses retenues » d'un membre sur son profil.
+CREATE INDEX IF NOT EXISTS idx_publications_meilleure_reponse ON publications (meilleure_reponse_id) WHERE meilleure_reponse_id IS NOT NULL;

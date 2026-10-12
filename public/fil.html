@@ -97,9 +97,19 @@
       <ul class="rangee-disponibles" data-rangee></ul>
     </section>
 
-    <div class="bloc-fil filtres-fil" role="group" aria-label="Filtrer le fil" data-t-aria-label="fil.filtrer">
-      <button data-t="fil.tout-le-monde" class="filtre-fil" type="button" data-filtre="tout" aria-pressed="true">Tout le monde</button>
-      <button data-t="fil.mes-amis" class="filtre-fil" type="button" data-filtre="amis" aria-pressed="false">Mes amis</button>
+    <!-- Les filtres : de qui (tout le monde, mes amis), puis quoi (le type). Le tri est fait par le serveur. -->
+    <div class="bloc-fil filtres-fil">
+      <div class="filtres-qui" role="group" aria-label="Filtrer le fil" data-t-aria-label="fil.filtrer">
+        <button data-t="fil.tout-le-monde" class="filtre-fil" type="button" data-filtre="tout" aria-pressed="true">Tout le monde</button>
+        <button data-t="fil.mes-amis" class="filtre-fil" type="button" data-filtre="amis" aria-pressed="false">Mes amis</button>
+      </div>
+      <div class="puces-type" role="group" aria-label="Filtrer par type" data-t-aria-label="fil.filtrer-type">
+        <button data-t="fil.type.tout" class="puce-type" type="button" data-type="" aria-pressed="true">Tout</button>
+        <button data-t="fil.type.questions" class="puce-type" type="button" data-type="question" aria-pressed="false">Questions</button>
+        <button data-t="fil.type.sans-reponse" class="puce-type" type="button" data-type="sans-reponse" aria-pressed="false">Sans réponse</button>
+        <button data-t="fil.type.idees" class="puce-type" type="button" data-type="idee" aria-pressed="false">Idées</button>
+        <button data-t="fil.type.projets" class="puce-type" type="button" data-type="projet" aria-pressed="false">Projets</button>
+      </div>
     </div>
 
     <div class="fil-social" data-fil></div>

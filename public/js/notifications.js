@@ -15,6 +15,7 @@
     invitation_equipe: ['amis', 'prune'],
     equipe_reponses: ['amis', 'prune'],
     defi_gagne: ['trophee', 'ocre'],
+    meilleure_reponse: ['valide', 'vert'],
     demande_ami: ['ami-ajouter', 'vert'],
     ami_accepte: ['ami-ajouter', 'vert'],
     avis_recu: ['etoile', 'ocre'],

@@ -66,10 +66,10 @@ const AMITIES = [
 // Publications, de la plus ancienne à la plus récente : auteur, type, texte, photo (numéro de public/img/fond), qui aime, commentaires.
 const PUBLICATIONS = [
   ['kofi', 'projet', 'Le logiciel de gestion du collège Sainte-Thérèse est en service : notes, bulletins et paiements des frais de scolarité. Trois mois de travail, zéro papier perdu depuis.', 4, ['awa', 'fatou', 'nadege', 'pascal', 'oumar', 'bintou'], [['pascal', 'Les parents reçoivent enfin les bulletins à temps. Merci Kofi.'], ['nadege', 'Tu génères les bulletins en PDF côté serveur ?'], ['kofi', 'Oui, avec un modèle par classe. Je peux te montrer.']]],
-  ['idrissa', 'question', 'Je débute et je dois choisir : apprendre React ou rester sur du JavaScript simple pour mes premiers sites ? Vos avis m\'intéressent.', null, ['ibrahim', 'awa'], [['awa', 'Reste simple tant que tu n\'es pas à l\'aise avec le DOM. React viendra tout seul après.'], ['mariam', 'D\'accord avec Awa. Les clients veulent un site qui marche, pas un framework.']]],
+  ['idrissa', 'question', 'Je débute et je dois choisir : apprendre React ou rester sur du JavaScript simple pour mes premiers sites ? Vos avis m\'intéressent.', null, ['ibrahim', 'awa'], [['awa', 'Reste simple tant que tu n\'es pas à l\'aise avec le DOM. React viendra tout seul après.'], ['mariam', 'D\'accord avec Awa. Les clients veulent un site qui marche, pas un framework.']], 0],
   ['fatou', 'idee', 'Petit rappel du vendredi : compressez vos images. Sur un forfait de 500 Mo, une page de 4 Mo, c\'est un client qui ne revient pas.', null, ['bintou', 'yao', 'kofi', 'mariam', 'cheick', 'aminata', 'awa'], [['yao', 'Et testez en 3G bridée dans le navigateur. Ça calme.']]],
   ['mariam', 'projet', 'Refonte du site de la coopérative de karité de Thiès. Avant : un PDF. Maintenant : un catalogue, les prix, et un bouton WhatsApp.', 3, ['aminata', 'awa', 'fatou', 'bintou'], [['aminata', 'Très propre. La galerie se charge vite, bravo.']]],
-  ['cheick', 'question', 'Quelqu\'un a déjà intégré Orange Money dans une appli Flutter ? Je cherche un retour d\'expérience sur les délais de validation du compte marchand.\n\nJ\'ai lu la documentation trois fois et il me reste des doutes sur le mode bac à sable.\n\nPremier point : les notifications de paiement arrivent-elles toujours ?\n\nDeuxième point : comment tester un remboursement ?\n\nMerci d\'avance à ceux qui prendront le temps de répondre.', null, ['awa', 'bintou', 'yao'], [['bintou', 'Oui, sur deux projets. Compte une bonne semaine pour la validation.'], ['yao', 'Les notifications arrivent, mais prévois une vérification toutes les minutes en secours.'], ['cheick', 'Merci à vous deux, c\'est exactement ce qu\'il me fallait.']]],
+  ['cheick', 'question', 'Quelqu\'un a déjà intégré Orange Money dans une appli Flutter ? Je cherche un retour d\'expérience sur les délais de validation du compte marchand.\n\nJ\'ai lu la documentation trois fois et il me reste des doutes sur le mode bac à sable.\n\nPremier point : les notifications de paiement arrivent-elles toujours ?\n\nDeuxième point : comment tester un remboursement ?\n\nMerci d\'avance à ceux qui prendront le temps de répondre.', null, ['awa', 'bintou', 'yao'], [['bintou', 'Oui, sur deux projets. Compte une bonne semaine pour la validation.'], ['yao', 'Les notifications arrivent, mais prévois une vérification toutes les minutes en secours.'], ['cheick', 'Merci à vous deux, c\'est exactement ce qu\'il me fallait.']], 0],
   ['aminata', 'idee', 'On devrait avoir une liste commune des hébergeurs qui acceptent le paiement Mobile Money. Qui commence ?', null, ['mariam', 'ibrahim', 'kofi'], []],
   ['yao', 'projet', 'Appli de prise de commande pour les maquis, qui marche sans réseau : les commandes partent dès que la connexion revient.', 1, ['fatou', 'cheick', 'esther', 'awa', 'bintou', 'kofi', 'mariam', 'aminata'], [['esther', 'Je l\'utilise dans mes deux maquis. Les serveurs ont compris en dix minutes.'], ['fatou', 'Le mode hors-ligne, c\'est ce qui manque à presque toutes les applis d\'ici.'], ['cheick', 'Tu stockes en local avec quoi ?'], ['yao', 'SQLite, puis une file d\'attente d\'envoi.']]],
   ['nadege', 'question', 'Vous hébergez vos bases PostgreSQL où, pour des clients au Cameroun ? Je cherche quelque chose de stable et pas trop loin.', null, ['kofi'], [['kofi', 'J\'ai de bons résultats avec un hébergeur à Abidjan. Je t\'envoie le nom.']]],
@@ -79,7 +79,7 @@ const PUBLICATIONS = [
   ['oumar', 'question', 'Docker sur un petit serveur de 1 Go de mémoire : bonne ou mauvaise idée ?', null, ['kofi', 'nadege'], [['kofi', 'Pour une seule appli, ça passe. Pour trois, non.']]],
   ['fatou', 'projet', 'Nouvelle version de l\'appli de livraison pour les maquis d\'Abidjan : suivi du livreur en direct et paiement Wave.', 2, ['bintou', 'kofi', 'yao', 'esther', 'mariam', 'awa', 'cheick'], [['esther', 'On peut l\'avoir à Cotonou ?'], ['fatou', 'On en parle ! Publie une demande, je te réponds avec Yao.']]],
   ['mariam', 'idee', 'Avant de coder, dessinez l\'écran sur une feuille et montrez-la au client. Dix minutes de crayon évitent trois jours de modifications.', null, ['awa', 'aminata', 'idrissa', 'bintou'], []],
-  ['kofi', 'question', 'Comment vous fixez vos prix pour un logiciel de gestion ? Au forfait, ou à la journée ?', null, ['fatou', 'nadege', 'awa'], [['fatou', 'Au forfait, avec un acompte de 40 %. Jamais sans acompte.'], ['awa', 'Le calculateur de Palabre donne une bonne base pour démarrer la discussion.']]],
+  ['kofi', 'question', 'Comment vous fixez vos prix pour un logiciel de gestion ? Au forfait, ou à la journée ?', null, ['fatou', 'nadege', 'awa'], [['fatou', 'Au forfait, avec un acompte de 40 %. Jamais sans acompte.'], ['awa', 'Le calculateur de Palabre donne une bonne base pour démarrer la discussion.']], 0],
   ['bintou', 'idee', 'Le badge « Lien vérifié » m\'a déjà valu deux contacts cette semaine. Mettez vos projets en ligne, même les petits.', null, ['awa', 'cheick', 'aminata', 'yao', 'kofi'], [['aminata', 'Pareil ici. Les clients regardent d\'abord les projets.']]],
 ];
 
@@ -295,12 +295,15 @@ async function creer() {
 
     // 4. Les publications, leurs j'aime et leurs commentaires
     const publications = [];
-    for (const [auteur, type, texte, numeroPhoto, aime, commentaires] of PUBLICATIONS) {
+    for (const [auteur, type, texte, numeroPhoto, aime, commentaires, meilleure] of PUBLICATIONS) {
       const { corps } = await poster('/publications', auteur, { type, texte, image: numeroPhoto ? dataUrl(numeroPhoto + publications.length) : undefined });
       const { id } = corps.publication;
       publications.push(id);
       for (const qui of aime) await poster(`/publications/${id}/jaime`, qui);
-      for (const [qui, commentaire] of commentaires) await poster(`/publications/${id}/commentaires`, qui, { texte: commentaire });
+      const reponses = [];
+      for (const [qui, commentaire] of commentaires) reponses.push((await poster(`/publications/${id}/commentaires`, qui, { texte: commentaire })).corps.commentaire.id);
+      // Base de savoir : l'auteur de la question retient une réponse. Les autres questions restent « sans réponse ».
+      if (meilleure !== undefined) await appel(`/publications/${id}/meilleure-reponse`, { methode: 'PUT', qui: auteur, donnees: { commentaireId: reponses[meilleure] } });
     }
     // Les dates sont étalées sur une semaine (la plus ancienne en premier), sinon tout serait daté « à l'instant ».
     for (const [i, id] of publications.entries()) {
@@ -648,6 +651,18 @@ async function creerComptesComplets(avecAdmin) {
       ['yao', 'kofi'], [['kofi', 'Forfait par mois, sinon on t\'appelle le dimanche pour rien.'], ['oumar', 'Passez par moi, je fais le même travail deux fois moins cher. Écrivez-moi en privé.']]);
     await pool.query('UPDATE publications SET cree_le = now() - interval \'26 hours\' WHERE id = $1', [premiere.id]);
     await pool.query('UPDATE publications SET cree_le = now() - interval \'3 hours\' WHERE id = $1', [seconde.id]);
+
+    // Base de savoir. La question ci-dessus reste « sans réponse » : Moussa peut retenir le commentaire de Kofi.
+    // Une question plus ancienne de Moussa est déjà résolue ; et Awa a retenu une réponse de Moussa (une notification
+    // l'attend, et son profil compte « 1 réponse retenue »).
+    const resolue = await publier('question', 'Pour envoyer des SMS de rappel aux clients d\'une boutique, vous passez par quel service ? Je cherche quelque chose qui marche au Burkina et au Mali.',
+      ['awa', 'fatou'], [['fatou', 'Par l\'offre SMS de l\'opérateur, avec un compte professionnel : plus fiable que les passerelles étrangères.'], ['yao', 'Même avis. Prévois quand même un second envoi si le premier échoue.']]);
+    await appel(`/publications/${resolue.id}/meilleure-reponse`, { methode: 'PUT', qui: 'dev', donnees: { commentaireId: resolue.commentaires[0] } });
+    await pool.query('UPDATE publications SET cree_le = now() - interval \'50 hours\' WHERE id = $1', [resolue.id]);
+    const { publication: deAwa } = await poster('/publications', 'awa', { type: 'question', texte: 'Sur un téléphone d\'entrée de gamme, ma liste de 500 produits rame. Vous affichez tout d\'un coup, ou par petits morceaux ?' });
+    const { commentaire: conseil } = await poster(`/publications/${deAwa.id}/commentaires`, 'dev', { texte: 'Par morceaux de 20, chargés en défilant. Et des images réduites avant l\'envoi : c\'est ce qui pèse le plus.' });
+    await appel(`/publications/${deAwa.id}/meilleure-reponse`, { methode: 'PUT', qui: 'awa', donnees: { commentaireId: conseil.id } });
+    await pool.query('UPDATE publications SET cree_le = now() - interval \'7 hours\' WHERE id = $1', [deAwa.id]);
 
     // 5. Signalements à traiter dans /admin : un commentaire publicitaire signalé deux fois, une publication une fois.
     for (const qui of ['awa', 'bintou']) await poster('/signalements', qui, { cibleType: 'commentaire', cible: seconde.commentaires[1], motif: 'Publicité dans les commentaires, il démarche les clients des autres.' });

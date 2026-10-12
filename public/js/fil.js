@@ -4,6 +4,7 @@
   const { t, deNom, etatDefi, api, el, avatar, prenom, utilisateurConnecte, reduireImage, icone, etatVide, toast, filPublications, cartePublication, videoPublication } = window.Palabre;
 
   let filtre = 'tout';     // 'tout' ou 'amis'
+  let type = '';           // '' (tout), 'question', 'sans-reponse', 'idee' ou 'projet'
   let imageChoisie = null; // image réduite, prête à être envoyée (data URL)
   let fil = null;
 
@@ -228,6 +229,17 @@
         fil.charger();
       });
     });
+    // Les puces par type. Les deux filtres se combinent : « Mes amis » + « Sans réponse » = les questions de mes
+    // amis qui attendent encore leur réponse.
+    const puces = document.querySelectorAll('.filtres-fil [data-type]');
+    puces.forEach((puce) => {
+      puce.addEventListener('click', () => {
+        if (type === puce.dataset.type) return;
+        type = puce.dataset.type;
+        puces.forEach((p) => p.setAttribute('aria-pressed', String(p === puce)));
+        fil.charger();
+      });
+    });
   }
 
   document.addEventListener('DOMContentLoaded', async () => {
@@ -240,11 +252,13 @@
       zone: document.querySelector('[data-fil]'),
       etat: document.querySelector('[data-etat-fil]'),
       boutonPlus: document.querySelector('[data-charger-plus]'),
-      parametres: () => (filtre === 'amis' ? { amis: '1' } : {}),
-      vide: () => (filtre === 'amis'
+      parametres: () => ({ ...(filtre === 'amis' ? { amis: '1' } : {}), ...(type ? { type } : {}) }),
+      vide: () => (type === 'sans-reponse' ? etatVide('calme', t('fil.sans-reponse-rien'), t('fil.sans-reponse-rien-aide'))
+        : type ? etatVide('calme', t('fil.type-rien'), t('fil.type-rien-aide'))
+        : filtre === 'amis'
         ? etatVide('amis', t('fil.amis-rien'), t('fil.amis-rien-aide'),
-          el('a', { classe: 'bouton bouton-principal', href: '/chercher' }, [icone('recherche'), t('fil.trouver-devs')]))
-        : etatVide('palabre', t('fil.lance'), t('fil.lance-aide'))),
+            el('a', { classe: 'bouton bouton-principal', href: '/chercher' }, [icone('recherche'), t('fil.trouver-devs')]))
+          : etatVide('palabre', t('fil.lance'), t('fil.lance-aide'))),
     });
     brancherPublier(moi);
     brancherFiltres();

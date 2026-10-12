@@ -110,6 +110,14 @@ test('questions réalistes : le bon sujet, jamais un sujet voisin', () => {
     'c\'est pour quel pays': 'pays',
     'ajouter un projet a mon profil': 'projet-profil',
     'ca marche en 3g ?': 'connexion-lente',
+    // La base de savoir et les publications en attente.
+    'comment poser une question': 'poser-question',
+    'comment marquer la meilleure reponse': 'poser-question',
+    'ma publication n\'est pas visible': 'publication-invisible',
+    'pourquoi ma publication est cachee': 'publication-invisible',
+    'mon commentaire est en attente': 'publication-invisible',
+    'how do i ask a question': 'poser-question',
+    'my post is not visible': 'publication-invisible',
     // Un bonjour devant une vraie question ne change pas la réponse.
     'bonjour, c\'est gratuit ?': 'gratuit',
     'slt cmt creer un compte svp': 'inscription',

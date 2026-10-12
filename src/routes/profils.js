@@ -138,7 +138,13 @@ router.get('/:identifiant', limiteLectureProfils, async (req, res) => {
   const identifiant = String(req.params.identifiant || '').toLowerCase();
   const { rows } = await db.query(
     `SELECT u.*, ${NB_PROJETS_VERIFIES} AS nb_projets_verifies,
-            (SELECT count(*)::int FROM defis df WHERE df.gagnant_id = u.id AND df.statut = 'termine') AS nb_defis_gagnes
+            (SELECT count(*)::int FROM defis df WHERE df.gagnant_id = u.id AND df.statut = 'termine') AS nb_defis_gagnes,
+            -- Réponses retenues : ses commentaires choisis comme « meilleure réponse » par l'auteur d'une question visible.
+            (SELECT count(*)::int FROM publications q
+               JOIN commentaires qc ON qc.id = q.meilleure_reponse_id
+               JOIN utilisateurs qa ON qa.id = q.auteur_id
+              WHERE qc.auteur_id = u.id AND qc.masque = FALSE AND q.type = 'question' AND q.masque = FALSE AND q.supprimee_le IS NULL
+                AND qa.bloque = FALSE AND qa.desactive_le IS NULL) AS nb_reponses_retenues
        FROM utilisateurs u WHERE u.identifiant = $1 AND u.bloque = FALSE AND u.desactive_le IS NULL AND u.supprime_le IS NULL`,
     [identifiant],
   );
@@ -158,6 +164,7 @@ router.get('/:identifiant', limiteLectureProfils, async (req, res) => {
   profil.nbAmis = amis.nb;
   profil.nbProjetsVerifies = rows[0].nb_projets_verifies;
   profil.nbDefisGagnes = rows[0].nb_defis_gagnes; // badge « Gagnant du défi »
+  profil.nbReponsesRetenues = rows[0].nb_reponses_retenues; // une preuve de plus : des réponses jugées utiles par ceux qui ont posé la question
   // « N amis en commun » : les membres qui sont à la fois mes amis et les siens.
   if (amitie) {
     const { rows: [commun] } = await db.query(

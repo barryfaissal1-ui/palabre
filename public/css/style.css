@@ -1039,8 +1039,27 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
 }
 .dev-prenom { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Filtre du fil : Tout le monde / Mes amis */
-.filtres-fil { display: flex; gap: 4px; padding-block: 0; }
+/* Filtres du fil : « Tout le monde / Mes amis », puis une rangée de puces par type (Tout, Questions, Sans réponse,
+   Idées, Projets). Sur téléphone, la rangée défile sur le côté ; sur ordinateur, tout tient sur une ligne. */
+.filtres-fil { display: grid; gap: 0; padding-block: 0; }
+.filtres-qui { display: flex; gap: 4px; }
+.puces-type { display: flex; gap: 8px; padding: 10px 0; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+.puces-type::-webkit-scrollbar { display: none; }
+.filtres-fil .puces-type { margin-inline: calc(-1 * var(--gouttiere)); padding-inline: var(--gouttiere); border-top: 1px solid var(--ligne); }
+.puce-type {
+  flex: none;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--ligne);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--encre);
+  font: 600 var(--t-15)/1 var(--texte);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.puce-type:hover { border-color: color-mix(in srgb, var(--action) 50%, var(--ligne)); }
+.puce-type[aria-pressed="true"] { border-color: var(--action); background: var(--action); color: var(--sur-action); }
 .filtre-fil {
   min-height: 44px;
   padding: 0 12px;
@@ -1217,6 +1236,27 @@ a.nom-auteur:hover { text-decoration: underline; }
 .commentaire-bulle { display: inline-grid; gap: 2px; max-width: 100%; padding: 8px 12px; border-radius: 4px 16px 16px 16px; background: var(--surface-2); }
 .commentaire-texte { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
 .commentaire-pied { display: flex; align-items: center; gap: 4px; padding-left: 12px; font-size: var(--t-13); }
+/* Base de savoir : la question « Résolue » et sa meilleure réponse, montrée en premier. */
+.badge-resolue { --type: var(--action); }
+.marque-meilleure { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 4px 12px; color: var(--action); font: 700 var(--t-13)/1.4 var(--texte); }
+.marque-meilleure .icone { width: 14px; height: 14px; }
+.meilleure-reponse .commentaire-bulle { background: color-mix(in srgb, var(--action) 10%, var(--surface)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--action) 45%, transparent); }
+/* Recherche : les deux parties (« Membres », « Publications ») et une ligne de publication. */
+.recherche-partie { width: 100%; margin: 8px 0 0; padding: 0 8px; color: var(--gris); font: 700 var(--t-13)/1.4 var(--texte); }
+.resultat-publication { display: grid; gap: 4px; min-height: 60px; padding: 8px; border-radius: var(--rayon-petit); color: var(--encre); text-decoration: none; }
+.resultat-publication:hover { background: color-mix(in srgb, var(--encre) 6%, transparent); }
+.resultat-publication-texte { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; font-size: var(--t-15); line-height: 1.4; }
+.resultat-publication-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: var(--t-13); }
+.recherche-tout { justify-self: stretch; width: 100%; }
+/* La page /recherche */
+.recherche-page { display: grid; gap: 0; padding-bottom: 0; }
+.ligne-recherche { display: flex; gap: 8px; padding-top: 12px; }
+.ligne-recherche input { flex: 1; min-width: 0; min-height: 44px; font-size: 16px; }
+.ligne-recherche .bouton { flex: none; min-width: 44px; padding-inline: 12px; }
+.recherche-page .puces-type { margin-inline: calc(-1 * var(--gouttiere)); padding-inline: var(--gouttiere); }
+.recherche-membres { padding-block: 8px; }
+.recherche-membres h2, .titre-partie { margin: 0; padding: 4px 0; font: 800 var(--t-17)/1.3 var(--titre); }
+.titre-partie { padding: 16px var(--gouttiere) 8px; }
 /* Modifier sa publication ou son commentaire : le texte devient un champ, à sa place. */
 .formulaire-modification { display: grid; gap: 8px; width: 100%; }
 .champ-modification { width: 100%; min-height: 88px; padding: 10px 12px; border: 1px solid var(--ligne); border-radius: var(--rayon-petit); background: var(--surface); color: var(--encre); font: inherit; font-size: 16px; resize: vertical; }
@@ -1791,6 +1831,11 @@ body.conversation-ouverte .messages-conversation {
   .recherche-entete:focus-within { box-shadow: 0 0 0 2px var(--focus); }
   .recherche-entete input { flex: 1; min-width: 0; min-height: 40px; padding: 0; border: 0; background: transparent; }
   .recherche-entete input:focus { box-shadow: none; }
+  /* Filtres du fil : sur ordinateur, les cinq puces tiennent sur leur ligne, sans défiler, et sont plus petites. */
+  .filtres-fil .puces-type { margin-inline: 0; padding-inline: 0; }
+  .puce-type { min-height: 36px; padding: 0 14px; font-size: var(--t-13); }
+  .recherche-page .puces-type { margin-inline: 0; padding-inline: 0; }
+  .titre-partie { padding-inline: 0; }
   /* Les résultats, en liste sous la barre */
   .recherche-deroulant {
     position: absolute;

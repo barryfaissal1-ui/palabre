@@ -157,7 +157,11 @@
     const chiffre = (nombre, nom) => el('div', {}, [el('dt', { texte: nom }), el('dd', { texte: String(nombre) })]);
     const chiffres = [chiffre(profil.nbAmis, t('profil.chiffre.amis', { n: profil.nbAmis }))];
     if (estDev) {
-      chiffres.unshift(chiffre(profil.nbProjetsVerifies, t('profil.chiffre.projets-verifies', { n: profil.nbProjetsVerifies })));
+      chiffres.unshift(
+        chiffre(profil.nbProjetsVerifies, t('profil.chiffre.projets-verifies', { n: profil.nbProjetsVerifies })),
+        // Une preuve de plus : ses réponses choisies comme « meilleure réponse » par ceux qui ont posé la question.
+        chiffre(profil.nbReponsesRetenues, t('profil.chiffre.reponses-retenues', { n: profil.nbReponsesRetenues })),
+      );
       chiffres.push(chiffre(profil.nbAvis, profil.nbAvis ? t('profil.chiffre.avis-note', { note: virgule(profil.noteMoyenne) }) : t('profil.chiffre.avis')));
     }
     const commun = profil.amisEnCommun;

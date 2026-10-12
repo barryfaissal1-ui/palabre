@@ -19,6 +19,12 @@ const { publicationsVisibles } = require('../utils/confidentialite');
 const router = express.Router();
 const PAR_PAGE = 10;
 const TYPES = ['idee', 'question', 'projet'];
+// Les filtres du fil et de la recherche : un type, ou « sans-reponse » (les questions sans meilleure réponse).
+const FILTRES_TYPE = [...TYPES, 'sans-reponse'];
+function lireFiltreType(valeur) {
+  if (!FILTRES_TYPE.includes(valeur)) return { type: null, sansReponse: false };
+  return valeur === 'sans-reponse' ? { type: 'question', sansReponse: true } : { type: valeur, sansReponse: false };
+}
 const MAX_COMMENTAIRES_AFFICHES = 200;
 const COMMENTAIRES_APERCU = 2; // derniers commentaires montrés directement sous chaque publication
 const COMMENTAIRES_PAGE = 3;   // sur la page publique d'une publication
@@ -29,6 +35,9 @@ const limiteCommentaires = limiteParMembre(60, 15, 'Tu commentes très vite. Ré
 const DUREE_MODIFICATION_H = 48;
 const encoreModifiable = (creeLe) => Date.now() - new Date(creeLe).getTime() < DUREE_MODIFICATION_H * 3600 * 1000;
 const limiteJaime = limiteParMembre(300, 15, 'Doucement sur les j\'aime. Réessaie dans quelques minutes.');
+const limiteMeilleure = limiteParMembre(60, 15, 'Doucement. Réessaie dans quelques minutes.');
+// La recherche part à chaque pause de frappe : 120 par 5 minutes laissent chercher à l'aise, pas aspirer le fil.
+const limiteRecherche = limiteParMembre(120, 5, 'Tu cherches très vite. Réessaie dans quelques minutes.');
 
 // Une publication avec son auteur et ses compteurs. $1 est toujours le membre connecté.
 // Les publications masquées par un administrateur, celles des comptes bloqués et celles qui sont dans la corbeille
@@ -37,10 +46,14 @@ const limiteJaime = limiteParMembre(300, 15, 'Doucement sur les j\'aime. Réessa
 // est dans cette requête commune : le fil, le profil, la page publique et la lecture d'une publication la suivent tous.
 // Tout ce qu'il faut pour afficher le fil arrive en UNE requête (sous-requêtes et LATERAL), jamais une par publication :
 //  - « aime » : une personne qui a aimé, autre que moi, un de mes amis en priorité (« Aimé par Awa et 12 autres ») ;
-//  - « apercu » : les 2 derniers commentaires, avec leur auteur.
+//  - « apercu » : les 2 derniers commentaires, avec leur auteur ;
+//  - « mr » : la meilleure réponse d'une question, si elle est toujours visible (commentaire non masqué, auteur ni
+//    bloqué ni désactivé). Une question est « résolue » quand mr.commentaire existe : voir RESOLUE.
+const RESOLUE = '(CASE WHEN p.type = \'question\' AND mr.commentaire IS NOT NULL THEN 1 ELSE 0 END)';
+const estResolue = (ligne) => ligne.type === 'question' && Boolean(ligne.meilleure_reponse);
 const selection = (nbCommentaires = COMMENTAIRES_APERCU) => `
   SELECT p.id, p.type, p.texte, p.image, p.image_largeur, p.image_hauteur, p.video_plateforme, p.video_id, p.cree_le, p.modifiee_le, p.auteur_id, ${COLONNES_MEMBRE},
-         aime.nom AS aime_nom, aime.prenom AS aime_prenom, aime.identifiant AS aime_identifiant, apercu.liste AS apercu_commentaires,
+         aime.nom AS aime_nom, aime.prenom AS aime_prenom, aime.identifiant AS aime_identifiant, apercu.liste AS apercu_commentaires, mr.commentaire AS meilleure_reponse,
          (SELECT count(*)::int FROM jaime j WHERE j.publication_id = p.id) AS nb_jaime,
          (SELECT count(*)::int FROM commentaires c
             JOIN utilisateurs cu ON cu.id = c.auteur_id
@@ -66,9 +79,17 @@ const selection = (nbCommentaires = COMMENTAIRES_APERCU) => `
                 FROM commentaires c
                 JOIN utilisateurs u ON u.id = c.auteur_id -- ici « u » est l'auteur du commentaire
                WHERE c.publication_id = p.id AND c.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL
+                 AND c.id IS DISTINCT FROM p.meilleure_reponse_id -- la meilleure réponse est déjà montrée, en premier
                ORDER BY c.id DESC
                LIMIT ${nbCommentaires}) d
     ) apercu ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT to_jsonb(d) AS commentaire
+        FROM (SELECT c.id, c.texte, c.cree_le, c.modifie_le, c.auteur_id, ${COLONNES_MEMBRE}
+                FROM commentaires c
+                JOIN utilisateurs u ON u.id = c.auteur_id
+               WHERE c.id = p.meilleure_reponse_id AND c.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL) d
+    ) mr ON TRUE
    WHERE p.masque = FALSE AND p.supprimee_le IS NULL AND u.bloque = FALSE AND u.desactive_le IS NULL AND ${publicationsVisibles('$1')}`;
 const SELECTION = selection();
 
@@ -90,6 +111,9 @@ function versPublication(ligne, moi) {
     nbJaime: ligne.nb_jaime,
     aimePar: ligne.aime_nom ? { nom: ligne.aime_nom, prenom: ligne.aime_prenom || ligne.aime_nom.split(' ')[0], identifiant: ligne.aime_identifiant } : null,
     derniersCommentaires: (ligne.apercu_commentaires || []).map((c) => versCommentaire(c, moi)),
+    // Base de savoir : une question est « résolue » quand son auteur a retenu une réponse, toujours visible.
+    resolue: estResolue(ligne),
+    meilleureReponse: estResolue(ligne) ? versCommentaire(ligne.meilleure_reponse, moi, true) : null,
     nbCommentaires: ligne.nb_commentaires,
     jaimeParMoi: ligne.jaime_par_moi,
     estMoi: ligne.auteur_id === moi.id,
@@ -98,8 +122,9 @@ function versPublication(ligne, moi) {
   };
 }
 
-function versCommentaire(ligne, moi) {
+function versCommentaire(ligne, moi, meilleure = false) {
   return {
+    meilleure, // la réponse retenue par l'auteur de la question
     id: ligne.id,
     texte: ligne.texte,
     creeLe: ligne.cree_le,
@@ -117,7 +142,7 @@ async function publicationDeLaRoute(req, res) {
     const { rows } = await db.query(
       // Une publication que je n'ai pas le droit de voir n'existe pas pour moi : ni j'aime, ni commentaire possibles.
       // (Un administrateur doit pouvoir la supprimer après un signalement.)
-      `SELECT p.id, p.auteur_id, p.image FROM publications p
+      `SELECT p.id, p.auteur_id, p.image, p.type, p.meilleure_reponse_id FROM publications p
          JOIN utilisateurs u ON u.id = p.auteur_id
         WHERE p.id = $1 AND p.masque = FALSE AND p.supprimee_le IS NULL AND u.bloque = FALSE AND u.desactive_le IS NULL AND ($3::boolean OR ${publicationsVisibles('$2')})`,
       [id, req.utilisateur.id, Boolean(req.utilisateur.est_admin)],
@@ -163,7 +188,9 @@ router.get('/:id', (req, res, next) => (/^\d+$/.test(req.params.id) ? next() : n
 // Tout le reste demande un compte.
 router.use(exigerConnexion);
 
-// Le fil : GET /api/publications?avant=<id>&amis=1&auteur=<identifiant>
+// Le fil : GET /api/publications?avant=<id>&amis=1&auteur=<identifiant>&type=<idee|question|projet|sans-reponse>
+// « type » ne garde qu'une sorte de publication ; « sans-reponse » : les questions sans meilleure réponse.
+// Le filtre est fait ICI, dans la requête : la page suivante (« avant ») reste juste, quel que soit le filtre.
 // « auteur » ne garde que les publications d'un membre (onglet « Publications » de son profil).
 // Les publications sont chargées par 10, de la plus récente à la plus ancienne.
 // « avant » est le numéro de la dernière publication déjà affichée : on demande celles d'avant.
@@ -172,6 +199,7 @@ router.get('/', async (req, res) => {
   const avant = v.idPositif(req.query.avant);
   const seulementAmis = req.query.amis === '1';
   const auteur = typeof req.query.auteur === 'string' && req.query.auteur ? req.query.auteur.toLowerCase().slice(0, 30) : null;
+  const { type, sansReponse } = lireFiltreType(req.query.type);
 
   const { rows } = await db.query(
     `${SELECTION}
@@ -181,15 +209,75 @@ router.get('/', async (req, res) => {
                FROM amities a
               WHERE a.statut = 'acceptee' AND $1 IN (a.demandeur_id, a.receveur_id)))
        AND ($5::text IS NULL OR u.identifiant = $5)
+       AND ($6::text IS NULL OR p.type = $6)
+       AND ($7::boolean = FALSE OR mr.commentaire IS NULL)
      ORDER BY p.id DESC
      LIMIT $4`,
-    [moi.id, avant, seulementAmis, PAR_PAGE + 1, auteur], // une de plus pour savoir s'il en reste
+    [moi.id, avant, seulementAmis, PAR_PAGE + 1, auteur, type, sansReponse], // une de plus pour savoir s'il en reste
   );
 
   const page = rows.slice(0, PAR_PAGE);
   res.json({
     publications: page.map((ligne) => versPublication(ligne, moi)),
     suivant: rows.length > PAR_PAGE ? page[page.length - 1].id : null,
+  });
+});
+
+// ---------- Chercher dans les publications ----------
+// GET /api/publications/recherche?q=<mots>&type=<type>&apres=<curseur>&court=1
+// Tous les mots doivent se trouver dans le texte de la publication ou dans sa meilleure réponse. Les majuscules et
+// les accents ne comptent pas (« deploiement » trouve « Déploiement »).
+// Pourquoi LIKE et pas la recherche plein texte de PostgreSQL (to_tsvector) : elle coupe les mots selon une langue
+// (« french »), alors que le fil mêle français, anglais et noms de techniques (« Node.js », « C# »), et elle ne sait
+// pas ignorer les accents sans l'extension « unaccent ». LIKE fait ce qu'on attend, sans extension à installer.
+// La requête part de SELECTION : mêmes règles que le fil (corbeille, publications masquées, comptes bloqués ou
+// désactivés, confidentialité). Une publication « amis seulement » ne sort donc que pour les amis de son auteur.
+// Les questions résolues viennent d'abord, puis les plus récentes. Le curseur « apres » porte les deux : « 1-482 ».
+// « court » : les 4 premières, en version légère, pour la liste sous la barre de recherche de l'en-tête.
+// Les lettres accentuées (à á â ã ä å ç è é ê ë ì í î ï ñ ò ó ô õ ö ù ú û ü ý ÿ), écrites par leur numéro.
+const AVEC_ACCENTS = String.fromCharCode(0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe7, 0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xff);
+const SANS_ACCENTS = 'aaaaaaceeeeiiiinooooouuuuyy';
+const sansAccentSql = (expression) => `translate(lower(${expression}), '${AVEC_ACCENTS}', '${SANS_ACCENTS}')`;
+const NB_MOTS_MAX = 6;
+const NB_COURT = 4;
+// Les mots cherchés : minuscules, sans accent, 2 lettres au moins, 6 mots au plus.
+function motsCherches(valeur) {
+  const texte = v.texte(valeur, 'q', { max: 100 });
+  const mots = texte.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(/\s+/).filter((mot) => mot.length >= 2).slice(0, NB_MOTS_MAX);
+  if (mots.length === 0) throw new v.ErreurValidation('Écris au moins 2 lettres.', 'q');
+  // Dans un LIKE, % et _ sont des jokers : on les neutralise pour chercher le texte tel quel.
+  return mots.map((mot) => `%${mot.replace(/[\\%_]/g, '\\$&')}%`);
+}
+router.get('/recherche', limiteRecherche, async (req, res) => {
+  const moi = req.utilisateur;
+  const motifs = motsCherches(req.query.q);
+  const { type, sansReponse } = lireFiltreType(req.query.type);
+  const court = req.query.court === '1';
+  const curseur = /^([01])-(\d{1,9})$/.exec(typeof req.query.apres === 'string' ? req.query.apres : '');
+  const limite = court ? NB_COURT : PAR_PAGE;
+  const { rows } = await db.query(
+    `${SELECTION}
+       AND NOT EXISTS (SELECT 1 FROM unnest($2::text[]) AS motif
+                        WHERE ${sansAccentSql("p.texte || ' ' || COALESCE(mr.commentaire->>'texte', '')")} NOT LIKE motif ESCAPE '\\')
+       AND ($3::text IS NULL OR p.type = $3)
+       AND ($4::boolean = FALSE OR mr.commentaire IS NULL)
+       AND ($5::int IS NULL OR (${RESOLUE}, p.id) < ($5::int, $6::int))
+     ORDER BY ${RESOLUE} DESC, p.id DESC
+     LIMIT $7`,
+    [moi.id, motifs, type, sansReponse, curseur ? Number(curseur[1]) : null, curseur ? Number(curseur[2]) : null, limite + 1],
+  );
+  const page = rows.slice(0, limite);
+  if (court) {
+    // Version légère : de quoi écrire une ligne de résultat, rien de plus.
+    return res.json({ publications: page.map((ligne) => ({
+      id: ligne.id, type: ligne.type, resolue: estResolue(ligne), auteur: apercuMembre(ligne),
+      texte: ligne.texte.replace(/\s+/g, ' ').trim().slice(0, 140),
+    })), encore: rows.length > limite });
+  }
+  const derniere = page[page.length - 1];
+  res.json({
+    publications: page.map((ligne) => versPublication(ligne, moi)),
+    suivant: rows.length > limite ? `${estResolue(derniere) ? 1 : 0}-${derniere.id}` : null,
   });
 });
 
@@ -343,7 +431,8 @@ router.delete('/:id/jaime', limiteJaime, async (req, res) => {
   res.json(await compteurJaime(publication.id, moi.id));
 });
 
-// Commentaires d'une publication, du plus ancien au plus récent : GET /api/publications/:id/commentaires
+// Commentaires d'une publication : GET /api/publications/:id/commentaires
+// La meilleure réponse d'abord (pour une question), puis du plus ancien au plus récent.
 router.get('/:id/commentaires', async (req, res) => {
   const moi = req.utilisateur;
   const publication = await publicationDeLaRoute(req, res);
@@ -353,11 +442,11 @@ router.get('/:id/commentaires', async (req, res) => {
        FROM commentaires c
        JOIN utilisateurs u ON u.id = c.auteur_id
       WHERE c.publication_id = $1 AND c.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL
-      ORDER BY c.id
+      ORDER BY (c.id = $3::int) IS TRUE DESC, c.id
       LIMIT $2`,
-    [publication.id, MAX_COMMENTAIRES_AFFICHES],
+    [publication.id, MAX_COMMENTAIRES_AFFICHES, publication.type === 'question' ? publication.meilleure_reponse_id : null],
   );
-  res.json({ commentaires: rows.map((ligne) => versCommentaire(ligne, moi)) });
+  res.json({ commentaires: rows.map((ligne) => versCommentaire(ligne, moi, publication.type === 'question' && ligne.id === publication.meilleure_reponse_id)) });
 });
 
 // Commenter : POST /api/publications/:id/commentaires  { texte }
@@ -451,6 +540,58 @@ router.delete('/:id/commentaires/:commentaireId', async (req, res) => {
   }
   await db.query('DELETE FROM commentaires WHERE id = $1', [rows[0].id]);
   res.json({ ok: true });
+});
+
+// La notification « ta réponse a été retenue », tant qu'elle n'a pas été lue, suit le choix de l'auteur.
+function oublierMeilleureReponse(client, publicationId) {
+  return client.query("DELETE FROM notifications WHERE type = 'meilleure_reponse' AND cible_type = 'publication' AND cible_id = $1 AND lue = FALSE", [publicationId]);
+}
+
+// ---------- Base de savoir : meilleure réponse et recherche ----------
+
+// Choisir la meilleure réponse : PUT /api/publications/:id/meilleure-reponse  { commentaireId }
+// Seul l'auteur d'une QUESTION le peut, pour UN commentaire qui n'est pas le sien. Choisir un autre commentaire
+// remplace le premier. Tout est revérifié ici : la page ne fait que cacher le bouton à ceux qui n'y ont pas droit.
+router.put('/:id/meilleure-reponse', limiteMeilleure, async (req, res) => {
+  const moi = req.utilisateur;
+  const commentaireId = v.idPositif(req.body?.commentaireId);
+  const publication = await publicationDeLaRoute(req, res);
+  if (!publication) return;
+  if (publication.auteur_id !== moi.id) return res.status(403).json({ erreur: 'Seul l\'auteur de la question peut choisir la meilleure réponse.' });
+  if (publication.type !== 'question') return res.status(403).json({ erreur: 'Seule une question peut avoir une meilleure réponse.' });
+  const resultat = await db.transaction(async (client) => {
+    // La question est verrouillée le temps du choix : deux clics en même temps ne font pas deux notifications.
+    const { rows: [question] } = await client.query('SELECT meilleure_reponse_id FROM publications WHERE id = $1 FOR UPDATE', [publication.id]);
+    const { rows: [commentaire] } = await client.query(
+      `SELECT c.id, c.auteur_id FROM commentaires c
+         JOIN utilisateurs u ON u.id = c.auteur_id
+        WHERE c.id = $1 AND c.publication_id = $2 AND c.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL`,
+      [commentaireId, publication.id],
+    );
+    if (!commentaire) return { statut: 404, erreur: 'Ce commentaire n\'existe plus.' };
+    if (commentaire.auteur_id === moi.id) return { statut: 403, erreur: 'Tu ne peux pas choisir ta propre réponse.' };
+    if (question.meilleure_reponse_id === commentaire.id) return {}; // déjà choisie : rien à refaire
+    await client.query('UPDATE publications SET meilleure_reponse_id = $2 WHERE id = $1', [publication.id, commentaire.id]);
+    // L'ancienne réponse retenue n'est plus la bonne : sa notification, si elle n'a pas été lue, n'a plus de sens.
+    await oublierMeilleureReponse(client, publication.id);
+    await notifier(client, commentaire.auteur_id, 'meilleure_reponse', `${moi.nom} a retenu ta réponse comme meilleure réponse.`,
+      `/publication/${publication.id}`, { acteur: moi, cible: { type: 'publication', id: publication.id } });
+    return {};
+  });
+  if (resultat.erreur) return res.status(resultat.statut).json({ erreur: resultat.erreur });
+  res.json({ ok: true, meilleureReponse: commentaireId });
+});
+
+// Retirer la meilleure réponse : DELETE /api/publications/:id/meilleure-reponse (la question redevient « sans réponse »).
+router.delete('/:id/meilleure-reponse', limiteMeilleure, async (req, res) => {
+  const publication = await publicationDeLaRoute(req, res);
+  if (!publication) return;
+  if (publication.auteur_id !== req.utilisateur.id) return res.status(403).json({ erreur: 'Seul l\'auteur de la question peut choisir la meilleure réponse.' });
+  await db.transaction(async (client) => {
+    await client.query('UPDATE publications SET meilleure_reponse_id = NULL WHERE id = $1', [publication.id]);
+    await oublierMeilleureReponse(client, publication.id);
+  });
+  res.json({ ok: true, meilleureReponse: null });
 });
 
 module.exports = router;

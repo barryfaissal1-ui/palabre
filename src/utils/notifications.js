@@ -83,6 +83,7 @@ const TITRES_PUSH = {
   equipe_reponses: () => 'Ton équipe éclair a répondu',
   avis_recu: (qui) => `Nouvel avis ${deNom(qui)}`,
   defi_gagne: () => 'Tu as gagné le défi de la semaine',
+  meilleure_reponse: (qui) => `${qui} a retenu ta réponse`,
   projet_facebook: () => 'Ton projet et la page Facebook',
   contenu_approuve: () => 'Ton contenu est maintenant visible',
   contenu_retire: () => 'Ton contenu n\'a pas été publié',
