@@ -1324,7 +1324,36 @@
   const PAGES_GRIOT = {
     '/': 'accueil', '/connexion': 'connexion', '/inscription': 'inscription', '/calculateur': 'calculateur', '/regles': 'regles',
     '/a-propos': 'a-propos', '/fil': 'fil', '/demandes': 'demandes', '/demande': 'demande', '/parametres': 'parametres',
+    '/recherche': 'recherche',
   };
+  // Les pages de liste d'un membre connecté : on y fait défiler longtemps, et le bouton rond se posait sur le texte
+  // (un commentaire, le bouton « Commenter »). Là, il se retire quand on descend et revient quand on remonte.
+  const PAGES_QUI_DEFILENT = ['fil', 'demandes', 'recherche', 'profil'];
+  const HAUT_DE_PAGE = 80; // en haut de la page, le bouton est toujours là
+  const SEUIL = 8;         // un tremblement du doigt ne compte pas pour un défilement
+  function retirerEnDefilant(bouton) {
+    document.body.classList.add('griot-discret'); // réserve la place du bouton sous le dernier élément de la liste
+    let avant = window.scrollY;
+    let prevu = false;
+    const montrer = () => bouton.classList.remove('en-retrait');
+    // L'écouteur ne fait que noter qu'il y a eu un défilement (« passive » : il ne ralentit jamais le doigt) ; le
+    // travail est fait une seule fois par image affichée (requestAnimationFrame), et il se résume à une classe CSS.
+    window.addEventListener('scroll', () => {
+      if (prevu) return;
+      prevu = true;
+      requestAnimationFrame(() => {
+        prevu = false;
+        const position = window.scrollY;
+        if (position < HAUT_DE_PAGE) montrer();
+        else if (position > avant + SEUIL) bouton.classList.add('en-retrait');
+        else if (position < avant - SEUIL) montrer();
+        else return; // trop peu pour décider : on garde le point de départ
+        avant = position;
+      });
+    }, { passive: true });
+    // Au clavier, le bouton reprend sa place dès qu'il reçoit le focus : on ne tabule jamais vers un bouton invisible.
+    bouton.addEventListener('focus', montrer);
+  }
   function pageDuGriot() {
     const chemin = window.location.pathname.replace(/\.html$/, '');
     if (PAGES_GRIOT[chemin]) return PAGES_GRIOT[chemin];
@@ -1361,6 +1390,8 @@
       }
     });
     document.body.append(bouton);
+    // Pour un membre connecté seulement : sur les pages publiques, rien ne change.
+    if (PAGES_QUI_DEFILENT.includes(page)) utilisateurConnecte().then((moi) => { if (moi) retirerEnDefilant(bouton); }).catch(() => {});
   }
   document.addEventListener('DOMContentLoaded', poserGriot);
 

@@ -86,6 +86,7 @@
     demandes: ['publier-demande', 'equipe-eclair', 'trouver-travail', 'prix', 'paiement', 'arnaques'],
     demande: ['equipe-eclair', 'arnaques', 'paiement', 'prix', 'trouver-travail', 'signaler'],
     profil: ['lien-verifie', 'projet-profil', 'trouver-travail', 'trouver-dev', 'amis-messages', 'signaler'],
+    recherche: ['poser-question', 'publication-invisible', 'lien-verifie', 'equipe-eclair', 'signaler', 'contact'],
     parametres: ['langue', 'mot-de-passe', 'securite', 'supprimer-compte', 'contact'],
   };
   const NB_SUGGESTIONS = 6;

@@ -1078,6 +1078,12 @@ Les mots-clés des deux langues valent toujours : un membre dont le site est en 
 
 La fenêtre est un `<dialog>` ouvert par `showModal()` : la touche Échap la ferme, le focus reste dedans, et il revient au bouton à la fermeture. Ce que la personne écrit est posé avec `textContent` (`el()`), jamais `innerHTML`.
 
+### Un bouton qui ne gêne pas la lecture
+
+Sur les pages de liste d'un membre connecté (fil, demandes, recherche, profil), le bouton rond se posait sur le texte : un commentaire, le bouton « Commenter ». Il se retire donc quand on fait défiler vers le bas, et revient dès qu'on remonte ou qu'on est en haut de la page (`retirerEnDefilant()` dans `app.js`). Sur les pages publiques, il ne bouge pas.
+
+Trois précautions pour que cela ne coûte rien au téléphone : l'écouteur de défilement est « passif » (il ne peut pas ralentir le doigt), le travail est fait une seule fois par image affichée (`requestAnimationFrame`), et ce travail se résume à poser ou retirer une classe CSS, qui ne change que `transform` et `opacity`. Avec `prefers-reduced-motion`, le bouton disparaît et revient sans glisser. Au clavier, il reprend sa place dès qu'il reçoit le focus. En bas de ces pages, 72 px sont réservés sous le dernier élément.
+
 ### Ajouter une question
 
 1. Dans `SUJETS` (`public/js/assistant-recherche.js`), une ligne : `{ id: 'mon-sujet', pour: TOUS, boutons: ['regles'] }`.

@@ -562,6 +562,13 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--er
   cursor: pointer;
 }
 .bouton-griot .icone { width: 26px; height: 26px; }
+/* Sur les pages de liste d'un membre (fil, demandes, recherche, profil), le bouton se retire quand on descend et
+   revient quand on remonte (retirerEnDefilant() dans app.js). Seulement transform et opacity : rien n'est recalculé. */
+.bouton-griot { transition: transform 0.22s ease, opacity 0.22s ease; }
+.bouton-griot.en-retrait { transform: translateY(calc(100% + 96px)); opacity: 0; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .bouton-griot { transition: none; } }
+/* La place du bouton, sous le dernier élément de la liste : arrivé en bas, rien n'est caché derrière lui. */
+body.griot-discret main::after { content: ""; display: block; height: 72px; }
 .bouton-griot:hover { filter: brightness(1.08); }
 .bouton-griot:focus-visible { outline: 3px solid var(--surface); outline-offset: 0; box-shadow: 0 0 0 5px var(--action), var(--ombre-2); }
 /* Caché pendant un appel, dans une conversation, et tant que la fenêtre du Griot est ouverte (sur ordinateur, il

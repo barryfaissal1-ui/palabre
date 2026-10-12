@@ -1,3 +1,9 @@
+# À vérifier : le bouton du Griot qui se retire (12 octobre 2026)
+
+- [ ] **Sur un vrai téléphone**, dans le fil : le bouton rond doit partir quand le doigt fait monter la page, et revenir au premier geste vers le haut. Je ne l'ai essayé que dans Chrome en largeur de téléphone, avec un défilement commandé par le script, pas avec un doigt.
+- [ ] **En bas d'une liste** (dernière demande, dernier commentaire d'un profil) : rien ne doit rester sous le bouton.
+- Sur ordinateur, le bouton se retire aussi sur ces quatre pages : la règle suit la page, pas la taille de l'écran. Dis-moi si tu le veux seulement sur téléphone.
+
 # À vérifier : la base de savoir (12 octobre 2026)
 
 355 tests passent. Essayé dans Chrome sur téléphone 390 px et sur ordinateur, en clair et en sombre, en français et en anglais (88 contrôles). Captures : `docs/captures/savoir/`.
