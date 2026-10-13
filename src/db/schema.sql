@@ -793,3 +793,17 @@ CREATE INDEX IF NOT EXISTS idx_journal_moderation_date ON journal_moderation (cr
 ALTER TABLE publications ADD COLUMN IF NOT EXISTS meilleure_reponse_id INTEGER REFERENCES commentaires(id) ON DELETE SET NULL;
 -- Pour compter les « réponses retenues » d'un membre sur son profil.
 CREATE INDEX IF NOT EXISTS idx_publications_meilleure_reponse ON publications (meilleure_reponse_id) WHERE meilleure_reponse_id IS NOT NULL;
+
+-- ============ Revue du code avant la mise en ligne (docs/REVUE-CODE.md) ============
+-- /fichiers/:id cherche si l'image est la pièce d'un message : sans cet index, chaque avatar et chaque photo servis
+-- faisaient lire toute la table des messages.
+CREATE INDEX IF NOT EXISTS idx_messages_fichier ON messages (fichier_id) WHERE fichier_id IS NOT NULL;
+-- La page des notifications les lit par numéro décroissant (?avant=) : l'index suit le même ordre.
+CREATE INDEX IF NOT EXISTS idx_notifications_liste ON notifications (utilisateur_id, id DESC);
+-- Retirer une notification par ce qu'elle désigne (« meilleure réponse » d'une publication), sans tout parcourir.
+CREATE INDEX IF NOT EXISTS idx_notifications_cible ON notifications (cible_type, cible_id) WHERE lue = FALSE;
+-- Un défi ne disparaît plus avec le compte de l'administrateur qui l'a créé (ses réponses, ses votes et les badges
+-- « Gagnant du défi » partaient avec lui) : il reste, sans auteur.
+ALTER TABLE defis ALTER COLUMN auteur_id DROP NOT NULL;
+ALTER TABLE defis DROP CONSTRAINT IF EXISTS defis_auteur_id_fkey;
+ALTER TABLE defis ADD CONSTRAINT defis_auteur_id_fkey FOREIGN KEY (auteur_id) REFERENCES utilisateurs(id) ON DELETE SET NULL;

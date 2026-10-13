@@ -4,7 +4,7 @@
 // Règle : la permission n'est JAMAIS demandée au chargement d'une page. Elle l'est seulement quand la personne
 // touche « Activer » (un navigateur qui reçoit la question trop tôt la refuse, et un refus est définitif).
 (function () {
-  const { t, api, el, icone, toast, utilisateurConnecte } = window.Palabre;
+  const { t, api, el, icone, toast, utilisateurConnecte, couperPush } = window.Palabre;
   const CLE_PROPOSE = 'palabre-push-propose';
   const FAMILLES = [
     ['messages', t('nav.messages')],
@@ -65,13 +65,23 @@
     await api('/notifications/push', { methode: 'POST', donnees: { endpoint, cles, appareil: nomAppareil() } });
   }
 
-  // Couper sur cet appareil : le serveur oublie l'abonnement, puis le navigateur aussi.
-  async function couper() {
-    if (!capable) return;
-    const abonnement = await abonnementActuel().catch(() => null);
+  // Couper sur cet appareil : le serveur oublie l'abonnement, puis le navigateur aussi (couperPush() de app.js).
+  const couper = couperPush;
+
+  // Quand une session est fermée de force (mot de passe changé, « Déconnecter les autres appareils »), le serveur
+  // retire TOUS les abonnements du membre : il ne sait pas lequel appartient à quel appareil. Un appareil encore
+  // connecté, où le push est déjà autorisé, redonne donc le sien : aucune question n'est posée (la permission est
+  // déjà là). Une fois par session du navigateur, sauf « force » (juste après une de ces actions).
+  const CLE_SYNCHRO = 'palabre-push-synchro';
+  async function resynchroniser(moi, force = false) {
+    if (!capable || Notification.permission !== 'granted') return;
+    try { if (!force && sessionStorage.getItem(CLE_SYNCHRO) === String(moi.id)) return; } catch { /* navigation privée */ }
+    if (!(await infos()).actif) return;
+    const abonnement = await abonnementActuel();
     if (!abonnement) return;
-    await api('/notifications/push', { methode: 'DELETE', donnees: { endpoint: abonnement.endpoint } }).catch(() => {});
-    await abonnement.unsubscribe().catch(() => {});
+    const { endpoint, keys: cles } = abonnement.toJSON();
+    await api('/notifications/push', { methode: 'POST', donnees: { endpoint, cles, appareil: nomAppareil() } });
+    try { sessionStorage.setItem(CLE_SYNCHRO, String(moi.id)); } catch { /* tant pis */ }
   }
 
   // ---------- L'encadré du fil : proposé une fois, après la première connexion ----------
@@ -182,7 +192,7 @@
     await afficher();
   }
 
-  window.Palabre.push = { etat, activer, couper };
+  window.Palabre.push = { etat, activer, couper, resynchroniser };
 
   document.addEventListener('DOMContentLoaded', async () => {
     const zoneEncadre = document.querySelector('[data-encadre-push]');
@@ -190,6 +200,7 @@
     if (!zoneEncadre && !zoneReglages) return;
     const moi = await utilisateurConnecte();
     if (!moi) return;
+    resynchroniser(moi).catch(() => {});
     // Les deux sont des « plus » : une erreur ici ne doit jamais gêner le fil ni le profil.
     if (zoneEncadre) encadre(zoneEncadre, moi).catch(() => {});
     if (zoneReglages) reglages(zoneReglages).catch(() => {});

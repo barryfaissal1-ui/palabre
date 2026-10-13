@@ -26,7 +26,9 @@ const { creerApp } = require('../src/app');
 const mailer = require('../src/utils/mailer');
 const { jetonOuverture } = require('../src/utils/inscription');
 
-const MOT_DE_PASSE = 'Palabre-Jury-2026'; // le même que dans docs/COMPTES-DEMO.md
+// Le mot de passe de docs/COMPTES-DEMO.md est public (le dépôt l'est). Pour le site en ligne, on peut en donner un
+// autre, connu du jury seulement : variable d'environnement MOT_DE_PASSE_DEMO (8 caractères au moins).
+const MOT_DE_PASSE = process.env.MOT_DE_PASSE_DEMO || 'Palabre-Jury-2026';
 const MOTIF_EMAIL = '%@demo.palabre.dev';
 const ANCIEN_MOTIF = 'demo-%@palabre.test'; // comptes d'une première version du script
 const email = (cle) => `${cle}@demo.palabre.dev`;

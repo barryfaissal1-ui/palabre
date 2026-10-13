@@ -72,12 +72,19 @@ async function sessionsDe(utilisateurId, sessionActuelle) {
   }));
 }
 
+// Les notifications push ne sont pas liées à une session : on ne sait pas quel abonnement appartient à l'appareil
+// qu'on déconnecte. Quand une session est fermée de force, tous les abonnements du membre sont donc retirés (sinon
+// un intrus déconnecté continuerait de recevoir « Nouveau message de… »). Les appareils encore connectés se
+// réabonnent seuls à leur prochaine visite (resynchroniser() de public/js/push.js).
+const oublierPush = (utilisateurId, executeur = db) => executeur.query('DELETE FROM abonnements_push WHERE utilisateur_id = $1', [utilisateurId]);
+
 // Révoque une session désignée par son empreinte publique. Renvoie son identifiant, ou null si elle n'est pas à moi.
 async function revoquerParCle(utilisateurId, cle, executeur = db) {
   const { rows } = await executeur.query(
     `UPDATE sessions s SET revoquee_le = now() WHERE s.utilisateur_id = $1 AND s.revoquee_le IS NULL AND ${CLE_PUBLIQUE} = $2 RETURNING s.id, s.appareil`,
     [utilisateurId, String(cle || '')],
   );
+  if (rows[0]) await oublierPush(utilisateurId, executeur);
   return rows[0] || null;
 }
 
@@ -91,6 +98,7 @@ async function revoquerToutes(utilisateurId, { sauf = null } = {}, executeur = d
     'UPDATE sessions SET revoquee_le = now() WHERE utilisateur_id = $1 AND revoquee_le IS NULL AND ($2::text IS NULL OR id <> $2)',
     [utilisateurId, sauf],
   );
+  await oublierPush(utilisateurId, executeur);
   return rowCount;
 }
 

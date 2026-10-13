@@ -34,8 +34,8 @@ const CIBLES = {
 // GET /api/admin/statistiques — les comptes bloqués et les contenus masqués ne sont pas comptés.
 router.get('/statistiques', async (req, res) => {
   const { rows: [s] } = await db.query(
-    `SELECT (SELECT count(*)::int FROM utilisateurs WHERE type = 'dev' AND bloque = FALSE AND desactive_le IS NULL) AS devs,
-            (SELECT count(*)::int FROM utilisateurs WHERE type = 'client' AND bloque = FALSE AND desactive_le IS NULL) AS clients,
+    `SELECT (SELECT count(*)::int FROM utilisateurs WHERE type = 'dev' AND bloque = FALSE AND desactive_le IS NULL AND supprime_le IS NULL) AS devs,
+            (SELECT count(*)::int FROM utilisateurs WHERE type = 'client' AND bloque = FALSE AND desactive_le IS NULL AND supprime_le IS NULL) AS clients,
             (SELECT count(*)::int FROM utilisateurs WHERE bloque) AS bloques,
             (SELECT count(*)::int FROM publications WHERE masque = FALSE AND supprimee_le IS NULL) AS publications,
             (SELECT count(*)::int FROM demandes WHERE masque = FALSE) AS demandes,
@@ -354,10 +354,12 @@ router.post('/signalements/:id/traiter', async (req, res) => {
 
 router.get('/membres-bloques', async (req, res) => {
   const { rows } = await db.query(
-    `SELECT ${COLONNES_MEMBRE} FROM utilisateurs u WHERE u.bloque ORDER BY u.nom LIMIT $1`,
+    `SELECT ${COLONNES_MEMBRE} FROM utilisateurs u WHERE u.bloque AND u.supprime_le IS NULL ORDER BY u.nom LIMIT $1`,
     [MAX_AFFICHES],
   );
-  res.json({ membres: rows.map(apercuMembre) });
+  // Un compte bloqué qui s'est aussi désactivé garde ici son nom et son identifiant : sans eux, l'administrateur
+  // ne pourrait plus le débloquer (« Membre indisponible » n'a pas d'adresse).
+  res.json({ membres: rows.map((ligne) => apercuMembre({ ...ligne, desactive_le: null })) });
 });
 
 // ---------- Derniers inscrits ----------
@@ -371,7 +373,7 @@ router.get('/membres-recents', async (req, res) => {
             u.email_confirme_le IS NOT NULL AS email_confirme,
             u.profil_complete_le IS NOT NULL AS profil_complet,
             num_nonnulls(u.lien_github, u.lien_gitlab, u.lien_portfolio, u.lien_linkedin) AS nb_liens
-       FROM utilisateurs u WHERE u.bloque = FALSE ORDER BY u.cree_le DESC, u.id DESC LIMIT $1`,
+       FROM utilisateurs u WHERE u.bloque = FALSE AND u.supprime_le IS NULL ORDER BY u.cree_le DESC, u.id DESC LIMIT $1`,
     [MAX_AFFICHES],
   );
   res.json({
@@ -390,11 +392,14 @@ router.get('/membres-recents', async (req, res) => {
 
 // POST /api/admin/membres/:identifiant/debloquer
 router.post('/membres/:identifiant/debloquer', async (req, res) => {
-  const { rowCount } = await db.query(
-    'UPDATE utilisateurs SET bloque = FALSE WHERE identifiant = $1 AND bloque',
-    [String(req.params.identifiant).toLowerCase()],
-  );
-  if (rowCount === 0) throw new v.ErreurHttp(404, 'Ce membre n\'est pas bloqué.');
+  await db.transaction(async (client) => {
+    const { rows: [membre] } = await client.query(
+      'UPDATE utilisateurs SET bloque = FALSE WHERE identifiant = $1 AND bloque RETURNING id',
+      [String(req.params.identifiant).toLowerCase()],
+    );
+    if (!membre) throw new v.ErreurHttp(404, 'Ce membre n\'est pas bloqué.');
+    await journalModeration(client, req.utilisateur.id, 'membre_debloque', { membreId: membre.id });
+  });
   res.json({ ok: true });
 });
 

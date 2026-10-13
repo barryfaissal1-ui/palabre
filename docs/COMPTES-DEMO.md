@@ -6,6 +6,10 @@ Ces comptes sont créés par `npm run demo` (`scripts/demo.js`). Ils servent à 
 
 Pour se connecter : ouvrir `/connexion`, saisir l'email d'un compte ci-dessous et ce mot de passe.
 
+**Ces comptes sont partagés, donc verrouillés.** Comme leur mot de passe est connu de tous, le serveur refuse d'y changer le mot de passe, l'email, l'identifiant ou la validation en deux étapes, de les désactiver, de les supprimer et de déconnecter les autres appareils (`refuserCompteDemo` dans `src/routes/parametres.js`). Pour montrer ces réglages au jury, créer un compte ordinaire.
+
+**Sur le site en ligne**, on peut choisir un autre mot de passe, absent du dépôt et donné au jury seulement : `MOT_DE_PASSE_DEMO="…" npm run demo -- --forcer` (8 caractères au moins).
+
 Ces comptes sont déjà **confirmés et complets** : pas de code à saisir, pas de « profil de dev » à remplir. Leurs adresses email n'existent pas : aucun email ne leur est envoyé. Pour voir l'inscription en deux étapes, crée un nouveau compte (en local, le code à 6 chiffres s'affiche dans la console du serveur). Idrissa et Ibrahim n'ont pas de lien : leur profil montre la mention « Profil à confirmer ».
 
 ## Les deux comptes pour tout tester

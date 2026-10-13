@@ -18,6 +18,7 @@ const { DELAI_SUPPRESSION_JOURS, DUREE_CORBEILLE_JOURS, effacerPublication } = r
 const { apercuMembre, COLONNES_MEMBRE } = require('../utils/membres');
 const { lireConfidentialite, reglageValide } = require('../utils/confidentialite');
 const { langueValide, langueDe, poserCookieLangue } = require('../utils/langue');
+const { estDeDemonstration } = require('../utils/nouveaux-comptes');
 
 const router = express.Router();
 const COUT_BCRYPT = 12;
@@ -36,6 +37,14 @@ const limiteMotDePasse = rateLimit({
   keyGenerator: (req) => `membre-${req.utilisateur.id}`,
   message: { erreur: 'Trop de tentatives. Réessaie dans quelques minutes.' },
 });
+
+// Les comptes de démonstration (…@demo.palabre.dev) sont partagés et leur mot de passe est connu de tous : personne
+// ne doit pouvoir les prendre pour lui (changer le mot de passe ou l'email, allumer la validation en deux étapes),
+// les fermer, ni déconnecter le jury qui s'en sert. Placé AVANT la limite et le mot de passe : rien n'est compté.
+function refuserCompteDemo(req, res, next) {
+  if (!estDeDemonstration(req.utilisateur)) return next();
+  next(new v.ErreurHttp(403, 'Ce compte de démonstration est partagé : ce réglage ne peut pas y être changé.'));
+}
 
 // Le mot de passe actuel est redemandé avant toute action grave (email, mot de passe, suppression) : un téléphone
 // resté ouvert sur une table ne suffit pas à prendre le compte.
@@ -69,7 +78,7 @@ router.get('/', async (req, res) => {
 });
 
 // Prénom, nom, identifiant : PUT /api/parametres/compte  (on n'envoie que ce qui change)
-router.put('/compte', async (req, res) => {
+router.put('/compte', refuserCompteDemo, async (req, res) => {
   const moi = req.utilisateur;
   const corps = req.body || {};
   const prenom = corps.prenom !== undefined ? v.nomPropre(corps.prenom, 'prenom') : moi.prenom;
@@ -114,7 +123,7 @@ router.put('/confidentialite', async (req, res) => {
 // ---------- Changer d'email : le code part à la NOUVELLE adresse, l'ancienne reste en place tant qu'il n'est pas saisi ----------
 
 // POST /api/parametres/email  { email, motDePasse }
-router.post('/email', limiteMotDePasse, async (req, res) => {
+router.post('/email', refuserCompteDemo, limiteMotDePasse, async (req, res) => {
   const moi = req.utilisateur;
   const email = v.email(req.body?.email);
   await verifierMotDePasse(moi, req.body?.motDePasse);
@@ -136,7 +145,7 @@ router.post('/email', limiteMotDePasse, async (req, res) => {
 });
 
 // POST /api/parametres/email/confirmer  { code }
-router.post('/email/confirmer', limiteMotDePasse, async (req, res) => {
+router.post('/email/confirmer', refuserCompteDemo, limiteMotDePasse, async (req, res) => {
   const moi = req.utilisateur;
   const code = typeof req.body?.code === 'string' ? req.body.code.replace(/\s/g, '') : '';
   if (!/^\d{6}$/.test(code)) throw new v.ErreurValidation('Le code fait 6 chiffres.', 'code');
@@ -168,15 +177,18 @@ router.post('/email/confirmer', limiteMotDePasse, async (req, res) => {
 const fermerLesAutresSessions = (req, client = db) => sessions.revoquerToutes(req.utilisateur.id, { sauf: req.session.id }, client);
 
 // PUT /api/parametres/mot-de-passe  { ancien, nouveau }
-router.put('/mot-de-passe', limiteMotDePasse, async (req, res) => {
+router.put('/mot-de-passe', refuserCompteDemo, limiteMotDePasse, async (req, res) => {
   const moi = req.utilisateur;
   const nouveau = v.motDePasse(req.body?.nouveau, 'nouveau', [moi.prenom, moi.nom_famille, moi.identifiant]);
   await verifierMotDePasse(moi, req.body?.ancien, 'ancien');
   if (nouveau === req.body.ancien) throw new v.ErreurValidation('Choisis un mot de passe différent de l\'ancien.', 'nouveau');
-  await db.query('UPDATE utilisateurs SET mot_de_passe_hash = $2 WHERE id = $1', [moi.id, await bcrypt.hash(nouveau, COUT_BCRYPT)]);
-  // Les autres appareils sont déconnectés : si quelqu'un connaissait l'ancien mot de passe, il est dehors.
-  await fermerLesAutresSessions(req);
-  await journaliser(moi.id, 'mot_de_passe_change', req);
+  const hash = await bcrypt.hash(nouveau, COUT_BCRYPT);
+  await db.transaction(async (client) => {
+    await client.query('UPDATE utilisateurs SET mot_de_passe_hash = $2 WHERE id = $1', [moi.id, hash]);
+    // Les autres appareils sont déconnectés : si quelqu'un connaissait l'ancien mot de passe, il est dehors.
+    await fermerLesAutresSessions(req, client);
+    await journaliser(moi.id, 'mot_de_passe_change', req, {}, client);
+  });
   res.json({ message: 'Mot de passe modifié. Tes autres appareils ont été déconnectés.' });
 });
 
@@ -187,7 +199,7 @@ router.get('/sessions', async (req, res) => {
 
 // « Déconnecter » un appareil : DELETE /api/parametres/sessions/:cle  (cle : l'empreinte donnée par la liste)
 // Seules MES sessions peuvent être désignées : la requête filtre sur mon numéro de membre.
-router.delete('/sessions/:cle', async (req, res) => {
+router.delete('/sessions/:cle', refuserCompteDemo, async (req, res) => {
   const fermee = await sessions.revoquerParCle(req.utilisateur.id, req.params.cle);
   if (!fermee) throw new v.ErreurHttp(404, 'Cet appareil est déjà déconnecté.');
   // Dans le journal : le nom de l'appareil qui vient d'être déconnecté.
@@ -198,7 +210,7 @@ router.delete('/sessions/:cle', async (req, res) => {
 });
 
 // POST /api/parametres/deconnecter-autres
-router.post('/deconnecter-autres', async (req, res) => {
+router.post('/deconnecter-autres', refuserCompteDemo, async (req, res) => {
   const fermees = await fermerLesAutresSessions(req);
   if (fermees > 0) await journaliser(req.utilisateur.id, 'session_revoquee', req, { appareil: null });
   res.json({ message: 'Tes autres appareils ont été déconnectés.' });
@@ -212,7 +224,7 @@ router.get('/journal', async (req, res) => {
 // Validation en deux étapes : PUT /api/parametres/deux-etapes  { active, motDePasse }
 // Le mot de passe est redemandé pour l'activer comme pour la couper. À l'activation, 8 codes de secours sont
 // fabriqués et renvoyés une seule fois, et cet appareil devient « de confiance ».
-router.put('/deux-etapes', limiteMotDePasse, async (req, res) => {
+router.put('/deux-etapes', refuserCompteDemo, limiteMotDePasse, async (req, res) => {
   const moi = req.utilisateur;
   const active = req.body?.active;
   if (typeof active !== 'boolean') throw new v.ErreurValidation('Choix non reconnu.', 'active');
@@ -239,11 +251,19 @@ router.put('/deux-etapes', limiteMotDePasse, async (req, res) => {
 // GET /api/parametres/bloques (pour débloquer : DELETE /api/messages/blocages/:identifiant, qui existait déjà)
 router.get('/bloques', async (req, res) => {
   const { rows } = await db.query(
-    `SELECT ${COLONNES_MEMBRE}, b.cree_le AS bloque_le FROM blocages b JOIN utilisateurs u ON u.id = b.bloque_id
+    `SELECT ${COLONNES_MEMBRE}, b.bloque_id, b.cree_le AS bloque_le FROM blocages b JOIN utilisateurs u ON u.id = b.bloque_id
       WHERE b.bloqueur_id = $1 AND u.supprime_le IS NULL ORDER BY b.cree_le DESC LIMIT 200`,
     [req.utilisateur.id],
   );
-  res.json({ bloques: rows.map((ligne) => ({ ...apercuMembre(ligne), bloqueLe: ligne.bloque_le })) });
+  // « cle » : de quoi débloquer même un membre qui a désactivé son compte depuis (il n'a alors plus d'identifiant public).
+  res.json({ bloques: rows.map((ligne) => ({ ...apercuMembre(ligne), bloqueLe: ligne.bloque_le, cle: ligne.bloque_id })) });
+});
+
+// « Débloquer » depuis cette liste : DELETE /api/parametres/bloques/:cle  (seulement MES blocages)
+router.delete('/bloques/:cle', async (req, res) => {
+  const { rowCount } = await db.query('DELETE FROM blocages WHERE bloqueur_id = $1 AND bloque_id = $2', [req.utilisateur.id, v.idPositif(req.params.cle)]);
+  if (!rowCount) throw new v.ErreurHttp(404, 'Ce membre n\'est pas bloqué.');
+  res.json({ ok: true });
 });
 
 // ---------- Mes données ----------
@@ -347,7 +367,7 @@ async function mettreEnSommeil(req, res, { suppression }) {
 // « Désactiver temporairement » : POST /api/parametres/desactiver  { motDePasse }
 // Mon profil, mes publications, mes projets et mes propositions deviennent invisibles ; mes conversations restent
 // chez les autres, sous le nom « Membre indisponible ». Rien n'est supprimé : tout revient quand je me reconnecte.
-router.post('/desactiver', limiteMotDePasse, async (req, res) => {
+router.post('/desactiver', refuserCompteDemo, limiteMotDePasse, async (req, res) => {
   await verifierMotDePasse(req.utilisateur, req.body?.motDePasse);
   await mettreEnSommeil(req, res, { suppression: false });
   res.json({ ok: true });
@@ -357,7 +377,7 @@ router.post('/desactiver', limiteMotDePasse, async (req, res) => {
 // Rien n'est supprimé tout de suite. Le compte est désactivé pendant 30 jours ; un email confirme la date et porte
 // un lien « Annuler la suppression » ; se reconnecter permet aussi d'annuler. Passé ce délai, la tâche de ménage
 // (src/utils/purge.js) supprime le compte pour de bon.
-router.delete('/compte', limiteMotDePasse, async (req, res) => {
+router.delete('/compte', refuserCompteDemo, limiteMotDePasse, async (req, res) => {
   const moi = req.utilisateur;
   await verifierMotDePasse(moi, req.body?.motDePasse);
   const prevue = await mettreEnSommeil(req, res, { suppression: true });

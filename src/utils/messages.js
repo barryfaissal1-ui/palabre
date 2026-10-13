@@ -23,7 +23,7 @@ const SELECTION = `
             FROM (SELECT mr.emoji, count(*)::int AS nombre, bool_or(mr.membre_id = $2) AS moi,
                          (array_agg(ru.nom ORDER BY mr.cree_le))[1:20] AS qui
                     FROM message_reactions mr
-                    JOIN utilisateurs ru ON ru.id = mr.membre_id AND ru.bloque = FALSE
+                    JOIN utilisateurs ru ON ru.id = mr.membre_id AND ru.bloque = FALSE AND ru.desactive_le IS NULL
                    WHERE mr.message_id = m.id
                    GROUP BY mr.emoji
                    ORDER BY min(mr.cree_le)) r) AS reactions,
@@ -33,7 +33,7 @@ const SELECTION = `
          (SELECT json_build_object(
                    'id', o.id,
                    'texte', CASE WHEN o.supprime_le IS NOT NULL OR o.masque THEN NULL ELSE left(o.texte, 90) END,
-                   'prenom', ou.prenom, 'image', o.fichier_id IS NOT NULL AND o.vocal_duree IS NULL)
+                   'prenom', CASE WHEN ou.desactive_le IS NULL THEN ou.prenom ELSE 'Membre' END, 'image', o.fichier_id IS NOT NULL AND o.vocal_duree IS NULL)
             FROM messages o JOIN utilisateurs ou ON ou.id = o.auteur_id
            WHERE o.id = m.reponse_a AND o.conversation_id = m.conversation_id) AS origine
     FROM messages m

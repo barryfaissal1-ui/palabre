@@ -10,6 +10,11 @@ if (config.smtp.host) {
     port: config.smtp.port,
     secure: config.smtp.port === 465,
     auth: config.smtp.user ? { user: config.smtp.user, pass: config.smtp.pass } : undefined,
+    // Un serveur d'email qui ne répond pas : on abandonne après 10 secondes (sans réglage, la bibliothèque attend
+    // jusqu'à 2 minutes, et l'inscription attendrait avec elle).
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   });
 }
 

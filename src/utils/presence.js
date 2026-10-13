@@ -38,7 +38,7 @@ const finEcriture = (executeur, conversationId, membreId) => executeur.query('DE
 // Les prénoms de ceux qui écrivent en ce moment dans la conversation (sans moi, sans les comptes bloqués).
 async function quiEcrit(conversationId, moiId) {
   const { rows } = await db.query(
-    `SELECT u.prenom FROM ecritures e JOIN utilisateurs u ON u.id = e.membre_id AND u.bloque = FALSE
+    `SELECT u.prenom FROM ecritures e JOIN utilisateurs u ON u.id = e.membre_id AND u.bloque = FALSE AND u.desactive_le IS NULL
       WHERE e.conversation_id = $1 AND e.membre_id <> $2 AND e.jusqu_a > now()
       ORDER BY e.jusqu_a DESC LIMIT 3`,
     [conversationId, moiId],

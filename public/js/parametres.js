@@ -4,6 +4,13 @@
 (function () {
   const { t, langue, changerLangue, api, utilisateurConnecte, el, icone, avatar, nomMembre, toast, confirmer, listeChoix, etatVide, chargement, dateRelative, REGION } = window.Palabre;
 
+  // Mot de passe changé, appareil déconnecté : le serveur retire alors tous les abonnements push du membre (il ne
+  // sait pas lequel appartient à quel appareil). Celui-ci, toujours connecté, redonne le sien, sans rien demander.
+  async function redonnerPush() {
+    const moi = await utilisateurConnecte();
+    if (moi && window.Palabre.push) window.Palabre.push.resynchroniser(moi, true).catch(() => {});
+  }
+
   const RUBRIQUES = [
     { cle: 'compte', icone: 'utilisateur', titre: t('parametres.compte.titre'), texte: t('parametres.compte.resume') },
     { cle: 'langue', icone: 'globe', titre: t('parametres.langue.titre'), texte: 'Français, English' },
@@ -174,6 +181,7 @@
         const { message } = await api('/parametres/mot-de-passe', { methode: 'PUT', donnees: { ancien: formMotDePasse.ancien.value, nouveau: formMotDePasse.nouveau.value } });
         formMotDePasse.reset();
         toast(message);
+        redonnerPush();
       } catch (erreur) {
         montrerErreur(formMotDePasse, erreur);
       }
@@ -265,6 +273,7 @@
       if (!await confirmer(t('parametres.securite.question'), { bouton: t('parametres.securite.deconnecter') })) return;
       try {
         toast((await api('/parametres/deconnecter-autres', { methode: 'POST', donnees: {} })).message);
+        redonnerPush();
         await rechargerSessions();
       } catch (erreur) {
         toast(erreur.message, 'erreur');
@@ -384,6 +393,7 @@
           const { ici } = await api(`/parametres/sessions/${encodeURIComponent(session.cle)}`, { methode: 'DELETE', donnees: {} });
           if (ici) { window.location.href = '/'; return; }
           toast(t('parametres.securite.deconnecte', { appareil: session.appareil }));
+          redonnerPush();
           ligne.remove();
           rubrique('securite').querySelector('[data-deconnecter-autres]').hidden = zone.querySelectorAll('li').length < 2;
         } catch (erreur) {
@@ -462,7 +472,8 @@
         bouton.addEventListener('click', async () => {
           bouton.disabled = true;
           try {
-            await api(`/messages/blocages/${encodeURIComponent(membre.identifiant)}`, { methode: 'DELETE', donnees: {} });
+            // Par la clé de la liste, pas par l'identifiant public : un membre qui a désactivé son compte n'en a plus.
+            await api(`/parametres/bloques/${encodeURIComponent(membre.cle)}`, { methode: 'DELETE', donnees: {} });
             toast(t('messages.est-debloque', { prenom: membre.prenom }));
             chargerBloques();
           } catch (erreur) {
@@ -524,7 +535,7 @@
   document.addEventListener('DOMContentLoaded', async () => {
     const moi = await utilisateurConnecte();
     if (!moi) {
-      window.location.replace('/connexion?suite=/parametres');
+      window.Palabre.versConnexion('/connexion?suite=/parametres');
       return;
     }
     dessinerListe();

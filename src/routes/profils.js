@@ -27,11 +27,14 @@ const limiteLectureProfils = rateLimit({
   message: { erreur: 'Tu consultes beaucoup de profils. Réessaie dans quelques minutes.' },
 });
 
+// Par membre, pas par adresse IP : sur un réseau mobile, beaucoup d'abonnés partagent la même adresse.
+// (Toujours placée après exigerConnexion.)
 const limiteEnvoiImages = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 20,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
+  keyGenerator: (req) => `membre-${req.utilisateur.id}`,
   message: { erreur: 'Trop d\'envois d\'images. Réessaie dans quelques minutes.' },
 });
 

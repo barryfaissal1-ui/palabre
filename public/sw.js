@@ -1,6 +1,6 @@
 // Service worker : met en cache les fichiers de l'interface pour un chargement rapide, même en 3G.
 // Les données (/api) ne sont jamais mises en cache.
-const VERSION = 'palabre-v55';
+const VERSION = 'palabre-v56';
 const FICHIERS = [
   '/',
   '/connexion',
@@ -97,17 +97,23 @@ self.addEventListener('activate', (evenement) => {
   self.clients.claim();
 });
 
+// Ce qui est gardé : les pages de la liste et les fichiers de l'interface. Rien d'autre : ni les profils visités
+// (le cache grossirait sans fin), ni les images des membres (/fichiers/ : le navigateur les garde déjà lui-même,
+// et la photo d'un message privé ne doit jamais rester ici, où le serveur ne peut plus vérifier qui la demande).
+const DOSSIERS_GARDES = ['/css/', '/js/', '/icons/', '/fonts/', '/img/', '/langues/'];
+const aGarder = (chemin) => FICHIERS.includes(chemin) || DOSSIERS_GARDES.some((dossier) => chemin.startsWith(dossier));
+
 // Réseau d'abord (pour avoir la dernière version), cache en secours si pas de connexion.
 self.addEventListener('fetch', (evenement) => {
   const requete = evenement.request;
   const url = new URL(requete.url);
-  if (requete.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) {
+  if (requete.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/') || url.pathname.startsWith('/fichiers/')) {
     return;
   }
   evenement.respondWith(
     fetch(requete)
       .then((reponse) => {
-        if (reponse.ok) {
+        if (reponse.ok && aGarder(url.pathname)) {
           const copie = reponse.clone();
           caches.open(VERSION).then((cache) => cache.put(requete, copie));
         }
@@ -115,7 +121,9 @@ self.addEventListener('fetch', (evenement) => {
       })
       // ignoreSearch : le style et les scripts sont demandés avec « ?v=empreinte » ; hors connexion, la copie gardée
       // sous l'adresse simple fait l'affaire.
-      .catch(() => caches.match(requete).then((r) => r || caches.match(requete, { ignoreSearch: true })).then((r) => r || caches.match('/'))),
+      .catch(() => caches.match(requete).then((r) => r || caches.match(requete, { ignoreSearch: true }))
+        // Hors connexion, une page inconnue reçoit l'accueil ; une image ou un script introuvable, rien.
+        .then((r) => r || (requete.mode === 'navigate' ? caches.match('/') : Response.error()))),
   );
 });
 
@@ -124,11 +132,18 @@ self.addEventListener('fetch', (evenement) => {
 // Seule une adresse interne au site est acceptée comme lien.
 const lienInterne = (lien) => (typeof lien === 'string' && /^\/(?!\/)/.test(lien) ? lien : '/notifications');
 
+// Ce fichier ne lit pas les dictionnaires : le serveur envoie les textes dans la langue du membre (« boutons »
+// pour un appel). Seul le texte de secours, pour un message illisible, suit la langue du téléphone.
+const EN_ANGLAIS = /^en/i.test(self.navigator.language || '');
+const SECOURS = EN_ANGLAIS
+  ? { texte: 'You have a new notification.', decrocher: 'Answer', refuser: 'Decline' }
+  : { texte: 'Tu as une nouvelle notification.', decrocher: 'Décrocher', refuser: 'Refuser' };
+
 self.addEventListener('push', (evenement) => {
   let message = {};
   try { message = evenement.data ? evenement.data.json() : {}; } catch { /* message illisible : texte par défaut */ }
   evenement.waitUntil(self.registration.showNotification(message.titre || 'Palabre', {
-    body: message.texte || 'Tu as une nouvelle notification.',
+    body: message.texte || SECOURS.texte,
     icon: '/icons/icon-192.png',
     badge: '/icons/badge-96.png', // une feuille blanche : Android n'en garde que la forme, dans la barre d'état
     // Même « tag » : la nouvelle notification remplace la précédente du même sujet au lieu de s'empiler.
@@ -137,7 +152,10 @@ self.addEventListener('push', (evenement) => {
     vibrate: message.appel ? [200, 100, 200, 100, 200] : [120],
     // Un appel : la notification reste affichée tant qu'on n'y a pas touché, avec deux boutons quand le téléphone le permet.
     requireInteraction: Boolean(message.appel),
-    actions: message.appel ? [{ action: 'decrocher', title: 'Décrocher' }, { action: 'refuser', title: 'Refuser' }] : [],
+    actions: message.appel ? [
+      { action: 'decrocher', title: (message.boutons || {}).decrocher || SECOURS.decrocher },
+      { action: 'refuser', title: (message.boutons || {}).refuser || SECOURS.refuser },
+    ] : [],
     data: { lien: lienInterne(message.lien), appel: message.appel || null },
   }));
 });

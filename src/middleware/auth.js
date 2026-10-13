@@ -48,8 +48,17 @@ const COLONNES_MEMBRE_CONNECTE = `id, type, est_admin, nom, prenom, nom_famille,
 async function chargerUtilisateur(req, res, next) {
   const jeton = req.cookies?.[NOM_COOKIE];
   if (!jeton) return next();
+  // Seul un jeton faux ou expiré efface le cookie. Un raté de la base (redémarrage, connexions toutes occupées)
+  // n'est pas une session invalide : l'erreur part au gestionnaire d'erreurs, et le membre reste connecté.
+  let contenu;
   try {
-    const { id, sid, iat } = jwt.verify(jeton, config.jwtSecret); // iat : la date d'ouverture de la session, en secondes
+    contenu = jwt.verify(jeton, config.jwtSecret);
+  } catch {
+    fermerSession(res);
+    return next();
+  }
+  try {
+    const { id, sid, iat } = contenu; // iat : la date d'ouverture de la session, en secondes
     // Une seule requête : le membre ET sa session. Session absente ou révoquée (déconnexion, « Déconnecter » depuis
     // un autre appareil) : aucune ligne, donc pas de membre connecté.
     const { rows } = await db.query(
@@ -67,8 +76,8 @@ async function chargerUtilisateur(req, res, next) {
       sessions.noterPassage(req.session); // « actif il y a 2 h » dans la liste des appareils
       if (!rows[0].desactive_le) noterActivite(rows[0]); // « en ligne » : noté au plus une fois par minute, sans faire attendre la requête
     } else fermerSession(res);
-  } catch {
-    fermerSession(res);
+  } catch (err) {
+    return next(err);
   }
   next();
 }

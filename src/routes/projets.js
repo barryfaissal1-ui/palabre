@@ -3,6 +3,8 @@ const express = require('express');
 const db = require('../db/pool');
 const v = require('../utils/validation');
 const { controler, mettreEnAttente, PHRASE_ATTENTE } = require('../utils/moderation');
+const { refuserLesLiens } = require('../utils/nouveaux-comptes');
+const { journalModeration } = require('../utils/sanctions');
 const { exigerConnexion, exigerDev } = require('../middleware/auth');
 const { lireImageDataUrl } = require('../utils/images');
 const { normaliserLien, verifierLien } = require('../utils/liens');
@@ -102,6 +104,8 @@ router.post('/', exigerConnexion, exigerDev, limiteProjets, async (req, res) => 
   };
   const image = corps.image ? lireImageDataUrl(corps.image) : null;
   const filtre = await controler(req, [[donnees.titre, 'titre'], [donnees.description, 'description']]);
+  // Pas de lien dans le texte pendant les 3 premiers jours (le champ « lien » du projet, lui, est vérifié à part).
+  refuserLesLiens(moi, [[donnees.titre, 'titre'], [donnees.description, 'description']]);
 
   const id = await db.transaction(async (client) => {
     const { rows: [compte] } = await client.query('SELECT count(*)::int AS nb FROM projets WHERE dev_id = $1', [moi.id]);
@@ -149,6 +153,8 @@ router.delete('/:id', exigerConnexion, async (req, res) => {
   await db.transaction(async (client) => {
     await client.query('DELETE FROM projets WHERE id = $1', [ligne.id]);
     if (ligne.image) await client.query('DELETE FROM fichiers WHERE id = $1', [ligne.image]);
+    // Supprimé par un administrateur (et non par son auteur) : la décision s'écrit dans le journal de modération.
+    if (ligne.dev_id !== moi.id) await journalModeration(client, moi.id, 'projet_supprime', { cibleType: 'projet', cibleId: ligne.id, membreId: ligne.dev_id });
   });
   res.json({ ok: true });
 });

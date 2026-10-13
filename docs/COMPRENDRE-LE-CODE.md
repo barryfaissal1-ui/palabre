@@ -1130,6 +1130,18 @@ La barre de recherche de l'en-tête répond en deux parties, « Membres » et «
 - **Aucune fuite** : la recherche part elle aussi de `SELECTION`. Une publication « amis seulement » ne sort que pour les amis de son auteur, y compris dans la liste courte de l'en-tête et y compris quand le mot cherché n'est que dans la meilleure réponse. `tests/savoir.test.js` le vérifie.
 - La recherche de publications est réservée aux membres, comme le fil. Un visiteur garde la recherche de membres.
 
+## 11 duovicies. La revue du code avant la mise en ligne
+
+Avant la mise en ligne, tout le code a été relu à la recherche de vrais problèmes : le rapport est dans `docs/REVUE-CODE.md`, avec le suivi des corrections à la fin. Ce qu'il faut savoir expliquer :
+
+- **Les comptes de démonstration sont verrouillés.** Leur mot de passe est public (le dépôt l'est). Sans protection, n'importe qui pouvait y allumer la validation en deux étapes et fermer la porte au jury. `refuserCompteDemo` (`src/routes/parametres.js`) répond 403 à toute route qui prendrait ou fermerait un compte `@demo.palabre.dev`.
+- **Un raté de la base ne déconnecte plus personne.** `chargerUtilisateur()` (`src/middleware/auth.js`) sépare deux cas : un jeton faux efface le cookie ; une erreur de la base donne une erreur 500, et la session reste.
+- **Le paramètre `suite`** (où aller après la connexion) n'accepte qu'une adresse du site. Le piège : le navigateur retire les tabulations d'une adresse avant de la lire, donc « /, tabulation, /site.example » devient « //site.example », un autre site. `suiteDemandee()` de `app.js` refuse ces caractères, puis compare l'adresse telle que le navigateur la comprend.
+- **Une photo de message privé n'est jamais gardée sans contrôle** : `private, no-cache` oblige le navigateur à redemander au serveur avant chaque affichage (réponse 304, sans renvoyer l'image, si rien n'a changé), et le service worker ne garde pas `/fichiers/`.
+- **Le push suit les sessions.** Fermer de force les sessions d'un membre retire aussi ses abonnements push (`oublierPush()` dans `src/utils/sessions.js`) ; un appareil resté connecté redonne le sien tout seul (`resynchroniser()` de `public/js/push.js`).
+- **Les limites par adresse IP ne comptent que ce qui ressemble à une attaque** : sur un réseau mobile, des centaines d'abonnés sortent par la même adresse. Une connexion réussie ne compte pas ; l'inscription a sa propre limite.
+- **« Pas de réponse » n'est pas « pas connecté ».** Si `/api/auth/moi` échoue deux fois, `versConnexion()` affiche « Réessayer » au lieu d'envoyer un membre connecté vers le formulaire de connexion.
+
 ## 12. Le système de design
 
 Un « système de design », c'est un petit nombre de règles visuelles appliquées partout, pour que le site ait l'air d'une seule et même application. Tout est écrit à la main : aucune bibliothèque d'interface, aucun framework, donc des pages qui restent légères en 3G (les icônes pèsent 8 Ko en tout, les illustrations 4 Ko).

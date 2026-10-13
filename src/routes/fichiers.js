@@ -39,8 +39,10 @@ router.get('/:id', async (req, res, next) => {
       dedans = [fichier.membre_a, fichier.membre_b].includes(moi.id);
     }
     if (!dedans || fichier.masque) return res.status(404).end();
-    // « private » : le navigateur du membre peut la garder, pas un cache partagé (proxy d'opérateur, cybercafé).
-    res.set({ 'Content-Type': fichier.type_mime, 'Cache-Control': 'private, max-age=31536000, immutable' });
+    // « private » : jamais dans un cache partagé (proxy d'opérateur). « no-cache » : le navigateur peut garder la
+    // pièce, mais il redemande au serveur avant CHAQUE affichage (réponse 304, sans renvoyer l'image, si rien n'a
+    // changé). Après une déconnexion, l'adresse retrouvée dans l'historique ne montre donc plus rien.
+    res.set({ 'Content-Type': fichier.type_mime, 'Cache-Control': 'private, no-cache' });
     // Message vocal : l'iPhone demande le son par morceaux (« Range: bytes=0-1 »…) et refuse de le lire si le
     // serveur ne sait pas répondre « 206, voici ce morceau ».
     if (fichier.type_mime.startsWith('audio/')) {

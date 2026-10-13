@@ -1,6 +1,6 @@
 # Revue du code avant la mise en ligne (12 octobre 2026)
 
-Ce document est un **rapport**. Aucun fichier du site n'a été modifié.
+Ce document est le **rapport** du 12 octobre, écrit sans rien modifier au site. Les corrections ont été faites le 13 octobre : leur suivi est à la fin, dans « Suivi des corrections ». Le texte de chaque problème est resté tel qu'il a été écrit (les numéros de ligne sont ceux d'avant les corrections).
 
 ## À retenir
 
@@ -276,3 +276,32 @@ Gravité : **GRAVE** = à corriger avant la mise en ligne ; **MOYEN** = gênant,
 Par catégorie : logique 6, sécurité 8, actions en même temps 3, erreurs non rattrapées 4, base de données 4, mise en ligne 5, règles de CLAUDE.md 5.
 
 **Ordre conseillé avant le 20 octobre** : S1 (comptes de démonstration), puis les corrections courtes S2, E1, B1 et P1, puis S3 et S4. P2 ne peut se vérifier qu'une fois le site en ligne.
+
+---
+
+## Suivi des corrections (13 octobre 2026)
+
+31 problèmes corrigés, 1 en partie, 3 qui ne peuvent se régler qu'une fois le site en ligne. Les tests passent tous (365), dont `tests/revue.test.js`, écrit pour ces corrections.
+
+| | État | Ce qui a été fait |
+| --- | --- | --- |
+| **S1** | Corrigé | `refuserCompteDemo` (`src/routes/parametres.js`) : un compte `@demo.palabre.dev` ne peut plus changer son mot de passe, son email, son identifiant, ses deux étapes, ni être désactivé, supprimé, ni déconnecter les autres appareils (403). En plus : `MOT_DE_PASSE_DEMO` permet de créer les comptes en ligne avec un mot de passe absent du dépôt. |
+| **S2** | Corrigé | Une seule fonction `suiteDemandee()` dans `app.js` : caractères de contrôle refusés, puis adresse comparée telle que le navigateur la comprend. Essayée avec Node sur 6 fausses adresses. |
+| **S3** | Corrigé | Pièces des messages en `private, no-cache` ; le service worker ne touche plus à `/fichiers/`. |
+| **S4** | Corrigé | Les abonnements push partent avec les sessions fermées de force (`oublierPush()` dans `src/utils/sessions.js`) ; `couperPush()` est dans `app.js` (la déconnexion le fait depuis toutes les pages) ; un appareil resté connecté redonne le sien (`resynchroniser()`). |
+| **E1** | Corrigé | Seul un jeton faux efface le cookie ; une erreur de la base donne une erreur 500, session gardée. |
+| **B1** | Corrigé | Index `idx_messages_fichier`. |
+| **P1** | Corrigé | Connexion : seuls les échecs comptent. Inscription : sa propre limite (60 par quart d'heure, refus non comptés). Envois d'images : par membre. |
+| **P2** | À faire en ligne | Vérifier `trust proxy` après le premier déploiement. |
+| L1, L2 | Corrigés | `supprimerDefinitivement()` garde le groupe d'un chef qui n'a jamais écrit, et ferme les groupes des équipes liées aux demandes du client ; un chef peut quitter un groupe qui n'a plus d'équipe. |
+| L3 | Corrigé en partie | Débloquer depuis Paramètres (`DELETE /api/parametres/bloques/:cle`) et depuis `/admin` fonctionne pour un compte désactivé. Le menu « Débloquer » à l'intérieur d'une conversation passe encore par l'identifiant : pour un compte désactivé, il faut passer par Paramètres. |
+| L4, L5, L6 | Corrigés | « de Yao » côté serveur ; les 200 derniers commentaires ; « Liste privée » sur le profil. |
+| S5, S6, S7, S8 | Corrigés | Email du mot de passe oublié envoyé sans faire attendre ; rien d'un compte désactivé dans les réactions, les citations et « écrit… » ; trois listes filtrées ; `refuserLesLiens()` pour les demandes, les projets et les réponses au défi. |
+| C1, C2, C3 | Corrigés | Erreur `23505` rattrapée à l'inscription ; contenu et mise en attente dans la même transaction ; un seul tour de la boucle d'appel à la fois. |
+| E2, E3, E4 | Corrigés | `versConnexion()` et `pageEnPanne()` dans `app.js` (un serveur qui ne répond pas n'est plus pris pour « pas connecté ») ; délais de 10 secondes pour l'email et la base. |
+| B2, B3, B4 | Corrigés | Deux index, notifications lues de plus de 180 jours nettoyées ; lecture simple avant la transaction du défi ; `defis.auteur_id` en `ON DELETE SET NULL`. |
+| P3, P4 | À faire en ligne | Certificat de la base (si Systalink le fournit) ; `SELECT lower('ÉTÉ')` sur la base en ligne. |
+| P5 | Corrigé | Le service worker ne garde que les pages de sa liste et les fichiers de l'interface. |
+| R1 à R5 | Corrigés | Textes passés par `t()` (les boutons de la notification d'un appel arrivent dans le push) ; `lieuDe()` aux six endroits ; quatre décisions écrites dans `journalModeration()` ; `appel_manque` dans `TYPES` ; mot de passe, sessions et journal dans une transaction ; plus de `innerHTML`. |
+
+**Ce qui n'a pas été vérifié** : ces corrections ont été testées par les tests automatiques, pas dans un navigateur. À essayer à la main avant la mise en ligne : la connexion avec `?suite=`, la déconnexion depuis une page autre que le fil (le push doit être coupé), l'ouverture d'une photo de message après déconnexion, un appel sur une connexion lente, et la page du fil avec le serveur arrêté (« Réessayer » au lieu du formulaire de connexion).

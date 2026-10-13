@@ -1,6 +1,6 @@
 // Page d'une demande : le client compare et choisit ; le dev propose seul ou forme une équipe éclair.
 (function () {
-  const { t, api, el, avatar, utilisateurConnecte, dateRelative, deNom, fcfa, signaler, etatVide, confirmer, icone, nomMembre } = window.Palabre;
+  const { t, lieuDe, api, el, avatar, utilisateurConnecte, dateRelative, deNom, fcfa, signaler, etatVide, confirmer, icone, nomMembre } = window.Palabre;
 
   const id = new URLSearchParams(window.location.search).get('id');
   const NOMS_STATUTS = { ouverte: t('demande.statut.ouverte'), attribuee: t('demande.statut.attribuee'), terminee: t('demande.statut.terminee'), annulee: t('demande.statut.annulee') };
@@ -65,7 +65,7 @@
           el('a', { classe: 'lien-avatar', href: `/${proposition.auteur.identifiant}`, 'aria-label': t('commun.profil-de', { nom: proposition.auteur.nom, deNom: deNom(proposition.auteur.nom) }) }, [avatar(proposition.auteur, 'moyen')]),
           el('div', {}, [
             nomMembre(proposition.auteur),
-            el('p', { classe: 'texte-discret publication-meta', texte: [proposition.auteur.ville, proposition.auteur.pays].filter(Boolean).join(', ') }),
+            el('p', { classe: 'texte-discret publication-meta', texte: lieuDe(proposition.auteur) }),
           ]),
         ]),
       ];
@@ -379,7 +379,7 @@
   document.addEventListener('DOMContentLoaded', async () => {
     moi = await utilisateurConnecte();
     if (!moi) {
-      window.location.href = `/connexion?suite=${encodeURIComponent(`/demande?id=${id}`)}`;
+      window.Palabre.versConnexion(`/connexion?suite=${encodeURIComponent(`/demande?id=${id}`)}`);
       return;
     }
     afficher();

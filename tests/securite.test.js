@@ -60,7 +60,9 @@ test('photo d\'un message privé : visible des deux membres de la conversation, 
     const r = await lire(avec(qui));
     assert.equal(r.status, 200, qui);
     assert.equal(r.headers.get('content-type'), 'image/jpeg');
-    assert.match(r.headers.get('cache-control'), /^private,/, 'jamais dans un cache partagé');
+    // Jamais dans un cache partagé, et redemandée au serveur à chaque affichage : après une déconnexion, l'adresse
+    // retrouvée dans l'historique ne montre plus rien.
+    assert.equal(r.headers.get('cache-control'), 'private, no-cache');
   }
   // Un visiteur, un autre membre, un cookie fantaisiste : la photo « n'existe pas ».
   assert.equal((await lire()).status, 404, 'visiteur');

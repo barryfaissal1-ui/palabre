@@ -30,14 +30,23 @@ const DUREE_VERROU_MIN = 15;
 // Hash factice : on compare quand même quand l'email n'existe pas, pour ne pas révéler les comptes par le temps de réponse.
 const HASH_FACTICE = bcrypt.hashSync('mot-de-passe-factice', COUT_BCRYPT);
 
-// Limite les tentatives pour freiner les attaques par force brute.
-const limiteSensible = rateLimit({
+// Limites par adresse IP, pour freiner les attaques par force brute. Sur un réseau mobile, beaucoup d'abonnés
+// sortent par la même adresse : chaque limite ne compte donc que ce qui ressemble à une attaque.
+const limite = (options) => rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 20,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { erreur: 'Trop de tentatives. Réessaie dans quelques minutes.' },
+  ...options,
 });
+// Mot de passe oublié, nouveau mot de passe, liens des emails : 20 par quart d'heure.
+const limiteSensible = limite({ limit: 20 });
+// Connexion : seuls les ÉCHECS comptent (une connexion réussie ne prend la place de personne). Chaque compte a en
+// plus son propre verrou (MAX_ECHECS), qui ne dépend pas de l'adresse.
+const limiteConnexion = limite({ limit: 20, skipSuccessfulRequests: true });
+// Inscription : sa propre limite, plus large (le champ piège, l'heure d'ouverture signée et le code par email
+// arrêtent déjà les robots). Les formulaires refusés (champ mal rempli) ne comptent pas.
+const limiteInscription = limite({ limit: 60, skipFailedRequests: true });
 
 // La saisie du code a sa propre limite par adresse IP, en plus des 5 essais permis par code.
 const limiteCodes = rateLimit({
@@ -103,7 +112,7 @@ router.get('/jeton-inscription', (req, res) => {
   res.json({ jeton: jetonOuverture() });
 });
 
-router.post('/inscription', limiteSensible, async (req, res) => {
+router.post('/inscription', limiteInscription, async (req, res) => {
   const corps = req.body || {};
   // Champ piège : invisible pour une personne, mais un robot qui remplit tous les champs le remplit aussi.
   // La réponse reste vague, pour ne pas lui expliquer ce qui l'a trahi.
@@ -137,15 +146,28 @@ router.post('/inscription', limiteSensible, async (req, res) => {
   const hash = await bcrypt.hash(donnees.motDePasse, COUT_BCRYPT);
   // Le nom affiché partout sur le site : « Prénom Nom ». Il est gardé dans sa propre colonne, recalculée ici.
   const nom = `${donnees.prenom} ${donnees.nomFamille}`;
-  const identifiant = await identifiantLibre(nom);
-  const { rows } = await db.query(
+  // Deux envois au même instant (double appui, deux onglets) passent tous les deux la vérification de l'email plus
+  // haut : le second bute ici sur la contrainte d'unicité. Email déjà pris : on le dit. Identifiant pris par un
+  // homonyme inscrit à la même seconde : on réessaie avec le suivant.
+  const creer = async (essai = 0) => {
+    const identifiant = await identifiantLibre(nom);
+    try {
+      return await db.query(
     // La langue du site au moment de l'inscription est gardée : le code de confirmation part dans cette langue.
     // regles_acceptees_le, regles_version : la preuve de l'acceptation, avec la version des règles lue ce jour-là.
     `INSERT INTO utilisateurs (type, nom, prenom, nom_famille, identifiant, email, mot_de_passe_hash, pays, ville, whatsapp, langue, regles_acceptees_le, regles_version)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now(), $12)
      RETURNING *`,
     [donnees.type, nom, donnees.prenom, donnees.nomFamille, identifiant, donnees.email, hash, donnees.pays, donnees.ville, donnees.whatsapp, langueDe(req), VERSION_REGLES],
-  );
+      );
+    } catch (err) {
+      if (err.code !== '23505') throw err;
+      if (/email/.test(err.constraint || '')) throw new v.ErreurValidation('Un compte existe déjà avec cet email.', 'email');
+      if (essai >= 2) throw err;
+      return creer(essai + 1);
+    }
+  };
+  const { rows } = await creer();
 
   // Le compte existe, mais il ne sert à rien tant que le code envoyé par email n'a pas été saisi.
   try {
@@ -176,7 +198,7 @@ router.post('/renvoyer-code', exigerConnexion, async (req, res) => {
   res.json({ message: 'Un nouveau code vient de partir. Regarde ta boîte de réception.' });
 });
 
-router.post('/connexion', limiteSensible, async (req, res) => {
+router.post('/connexion', limiteConnexion, async (req, res) => {
   const corps = req.body || {};
   const email = v.email(corps.email);
   const motDePasse = typeof corps.motDePasse === 'string' ? corps.motDePasse : '';
@@ -418,7 +440,11 @@ router.post('/mot-de-passe-oublie', limiteSensible, async (req, res) => {
       [rows[0].id, jetonHash, DUREE_JETON_MIN],
     );
     const lien = `${config.urlPublique}/reinitialiser?jeton=${jeton}`;
-    await mailer.envoyerEmail({ a: email, ...emailMotDePasse({ prenom: rows[0].prenom || rows[0].nom, lien, dureeMin: DUREE_JETON_MIN, langue: rows[0].langue || langueDe(req) }) });
+    // L'email part sans faire attendre la réponse : sinon elle serait plus lente (ou en erreur, si l'envoi échoue)
+    // pour un email inscrit seulement, et on devinerait qui a un compte.
+    Promise.resolve()
+      .then(() => mailer.envoyerEmail({ a: email, ...emailMotDePasse({ prenom: rows[0].prenom || rows[0].nom, lien, dureeMin: DUREE_JETON_MIN, langue: rows[0].langue || langueDe(req) }) }))
+      .catch((err) => console.error('Email « mot de passe oublié » impossible :', err.message));
   }
 
   res.json({ message: 'Si un compte existe avec cet email, un lien de réinitialisation vient d\'être envoyé.' });

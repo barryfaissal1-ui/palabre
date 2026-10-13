@@ -290,7 +290,19 @@
   }
 
   // La boucle de l'appel : une lecture par seconde, tant qu'il sonne ou qu'il est en cours.
+  // Sur un réseau lent, une réponse peut mettre plus d'une seconde : le tour suivant est alors sauté, sinon deux
+  // tours demanderaient les mêmes signaux et les traiteraient deux fois.
+  let tourEnCours = false;
   async function tour() {
+    if (tourEnCours) return;
+    tourEnCours = true;
+    try {
+      await unTour();
+    } finally {
+      tourEnCours = false;
+    }
+  }
+  async function unTour() {
     if (!appel) return;
     const { id } = appel;
     let reponse;

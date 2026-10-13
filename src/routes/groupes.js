@@ -271,7 +271,8 @@ router.post('/:id/sourdine', async (req, res) => {
 router.post('/:id/quitter', async (req, res) => {
   const moi = req.utilisateur;
   const groupe = await monGroupe(req.params.id, moi);
-  if (groupe.mon_role === 'admin' && !groupe.ferme_le) {
+  // (Un groupe qui n'a plus d'équipe, parce que la demande a été supprimée, se quitte librement.)
+  if (groupe.mon_role === 'admin' && !groupe.ferme_le && groupe.equipe_id) {
     throw new v.ErreurValidation('Tu es le chef de cette équipe : pour partir, dissous l\'équipe depuis la page de la demande.');
   }
   const quitteLEquipe = Boolean(groupe.equipe_id) && groupe.demande_statut === 'ouverte' && moi.id !== groupe.client_id;

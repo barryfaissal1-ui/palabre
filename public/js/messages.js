@@ -122,7 +122,7 @@
   // ---------- Les messages d'une conversation ----------
   // ---------- Messages vocaux : le lecteur dans la bulle ----------
   const minutes = (secondes) => `${Math.floor(secondes / 60)}:${String(Math.floor(secondes % 60)).padStart(2, '0')}`;
-  const VITESSES = [[1, 'x1'], [1.5, 'x1,5'], [2, 'x2']];
+  const VITESSES = [[1, 'x1'], [1.5, t('messages.vitesse-1-5')], [2, 'x2']];
   let sonEnCours = null; // un seul message vocal joue à la fois
 
   // Lecture / pause, barre d'avancement, durée, vitesse. Le son n'est demandé au serveur qu'au premier toucher :
@@ -844,7 +844,7 @@
     document.title = `${autre.nom} – Messages – Palabre`;
 
     const zone = el('div', { classe: 'fil-messages', role: 'log', 'aria-label': t('messages.avec', { nom: autre.nom }), tabindex: '0' });
-    const mentionVu = el('p', { classe: 'mention-vu', texte: 'Vu', hidden: true });
+    const mentionVu = el('p', { classe: 'mention-vu', texte: t('messages.vu'), hidden: true });
     window.Palabre.conversationOuverte = id; // app.js n'annonce pas par une carte les messages de la conversation ouverte
     ouverte = { id, donnees: conversation, zone, mentionVu, dernierId: 0, monDernierId: 0, dernierDeLAutre: 0, dernierJour: null, vuJusqua: conversation.vuJusqua };
 
@@ -1307,7 +1307,7 @@
   document.addEventListener('DOMContentLoaded', async () => {
     const moi = await utilisateurConnecte();
     if (!moi) {
-      window.location.href = `/connexion?suite=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+      window.Palabre.versConnexion(`/connexion?suite=${encodeURIComponent(window.location.pathname + window.location.search)}`);
       return;
     }
     if (new URLSearchParams(window.location.search).get('onglet') === 'demandes') onglet = 'demandes';

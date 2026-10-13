@@ -40,7 +40,7 @@
   document.addEventListener('DOMContentLoaded', async () => {
     const moi = await utilisateurConnecte();
     if (!moi) {
-      window.location.href = `/connexion?suite=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+      window.Palabre.versConnexion(`/connexion?suite=${encodeURIComponent(window.location.pathname + window.location.search)}`);
       return;
     }
     const formulaire = document.querySelector('[data-recherche]');

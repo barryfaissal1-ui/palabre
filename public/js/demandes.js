@@ -174,10 +174,15 @@
     const moi = await utilisateurConnecte();
     if (!moi) {
       // On garde les paramètres de l'adresse (catégorie et budget venus du calculateur) pour l'après-connexion.
-      window.location.href = `/connexion?suite=${encodeURIComponent(`/demandes${window.location.search}`)}`;
+      window.Palabre.versConnexion(`/connexion?suite=${encodeURIComponent(`/demandes${window.location.search}`)}`);
       return;
     }
-    const { categories } = await api('/categories');
+    let categories;
+    try {
+      ({ categories } = await api('/categories'));
+    } catch (erreur) {
+      return window.Palabre.pageEnPanne(erreur);
+    }
     const options = () => categories.map((c) => el('option', { value: c.id, texte: c.nom }));
     document.querySelector('[data-filtre-categorie]').append(...options());
     document.querySelector('#categorie').append(...options());

@@ -10,6 +10,7 @@
     reponse_commentaire: ['commentaire', 'vert'],
     message: ['commentaire', 'bleu'],
     demande_message: ['commentaire', 'bleu'],
+    appel_manque: ['telephone', 'terre'],
     nouvelle_proposition: ['demandes', 'terre'],
     proposition_acceptee: ['demandes', 'terre'],
     invitation_equipe: ['amis', 'prune'],
@@ -134,7 +135,7 @@
   document.addEventListener('DOMContentLoaded', async () => {
     const moi = await utilisateurConnecte();
     if (!moi) {
-      window.location.href = '/connexion?suite=/notifications';
+      window.Palabre.versConnexion('/connexion?suite=/notifications');
       return;
     }
     document.querySelector('[data-tout-lire]').addEventListener('click', async () => {

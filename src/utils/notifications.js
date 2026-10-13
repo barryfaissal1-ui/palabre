@@ -148,8 +148,10 @@ function court(texte, max = 60) {
 }
 
 // « de Bintou » mais « d'Awa » : l'élision devant une voyelle.
+// Un « y » suivi d'une voyelle se prononce comme une consonne : « de Yao », « de Youssouf », mais « d'Yves ».
+// (La même règle que deNom() de public/js/app.js.)
 function deNom(nom) {
-  return /^[aeiouyhàâäéèêëîïôöùûü]/i.test(nom) ? `d'${nom}` : `de ${nom}`;
+  return /^([aeiouhàâäéèêëîïôöùûü]|y(?![aeiouàâäéèêëîïôöùûü]))/i.test(nom) ? `d'${nom}` : `de ${nom}`;
 }
 
 module.exports = { notifier, retirerActeur, avecLesAutres, court, deNom, titrePush, TITRES_PUSH };

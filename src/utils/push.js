@@ -120,7 +120,9 @@ async function envoyerPush(utilisateurId, type, message) {
     // Le titre et le texte sont écrits en français par le code ; ils partent dans la langue du destinataire.
     const { traduire } = require('./textes');
     const langue = membre.langue || 'fr';
-    const charge = JSON.stringify({ titre: traduire(langue, message.titre || 'Palabre'), texte: traduire(langue, message.texte), lien: message.lien || '/notifications', tag: message.tag || type, ...(message.appel ? { appel: message.appel } : {}) });
+    const charge = JSON.stringify({ titre: traduire(langue, message.titre || 'Palabre'), texte: traduire(langue, message.texte), lien: message.lien || '/notifications', tag: message.tag || type,
+      // Un appel : les deux boutons de la notification, dans la langue du destinataire (sw.js ne lit pas les dictionnaires).
+      ...(message.appel ? { appel: message.appel, boutons: { decrocher: traduire(langue, 'Décrocher'), refuser: traduire(langue, 'Refuser') } } : {}) });
     // « Topic » : le service de push remplace un message pas encore remis par le suivant du même sujet.
     const sujet = crypto.createHash('sha256').update(message.tag || type).digest('base64url').slice(0, 32);
     const resultats = await Promise.all(abonnements.map(async (abonnement) => {

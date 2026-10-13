@@ -18,7 +18,7 @@ router.use(exigerConnexion);
 async function membreVise(valeur, res) {
   const identifiant = typeof valeur === 'string' ? valeur.trim().toLowerCase() : '';
   const { rows } = await db.query(
-    'SELECT id, identifiant FROM utilisateurs WHERE identifiant = $1 AND bloque = FALSE AND desactive_le IS NULL',
+    'SELECT id, identifiant FROM utilisateurs WHERE identifiant = $1 AND bloque = FALSE AND desactive_le IS NULL AND supprime_le IS NULL',
     [identifiant],
   );
   if (rows[0]) return rows[0];

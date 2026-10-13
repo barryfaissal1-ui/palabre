@@ -268,8 +268,13 @@
     if (!moi) return invitation(profil, t('profil.connecte-amis'));
     const zone = el('div', { classe: 'panneau-marge' });
     const fini = chargement(zone, 2);
-    api(`/profils/${encodeURIComponent(profil.identifiant)}/amis`).then(({ amis }) => {
+    api(`/profils/${encodeURIComponent(profil.identifiant)}/amis`).then(({ amis, cachee }) => {
       fini();
+      // Réglage « Qui peut voir ma liste d'amis » : le serveur ne l'a pas donnée. Ce n'est pas « aucun ami ».
+      if (cachee) {
+        zone.replaceChildren(etatVide('calme', t('profil.amis-prives'), t('profil.amis-prives-texte', { prenom: prenom(profil) })));
+        return;
+      }
       if (!amis.length) {
         zone.replaceChildren(profil.estMoi
           ? etatVide('amis', t('amis.cercle'), t('profil.cercle-aide'),
@@ -282,7 +287,7 @@
           el('a', { classe: 'lien-avatar', href: `/${ami.identifiant}`, 'aria-label': t('commun.profil-de', { nom: ami.nom, deNom: deNom(ami.nom) }) }, [avatar(ami, 'moyen')]),
           el('div', { classe: 'ligne-membre-infos' }, [
             nomMembre(ami),
-            el('p', { classe: 'texte-discret', texte: [ami.ville, ami.pays].filter(Boolean).join(', ') }),
+            el('p', { classe: 'texte-discret', texte: lieuDe(ami) }),
           ]),
         ]))),
         profil.estMoi ? el('a', { classe: 'bouton bouton-contour', href: '/amis' }, [icone('amis'), t('profil.gerer-amis')]) : null,

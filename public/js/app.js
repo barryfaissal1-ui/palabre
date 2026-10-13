@@ -114,12 +114,50 @@
   }
 
   // Le membre connecté est demandé une seule fois par page, puis gardé en mémoire.
+  // Sans réponse du serveur (pas de réseau, erreur 500), on réessaie une fois. Si rien ne vient, la fonction rend
+  // « null » comme pour un visiteur (les pages publiques s'affichent), mais « sansReponse » retient que personne n'a
+  // dit « pas connecté » : versConnexion() ne renverra pas un membre connecté vers le formulaire de connexion.
   let promesseUtilisateur = null;
+  let sansReponse = false;
   function utilisateurConnecte() {
     if (!promesseUtilisateur) {
-      promesseUtilisateur = api('/auth/moi').then((r) => r.utilisateur).catch(() => null);
+      const demander = () => api('/auth/moi').then((r) => r.utilisateur);
+      promesseUtilisateur = demander()
+        .catch(() => new Promise((suite) => setTimeout(suite, 1200)).then(demander))
+        .catch(() => { sansReponse = true; return null; });
     }
     return promesseUtilisateur;
+  }
+
+  // Page réservée aux membres, ouverte par un visiteur : direction la connexion. Mais si le serveur n'a simplement
+  // pas répondu, on reste sur la page avec un bouton « Réessayer » : la session, elle, est toujours là.
+  function versConnexion(adresse = '/connexion') {
+    if (!sansReponse) return window.location.replace(adresse);
+    pageEnPanne(new Error(t('commun.pas-de-connexion')));
+  }
+
+  // La première requête d'une page a échoué : plutôt qu'une page vide, le message de l'erreur et « Réessayer ».
+  function pageEnPanne(erreur) {
+    const bouton = el('button', { classe: 'bouton bouton-principal', type: 'button', texte: t('commun.reessayer') });
+    bouton.addEventListener('click', () => window.location.reload());
+    (document.querySelector('main') || document.body).replaceChildren(etatVide('calme', (erreur && erreur.message) || t('commun.erreur'), null, bouton));
+  }
+
+  // Page où aller après la connexion, l'inscription ou le code : le paramètre « suite » de l'adresse.
+  // Seule une adresse INTERNE est acceptée, jamais un autre site, même si quelqu'un fabrique le lien. Le navigateur
+  // retire les tabulations et les sauts de ligne d'une adresse avant de la lire (« /<tabulation>/site.example »
+  // devient « //site.example », donc un autre site) : on refuse ces caractères, puis on compare l'adresse telle que
+  // le navigateur la comprend.
+  function suiteDemandee() {
+    const suite = new URLSearchParams(window.location.search).get('suite');
+    if (!suite || !suite.startsWith('/') || /[\u0000-\u001f\u007f\\]/.test(suite)) return null;
+    try {
+      const adresse = new URL(suite, window.location.origin);
+      const interne = adresse.pathname + adresse.search + adresse.hash;
+      return adresse.origin === window.location.origin && !interne.startsWith('//') ? interne : null;
+    } catch {
+      return null;
+    }
   }
 
   // Crée un élément HTML sans jamais interpréter de texte comme du code :
@@ -1257,9 +1295,20 @@
     return bouton;
   }
 
+  // Couper les notifications push sur CET appareil : le serveur oublie l'abonnement, puis le navigateur aussi.
+  // Ici (et non dans push.js, chargé par deux pages seulement) pour que la déconnexion le fasse depuis toutes les pages.
+  async function couperPush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    const enregistrement = await Promise.race([navigator.serviceWorker.ready, new Promise((suite) => setTimeout(suite, 3000))]);
+    const abonnement = enregistrement ? await enregistrement.pushManager.getSubscription() : null;
+    if (!abonnement) return;
+    await api('/notifications/push', { methode: 'DELETE', donnees: { endpoint: abonnement.endpoint } }).catch(() => {});
+    await abonnement.unsubscribe().catch(() => {});
+  }
+
   // Se déconnecter : coupe aussi le push sur cet appareil (la personne suivante ne recevra pas mes notifications).
   async function seDeconnecter() {
-    if (window.Palabre.push) await window.Palabre.push.couper().catch(() => {});
+    await couperPush().catch(() => {});
     await api('/auth/deconnexion', { methode: 'POST', donnees: {} }).catch(() => {});
     window.location.href = '/';
   }
@@ -1621,5 +1670,5 @@
 
   document.addEventListener('DOMContentLoaded', remplirNavigation);
 
-  window.Palabre = { nomPays, lieuDe, cleDe, t, langue, changerLangue, traduirePage, nombre, REGION, appeler, appelEntrant, listeChoix, chargementInfini, tempsRestant, etatDefi, api, utilisateurConnecte, el, avatar, nomMembre, badgeFeuille, prenom, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, copierLien, menuOptions, majPastilleMessages, seDeconnecter, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
+  window.Palabre = { nomPays, lieuDe, cleDe, t, langue, changerLangue, traduirePage, nombre, REGION, appeler, appelEntrant, listeChoix, chargementInfini, tempsRestant, etatDefi, api, utilisateurConnecte, versConnexion, pageEnPanne, suiteDemandee, couperPush, el, avatar, nomMembre, badgeFeuille, prenom, initiales, dateRelative, deNom, fcfa, etoiles, carteProjet, partager, copierLien, menuOptions, majPastilleMessages, seDeconnecter, reduireImage, signaler, icone, illustration, etatVide, chargement, toast, confirmer };
 })();

@@ -54,4 +54,4 @@ async function limiterNouveauCompte(utilisateur, sorte) {
   if (compte.nb >= LIMITES[sorte]) throw new ErreurHttp(429, PHRASES[sorte]);
 }
 
-module.exports = { DUREE_JOURS, LIMITES, estNouveau, finDeLaPeriode, dateCourte, refuserLesLiens, limiterNouveauCompte };
+module.exports = { DUREE_JOURS, LIMITES, estDeDemonstration, estNouveau, finDeLaPeriode, dateCourte, refuserLesLiens, limiterNouveauCompte };

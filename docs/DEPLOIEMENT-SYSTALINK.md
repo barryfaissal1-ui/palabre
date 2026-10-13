@@ -60,6 +60,7 @@ Pour prévenir les membres sur leur téléphone, même site fermé, ajoute trois
 | `VAPID_PUBLIQUE` | donnée par `npm run cles-push` | La clé que les téléphones voient : elle identifie Palabre auprès de Google, Mozilla et Apple. |
 | `VAPID_PRIVEE` | donnée par `npm run cles-push` | La clé qui signe les envois. **Ne la montre à personne, ne la mets jamais sur GitHub.** |
 | `VAPID_SUJET` | `mailto:` suivi d'un email de l'équipe | Permet au service de push de vous joindre en cas de problème. |
+| `MOT_DE_PASSE_DEMO` | facultatif : un mot de passe de 8 caractères au moins | Lu par `npm run demo` seulement. Sans lui, les comptes de démonstration prennent le mot de passe public de `docs/COMPTES-DEMO.md` (ils sont de toute façon verrouillés : voir ce document). |
 | `CONTACT_MODERATION` | une adresse email de l'équipe | L'adresse affichée sur `/regles` et `/conditions` pour les signalements graves. Sans elle : `moderation@palabre.dev`. Mets une adresse que quelqu'un lit vraiment. |
 | `ENTETE_PAYS`, `ENTETE_VILLE` | le nom d'un en-tête, ou rien | Facultatif. Si Systalink ajoute le pays ou la ville du visiteur dans un en-tête, écris son nom ici : Palabre l'affichera dans « Appareils connectés » et dans l'email d'alerte. Laisse vide si tu n'es pas sûr : aucun lieu ne sera affiché, et rien ne casse. |
 

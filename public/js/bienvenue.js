@@ -1,12 +1,7 @@
 // Page /bienvenue : « Ton profil de dev », l'étape 2 de l'inscription d'un développeur.
 (function () {
-  const { api, utilisateurConnecte, t } = window.Palabre;
+  const { api, utilisateurConnecte, t, suiteDemandee } = window.Palabre;
   const LIENS = ['github', 'gitlab', 'portfolio', 'linkedin'];
-
-  function suiteDemandee() {
-    const suite = new URLSearchParams(window.location.search).get('suite');
-    return suite && suite.startsWith('/') && !suite.startsWith('//') && !suite.includes('\\') ? suite : null;
-  }
 
   document.addEventListener('DOMContentLoaded', async () => {
     const formulaire = document.querySelector('[data-profil-dev]');
@@ -15,7 +10,7 @@
     const bouton = formulaire.querySelector('button[type="submit"]');
 
     const moi = await utilisateurConnecte();
-    if (!moi) return window.location.replace('/connexion?suite=/bienvenue');
+    if (!moi) return window.Palabre.versConnexion('/connexion?suite=/bienvenue');
     if (!moi.emailConfirme) return window.location.replace('/confirmer-email');
     // Un client n'a pas d'étape 2 ; un dev qui l'a déjà faite modifie son profil sur la page habituelle.
     if (moi.type !== 'dev') return window.location.replace('/fil');

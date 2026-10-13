@@ -76,7 +76,7 @@ async function lirePropositions(condition, valeurs, moi, pourClient) {
     `SELECT em.equipe_id, em.dev_id, em.role, em.statut, ${COLONNES_MEMBRE}
        FROM equipe_membres em
        JOIN utilisateurs u ON u.id = em.dev_id
-      WHERE em.equipe_id = ANY($1::int[])
+      WHERE em.equipe_id = ANY($1::int[]) AND u.bloque = FALSE
       ORDER BY u.nom`,
     [idsEquipes],
   )).rows;
@@ -139,6 +139,7 @@ function propositionsVisibles(ligneDemande, moi) {
 }
 
 const { controler, mettreEnAttente, PHRASE_ATTENTE, parleDePaiement } = require('../utils/moderation');
+const { refuserLesLiens } = require('../utils/nouveaux-comptes');
 
 function lireProposition(corps) {
   return {
@@ -191,15 +192,18 @@ router.post('/', exigerClient, limiteDemandes, async (req, res) => {
     categorie: v.parmi(corps.categorie, CATEGORIES, 'categorie'),
   };
   const filtre = await controler(req, [[donnees.titre, 'titre'], [donnees.description, 'description'], [donnees.delai, 'delai']]);
-  const { rows } = await db.query(
-    `INSERT INTO demandes (client_id, titre, description, budget_fcfa, delai, categorie)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-    [moi.id, donnees.titre, donnees.description, donnees.budgetFcfa, donnees.delai, donnees.categorie],
-  );
-  if (filtre.enAttente) {
-    await db.transaction((client) => mettreEnAttente(client, 'demande', rows[0].id, moi.id, filtre.raison));
-    return res.status(202).json({ enAttente: true, message: PHRASE_ATTENTE.demande });
-  }
+  refuserLesLiens(moi, [[donnees.titre, 'titre'], [donnees.description, 'description'], [donnees.delai, 'delai']]);
+  // Retenue par le filtre : cachée dans la même transaction que son enregistrement, jamais visible entre les deux.
+  const { rows } = await db.transaction(async (client) => {
+    const creee = await client.query(
+      `INSERT INTO demandes (client_id, titre, description, budget_fcfa, delai, categorie)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      [moi.id, donnees.titre, donnees.description, donnees.budgetFcfa, donnees.delai, donnees.categorie],
+    );
+    if (filtre.enAttente) await mettreEnAttente(client, 'demande', creee.rows[0].id, moi.id, filtre.raison);
+    return creee;
+  });
+  if (filtre.enAttente) return res.status(202).json({ enAttente: true, message: PHRASE_ATTENTE.demande });
   const { demande } = await lireDemande(rows[0].id, moi);
   res.status(201).json({ demande });
 });

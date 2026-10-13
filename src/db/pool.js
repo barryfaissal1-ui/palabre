@@ -6,6 +6,8 @@ const pool = new Pool({
   connectionString: config.databaseUrl,
   ssl: config.databaseSsl ? { rejectUnauthorized: false } : undefined,
   max: 10,
+  // Toutes les connexions occupées, ou base injoignable : une erreur après 10 secondes plutôt qu'une attente sans fin.
+  connectionTimeoutMillis: 10000,
 });
 
 pool.on('error', (err) => {

@@ -1,11 +1,11 @@
 // Page publique d'un projet réalisé : palabre.dev/projets/12
 (function () {
-  const { t, deNom, api, el, avatar, utilisateurConnecte, partager, signaler, icone, etatVide, nomMembre } = window.Palabre;
+  const { t, deNom, lieuDe, api, el, avatar, utilisateurConnecte, partager, signaler, icone, etatVide, nomMembre } = window.Palabre;
 
   const id = window.location.pathname.split('/')[2];
 
   function page(projet, moi) {
-    const lieu = [projet.dev.ville, projet.dev.pays].filter(Boolean).join(', ');
+    const lieu = lieuDe(projet.dev);
     const boutonPartage = el('button', { classe: 'bouton bouton-contour', type: 'button' }, [icone('partager'), t('commun.partager')]);
     boutonPartage.addEventListener('click', () => partager({ titre: t('projet.partage-titre', { titre: projet.titre }), texte: t('projet.partage-texte', { titre: projet.titre, nom: projet.dev.nom }), url: `${window.location.origin}/projets/${projet.id}` }));
 

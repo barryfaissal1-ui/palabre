@@ -132,14 +132,19 @@
   document.addEventListener('DOMContentLoaded', async () => {
     moi = await utilisateurConnecte();
     if (!moi) {
-      window.location.href = '/connexion?suite=/projets';
+      window.Palabre.versConnexion('/connexion?suite=/projets');
       return;
     }
     if (moi.type !== 'dev') {
       window.location.href = '/chercher'; // les projets sont réservés aux développeurs
       return;
     }
-    const { secteurs } = await api('/secteurs');
+    let secteurs;
+    try {
+      ({ secteurs } = await api('/secteurs'));
+    } catch (erreur) {
+      return window.Palabre.pageEnPanne(erreur);
+    }
     document.querySelector('#secteur').append(...secteurs.map((s) => el('option', { value: s.id, texte: s.nom })));
     brancherFormulaire();
     chargerListe().catch((erreur) => {

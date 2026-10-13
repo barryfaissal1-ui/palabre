@@ -2,7 +2,7 @@
 // les réponses, puis le vote. Le serveur dit dans quelle phase on est et ce que le membre peut faire
 // (peutRepondre, peutVoter) : la page ne fait que l'afficher.
 (function () {
-  const { t, deNom, api, el, avatar, nomMembre, icone, etatVide, toast, confirmer, utilisateurConnecte, tempsRestant } = window.Palabre;
+  const { t, deNom, lieuDe, api, el, avatar, nomMembre, icone, etatVide, toast, confirmer, utilisateurConnecte, tempsRestant } = window.Palabre;
   const zone = () => document.querySelector('[data-defi]');
   const PHASES = { reponses: t('defis.phase.reponses'), vote: t('defis.phase.vote'), termine: t('defis.phase.termine') };
 
@@ -115,7 +115,7 @@
         el('a', { classe: 'lien-avatar', href: `/${reponse.auteur.identifiant}`, 'aria-label': t('commun.profil-de', { nom: reponse.auteur.nom, deNom: deNom(reponse.auteur.nom) }) }, [avatar(reponse.auteur, 'moyen')]),
         el('div', { classe: 'publication-qui' }, [
           nomMembre(reponse.auteur),
-          el('p', { classe: 'texte-discret publication-meta', texte: [reponse.auteur.ville, reponse.auteur.pays].filter(Boolean).join(', ') }),
+          el('p', { classe: 'texte-discret publication-meta', texte: lieuDe(reponse.auteur) }),
         ]),
       ]),
       el('p', { classe: 'publication-texte', texte: reponse.texte }),

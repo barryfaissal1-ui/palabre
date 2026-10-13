@@ -73,7 +73,7 @@
   document.addEventListener('DOMContentLoaded', async () => {
     const zone = document.querySelector('[data-sanctions]');
     if (!jeton && !(await utilisateurConnecte())) {
-      window.location.href = '/connexion?suite=/sanctions';
+      window.Palabre.versConnexion('/connexion?suite=/sanctions');
       return;
     }
     const fini = chargement(zone, 2);

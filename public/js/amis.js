@@ -1,6 +1,6 @@
 // Page « Mes amis » : demandes reçues, amis, demandes envoyées.
 (function () {
-  const { t, deNom, api, el, avatar, utilisateurConnecte, icone, etatVide, confirmer, nomMembre } = window.Palabre;
+  const { t, deNom, lieuDe, api, el, avatar, utilisateurConnecte, icone, etatVide, confirmer, nomMembre } = window.Palabre;
 
   function message(texte, type) {
     const zone = document.querySelector('[data-message]');
@@ -30,7 +30,7 @@
   }
 
   function ligneMembre(membre, boutons) {
-    const lieu = [membre.ville, membre.pays].filter(Boolean).join(', ');
+    const lieu = lieuDe(membre);
     return el('li', { classe: 'ligne-membre' }, [
       el('a', { classe: 'lien-avatar', href: `/${membre.identifiant}`, 'aria-label': t('commun.profil-de', { nom: membre.nom, deNom: deNom(membre.nom) }) }, [avatar(membre, 'moyen')]),
       el('div', { classe: 'ligne-membre-infos' }, [
@@ -97,7 +97,7 @@
   document.addEventListener('DOMContentLoaded', async () => {
     const moi = await utilisateurConnecte();
     if (!moi) {
-      window.location.href = '/connexion?suite=/amis';
+      window.Palabre.versConnexion('/connexion?suite=/amis');
       return;
     }
     try {

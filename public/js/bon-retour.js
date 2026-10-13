@@ -5,7 +5,7 @@
 
   document.addEventListener('DOMContentLoaded', async () => {
     const moi = await utilisateurConnecte();
-    if (!moi) return window.location.replace('/connexion');
+    if (!moi) return window.Palabre.versConnexion('/connexion');
     if (!moi.desactive) return window.location.replace('/fil');
 
     const bouton = document.querySelector('[data-reactiver]');

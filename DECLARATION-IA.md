@@ -53,6 +53,7 @@ Déclaration exigée par l'article 6 du règlement CADEV 2026. À compléter par
 | Icônes (`public/icons/icones.svg`) | Icônes Lucide (licence ISC), assemblées en un fichier avec l'IA |
 | Image de partage Facebook / WhatsApp (`public/img/palabre-partage-1200x630.png`) | Visuel réalisé avec Claude (Anthropic) à partir du logo et des couleurs de l'équipe |
 | Logo | Créé par l'équipe avec Claude Code ; icônes dérivées générées automatiquement |
+| Revue du code avant la mise en ligne (`docs/REVUE-CODE.md`) et ses corrections (`tests/revue.test.js`) | Relecture et corrections faites par l'IA à la demande de l'équipe, qui a choisi quoi corriger |
 
 ## Maîtrise par l'équipe
 

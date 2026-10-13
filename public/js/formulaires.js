@@ -1,13 +1,7 @@
 // Gestion des formulaires d'authentification (inscription, connexion, mot de passe).
 (function () {
-  const { api, t, nomPays } = window.Palabre;
-
-  // Page où aller après l'inscription ou la connexion : le paramètre « suite » de l'adresse.
-  // On n'accepte qu'une adresse interne (« /… ») : jamais un autre site, même si quelqu'un fabrique le lien.
-  function suiteDemandee() {
-    const suite = new URLSearchParams(window.location.search).get('suite');
-    return suite && suite.startsWith('/') && !suite.startsWith('//') && !suite.includes('\\') ? suite : null;
-  }
+  // suiteDemandee() : la page où aller après l'inscription ou la connexion (adresse interne seulement, voir app.js).
+  const { api, t, nomPays, suiteDemandee } = window.Palabre;
 
   // Sur la page d'accès, acces.js fait s'envoler le motif du fond (0,4 s) avant le changement de page.
   // Ailleurs, ou si l'animation échoue, on continue tout de suite : rien ne doit retarder la connexion.
@@ -102,7 +96,7 @@
     try {
       const { pays } = await api('/pays');
       const actuel = select.value;
-      select.innerHTML = '';
+      select.replaceChildren();
       pays.forEach((nom) => select.add(new Option(nomPays(nom), nom, false, nom === actuel)));
     } catch {
       // On garde l'option par défaut si la liste ne charge pas.

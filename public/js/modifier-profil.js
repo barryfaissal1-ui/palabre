@@ -203,10 +203,15 @@
   document.addEventListener('DOMContentLoaded', async () => {
     const moi = await utilisateurConnecte();
     if (!moi) {
-      window.location.href = '/connexion?suite=/modifier-profil';
+      window.Palabre.versConnexion('/connexion?suite=/modifier-profil');
       return;
     }
-    const resultat = await api(`/profils/${moi.identifiant}`);
+    let resultat;
+    try {
+      resultat = await api(`/profils/${moi.identifiant}`);
+    } catch (erreur) {
+      return window.Palabre.pageEnPanne(erreur);
+    }
     profil = resultat.profil;
     competencesChoisies = new Set(profil.competences.map((c) => c.id));
 

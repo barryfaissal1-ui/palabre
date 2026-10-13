@@ -104,7 +104,7 @@
       ...contenu,
       el('ul', { classe: 'motifs' }, carte.signalements.map((s) => el('li', {}, [
         el('strong', { texte: s.motif }),
-        el('span', { classe: 'texte-discret' }, [', par ', lienMembre(s.auteur), `, ${dateRelative(s.creeLe)}`]),
+        el('span', { classe: 'texte-discret' }, [t('admin.signale-par'), lienMembre(s.auteur), `, ${dateRelative(s.creeLe)}`]),
       ]))),
       el('div', { classe: 'profil-actions' }, boutons),
       sanction,
@@ -192,6 +192,8 @@
     contenu_approuve: t('admin.journal.contenu-approuve'), contenu_retire: t('admin.journal.contenu-retire'),
     sanction_avertissement: t('admin.journal.avertissement'), sanction_suspension: t('admin.journal.suspension'), sanction_exclusion: t('admin.journal.exclusion'),
     sanction_annulee: t('admin.journal.sanction-annulee'), contestation_rejetee: t('admin.journal.contestation-rejetee'),
+    publication_supprimee: t('admin.journal.publication-supprimee'), commentaire_supprime: t('admin.journal.commentaire-supprime'),
+    projet_supprime: t('admin.journal.projet-supprime'), membre_debloque: t('admin.journal.membre-debloque'),
     signalement_masquer: t('admin.journal.masquer'), signalement_bloquer: t('admin.journal.bloquer'), signalement_classer: t('admin.journal.classer'),
   };
   function sectionJournal(journal) {
@@ -315,7 +317,7 @@
         avatar(membre, 'moyen'),
         el('div', { classe: 'ligne-membre-infos' }, [
           el('p', { classe: 'nom-auteur', texte: membre.nom }),
-          el('p', { classe: 'texte-discret', texte: [membre.ville, membre.pays].filter(Boolean).join(', ') }),
+          el('p', { classe: 'texte-discret', texte: lieuDe(membre) }),
         ]),
         el('div', { classe: 'ligne-membre-actions' }, [
           boutonAction(t('messages.debloquer'), 'bouton-contour',
@@ -444,7 +446,7 @@
   document.addEventListener('DOMContentLoaded', async () => {
     const moi = await utilisateurConnecte();
     if (!moi) {
-      window.location.href = '/connexion?suite=/admin';
+      window.Palabre.versConnexion('/connexion?suite=/admin');
       return;
     }
     const zone = document.querySelector('[data-admin]');

@@ -9,6 +9,7 @@ const express = require('express');
 const db = require('../db/pool');
 const v = require('../utils/validation');
 const { controler } = require('../utils/moderation');
+const { refuserLesLiens } = require('../utils/nouveaux-comptes');
 const liens = require('../utils/liens'); // « liens.verifierLien » : les tests peuvent le remplacer
 const { exigerConnexion, exigerDev, exigerProfilComplet } = require('../middleware/auth');
 const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/membres');
@@ -27,6 +28,10 @@ const PHASE = `CASE WHEN d.statut = 'termine' OR now() >= d.fin_vote_le THEN 'te
 // FOR UPDATE SKIP LOCKED : si deux lectures arrivent au même instant, une seule s'occupe du défi ;
 // l'autre le saute. Le gagnant ne peut donc pas être désigné (ni prévenu) deux fois.
 async function cloreDefisFinis() {
+  // Presque toutes les pages demandent le résumé du défi : une lecture simple d'abord, et la transaction seulement
+  // s'il y a vraiment un défi à clore.
+  const { rowCount } = await db.query('SELECT 1 FROM defis WHERE statut = \'ouvert\' AND fin_vote_le <= now() LIMIT 1');
+  if (!rowCount) return;
   await db.transaction(async (client) => {
     const { rows: finis } = await client.query(
       'SELECT id, titre FROM defis WHERE statut = \'ouvert\' AND fin_vote_le <= now() ORDER BY id FOR UPDATE SKIP LOCKED',
@@ -158,6 +163,7 @@ router.post('/:id/reponse', exigerConnexion, exigerDev, exigerProfilComplet, lim
   const moi = req.utilisateur;
   const texte = v.texte(req.body?.texte, 'texte', { min: 20, max: 2000 });
   await controler(req, [[texte, 'texte']], { mode: 'strict' }); // filtre automatique (src/utils/moderation.js)
+  refuserLesLiens(moi, [[texte, 'texte']]); // le champ « lien » de la réponse, lui, est vérifié à part
   const lien = liens.normaliserLien(req.body?.lien); // adresses internes refusées (voir utils/liens.js)
 
   const { rows: [existante] } = await db.query(

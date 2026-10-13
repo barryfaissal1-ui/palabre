@@ -110,9 +110,9 @@ test('statistiques : les compteurs suivent l\'activité', async () => {
   // juste avant et juste après l'appel. Quand les deux comptages sont identiques, rien n'a bougé entre-temps
   // et les statistiques doivent donner exactement les mêmes nombres.
   const compter = async () => (await pool.query(
-    `SELECT (SELECT count(*)::int FROM utilisateurs WHERE type = 'dev' AND NOT bloque) AS devs,
-            (SELECT count(*)::int FROM utilisateurs WHERE type = 'client' AND NOT bloque) AS clients,
-            (SELECT count(*)::int FROM publications WHERE NOT masque) AS publications,
+    `SELECT (SELECT count(*)::int FROM utilisateurs WHERE type = 'dev' AND NOT bloque AND desactive_le IS NULL AND supprime_le IS NULL) AS devs,
+            (SELECT count(*)::int FROM utilisateurs WHERE type = 'client' AND NOT bloque AND desactive_le IS NULL AND supprime_le IS NULL) AS clients,
+            (SELECT count(*)::int FROM publications WHERE NOT masque AND supprimee_le IS NULL) AS publications,
             (SELECT count(*)::int FROM demandes WHERE NOT masque) AS demandes,
             (SELECT count(*)::int FROM projets WHERE NOT masque) AS projets,
             (SELECT count(*)::int FROM propositions WHERE statut = 'acceptee') AS "propositionsAcceptees"`,

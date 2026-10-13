@@ -12,6 +12,7 @@ const { apercuMembre, COLONNES_MEMBRE, limiteParMembre } = require('../utils/mem
 const { effacerPublication } = require('../utils/purge');
 const { controler, mettreEnAttente, PHRASE_ATTENTE } = require('../utils/moderation');
 const { refuserLesLiens, limiterNouveauCompte } = require('../utils/nouveaux-comptes');
+const { journalModeration } = require('../utils/sanctions');
 const { lireLienVideo } = require('../utils/videos');
 const { notifier, retirerActeur, avecLesAutres } = require('../utils/notifications');
 const { publicationsVisibles } = require('../utils/confidentialite');
@@ -385,6 +386,7 @@ router.delete('/:id', async (req, res) => {
     await client.query('BEGIN');
     // Les j'aime et les commentaires partent avec la publication (ON DELETE CASCADE).
     await effacerPublication(client, publication.id);
+    await journalModeration(client, moi.id, 'publication_supprimee', { cibleType: 'publication', cibleId: publication.id, membreId: publication.auteur_id });
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');
@@ -432,18 +434,21 @@ router.delete('/:id/jaime', limiteJaime, async (req, res) => {
 });
 
 // Commentaires d'une publication : GET /api/publications/:id/commentaires
-// La meilleure réponse d'abord (pour une question), puis du plus ancien au plus récent.
+// La meilleure réponse d'abord (pour une question), puis du plus ancien au plus récent. Au-delà de la limite, ce
+// sont les plus RÉCENTS qui sont gardés (sinon un commentaire qu'on vient d'écrire ne s'afficherait jamais).
 router.get('/:id/commentaires', async (req, res) => {
   const moi = req.utilisateur;
   const publication = await publicationDeLaRoute(req, res);
   if (!publication) return;
   const { rows } = await db.query(
-    `SELECT c.id, c.texte, c.cree_le, c.modifie_le, c.auteur_id, ${COLONNES_MEMBRE}
-       FROM commentaires c
-       JOIN utilisateurs u ON u.id = c.auteur_id
-      WHERE c.publication_id = $1 AND c.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL
-      ORDER BY (c.id = $3::int) IS TRUE DESC, c.id
-      LIMIT $2`,
+    `SELECT * FROM (
+       SELECT c.id, c.texte, c.cree_le, c.modifie_le, c.auteur_id, ${COLONNES_MEMBRE}
+         FROM commentaires c
+         JOIN utilisateurs u ON u.id = c.auteur_id
+        WHERE c.publication_id = $1 AND c.masque = FALSE AND u.bloque = FALSE AND u.desactive_le IS NULL
+        ORDER BY (c.id = $3::int) IS TRUE DESC, c.id DESC
+        LIMIT $2) derniers
+      ORDER BY (derniers.id = $3::int) IS TRUE DESC, derniers.id`,
     [publication.id, MAX_COMMENTAIRES_AFFICHES, publication.type === 'question' ? publication.meilleure_reponse_id : null],
   );
   res.json({ commentaires: rows.map((ligne) => versCommentaire(ligne, moi, publication.type === 'question' && ligne.id === publication.meilleure_reponse_id)) });
@@ -458,18 +463,20 @@ router.post('/:id/commentaires', limiteCommentaires, async (req, res) => {
   const filtre = await controler(req, [[texte, 'texte']]);
   refuserLesLiens(moi, [[texte, 'texte']]);
   await limiterNouveauCompte(moi, 'commentaire');
-  const { rows } = await db.query(
-    `WITH nouveau AS (
-       INSERT INTO commentaires (publication_id, auteur_id, texte) VALUES ($1, $2, $3)
-       RETURNING id, texte, cree_le, auteur_id)
-     SELECT nouveau.*, ${COLONNES_MEMBRE} FROM nouveau JOIN utilisateurs u ON u.id = nouveau.auteur_id`,
-    [publication.id, moi.id, texte],
-  );
-  // Retenu par le filtre : caché, et personne n'est prévenu tant qu'un administrateur ne l'a pas approuvé.
-  if (filtre.enAttente) {
-    await db.transaction((client) => mettreEnAttente(client, 'commentaire', rows[0].id, moi.id, filtre.raison));
-    return res.status(202).json({ enAttente: true, message: PHRASE_ATTENTE.commentaire });
-  }
+  // Retenu par le filtre : caché dans la MÊME transaction que son enregistrement (il n'est jamais visible, même un
+  // instant), et personne n'est prévenu tant qu'un administrateur ne l'a pas approuvé.
+  const { rows } = await db.transaction(async (client) => {
+    const cree = await client.query(
+      `WITH nouveau AS (
+         INSERT INTO commentaires (publication_id, auteur_id, texte) VALUES ($1, $2, $3)
+         RETURNING id, texte, cree_le, auteur_id)
+       SELECT nouveau.*, ${COLONNES_MEMBRE} FROM nouveau JOIN utilisateurs u ON u.id = nouveau.auteur_id`,
+      [publication.id, moi.id, texte],
+    );
+    if (filtre.enAttente) await mettreEnAttente(client, 'commentaire', cree.rows[0].id, moi.id, filtre.raison);
+    return cree;
+  });
+  if (filtre.enAttente) return res.status(202).json({ enAttente: true, message: PHRASE_ATTENTE.commentaire });
   // L'auteur de la publication est prévenu (une seule notification pour plusieurs commentateurs non lus)…
   const cible = { type: 'publication', id: publication.id };
   const lien = `/publication/${publication.id}`;
@@ -538,7 +545,11 @@ router.delete('/:id/commentaires/:commentaireId', async (req, res) => {
   if (rows[0].auteur_id !== moi.id && !moi.est_admin) {
     return res.status(403).json({ erreur: 'Tu ne peux supprimer que tes propres commentaires.' });
   }
-  await db.query('DELETE FROM commentaires WHERE id = $1', [rows[0].id]);
+  await db.transaction(async (client) => {
+    await client.query('DELETE FROM commentaires WHERE id = $1', [rows[0].id]);
+    // Supprimé par un administrateur (et non par son auteur) : la décision s'écrit dans le journal de modération.
+    if (rows[0].auteur_id !== moi.id) await journalModeration(client, moi.id, 'commentaire_supprime', { cibleType: 'commentaire', cibleId: rows[0].id, membreId: rows[0].auteur_id });
+  });
   res.json({ ok: true });
 });
 

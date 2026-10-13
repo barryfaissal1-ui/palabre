@@ -40,7 +40,14 @@ async function purgerCorbeille() {
 async function supprimerDefinitivement(client, membre) {
   // Une demande de message qu'il a envoyée et qui attend encore : elle part avec lui.
   await client.query('DELETE FROM conversations WHERE type = \'privee\' AND statut = \'demande\' AND cree_par = $1', [membre.id]);
-  const { rowCount: aEcrit } = await client.query('SELECT 1 FROM messages WHERE auteur_id = $1 AND systeme = FALSE LIMIT 1', [membre.id]);
+  // « Membre parti » est nécessaire s'il a écrit un message, ou s'il a créé un groupe d'équipe : un chef qui n'a
+  // jamais rien écrit dans son groupe l'emporterait sinon avec lui (conversations.cree_par est en ON DELETE CASCADE),
+  // avec tous les messages de ses coéquipiers.
+  const { rowCount: aEcrit } = await client.query(
+    `SELECT 1 WHERE EXISTS (SELECT 1 FROM messages WHERE auteur_id = $1 AND systeme = FALSE)
+                 OR EXISTS (SELECT 1 FROM conversations WHERE type = 'groupe' AND cree_par = $1)`,
+    [membre.id],
+  );
   if (aEcrit) {
     const hasard = crypto.randomBytes(6).toString('hex');
     const { rows: [parti] } = await client.query(
@@ -66,7 +73,12 @@ async function supprimerDefinitivement(client, membre) {
     await client.query('UPDATE conversation_membres SET membre_id = $2, quitte_le = COALESCE(quitte_le, now()) WHERE membre_id = $1', [membre.id, parti.id]);
   }
   // Les groupes des équipes dont il était le chef sont fermés (l'équipe disparaît avec lui).
-  await client.query('UPDATE conversations SET ferme_le = COALESCE(ferme_le, now()) WHERE type = \'groupe\' AND equipe_id IN (SELECT id FROM equipes WHERE chef_id = $1)', [membre.id]);
+  // Ceux des équipes qui répondaient à SES demandes aussi : la demande part avec le client, l'équipe avec elle.
+  await client.query(
+    `UPDATE conversations SET ferme_le = COALESCE(ferme_le, now())
+      WHERE type = 'groupe' AND equipe_id IN (SELECT e.id FROM equipes e JOIN demandes d ON d.id = e.demande_id WHERE e.chef_id = $1 OR d.client_id = $1)`,
+    [membre.id],
+  );
   // Les avis laissés à des devs restent sur leur profil, sans rien du client (« Ancien client » dans la page).
   await client.query('UPDATE avis SET client_id = NULL, demande_id = NULL WHERE client_id = $1', [membre.id]);
   await client.query('DELETE FROM utilisateurs WHERE id = $1', [membre.id]);
@@ -101,6 +113,8 @@ async function purgerPerimes() {
     'DELETE FROM alertes_connexion WHERE expire_le < now() - interval \'1 day\'',
     'DELETE FROM reinitialisations_mdp WHERE expire_le < now() - interval \'1 day\'',
     'DELETE FROM changements_email WHERE expire_le < now() - interval \'1 day\'',
+    // Les notifications déjà lues depuis longtemps : la cloche n'a pas besoin de remonter à plus de six mois.
+    'DELETE FROM notifications WHERE lue = TRUE AND cree_le < now() - interval \'180 days\'',
   ];
   let nombre = 0;
   for (const requete of requetes) nombre += (await db.query(requete)).rowCount;

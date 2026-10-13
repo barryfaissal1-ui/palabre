@@ -22,11 +22,8 @@
   const calme = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const pause = (ms) => new Promise((suite) => setTimeout(suite, ms));
 
-  // Page où aller ensuite : le paramètre « suite », seulement s'il s'agit d'une adresse interne.
-  function suiteDemandee() {
-    const suite = new URLSearchParams(window.location.search).get('suite');
-    return suite && suite.startsWith('/') && !suite.startsWith('//') && !suite.includes('\\') ? suite : null;
-  }
+  // Page où aller ensuite : le paramètre « suite », seulement s'il s'agit d'une adresse interne (voir app.js).
+  const { suiteDemandee } = window.Palabre;
 
   // Email confirmé : un dev continue vers « Ton profil de dev » (étape 2), les autres entrent sur le site.
   function continuer(profilComplet) {
@@ -55,7 +52,7 @@
       try {
         attente = await api('/auth/deux-etapes');
       } catch {
-        return window.location.replace('/connexion');
+        return window.Palabre.versConnexion('/connexion');
       }
       document.title = t('titre.deux-etapes');
       document.querySelector('[data-titre]').textContent = t('code.deux-etapes.titre');
@@ -65,7 +62,7 @@
       document.querySelector('[data-deconnexion]').textContent = t('code.deux-etapes.annuler');
     } else {
       const moi = await utilisateurConnecte();
-      if (!moi) return window.location.replace('/connexion');
+      if (!moi) return window.Palabre.versConnexion('/connexion');
       if (moi.emailConfirme) return continuer(moi.profilComplet);
       document.querySelector('[data-email]').textContent = moi.email;
     }
