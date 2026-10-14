@@ -1295,6 +1295,119 @@
     return bouton;
   }
 
+  // ---------- La « goutte de couleur » du menu du bas (téléphone seulement) ----------
+  // Chaque onglet a sa teinte (data-teinte, couleurs dans style.css). Au toucher, une goutte de cette couleur jaillit
+  // de l'icône, monte au-dessus de la barre, puis on change de page. Sur la nouvelle page, la goutte redescend sur
+  // l'onglet et la couleur se répand dans la barre, comme de l'encre. Arrivée par un autre chemin (lien, rechargement) :
+  // la barre est déjà teintée, sans mouvement. Seulement transform et opacity ; la teinte de la barre est un grand
+  // rond (calque .nav-encre) que l'on agrandit, jamais un background-color animé.
+  const CLE_GOUTTE = 'palabre-goutte';
+  const SURVOL_GOUTTE = 40; // la goutte monte de 40 px au-dessus de l'icône
+
+  function goutteDuMenu(barre) {
+    if (!barre) return;
+    const telephone = () => window.matchMedia('(max-width: 767px)').matches;
+    const calme = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const actif = barre.querySelector('.onglet-nav[aria-current="page"]');
+    // Le calque d'encre : un cadre aux bords de la barre (overflow hidden), et dedans le rond qui grandit.
+    const rond = el('span', { classe: 'nav-encre-rond' });
+    const encre = el('span', { classe: 'nav-encre', 'aria-hidden': 'true' }, [rond]);
+    barre.prepend(encre);
+    // Le centre d'une icône, mesuré depuis le coin de la barre (la goutte et l'encre partent de là).
+    const centreDe = (onglet) => {
+      const cadre = barre.getBoundingClientRect();
+      const r = onglet.querySelector('.onglet-icone').getBoundingClientRect();
+      return { x: r.left + r.width / 2 - cadre.left, y: r.top + r.height / 2 - cadre.top };
+    };
+    const placerEncre = () => {
+      if (!actif || !telephone()) return;
+      const { x, y } = centreDe(actif);
+      barre.style.setProperty('--encre-x', `${Math.round(x)}px`);
+      barre.style.setProperty('--encre-y', `${Math.round(y)}px`);
+    };
+    // Une goutte de la couleur d'un onglet, avec son icône (ou l'avatar pour « Profil »), sans la pastille.
+    const goutte = (onglet) => {
+      const dedans = [...onglet.querySelector('.onglet-icone').children].filter((n) => !n.classList.contains('compteur')).map((n) => n.cloneNode(true));
+      const { x, y } = centreDe(onglet);
+      const g = el('span', { classe: 'goutte', 'data-teinte': onglet.dataset.teinte, 'aria-hidden': 'true' }, dedans);
+      g.style.left = `${x}px`;
+      g.style.top = `${y}px`;
+      barre.append(g);
+      return { g, x, y };
+    };
+
+    // Arrivée sur une page du menu : la barre prend la teinte de l'onglet actif.
+    if (actif) {
+      barre.dataset.teinte = actif.dataset.teinte;
+      placerEncre();
+      window.addEventListener('resize', placerEncre, { passive: true });
+      let venu = null;
+      try {
+        venu = JSON.parse(sessionStorage.getItem(CLE_GOUTTE) || 'null');
+        sessionStorage.removeItem(CLE_GOUTTE);
+      } catch { /* navigation privée : pas d'animation, la barre est teintée quand même */ }
+      // Seulement si on vient de toucher CET onglet, il y a quelques secondes.
+      const parLeMenu = venu && venu.vers === actif.getAttribute('href') && Date.now() - venu.le < 5000;
+      if (parLeMenu && telephone()) {
+        if (calme()) {
+          rond.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: 'ease-out' });
+        } else {
+          // La goutte redescend et se pose à la place de l'icône (léger rebond) ; quand elle touche, l'encre se répand
+          // depuis l'icône (environ 450 ms en tout).
+          const { g } = goutte(actif);
+          const icone = actif.querySelector('.onglet-icone');
+          icone.style.opacity = '0';
+          const pose = g.animate([
+            { transform: `translate(-50%, calc(-50% - ${SURVOL_GOUTTE}px)) scale(1)` },
+            { transform: 'translate(-50%, calc(-50% + 3px)) scale(1.06, 0.9)', offset: 0.7 },
+            { transform: 'translate(-50%, -50%) scale(1)' },
+          ], { duration: 200, easing: 'cubic-bezier(0.3, 0, 0.6, 1)' });
+          rond.animate([{ transform: 'scale(0)' }, { transform: 'scale(1)' }], { duration: 300, delay: 170, easing: 'cubic-bezier(0.2, 0.6, 0.3, 1)', fill: 'backwards' });
+          pose.finished.catch(() => {}).then(() => {
+            icone.style.opacity = '';
+            g.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, delay: 60 }).finished.catch(() => {}).then(() => g.remove());
+          });
+        }
+      }
+    }
+
+    // Toucher un onglet : la goutte monte (250 ms), puis la nouvelle page s'ouvre (jamais plus de 300 ms d'attente).
+    barre.addEventListener('click', (evenement) => {
+      const onglet = evenement.target.closest('.onglet-nav');
+      if (!onglet || !telephone()) return;
+      // Ctrl, Cmd, Maj : nouvel onglet ou nouvelle fenêtre, le navigateur s'en charge.
+      if (evenement.defaultPrevented || evenement.button !== 0 || evenement.metaKey || evenement.ctrlKey || evenement.shiftKey || evenement.altKey) return;
+      evenement.preventDefault();
+      if (onglet === actif) return; // l'onglet de la page actuelle : rien ne se passe
+      const vers = onglet.getAttribute('href');
+      try { sessionStorage.setItem(CLE_GOUTTE, JSON.stringify({ vers, le: Date.now() })); } catch { /* tant pis : pas d'animation à l'arrivée */ }
+      let parti = false;
+      const partir = () => { if (!parti) { parti = true; window.location.href = vers; } };
+      if (calme()) return partir();
+      setTimeout(partir, 300);
+      const { g } = goutte(onglet);
+      const icone = onglet.querySelector('.onglet-icone');
+      icone.style.opacity = '0';
+      // Le filet : un trait de la même couleur, tiré entre la barre et la goutte, comme du liquide.
+      const { x, y } = centreDe(onglet);
+      const filet = el('span', { classe: 'goutte-filet', 'data-teinte': onglet.dataset.teinte, 'aria-hidden': 'true' });
+      filet.style.left = `${x}px`;
+      filet.style.top = `${y - SURVOL_GOUTTE}px`;
+      filet.style.height = `${SURVOL_GOUTTE}px`;
+      barre.insertBefore(filet, g);
+      filet.animate([
+        { transform: 'translateX(-50%) scale(1, 0)', opacity: 1 },
+        { transform: 'translateX(-50%) scale(1, 1)', opacity: 1, offset: 0.55 },
+        { transform: 'translateX(-50%) scale(0.25, 1)', opacity: 0 },
+      ], { duration: 250, easing: 'ease-out', fill: 'forwards' });
+      g.animate([
+        { transform: 'translate(-50%, -50%) scale(0.5)', opacity: 0.6 },
+        { transform: `translate(-50%, calc(-50% - ${SURVOL_GOUTTE + 4}px)) scale(1.04, 0.96)`, opacity: 1, offset: 0.75 },
+        { transform: `translate(-50%, calc(-50% - ${SURVOL_GOUTTE}px)) scale(1)`, opacity: 1 },
+      ], { duration: 250, easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)', fill: 'forwards' }).finished.then(partir, partir);
+    });
+  }
+
   // Couper les notifications push sur CET appareil : le serveur oublie l'abonnement, puis le navigateur aussi.
   // Ici (et non dans push.js, chargé par deux pages seulement) pour que la déconnexion le fasse depuis toutes les pages.
   async function couperPush() {
@@ -1617,7 +1730,8 @@
       const nonLues = moi.notifications || 0;
       const ici = (href) => (window.location.pathname === href ? 'page' : null);
       // Un onglet du menu : une icône, un texte, et aria-current sur la page où l'on se trouve.
-      const lien = (href, nomIcone, texte, pastille = null) => el('a', { classe: 'onglet-nav', href, 'aria-current': ici(href) }, [
+      // data-teinte : la couleur de l'onglet dans le menu du bas sur téléphone (goutteDuMenu()).
+      const lien = (href, nomIcone, texte, pastille = null, teinte = nomIcone) => el('a', { classe: 'onglet-nav', href, 'aria-current': ici(href), 'data-teinte': teinte }, [
         el('span', { classe: 'onglet-icone' }, [icone(nomIcone), pastille]), el('span', { classe: 'onglet-texte', texte }),
       ]);
       const monProfil = `/${moi.identifiant}`;
@@ -1633,7 +1747,7 @@
           lien('/amis', 'amis', t('nav.amis'),
             demandes ? el('span', { classe: 'compteur compteur-amis', texte: String(demandes), 'aria-label': t('nav.demandes-en-attente', { n: demandes }) }) : null),
           // Cinquième onglet, visible seulement sur téléphone : mon avatar, vers mon profil.
-          el('a', { classe: 'onglet-nav onglet-moi', href: monProfil, 'aria-current': ici(monProfil) }, [
+          el('a', { classe: 'onglet-nav onglet-moi', href: monProfil, 'aria-current': ici(monProfil), 'data-teinte': 'profil' }, [
             el('span', { classe: 'onglet-icone' }, [avatar(moi, 'nav')]), el('span', { classe: 'onglet-texte', texte: t('nav.profil') }),
           ]),
         ]),
@@ -1650,6 +1764,7 @@
         ]),
         menuAvatar(moi),
       ].filter(Boolean));
+      goutteDuMenu(nav.querySelector('.nav-liens'));
       poserColonnes(moi);
       // Un seul bandeau à la fois : la suspension passe avant le profil à terminer.
       if (moi.suspenduJusquA) poserBandeauSuspension(moi);

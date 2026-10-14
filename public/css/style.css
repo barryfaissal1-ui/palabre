@@ -542,6 +542,92 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--er
   /* Le bouton du Griot reste au-dessus du menu du bas : il ne le cache jamais. */
   body.avec-barre .bouton-griot { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
 }
+/* La « goutte de couleur » du menu du bas (public/js/app.js, goutteDuMenu()). Une teinte par onglet, tirée du logo
+   et des teintes d'avatar : le fond de la barre, puis l'icône et le texte de l'onglet actif. Contraste vérifié
+   (4,5:1 au moins) : ne pas changer ces valeurs. Sur ordinateur, rien de tout cela ne s'affiche. */
+:where(:root) { /* poids nul : le bloc du mode sombre, juste après, l'emporte */
+  --teinte-fil-fond: #DCEFE1;       --teinte-fil-encre: #136832;       /* vert feuille */
+  --teinte-demandes-fond: #F8E1D6;  --teinte-demandes-encre: #A9482A;  /* terre cuite */
+  --teinte-devs-fond: #F5E7CB;      --teinte-devs-encre: #8A560C;      /* ocre */
+  --teinte-amis-fond: #D6EAF1;      --teinte-amis-encre: #1B5F79;      /* bleu canard */
+  --teinte-profil-fond: #EEDCE6;    --teinte-profil-encre: #7E4468;    /* prune */
+}
+:where([data-theme="sombre"]) {
+  --teinte-fil-fond: #1C3624;       --teinte-fil-encre: #5FD088;
+  --teinte-demandes-fond: #3B2218;  --teinte-demandes-encre: #EE9472;
+  --teinte-devs-fond: #382A10;      --teinte-devs-encre: #E5AE58;
+  --teinte-amis-fond: #112E38;      --teinte-amis-encre: #6CC0DE;
+  --teinte-profil-fond: #33202B;    --teinte-profil-encre: #D59ABD;
+}
+/* data-teinte (onglet, barre, goutte) → les deux couleurs de cet onglet */
+[data-teinte="fil"] { --teinte-fond: var(--teinte-fil-fond); --teinte-encre: var(--teinte-fil-encre); }
+[data-teinte="demandes"] { --teinte-fond: var(--teinte-demandes-fond); --teinte-encre: var(--teinte-demandes-encre); }
+[data-teinte="devs"] { --teinte-fond: var(--teinte-devs-fond); --teinte-encre: var(--teinte-devs-encre); }
+[data-teinte="amis"] { --teinte-fond: var(--teinte-amis-fond); --teinte-encre: var(--teinte-amis-encre); }
+[data-teinte="profil"] { --teinte-fond: var(--teinte-profil-fond); --teinte-encre: var(--teinte-profil-encre); }
+.nav-encre, .goutte, .goutte-filet { display: none; }
+
+@media (max-width: 767px) {
+  /* Le calque d'encre : collé aux bords de la barre, il coupe ce qui dépasse. La barre, elle, laisse dépasser la
+     goutte (sinon elle ne pourrait pas monter au-dessus). */
+  .nav-encre {
+    display: block;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  /* Un rond assez grand pour couvrir toute la barre depuis n'importe quel onglet (rayon de 800 px), centré sur
+     l'icône de l'onglet actif ; invisible tant que la page n'est pas un onglet du menu. */
+  .nav-encre-rond {
+    position: absolute;
+    left: calc(var(--encre-x, 50%) - 800px);
+    top: calc(var(--encre-y, 50%) - 800px);
+    width: 1600px;
+    height: 1600px;
+    border-radius: 50%;
+    background: var(--teinte-fond, var(--surface));
+    opacity: 0;
+  }
+  .nav-liens[data-teinte] .nav-encre-rond { opacity: 1; }
+  /* Les onglets passent devant l'encre (ordre du document), les pastilles devant tout, goutte comprise. */
+  .nav-liens .onglet-nav { position: relative; }
+  .nav-liens .onglet-icone .compteur { z-index: 3; }
+  .nav-liens[data-teinte] .onglet-nav[aria-current="page"] { color: var(--teinte-encre); }
+  .nav-liens[data-teinte] .onglet-moi[aria-current="page"] .avatar-cadre { box-shadow: 0 0 0 2px var(--teinte-fond), 0 0 0 4px var(--teinte-encre); }
+
+  /* La goutte : un rond de la couleur de fond de l'onglet, son icône dedans. Placée par le script au centre de
+     l'icône ; seuls transform et opacity bougent. */
+  .goutte {
+    position: absolute;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: var(--teinte-fond);
+    color: var(--teinte-encre);
+    box-shadow: var(--ombre-2);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    will-change: transform, opacity;
+  }
+  .goutte .icone { width: 24px; height: 24px; fill: currentColor; }
+  .goutte .avatar-cadre { box-shadow: 0 0 0 2px var(--teinte-fond), 0 0 0 4px var(--teinte-encre); }
+  /* Le filet de liquide, entre la barre et la goutte ; il s'étire depuis le bas. */
+  .goutte-filet {
+    position: absolute;
+    z-index: 1;
+    display: block;
+    width: 14px;
+    border-radius: 7px;
+    background: var(--teinte-fond);
+    transform-origin: 50% 100%;
+    pointer-events: none;
+  }
+}
+
 /* Le Griot de Palabre : le bouton rond « Besoin d'aide ? », en bas à droite. La fenêtre est dans css/assistant.css,
    chargée au premier toucher. Caché pendant un appel et dans une conversation ouverte. */
 .bouton-griot {

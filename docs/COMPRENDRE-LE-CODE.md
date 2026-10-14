@@ -1308,6 +1308,15 @@ Le haut de l'accueil et le panneau vert de la connexion affichent des photos (`p
 - Tous les comptes ont un email en `@demo.palabre.dev` : `npm run demo -- retirer` les enlève d'un coup, avec tout leur contenu.
 - Les images sont **dessinées par le script** : il remplit un tableau de pixels (de fausses captures d'écran) et l'enregistre au format PNG. Aucune photo de personne.
 
+### La goutte de couleur du menu du bas (téléphone)
+
+Chaque onglet du menu du bas a sa teinte, tirée du logo et des teintes d'avatar : Fil en vert feuille, Demandes en terre cuite, Devs en ocre, Amis en bleu canard, Profil en prune (variables `--teinte-…` de `style.css`, en clair et en sombre, contraste vérifié). C'est `goutteDuMenu()` de `public/js/app.js`.
+
+- **Au toucher** : une goutte de la couleur de l'onglet jaillit de l'icône (avec un petit filet, comme du liquide) et monte de 40 px. 250 ms plus tard, la nouvelle page s'ouvre ; la navigation n'attend jamais plus de 300 ms.
+- **Sur la nouvelle page** : la goutte redescend et se pose (léger rebond), puis la couleur se répand dans la barre, comme de l'encre. Ce n'est pas la couleur de fond de la barre qui change : c'est un grand rond (`.nav-encre-rond`) qu'on agrandit depuis l'icône, dans un cadre qui coupe ce qui dépasse. On n'anime ainsi que `transform` et `opacity`, que le téléphone calcule sans effort.
+- **Seulement si on arrive par le menu** : le toucher laisse un petit drapeau dans `sessionStorage` (la page visée et l'heure). Arrivé par un lien ou par un rechargement, on trouve la barre déjà teintée, sans mouvement.
+- **Mouvement réduit** (`prefers-reduced-motion`) : pas de goutte, la page s'ouvre tout de suite et la teinte arrive en fondu. Sur ordinateur, rien ne change.
+
 ## 13. L'application installable (PWA)
 
 - `public/manifest.json` : nom, couleurs et icônes de l'appli quand on l'ajoute à l'écran d'accueil.
