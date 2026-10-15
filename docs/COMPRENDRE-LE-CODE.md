@@ -1316,6 +1316,7 @@ Chaque onglet du menu du bas a sa teinte, tirée du logo et des teintes d'avatar
 - **Sur la nouvelle page** : la goutte redescend et se pose (léger rebond), puis la couleur se répand dans la barre, comme de l'encre. Ce n'est pas la couleur de fond de la barre qui change : c'est un grand rond (`.nav-encre-rond`) qu'on agrandit depuis l'icône, dans un cadre qui coupe ce qui dépasse. On n'anime ainsi que `transform` et `opacity`, que le téléphone calcule sans effort.
 - **Seulement si on arrive par le menu** : le toucher laisse un petit drapeau dans `sessionStorage` (la page visée et l'heure). Arrivé par un lien ou par un rechargement, on trouve la barre déjà teintée, sans mouvement.
 - **Mouvement réduit** (`prefers-reduced-motion`) : pas de goutte, la page s'ouvre tout de suite et la teinte arrive en fondu. Sur ordinateur, rien ne change.
+- **Pas de rectangle bleu** : Chrome sur Android colore par défaut tout lien qu'on touche. `-webkit-tap-highlight-color: transparent` le retire sur les onglets (la goutte suffit à montrer le toucher). Le contour du focus clavier (`:focus-visible`) reste, dessiné à l'intérieur de l'onglet pour ne pas être coupé par le bas de l'écran.
 
 ## 13. L'application installable (PWA)
 

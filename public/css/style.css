@@ -592,6 +592,10 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--er
   .nav-liens[data-teinte] .nav-encre-rond { opacity: 1; }
   /* Les onglets passent devant l'encre (ordre du document), les pastilles devant tout, goutte comprise. */
   .nav-liens .onglet-nav { position: relative; }
+  /* Pas de rectangle bleu d'Android au toucher (la goutte suffit) ; le focus clavier reste visible, à l'intérieur
+     de l'onglet pour ne pas être coupé par le bas de l'écran. */
+  .nav-liens a, .goutte, .goutte-filet { -webkit-tap-highlight-color: transparent; }
+  .nav-liens .onglet-nav:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; border-radius: var(--rayon-petit); }
   .nav-liens .onglet-icone .compteur { z-index: 3; }
   .nav-liens[data-teinte] .onglet-nav[aria-current="page"] { color: var(--teinte-encre); }
   .nav-liens[data-teinte] .onglet-moi[aria-current="page"] .avatar-cadre { box-shadow: 0 0 0 2px var(--teinte-fond), 0 0 0 4px var(--teinte-encre); }
