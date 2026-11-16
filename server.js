@@ -21,8 +21,34 @@ const { creerApp } = require('./src/app');
 const { migrer } = require('./src/db/migrate');
 const { lancerMenage } = require('./src/utils/purge');
 
+// Hôte et port de la base, pour le journal (jamais l'utilisateur ni le mot de passe).
+function hoteDeLaBase() {
+  try {
+    const url = new URL(config.databaseUrl);
+    return `${url.hostname}:${url.port || 5432}`;
+  } catch {
+    return 'adresse illisible';
+  }
+}
+
+// Chez l'hébergeur, la base peut mettre un moment à accepter les connexions juste après un déploiement :
+// on réessaie plusieurs fois avant d'abandonner, au lieu de s'arrêter au premier délai dépassé.
+async function migrerAvecEssais(essais = 6, pauseMs = 10000) {
+  for (let n = 1; ; n += 1) {
+    try {
+      await migrer();
+      return;
+    } catch (err) {
+      // Seul un délai dépassé vaut un nouvel essai : un refus net (mauvais port, mot de passe faux) est définitif.
+      if (n >= essais || !/timeout|ETIMEDOUT|EAI_AGAIN/i.test(`${err.message} ${err.code || ''}`)) throw err;
+      console.warn(`Base de données injoignable (${hoteDeLaBase()}), essai ${n}/${essais} : ${err.message}. Nouvel essai dans ${pauseMs / 1000} s.`);
+      await new Promise((r) => setTimeout(r, pauseMs));
+    }
+  }
+}
+
 async function demarrer() {
-  await migrer();
+  await migrerAvecEssais();
   const app = creerApp();
   app.listen(config.port, () => {
     console.log(`Palabre démarré sur le port ${config.port} (${config.production ? `production, ${config.urlPublique}` : 'développement'})`);
@@ -36,6 +62,6 @@ async function demarrer() {
 }
 
 demarrer().catch((err) => {
-  console.error('Impossible de démarrer :', err.message);
+  console.error(`Impossible de démarrer : ${err.message} (base ${hoteDeLaBase()})`);
   process.exit(1);
 });
