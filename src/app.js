@@ -14,9 +14,21 @@ const { codeDe, traduireReponse } = require('./utils/textes');
 
 const { DOSSIER_PUBLIC, pagesHtml, entetesDeCache, pageErreur } = require('./utils/statique');
 
+const HOTE_SYSTALINK = /^[a-z0-9-]+\.platform-systalink\.com$/;
+
 function creerApp() {
   const app = express();
   app.set('trust proxy', 1); // derrière le proxy de l'hébergeur
+  // Production sans URL_PUBLIQUE : l'adresse du site est celle du sous-domaine Systalink qui reçoit la requête.
+  // Seul un nom en « .platform-systalink.com » est accepté, pour qu'un faux en-tête Host ne puisse pas glisser
+  // un autre site dans les liens des emails (mot de passe oublié…).
+  app.use((req, res, next) => {
+    if (!config.urlPublique) {
+      const hote = String(req.get('x-forwarded-host') || req.get('host') || '').split(',')[0].trim().toLowerCase();
+      if (HOTE_SYSTALINK.test(hote)) config.urlPublique = `https://${hote}`;
+    }
+    next();
+  });
 
   app.use(helmet({
     contentSecurityPolicy: {

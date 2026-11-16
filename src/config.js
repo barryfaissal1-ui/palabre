@@ -29,6 +29,9 @@ function cleSecrete() {
 function adressePublique() {
   const adresse = (process.env.URL_PUBLIQUE || '').trim().replace(/\/+$/, ''); // sans « / » à la fin
   if (!production) return adresse || 'http://localhost:3000';
+  // Sans URL_PUBLIQUE, l'adresse est apprise à la première requête, mais seulement si c'est un sous-domaine
+  // de Systalink (voir src/app.js) : jamais un en-tête Host inventé par un visiteur.
+  if (!adresse) return '';
   if (!/^https:\/\/[^/\s]+$/.test(adresse)) {
     throw new Error('URL_PUBLIQUE doit être l\'adresse du site en https, sans chemin. Exemple : URL_PUBLIQUE=https://palabre.dev');
   }

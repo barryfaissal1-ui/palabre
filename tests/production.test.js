@@ -44,13 +44,17 @@ test('production : le serveur refuse de démarrer sans clé secrète solide', ()
 });
 
 test('production : adresse publique en https et base de données obligatoires', () => {
-  for (const adresse of [undefined, 'http://palabre.dev', 'palabre.dev', 'https://palabre.dev/fil']) {
+  for (const adresse of ['http://palabre.dev', 'palabre.dev', 'https://palabre.dev/fil']) {
     const variables = { ...BONS };
     if (adresse === undefined) delete variables.URL_PUBLIQUE; else variables.URL_PUBLIQUE = adresse;
     const r = demarrer(variables);
     assert.equal(r.code, 1, String(adresse));
     assert.match(r.sortie, /Configuration invalide : URL_PUBLIQUE/, String(adresse));
   }
+  // Sans URL_PUBLIQUE, la configuration passe (adresse apprise du sous-domaine Systalink, voir le test suivant).
+  const sansAdresse = { ...BONS };
+  delete sansAdresse.URL_PUBLIQUE;
+  assert.doesNotMatch(demarrer(sansAdresse).sortie, /Configuration invalide/);
   const sansBase = demarrer({ ...BONS, DATABASE_URL: '' });
   assert.equal(sansBase.code, 1);
   assert.match(sansBase.sortie, /DATABASE_URL/);
@@ -157,4 +161,20 @@ test('réglages de production : cookie de session sécurisé, proxy de l\'héber
   const { proxy, cookie } = JSON.parse(r.stdout.trim().split('\n').pop());
   assert.equal(proxy, 1);
   assert.deepEqual({ httpOnly: cookie.httpOnly, secure: cookie.secure, sameSite: cookie.sameSite }, { httpOnly: true, secure: true, sameSite: 'lax' });
+});
+
+test('production sans URL_PUBLIQUE : seule une adresse en .platform-systalink.com est apprise', async () => {
+  const config = require('../src/config');
+  const avant = config.urlPublique;
+  config.urlPublique = '';
+  try {
+    await fetch(`${base}/api/sante`, { headers: { 'X-Forwarded-Host': 'pirate.example.com' } });
+    assert.equal(config.urlPublique, '', 'un hôte inventé est ignoré');
+    await fetch(`${base}/api/sante`, { headers: { 'X-Forwarded-Host': 'faux.platform-systalink.com.pirate.net' } });
+    assert.equal(config.urlPublique, '');
+    await fetch(`${base}/api/sante`, { headers: { 'X-Forwarded-Host': 'palabre-0426cdaa.platform-systalink.com' } });
+    assert.equal(config.urlPublique, 'https://palabre-0426cdaa.platform-systalink.com');
+  } finally {
+    config.urlPublique = avant;
+  }
 });
