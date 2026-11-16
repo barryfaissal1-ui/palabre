@@ -5,15 +5,16 @@ let config;
 try {
   config = require('./src/config');
 } catch (err) {
-  console.error(`Configuration invalide : ${err.message}`);
-  // Aide au diagnostic chez l'hébergeur : quelles variables sont bien arrivées (longueur seulement, jamais la
-  // valeur d'un secret). URL_PUBLIQUE n'est pas secrète : on l'affiche entre guillemets pour voir un espace en trop.
+  // Aide au diagnostic chez l'hébergeur, sur la même ligne (certains journaux n'en montrent qu'une) : quelles
+  // variables sont bien arrivées (longueur seulement, jamais la valeur d'un secret). URL_PUBLIQUE n'est pas secrète :
+  // on l'affiche entre guillemets pour voir un espace en trop.
   const attendues = ['NODE_ENV', 'URL_PUBLIQUE', 'DATABASE_URL', 'DATABASE_SSL', 'JWT_SECRET', 'PORT'];
-  console.error('Variables reçues : ' + attendues.map((nom) => {
+  const recues = attendues.map((nom) => {
     const valeur = process.env[nom];
     if (valeur === undefined) return `${nom} absente`;
     return nom === 'URL_PUBLIQUE' ? `${nom}=${JSON.stringify(valeur)}` : `${nom} (${valeur.length} caractères)`;
-  }).join(', '));
+  }).join(', ');
+  console.error(`Configuration invalide : ${err.message} [Variables reçues : ${recues}]`);
   process.exit(1);
 }
 const { creerApp } = require('./src/app');
