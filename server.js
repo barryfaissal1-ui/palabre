@@ -32,33 +32,36 @@ function hoteDeLaBase() {
 }
 
 // Chez l'hébergeur, la base peut mettre un moment à accepter les connexions juste après un déploiement :
-// on réessaie plusieurs fois avant d'abandonner, au lieu de s'arrêter au premier délai dépassé.
-async function migrerAvecEssais(essais = 6, pauseMs = 10000) {
+// on réessaie au lieu de s'arrêter au premier délai dépassé. Seul un délai dépassé vaut un nouvel essai :
+// un refus net (mauvais port, mot de passe faux) est définitif.
+async function migrerAvecEssais(pauseMs = 15000) {
   for (let n = 1; ; n += 1) {
     try {
       await migrer();
       return;
     } catch (err) {
-      // Seul un délai dépassé vaut un nouvel essai : un refus net (mauvais port, mot de passe faux) est définitif.
-      if (n >= essais || !/timeout|ETIMEDOUT|EAI_AGAIN/i.test(`${err.message} ${err.code || ''}`)) throw err;
-      console.warn(`Base de données injoignable (${hoteDeLaBase()}), essai ${n}/${essais} : ${err.message}. Nouvel essai dans ${pauseMs / 1000} s.`);
+      if (!/timeout|ETIMEDOUT|EAI_AGAIN/i.test(`${err.message} ${err.code || ''}`)) throw err;
+      console.warn(`Base de données injoignable (${hoteDeLaBase()}), essai ${n} : ${err.message}. Nouvel essai dans ${pauseMs / 1000} s.`);
       await new Promise((r) => setTimeout(r, pauseMs));
     }
   }
 }
 
+// Le serveur écoute tout de suite : l'hébergeur arrête une application qui ne répond pas sur son port
+// dans le temps imparti. La base est mise à jour ensuite ; tant qu'elle ne répond pas, les pages qui en
+// ont besoin renvoient une erreur, mais le service reste debout (et sa console reste utilisable).
 async function demarrer() {
-  await migrerAvecEssais();
   const app = creerApp();
-  app.listen(config.port, () => {
-    console.log(`Palabre démarré sur le port ${config.port} (${config.production ? `production, ${config.urlPublique}` : 'développement'})`);
-    if (config.production && !config.smtp.host) {
-      console.warn('ATTENTION : SMTP_HOST est vide. Les codes de confirmation et les liens de mot de passe ne partiront pas par email : ils ne seront écrits que dans ce journal.');
-    }
-    // Le ménage (comptes à supprimer après 30 jours, corbeille, journal de sécurité, sessions périmées) :
-    // une fois maintenant, puis toutes les heures.
-    lancerMenage();
-  });
+  await new Promise((pret) => app.listen(config.port, pret));
+  console.log(`Palabre démarré sur le port ${config.port} (${config.production ? `production, ${config.urlPublique || 'adresse apprise à la première visite'}` : 'développement'})`);
+  if (config.production && !config.smtp.host) {
+    console.warn('ATTENTION : SMTP_HOST est vide. Les codes de confirmation et les liens de mot de passe ne partiront pas par email : ils ne seront écrits que dans ce journal.');
+  }
+  await migrerAvecEssais();
+  console.log(`Base de données prête (${hoteDeLaBase()}).`);
+  // Le ménage (comptes à supprimer après 30 jours, corbeille, journal de sécurité, sessions périmées) :
+  // une fois maintenant, puis toutes les heures.
+  lancerMenage();
 }
 
 demarrer().catch((err) => {
