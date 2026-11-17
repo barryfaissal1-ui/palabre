@@ -38,11 +38,25 @@ function adressePublique() {
   return adresse;
 }
 
+// Adresse de la base. DATABASE_HOTE et DATABASE_PORT (facultatifs) remplacent l'hôte et le port de DATABASE_URL :
+// chez Systalink, l'adresse publique de la base n'est pas joignable depuis le service web, seule l'adresse
+// privée l'est. On peut ainsi la régler sans retaper l'adresse complète, qui contient le mot de passe.
+function adresseBase() {
+  const adresse = obligatoire('DATABASE_URL', 'postgres://palabre:palabre@localhost:5432/palabre');
+  const hote = (process.env.DATABASE_HOTE || '').trim();
+  const port = (process.env.DATABASE_PORT || '').trim();
+  if (!hote && !port) return adresse;
+  const url = new URL(adresse);
+  if (hote) url.hostname = hote;
+  if (port) url.port = port;
+  return url.toString();
+}
+
 module.exports = {
   production,
   port: Number(process.env.PORT) || 3000,
   urlPublique: adressePublique(),
-  databaseUrl: obligatoire('DATABASE_URL', 'postgres://palabre:palabre@localhost:5432/palabre'),
+  databaseUrl: adresseBase(),
   databaseSsl: process.env.DATABASE_SSL === 'true',
   jwtSecret: cleSecrete(),
   // Adresse où écrire à l'équipe pour un signalement grave : affichée sur /regles et /conditions.
