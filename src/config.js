@@ -55,7 +55,8 @@ module.exports = {
     host: process.env.SMTP_HOST || '',
     port: Number(process.env.SMTP_PORT) || 587,
     user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASS || '',
+    // Les mots de passe d'application Google s'affichent en 4 groupes de 4 lettres : les espaces collés avec eux sont retirés.
+    pass: (process.env.SMTP_PASS || '').replace(/\s+/g, ''),
     expediteur: process.env.SMTP_FROM || 'Palabre <no-reply@palabre.dev>',
   },
   // Appels audio et vidéo. STUN : serveurs publics par défaut. TURN (facultatif) : notre relais, pour les réseaux
