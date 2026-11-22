@@ -129,7 +129,18 @@ function creerApp() {
   app.use('/api/admin', require('./routes/admin'));
   app.use('/api', require('./routes/references'));
 
-  app.get('/api/sante', (req, res) => res.json({ ok: true }));
+  // État du site. Avec ?base=1, essaie aussi la base de données et donne le code de l'erreur (jamais l'adresse ni
+  // les identifiants) : chez l'hébergeur, le journal n'est pas toujours lisible.
+  const demarreLe = new Date().toISOString();
+  app.get('/api/sante', async (req, res) => {
+    if (req.query.base !== '1') return res.json({ ok: true });
+    try {
+      await require('./db/pool').pool.query('SELECT 1');
+      res.json({ ok: true, base: 'ok', demarreLe });
+    } catch (err) {
+      res.status(503).json({ ok: false, base: err.code || err.message.slice(0, 60).replace(/\d+\.\d+\.\d+\.\d+/g, 'x'), demarreLe });
+    }
+  });
   app.use('/api', (req, res) => res.status(404).json({ erreur: 'Route introuvable.' }));
 
   app.use('/fichiers', require('./routes/fichiers'));
