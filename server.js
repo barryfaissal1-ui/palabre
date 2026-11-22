@@ -32,15 +32,15 @@ function hoteDeLaBase() {
 }
 
 // Chez l'hébergeur, la base peut mettre un moment à accepter les connexions juste après un déploiement :
-// on réessaie au lieu de s'arrêter. Un délai dépassé ou un hôte injoignable vaut un nouvel essai (le site reste debout) :
-// un refus net (mauvais port, mot de passe faux) est définitif.
+// on réessaie au lieu de s'arrêter. Tout problème de connexion (délai dépassé, hôte injoignable, base qui redémarre ou
+// refuse pour l'instant) vaut un nouvel essai : le site reste debout. Un mot de passe faux ou une erreur SQL est définitif.
 async function migrerAvecEssais(pauseMs = 15000) {
   for (let n = 1; ; n += 1) {
     try {
       await migrer();
       return;
     } catch (err) {
-      if (!/timeout|ETIMEDOUT|EAI_AGAIN|EHOSTUNREACH|ENETUNREACH/i.test(`${err.message} ${err.code || ''}`)) throw err;
+      if (!/timeout|terminated|ETIMEDOUT|EAI_AGAIN|EHOSTUNREACH|ENETUNREACH|ECONNREFUSED|ECONNRESET|ENOTFOUND|^57P0|^08/i.test(`${err.code || ''} ${err.message}`)) throw err;
       console.warn(`Base de données injoignable (${hoteDeLaBase()}), essai ${n} : ${err.message}. Nouvel essai dans ${pauseMs / 1000} s.`);
       await new Promise((r) => setTimeout(r, pauseMs));
     }
