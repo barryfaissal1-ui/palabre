@@ -58,10 +58,11 @@ test('production : adresse publique en https et base de données obligatoires', 
   const sansBase = demarrer({ ...BONS, DATABASE_URL: '' });
   assert.equal(sansBase.code, 1);
   assert.match(sansBase.sortie, /DATABASE_URL/);
-  // Avec de bons réglages, la configuration passe : le serveur ne s'arrête plus que parce que cette fausse base ne répond pas.
+  // Avec de bons réglages, la configuration passe : le serveur démarre et attend la base (fausse ici) en réessayant,
+  // au lieu de s'arrêter (une base qui refuse pour l'instant les connexions est un cas normal chez l'hébergeur).
   const bons = demarrer({ ...BONS, URL_PUBLIQUE: 'https://palabre.dev/' }); // le « / » final est toléré
-  assert.equal(bons.code, 1);
-  assert.match(bons.sortie, /Impossible de démarrer/);
+  assert.match(bons.sortie, /Palabre démarré/);
+  assert.match(bons.sortie, /Base de données injoignable/);
   assert.doesNotMatch(bons.sortie, /Configuration invalide/);
 });
 
