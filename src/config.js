@@ -27,7 +27,8 @@ function cleSecrete() {
 // Adresse publique du site (liens des emails, cartes de partage Facebook / WhatsApp, texte des publications).
 // En production elle est obligatoire et en https : sinon les emails contiendraient des liens vers « localhost ».
 function adressePublique() {
-  const adresse = (process.env.URL_PUBLIQUE || '').trim().replace(/\/+$/, ''); // sans « / » à la fin
+  // Chez Render, l'adresse du site est fournie par l'hébergeur lui-même (RENDER_EXTERNAL_URL).
+  const adresse = (process.env.URL_PUBLIQUE || process.env.RENDER_EXTERNAL_URL || '').trim().replace(/\/+$/, ''); // sans « / » à la fin
   if (!production) return adresse || 'http://localhost:3000';
   // Sans URL_PUBLIQUE, l'adresse est apprise à la première requête, mais seulement si c'est un sous-domaine
   // de Systalink (voir src/app.js) : jamais un en-tête Host inventé par un visiteur.
