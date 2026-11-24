@@ -16,8 +16,8 @@ services:
     region: frankfurt
     branch: main
     buildCommand: npm ci --omit=dev
-    # Le contenu de démonstration (comptes du jury) est créé au démarrage s'il n'existe pas encore ; il ne fait rien sinon.
-    startCommand: npm run demo; npm start
+    # Le contenu de démonstration (comptes du jury, --forcer car on est en production) est créé au démarrage s'il n'existe pas encore ; il ne fait rien sinon.
+    startCommand: npm run demo -- --forcer; npm start
     healthCheckPath: /api/sante
     envVars:
       - key: NODE_ENV
